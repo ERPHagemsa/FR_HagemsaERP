@@ -1,0 +1,25 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "radix-vega",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/app/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "tabler",
+  "rtl": false,
+  "aliases": {
+    "components": "@/compartido/componentes",
+    "utils": "@/compartido/utilidades",
+    "ui": "@/compartido/componentes/ui",
+    "lib": "@/compartido",
+    "hooks": "@/compartido/ganchos"
+  },
+  "menuColor": "default",
+  "menuAccent": "subtle",
+  "registries": {}
+}
