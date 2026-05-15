@@ -141,9 +141,14 @@ export function SolicitudesCombustibleVista() {
                 lo generado por la API.
               </p>
             </div>
-            <Button type="button" variant="outline" onClick={() => void cargarDatos()}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={cargando}
+              onClick={() => void cargarDatos()}
+            >
               <IconRefresh data-icon="inline-start" />
-              Actualizar
+              {cargando ? "Actualizando..." : "Actualizar"}
             </Button>
           </div>
         </div>

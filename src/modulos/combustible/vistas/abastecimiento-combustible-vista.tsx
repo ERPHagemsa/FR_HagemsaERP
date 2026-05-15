@@ -141,9 +141,14 @@ export function AbastecimientoCombustibleVista() {
                 Registra tickets de abastecimiento sobre solicitudes existentes.
               </p>
             </div>
-            <Button type="button" variant="outline" onClick={() => void cargarDatos()}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={cargando}
+              onClick={() => void cargarDatos()}
+            >
               <IconRefresh data-icon="inline-start" />
-              Actualizar
+              {cargando ? "Actualizando..." : "Actualizar"}
             </Button>
           </div>
         </div>
