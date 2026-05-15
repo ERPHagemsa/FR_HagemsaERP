@@ -7,7 +7,9 @@ import type {
   SolicitudResponse,
 } from "../tipos/combustible";
 
-const API_BASE_URL = "http://localhost:4001/api";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_COMBUSTIBLE_API_URL ?? "http://localhost:4001/api";
+const REQUEST_TIMEOUT_MS = 6000;
 
 type ApiErrorPayload = {
   message?: string | string[];
@@ -29,13 +31,35 @@ async function requestJson<T>(
   endpoint: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...init?.headers,
+      },
+    });
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new CombustibleApiError(
+        408,
+        "La API de combustible no respondio a tiempo."
+      );
+    }
+
+    throw new CombustibleApiError(
+      0,
+      "No se pudo conectar con la API de combustible."
+    );
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let payload: ApiErrorPayload | null = null;
