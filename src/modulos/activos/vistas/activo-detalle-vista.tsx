@@ -17,7 +17,11 @@ import {
 } from "@/compartido/componentes/ui/tabs";
 import { ActivoAccionesCicloVida } from "../componentes/activo-acciones-ciclo-vida";
 import { AvisoResultado } from "../componentes/aviso-resultado";
-import { obtenerActivoPorCodigo } from "../servicios/activos-api";
+import { ImagenesActivo } from "../componentes/imagenes-activo";
+import {
+  obtenerActivoPorCodigo,
+  obtenerImagenesPorCodigo,
+} from "../servicios/activos-api";
 
 type Props = {
   codigo: string;
@@ -25,7 +29,10 @@ type Props = {
 };
 
 export async function ActivoDetalleVista({ codigo, accion }: Props) {
-  const activo = await obtenerActivoPorCodigo(codigo);
+  const [activo, imagenes] = await Promise.all([
+    obtenerActivoPorCodigo(codigo),
+    obtenerImagenesPorCodigo(codigo),
+  ]);
   const vehiculo = activo.vehiculo;
 
   return (
@@ -154,6 +161,8 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
 
           <ActivoAccionesCicloVida activo={activo} />
         </div>
+
+        <ImagenesActivo codigo={activo.codigo} imagenes={imagenes} />
       </div>
     </main>
   );

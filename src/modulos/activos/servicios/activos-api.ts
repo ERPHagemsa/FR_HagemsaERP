@@ -1,8 +1,10 @@
 import type {
   Activo,
   ActualizarActivoPayload,
+  CrearImagenActivoPayload,
   CrearActivoPayload,
   EstadoActivo,
+  ImagenActivo,
 } from "../tipos/activo.tipos";
 
 const API_URL = process.env.NEXT_PUBLIC_ACTIVOS_API_URL ?? "http://localhost:3000";
@@ -115,4 +117,35 @@ export async function siniestrarActivo(
   }
 
   return (await response.json()) as Activo;
+}
+
+export async function obtenerImagenesPorCodigo(codigo: string) {
+  const response = await fetch(`${API_URL}/activos/codigo/${codigo}/imagenes`, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("No se pudo obtener las imagenes del activo");
+  }
+
+  return (await response.json()) as ImagenActivo[];
+}
+
+export async function crearImagenPorCodigo(
+  codigo: string,
+  payload: CrearImagenActivoPayload
+) {
+  const response = await fetch(`${API_URL}/activos/codigo/${codigo}/imagenes`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseError(response, "No se pudo registrar la imagen"));
+  }
+
+  return (await response.json()) as ImagenActivo;
 }

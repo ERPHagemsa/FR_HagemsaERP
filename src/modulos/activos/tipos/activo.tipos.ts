@@ -83,3 +83,29 @@ export type CrearActivoPayload = {
 };
 
 export type ActualizarActivoPayload = Omit<CrearActivoPayload, "codigo">;
+
+export type TipoImagenActivo =
+  | "FRONTAL"
+  | "LATERAL"
+  | "POSTERIOR"
+  | "INTERIOR"
+  | "DOCUMENTO"
+  | "OTRO";
+
+export type ImagenActivo = {
+  id: string;
+  activoId: string;
+  tipoImagen: TipoImagenActivo;
+  url: string;
+  descripcion: string | null;
+  orden: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CrearImagenActivoPayload = {
+  tipoImagen: TipoImagenActivo;
+  url: string;
+  descripcion?: string;
+  orden?: number;
+};
