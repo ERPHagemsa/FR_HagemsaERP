@@ -1,5 +1,10 @@
 const rutas = [
   {
+    href: "/activos",
+    titulo: "Activos",
+    descripcion: "Maestro oficial de unidades y especificaciones tecnicas.",
+  },
+  {
     href: "/despacho",
     titulo: "Despacho",
     descripcion: "Operacion, asignaciones y salida de unidades.",
@@ -39,7 +44,7 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="grid gap-5 md:grid-cols-3">
+        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {rutas.map((ruta) => (
             <a
               key={ruta.href}
