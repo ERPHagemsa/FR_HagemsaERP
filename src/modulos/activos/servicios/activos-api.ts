@@ -7,7 +7,17 @@ import type {
   ImagenActivo,
 } from "../tipos/activo.tipos";
 
-const API_URL = process.env.NEXT_PUBLIC_ACTIVOS_API_URL ?? "http://localhost:3000";
+const API_URL = process.env.NEXT_PUBLIC_ACTIVOS_API_URL;
+
+function getApiUrl() {
+  if (!API_URL) {
+    throw new Error(
+      "Falta configurar NEXT_PUBLIC_ACTIVOS_API_URL con la URL del backend de activos"
+    );
+  }
+
+  return API_URL;
+}
 
 async function parseError(response: Response, fallback: string) {
   const message = await response.text();
@@ -15,7 +25,7 @@ async function parseError(response: Response, fallback: string) {
 }
 
 export async function obtenerActivos() {
-  const response = await fetch(`${API_URL}/activos`, {
+  const response = await fetch(`${getApiUrl()}/activos`, {
     cache: "no-store",
   });
 
@@ -27,7 +37,7 @@ export async function obtenerActivos() {
 }
 
 export async function obtenerActivoPorCodigo(codigo: string) {
-  const response = await fetch(`${API_URL}/activos/codigo/${codigo}`, {
+  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}`, {
     cache: "no-store",
   });
 
@@ -39,7 +49,7 @@ export async function obtenerActivoPorCodigo(codigo: string) {
 }
 
 export async function crearActivo(payload: CrearActivoPayload) {
-  const response = await fetch(`${API_URL}/activos`, {
+  const response = await fetch(`${getApiUrl()}/activos`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -58,7 +68,7 @@ export async function actualizarActivo(
   id: string,
   payload: ActualizarActivoPayload
 ) {
-  const response = await fetch(`${API_URL}/activos/${id}`, {
+  const response = await fetch(`${getApiUrl()}/activos/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -81,7 +91,7 @@ export async function cambiarEstadoActivo(
     usuario?: string;
   }
 ) {
-  const response = await fetch(`${API_URL}/activos/${id}/estado-activo`, {
+  const response = await fetch(`${getApiUrl()}/activos/${id}/estado-activo`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -104,7 +114,7 @@ export async function siniestrarActivo(
     observacion?: string;
   }
 ) {
-  const response = await fetch(`${API_URL}/activos/${id}/siniestrar`, {
+  const response = await fetch(`${getApiUrl()}/activos/${id}/siniestrar`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -120,7 +130,7 @@ export async function siniestrarActivo(
 }
 
 export async function obtenerImagenesPorCodigo(codigo: string) {
-  const response = await fetch(`${API_URL}/activos/codigo/${codigo}/imagenes`, {
+  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}/imagenes`, {
     cache: "no-store",
   });
 
@@ -135,7 +145,7 @@ export async function crearImagenPorCodigo(
   codigo: string,
   payload: CrearImagenActivoPayload
 ) {
-  const response = await fetch(`${API_URL}/activos/codigo/${codigo}/imagenes`, {
+  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}/imagenes`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
