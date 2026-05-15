@@ -14,6 +14,11 @@ const rutas = [
     titulo: "Flota",
     descripcion: "Disponibilidad, estado operativo y mantenimiento.",
   },
+  {
+    href: "/combustible",
+    titulo: "Combustible",
+    descripcion: "Solicitudes y abastecimientos de combustible.",
+  },
 ];
 
 export default function Home() {
