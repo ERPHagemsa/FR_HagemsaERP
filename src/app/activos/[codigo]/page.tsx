@@ -1,3 +1,4 @@
+import { SiteHeader } from "@/compartido/componentes/site-header";
 import { ActivoDetalleVista } from "@/modulos/activos/vistas/activo-detalle-vista";
 
 type Props = {
@@ -19,5 +20,10 @@ export default async function Page({ params, searchParams }: Props) {
             ? "siniestrado"
             : undefined;
 
-  return <ActivoDetalleVista codigo={codigo} accion={accion} />;
+  return (
+    <>
+      <SiteHeader title="Detalle de activo" />
+      <ActivoDetalleVista codigo={codigo} accion={accion} />
+    </>
+  );
 }

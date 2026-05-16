@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 
 import { AppShell } from "@/compartido/componentes/app-shell";
 import "./globals.css";
+import { Figtree, Manrope } from "next/font/google";
+import { cn } from "@/compartido/utilidades/utils";
+
+const manropeHeading = Manrope({subsets:['latin'],variable:'--font-heading'});
+
+const figtree = Figtree({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "Hagemsa Front DDD",
@@ -14,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="h-full antialiased">
+    <html lang="es" className={cn("h-full antialiased", "font-sans", figtree.variable, manropeHeading.variable)}>
       <body className="min-h-full">
         <AppShell>{children}</AppShell>
       </body>

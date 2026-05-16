@@ -1,5 +1,11 @@
+import { SiteHeader } from "@/compartido/componentes/site-header";
 import { ActivosVista } from "@/modulos/activos/vistas/activos-vista";
 
 export default function Page() {
-  return <ActivosVista />;
+  return (
+    <>
+      <SiteHeader title="Activos" />
+      <ActivosVista />
+    </>
+  );
 }
