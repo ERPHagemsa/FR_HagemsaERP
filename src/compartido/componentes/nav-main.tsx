@@ -43,26 +43,37 @@ export function NavMain({
   const pathname = usePathname()
   const [openItem, setOpenItem] = React.useState<string | null>(null)
 
+  React.useEffect(() => {
+    const activeItem = items.find((item) =>
+      item.items.some((subItem) => isRouteActive(pathname, subItem.url))
+    )
+
+    if (activeItem) {
+      setOpenItem(activeItem.title)
+    }
+  }, [items, pathname])
+
   return (
     <SidebarGroup className="px-2 pt-1">
-      <SidebarGroupLabel className="px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-sidebar-foreground/45">
+      <SidebarGroupLabel className="px-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-sidebar-foreground/45">
         Modulos
       </SidebarGroupLabel>
       <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarMenu className="gap-1.5">
+        <SidebarMenu className="gap-1">
           {items.map((item) => {
             const hasActiveChild = item.items.some((subItem) =>
               isRouteActive(pathname, subItem.url)
             )
             const isOpen = openItem === item.title
-            const isHighlighted = isOpen
+            const isHighlighted = isOpen || hasActiveChild
 
             return (
               <SidebarMenuItem
                 key={item.title}
                 className={cn(
-                  "relative rounded-xl before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-transparent",
-                  isHighlighted && "bg-red-50 text-red-950 before:bg-red-600"
+                  "sidebar-nav-item relative rounded-2xl transition-colors duration-300 ease-out before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full before:bg-transparent before:transition-colors",
+                  isHighlighted &&
+                    "bg-sidebar-accent/80 text-sidebar-accent-foreground before:bg-primary"
                 )}
               >
                 <SidebarMenuButton
@@ -71,19 +82,21 @@ export function NavMain({
                   aria-expanded={isOpen}
                   isActive={isHighlighted}
                   className={cn(
-                    "h-10 rounded-xl border border-transparent px-2.5 font-medium text-sidebar-foreground/82",
-                    "hover:border-sidebar-border/80 hover:bg-background hover:text-sidebar-foreground",
+                    "h-11 rounded-2xl border border-transparent px-3 font-medium text-sidebar-foreground/76 transition-all duration-300 ease-out",
+                    "hover:translate-x-0.5 hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
                     isHighlighted &&
-                      "border-red-100 bg-red-50 text-red-950 hover:bg-red-50 hover:text-red-950"
+                      "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
                   <span
                     className={cn(
-                      "flex size-7 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-foreground/65 ring-1 ring-sidebar-border/60",
-                      isHighlighted && "bg-red-600 text-white ring-red-600",
+                      "flex size-8 shrink-0 items-center justify-center rounded-xl bg-background/80 text-sidebar-foreground/62 transition-all duration-300 ease-out",
+                      "group-hover/button:scale-105 group-hover/button:text-sidebar-foreground",
+                      isHighlighted &&
+                        "bg-primary text-primary-foreground",
                       hasActiveChild &&
                         !isHighlighted &&
-                        "bg-red-100 text-red-700 ring-red-100"
+                        "bg-primary/10 text-primary"
                     )}
                   >
                     {item.icon}
@@ -91,24 +104,35 @@ export function NavMain({
                   <span className="min-w-0 flex-1 truncate">{item.title}</span>
                   <span
                     className={cn(
-                      "ml-auto flex size-6 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/40 transition-transform",
-                      isOpen && "rotate-90 bg-white text-red-700"
+                      "ml-auto flex size-6 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/38 transition-all duration-300 ease-out",
+                      isOpen &&
+                        "rotate-90 bg-background text-sidebar-foreground"
                     )}
                   >
                     <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
                   </span>
                 </SidebarMenuButton>
                 {isOpen ? (
-                  <SidebarMenuSub className="mx-4 my-1.5 gap-1 rounded-lg border-l-2 border-red-200 bg-background/70 px-2.5 py-1.5">
-                    {item.items.map((subItem) => (
-                      <SidebarMenuSubItem key={subItem.title}>
+                  <SidebarMenuSub className="sidebar-submenu mb-2 ml-7 mt-1.5 gap-1 border-l border-sidebar-border/70 pl-3">
+                    {item.items.map((subItem, index) => (
+                      <SidebarMenuSubItem
+                        key={subItem.title}
+                        className="sidebar-submenu-item"
+                        style={
+                          {
+                            "--submenu-index": index,
+                          } as React.CSSProperties
+                        }
+                      >
                         <SidebarMenuSubButton
                           asChild
                           isActive={isRouteActive(pathname, subItem.url)}
-                          className="h-8 rounded-lg px-2.5 text-sidebar-foreground/65 hover:bg-red-50 hover:text-red-900 data-active:bg-red-600 data-active:font-medium data-active:text-white"
+                          className="group/sub relative h-8 rounded-xl px-3 text-sidebar-foreground/60 transition-all duration-300 ease-out before:absolute before:-left-[17px] before:size-1.5 before:rounded-full before:bg-sidebar-border before:transition-all before:duration-300 hover:translate-x-0.5 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:before:bg-primary data-active:bg-transparent data-active:font-semibold data-active:text-primary data-active:before:bg-primary"
                         >
                           <Link href={subItem.url}>
-                            <span className="truncate">{subItem.title}</span>
+                            <span className="truncate pl-2">
+                              {subItem.title}
+                            </span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

@@ -98,11 +98,48 @@
 
   body {
     @apply bg-background text-foreground;
-    color-scheme: dark;
+    color-scheme: light;
+  }
+}
+
+@layer components {
+  .sidebar-submenu {
+    transform-origin: top;
+    animation: sidebar-submenu-enter 220ms ease-out both;
+  }
+
+  .sidebar-submenu-item {
+    animation: sidebar-submenu-item-enter 260ms ease-out both;
+    animation-delay: calc(var(--submenu-index) * 34ms);
+  }
+
+  @keyframes sidebar-submenu-enter {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scaleY(0.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+    }
+  }
+
+  @keyframes sidebar-submenu-item-enter {
+    from {
+      opacity: 0;
+      transform: translateX(-6px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
   }
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.148 0.004 228.8);
   --foreground: oklch(0.987 0.002 197.1);
   --card: oklch(0.218 0.008 223.9);

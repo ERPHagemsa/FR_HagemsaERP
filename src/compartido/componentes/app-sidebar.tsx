@@ -5,6 +5,7 @@ import Link from "next/link"
 
 import { NavMain } from "@/compartido/componentes/nav-main"
 import { NavUser } from "@/compartido/componentes/nav-user"
+import { ThemeToggle } from "@/compartido/componentes/theme-toggle"
 import {
   Sidebar,
   SidebarContent,
@@ -20,11 +21,11 @@ import {
   Building03Icon,
   Car01Icon,
   CheckListIcon,
-  CommandIcon,
   FuelStationIcon,
   Invoice01Icon,
   LegalDocument01Icon,
   Route01Icon,
+  Settings02Icon,
   ToolsIcon,
   TruckIcon,
   UserGroupIcon,
@@ -51,10 +52,10 @@ const data = {
       title: "Socio de Negocios",
       icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
       items: [
-        { title: "Conductores", url: "#" },
-        { title: "Asistencias", url: "#" },
-        { title: "Licencias", url: "#" },
-        { title: "Evaluaciones", url: "#" },
+        { title: "Conductores", url: "/socio-negocios/conductores" },
+        { title: "Asistencias", url: "/socio-negocios/asistencias" },
+        { title: "Licencias", url: "/socio-negocios/licencias" },
+        { title: "Evaluaciones", url: "/socio-negocios/evaluaciones" },
       ],
     },
     {
@@ -161,6 +162,15 @@ const data = {
         { title: "Aprobaciones", url: "#" },
       ],
     },
+    {
+      title: "Configuracion",
+      icon: <HugeiconsIcon icon={Settings02Icon} strokeWidth={2} />,
+      items: [
+        { title: "Usuarios y roles", url: "#" },
+        { title: "Parametros ERP", url: "#" },
+        { title: "Preferencias", url: "#" },
+      ],
+    },
   ],
 }
 
@@ -168,44 +178,49 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar
       collapsible="offcanvas"
-      className="border-none p-0 group-data-[variant=floating]:p-0 [&_[data-slot=sidebar-inner]]:rounded-none [&_[data-slot=sidebar-inner]]:shadow-none [&_[data-slot=sidebar-inner]]:ring-0"
+      className="border-none p-0 group-data-[variant=floating]:p-0 [&_[data-slot=sidebar-inner]]:rounded-none [&_[data-slot=sidebar-inner]]:bg-sidebar [&_[data-slot=sidebar-inner]]:shadow-none [&_[data-slot=sidebar-inner]]:ring-0"
       {...props}
     >
-      <SidebarHeader className="p-2.5 pb-2">
+      <SidebarHeader className="border-b border-sidebar-border/60 p-3">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="h-14 rounded-xl border border-red-100 bg-red-50 px-3 text-red-900 shadow-none ring-0 hover:bg-red-100 hover:text-red-950 active:bg-red-100 active:text-red-950 data-[slot=sidebar-menu-button]:p-0!"
+              className="h-auto rounded-2xl bg-transparent px-0 py-0 text-sidebar-foreground shadow-none ring-0 hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent active:text-sidebar-foreground data-[slot=sidebar-menu-button]:p-0!"
             >
-              <Link href="/">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-red-700 text-sm font-bold text-white">
-                  H
-                </span>
-                <span className="min-w-0 flex flex-1 flex-col">
-                  <span className="truncate text-base font-semibold leading-5 tracking-normal">
-                    Hagemsa
-                  </span>
-                  <span className="truncate text-[11px] font-medium leading-4 text-red-900/60">
-                    Control operativo
-                  </span>
-                </span>
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg text-red-700/70">
-                  <HugeiconsIcon
-                    icon={CommandIcon}
-                    strokeWidth={2}
-                    className="size-4!"
+              <Link
+                href="/"
+                className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-sidebar-accent"
+              >
+                <span className="flex size-14 shrink-0 items-center justify-center">
+                  <img
+                    src="/logo/logo.svg"
+                    alt="Hagemsa"
+                    className="size-full object-contain"
                   />
+                </span>
+                <span className="min-w-0 flex flex-1 flex-col gap-0.5">
+                  <span className="truncate text-[15px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground">
+                    Hagemsa ERP
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/52">
+                    <span className="size-1.5 rounded-full bg-primary" />
+                    Operacion
+                  </span>
                 </span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent className="px-1 pb-2">
+      <SidebarContent className="px-1.5 py-3">
         <NavMain items={data.navMain} />
       </SidebarContent>
-      <SidebarFooter className="border-t border-sidebar-border/70 p-2.5">
+      <SidebarFooter className="gap-2 border-t border-sidebar-border/70 p-2.5">
+        <ThemeToggle
+          showLabel
+          className="border-sidebar-border/80 bg-sidebar-accent/70 text-sidebar-foreground hover:bg-sidebar-accent"
+        />
         <NavUser user={data.user} />
       </SidebarFooter>
     </Sidebar>
