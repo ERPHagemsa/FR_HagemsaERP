@@ -1,0 +1,10 @@
+.git
+.gitignore
+.next
+node_modules
+npm-debug.log*
+.pnpm-store
+.env*
+README.md
+.agents
+skills-lock.json

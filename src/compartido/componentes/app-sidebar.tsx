@@ -38,22 +38,52 @@ const data = {
   },
   navMain: [
     {
-      title: "Gestion Comercial",
-      icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
+      title: "Activos",
+      icon: <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} />,
       items: [
-        { title: "Cotizaciones", url: "/comercial" },
-        { title: "Tarifarios", url: "#" },
-        { title: "Contratos", url: "#" },
+        { title: "Registro de activos", url: "/activos" },
+        { title: "Nuevo activo", url: "/activos/nuevo" },
+        { title: "Estados", url: "#" },
+        { title: "Documentos", url: "#" },
       ],
     },
     {
-      title: "Programacion y Despacho",
+      title: "Socio y Negocios",
+      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
+      items: [
+        { title: "Conductores", url: "#" },
+        { title: "Asistencias", url: "#" },
+        { title: "Licencias", url: "#" },
+        { title: "Evaluaciones", url: "#" },
+      ],
+    },
+    {
+      title: "TMS-Operaciones",
       icon: <HugeiconsIcon icon={TruckIcon} strokeWidth={2} />,
       items: [
         { title: "Ordenes de Servicio", url: "#" },
         { title: "Manifiestos", url: "#" },
         { title: "Convoys", url: "#" },
         { title: "Despacho", url: "/despacho" },
+      ],
+    },
+    {
+      title: "WMS-Almacen",
+      icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
+      items: [
+        { title: "Inventario", url: "#" },
+        { title: "Ingresos", url: "#" },
+        { title: "Salidas", url: "#" },
+        { title: "Operadores 3PL", url: "#" },
+      ],
+    },
+    {
+      title: "Gestion Comercial",
+      icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
+      items: [
+        { title: "Cotizaciones", url: "/comercial" },
+        { title: "Tarifarios", url: "#" },
+        { title: "Contratos", url: "#" },
       ],
     },
     {
@@ -77,17 +107,7 @@ const data = {
       ],
     },
     {
-      title: "Gestion de Personal",
-      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
-      items: [
-        { title: "Conductores", url: "#" },
-        { title: "Asistencias", url: "#" },
-        { title: "Licencias", url: "#" },
-        { title: "Evaluaciones", url: "#" },
-      ],
-    },
-    {
-      title: "Compliance y Homologaciones",
+      title: "Acreditaciones",
       icon: <HugeiconsIcon icon={LegalDocument01Icon} strokeWidth={2} />,
       items: [
         { title: "Homologaciones", url: "#" },
@@ -139,26 +159,6 @@ const data = {
         { title: "Viaticos", url: "#" },
         { title: "Rendiciones", url: "#" },
         { title: "Aprobaciones", url: "#" },
-      ],
-    },
-    {
-      title: "Almacen y 3PL",
-      icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
-      items: [
-        { title: "Inventario", url: "#" },
-        { title: "Ingresos", url: "#" },
-        { title: "Salidas", url: "#" },
-        { title: "Operadores 3PL", url: "#" },
-      ],
-    },
-    {
-      title: "Activos",
-      icon: <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} />,
-      items: [
-        { title: "Registro de activos", url: "/activos" },
-        { title: "Nuevo activo", url: "/activos/nuevo" },
-        { title: "Estados", url: "#" },
-        { title: "Documentos", url: "#" },
       ],
     },
   ],

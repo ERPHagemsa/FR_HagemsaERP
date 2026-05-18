@@ -8,7 +8,7 @@ import type {
 } from "../tipos/combustible";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_COMBUSTIBLE_API_URL ?? "http://localhost:4001/api";
+  process.env.NEXT_PUBLIC_COMBUSTIBLE_API_URL ?? "https://api-combustible-dev.hagemsa.com/api";
 const REQUEST_TIMEOUT_MS = 6000;
 
 type ApiErrorPayload = {

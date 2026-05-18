@@ -7,7 +7,7 @@ import type {
   ImagenActivo,
 } from "../tipos/activo.tipos";
 
-const API_URL = process.env.NEXT_PUBLIC_ACTIVOS_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_ACTIVOS_API_URL ?? "https://api-activos-dev.hagemsa.com/api";;
 
 function getApiUrl() {
   if (!API_URL) {
