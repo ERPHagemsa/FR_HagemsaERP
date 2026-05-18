@@ -48,7 +48,7 @@ const data = {
       ],
     },
     {
-      title: "Socio y Negocios",
+      title: "Socio de Negocios",
       icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
       items: [
         { title: "Conductores", url: "#" },
