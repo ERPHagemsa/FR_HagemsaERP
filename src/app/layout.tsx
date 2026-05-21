@@ -15,20 +15,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-<<<<<<< Updated upstream
     <html
       lang="es"
       suppressHydrationWarning
-      className={cn(
-        "h-full antialiased",
-        "font-sans",
-        figtree.variable,
-        manropeHeading.variable
-      )}
+      className="h-full antialiased font-sans"
     >
-=======
-    <html lang="es" className="h-full antialiased font-sans">
->>>>>>> Stashed changes
       <body className="min-h-full">
         <ThemeProvider>
           <AppShell>{children}</AppShell>
