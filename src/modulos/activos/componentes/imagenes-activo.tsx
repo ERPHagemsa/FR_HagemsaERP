@@ -32,6 +32,14 @@ const tiposImagen: TipoImagenActivo[] = [
   "OTRO",
 ];
 
+function isRenderableImageUrl(url: string) {
+  return (
+    url.startsWith("http://") ||
+    url.startsWith("https://") ||
+    url.startsWith("data:image/")
+  );
+}
+
 export function ImagenesActivo({ codigo, imagenes }: Props) {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -212,11 +220,17 @@ export function ImagenesActivo({ codigo, imagenes }: Props) {
                 className="overflow-hidden rounded-xl border border-border bg-muted/20"
               >
                 <div className="aspect-[4/3] bg-background">
-                  <img
-                    src={imagen.url}
-                    alt={imagen.descripcion ?? imagen.tipoImagen}
-                    className="size-full object-cover"
-                  />
+                  {isRenderableImageUrl(imagen.url) ? (
+                    <img
+                      src={imagen.url}
+                      alt={imagen.descripcion ?? imagen.tipoImagen}
+                      className="size-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex size-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
+                      URL no disponible para previsualizar
+                    </div>
+                  )}
                 </div>
                 <figcaption className="grid gap-2 p-3">
                   <Badge variant="outline">{imagen.tipoImagen}</Badge>

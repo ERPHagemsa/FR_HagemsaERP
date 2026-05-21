@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type React from "react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -29,10 +30,13 @@ type Props = {
 };
 
 export async function ActivoDetalleVista({ codigo, accion }: Props) {
-  const [activo, imagenes] = await Promise.all([
-    obtenerActivoPorCodigo(codigo),
-    obtenerImagenesPorCodigo(codigo),
-  ]);
+  const activo = await obtenerActivoPorCodigo(codigo).catch(() => null);
+
+  if (!activo) {
+    notFound();
+  }
+
+  const imagenes = await obtenerImagenesPorCodigo(codigo).catch(() => []);
   const vehiculo = activo.vehiculo;
 
   return (
