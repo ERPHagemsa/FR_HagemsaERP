@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { AppShell } from "@/compartido/componentes/app-shell";
 import { ThemeProvider } from "@/compartido/componentes/theme-provider";
 import "./globals.css";
 import { Figtree, Manrope } from "next/font/google";
@@ -33,7 +32,7 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <ThemeProvider>
-          <AppShell>{children}</AppShell>
+          {children}
         </ThemeProvider>
       </body>
     </html>

@@ -54,72 +54,62 @@ import {
 
 import { formatearError, formatearFecha } from "../componentes/formato";
 import {
-  crearSolicitudDesdeManifiesto,
-  listarManifiestos,
-  listarSolicitudes,
-} from "../servicios/combustible-api";
-import type { ManifiestoResponse, SolicitudResponse } from "../tipos/combustible";
+  useCrearSolicitudCombustibleMutation,
+  useManifiestosQuery,
+  useSolicitudesCombustibleQuery,
+} from "../servicios/combustible-queries";
 
 export function SolicitudesCombustibleVista() {
-  const [manifiestos, setManifiestos] = useState<ManifiestoResponse[]>([]);
-  const [solicitudes, setSolicitudes] = useState<SolicitudResponse[]>([]);
   const [manifiestoId, setManifiestoId] = useState("");
   const [placa, setPlaca] = useState("");
   const [litrosSolicitados, setLitrosSolicitados] = useState("120");
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const manifiestosQuery = useManifiestosQuery();
+  const solicitudesQuery = useSolicitudesCombustibleQuery();
+  const crearSolicitudMutation = useCrearSolicitudCombustibleMutation();
+  const manifiestos = manifiestosQuery.data ?? [];
+  const solicitudes = solicitudesQuery.data ?? [];
+  const cargando = manifiestosQuery.isLoading || solicitudesQuery.isLoading;
+  const actualizando =
+    manifiestosQuery.isFetching || solicitudesQuery.isFetching;
+  const guardando = crearSolicitudMutation.isPending;
 
-  async function cargarDatos() {
-    setCargando(true);
+  function cargarDatos() {
     setError(null);
-
-    try {
-      const [manifiestosData, solicitudesData] = await Promise.all([
-        listarManifiestos(),
-        listarSolicitudes(),
-      ]);
-
-      setManifiestos(manifiestosData);
-      setSolicitudes(solicitudesData);
-      setManifiestoId((actual) => actual || manifiestosData[0]?.id || "");
-    } catch (err: unknown) {
-      setError(formatearError(err));
-    } finally {
-      setCargando(false);
-    }
+    void manifiestosQuery.refetch();
+    void solicitudesQuery.refetch();
   }
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void cargarDatos();
-    }, 0);
+    setManifiestoId((actual) => actual || manifiestos[0]?.id || "");
+  }, [manifiestos]);
 
-    return () => window.clearTimeout(timeoutId);
-  }, []);
+  useEffect(() => {
+    const queryError = manifiestosQuery.error ?? solicitudesQuery.error;
+
+    if (queryError) {
+      setError(formatearError(queryError));
+    }
+  }, [manifiestosQuery.error, solicitudesQuery.error]);
 
   async function crearSolicitud(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setGuardando(true);
     setMensaje(null);
     setError(null);
 
     try {
-      const solicitud = await crearSolicitudDesdeManifiesto({
+      const solicitud = await crearSolicitudMutation.mutateAsync({
         manifiestoId,
         placa: placa.trim().toUpperCase(),
         litrosSolicitados: Number(litrosSolicitados),
       });
 
-      setSolicitudes((actuales) => [solicitud, ...actuales]);
       setPlaca("");
       setLitrosSolicitados("120");
       setMensaje(`Solicitud ${solicitud.id} creada correctamente.`);
     } catch (err: unknown) {
       setError(formatearError(err));
-    } finally {
-      setGuardando(false);
     }
   }
 
@@ -144,11 +134,11 @@ export function SolicitudesCombustibleVista() {
             <Button
               type="button"
               variant="outline"
-              disabled={cargando}
-              onClick={() => void cargarDatos()}
+              disabled={actualizando}
+              onClick={cargarDatos}
             >
               <IconRefresh data-icon="inline-start" />
-              {cargando ? "Actualizando..." : "Actualizar"}
+              {actualizando ? "Actualizando..." : "Actualizar"}
             </Button>
           </div>
         </div>
