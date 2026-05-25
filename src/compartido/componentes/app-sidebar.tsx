@@ -53,10 +53,12 @@ const data = {
       title: "Socio de Negocios",
       icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
       items: [
-        { title: "Conductores", url: "/socio-negocios/conductores" },
-        { title: "Asistencias", url: "/socio-negocios/asistencias" },
-        { title: "Licencias", url: "/socio-negocios/licencias" },
-        { title: "Evaluaciones", url: "/socio-negocios/evaluaciones" },
+        { title: "Resumen", url: "/socio-negocios" },
+        { title: "Clientes", url: "/socio-negocios/clientes" },
+        { title: "Proveedores", url: "/socio-negocios/proveedores" },
+        { title: "Personal", url: "/socio-negocios/personal" },
+        { title: "Consultas", url: "/socio-negocios/consultas" },
+        { title: "Reportes", url: "/socio-negocios/reportes" },
       ],
     },
     {

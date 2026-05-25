@@ -17,25 +17,39 @@ El objetivo es tener un solo frontend para el ERP, pero consumiendo backends sep
 ```text
 src/
   app/
-    activos/
-      page.tsx
-      nuevo/
+    (public)/
+      login/
         page.tsx
-      [codigo]/
+    (privado)/
+      activos/
         page.tsx
-        editar/
+        nuevo/
           page.tsx
-    combustible/
-    comercial/
-    despacho/
-    flota/
+        [codigo]/
+          page.tsx
+          editar/
+            page.tsx
+      combustible/
+      comercial/
+      despacho/
+      flota/
+      socio-negocios/
+      layout.tsx
+      page.tsx
+    api/
+      auth/
+        login/
+          route.ts
+        logout/
+          route.ts
     globals.css
     layout.tsx
-    page.tsx
   compartido/
+    api/
     componentes/
       app-shell.tsx
       ui/
+    autenticacion/
     constantes/
     ganchos/
     servicios/
@@ -52,16 +66,26 @@ src/
       servicios/
       tipos/
       vistas/
+    socio-negocios/
+      componentes/
+      servicios/
+      tipos/
+      vistas/
 ```
 
 ## Criterios de arquitectura
 
 - `app/`: define rutas, layouts y puntos de entrada de Next.js.
+- `app/api/`: contiene Route Handlers de Next.js. Deben ser adaptadores delgados; la logica reutilizable debe vivir en `compartido/` o `modulos/`.
+- `app/(public)/`: contiene rutas publicas como login.
+- `app/(privado)/`: contiene rutas protegidas y el layout con `AppShell`.
 - `modulos/`: agrupa la logica de negocio del frontend por contexto funcional.
 - `compartido/`: concentra piezas reutilizables entre contextos, como UI, utilidades, layout global y helpers.
 - Cada modulo debe tener sus propios `componentes`, `servicios`, `tipos` y `vistas`.
 - Los componentes de `compartido/componentes/ui` no deben depender de un modulo especifico.
 - Las llamadas HTTP de cada modulo deben vivir en su carpeta `servicios`.
+- El cliente HTTP generico, TanStack Query Provider y query keys base viven en `compartido/api`, porque son infraestructura compartida.
+- Las llamadas HTTP especificas de un BC viven en `src/modulos/<contexto>/servicios`, aunque usen el cliente compartido.
 
 ## Modulo Activos
 
@@ -114,6 +138,7 @@ Variables actuales y futuras:
 ```env
 NEXT_PUBLIC_ACTIVOS_API_URL=http://localhost:3000
 NEXT_PUBLIC_COMBUSTIBLE_API_URL=http://localhost:3003
+NEXT_PUBLIC_SOCIO_NEGOCIOS_API_URL=http://localhost:3005
 NEXT_PUBLIC_FLOTA_API_URL=http://localhost:3004
 ```
 

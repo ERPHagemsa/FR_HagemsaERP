@@ -2,7 +2,7 @@ import { ChartAreaInteractive } from "@/compartido/componentes/chart-area-intera
 import { DataTable } from "@/compartido/componentes/data-table"
 import { SectionCards } from "@/compartido/componentes/section-cards"
 
-import data from "@/app/dashboard/data.json"
+import data from "@/app/(privado)/dashboard/data.json"
 
 export function DashboardContent() {
   return (

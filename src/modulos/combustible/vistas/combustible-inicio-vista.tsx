@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import {
   IconDropletFilled,
   IconFileDescription,
@@ -23,26 +22,13 @@ import { Separator } from "@/compartido/componentes/ui/separator";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { formatearError, formatearFecha } from "../componentes/formato";
-import { obtenerHealthCombustible } from "../servicios/combustible-api";
-import type { HealthResponse } from "../tipos/combustible";
+import { useHealthCombustibleQuery } from "../servicios/combustible-queries";
 
 export function CombustibleInicioVista() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [cargando, setCargando] = useState(true);
-
-  useEffect(() => {
-    obtenerHealthCombustible()
-      .then((data) => {
-        setHealth(data);
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setHealth(null);
-        setError(formatearError(err));
-      })
-      .finally(() => setCargando(false));
-  }, []);
+  const healthQuery = useHealthCombustibleQuery();
+  const health = healthQuery.data ?? null;
+  const error = healthQuery.error ? formatearError(healthQuery.error) : null;
+  const cargando = healthQuery.isLoading;
 
   return (
     <main className="min-h-screen bg-background text-foreground">

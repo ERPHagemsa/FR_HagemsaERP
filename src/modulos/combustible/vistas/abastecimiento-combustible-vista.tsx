@@ -52,75 +52,63 @@ import {
 
 import { formatearError, formatearFecha } from "../componentes/formato";
 import {
-  crearAbastecimiento,
-  listarAbastecimientos,
-  listarSolicitudes,
-} from "../servicios/combustible-api";
-import type {
-  AbastecimientoResponse,
-  SolicitudResponse,
-} from "../tipos/combustible";
+  useAbastecimientosCombustibleQuery,
+  useCrearAbastecimientoCombustibleMutation,
+  useSolicitudesCombustibleQuery,
+} from "../servicios/combustible-queries";
 
 export function AbastecimientoCombustibleVista() {
-  const [solicitudes, setSolicitudes] = useState<SolicitudResponse[]>([]);
-  const [abastecimientos, setAbastecimientos] = useState<AbastecimientoResponse[]>([]);
   const [solicitudId, setSolicitudId] = useState("");
   const [litrosDespachados, setLitrosDespachados] = useState("115");
   const [nroTicket, setNroTicket] = useState("");
-  const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const solicitudesQuery = useSolicitudesCombustibleQuery();
+  const abastecimientosQuery = useAbastecimientosCombustibleQuery();
+  const crearAbastecimientoMutation =
+    useCrearAbastecimientoCombustibleMutation();
+  const solicitudes = solicitudesQuery.data ?? [];
+  const abastecimientos = abastecimientosQuery.data ?? [];
+  const cargando = solicitudesQuery.isLoading || abastecimientosQuery.isLoading;
+  const actualizando =
+    solicitudesQuery.isFetching || abastecimientosQuery.isFetching;
+  const guardando = crearAbastecimientoMutation.isPending;
 
-  async function cargarDatos() {
-    setCargando(true);
+  function cargarDatos() {
     setError(null);
-
-    try {
-      const [solicitudesData, abastecimientosData] = await Promise.all([
-        listarSolicitudes(),
-        listarAbastecimientos(),
-      ]);
-
-      setSolicitudes(solicitudesData);
-      setAbastecimientos(abastecimientosData);
-      setSolicitudId((actual) => actual || solicitudesData[0]?.id || "");
-    } catch (err: unknown) {
-      setError(formatearError(err));
-    } finally {
-      setCargando(false);
-    }
+    void solicitudesQuery.refetch();
+    void abastecimientosQuery.refetch();
   }
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void cargarDatos();
-    }, 0);
+    setSolicitudId((actual) => actual || solicitudes[0]?.id || "");
+  }, [solicitudes]);
 
-    return () => window.clearTimeout(timeoutId);
-  }, []);
+  useEffect(() => {
+    const queryError = solicitudesQuery.error ?? abastecimientosQuery.error;
+
+    if (queryError) {
+      setError(formatearError(queryError));
+    }
+  }, [solicitudesQuery.error, abastecimientosQuery.error]);
 
   async function registrarAbastecimiento(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setGuardando(true);
     setMensaje(null);
     setError(null);
 
     try {
-      const abastecimiento = await crearAbastecimiento({
+      const abastecimiento = await crearAbastecimientoMutation.mutateAsync({
         solicitudId,
         litrosDespachados: Number(litrosDespachados),
         nroTicket: nroTicket.trim().toUpperCase(),
       });
 
-      setAbastecimientos((actuales) => [abastecimiento, ...actuales]);
       setNroTicket("");
       setLitrosDespachados("115");
       setMensaje(`Ticket ${abastecimiento.nroTicket} registrado correctamente.`);
     } catch (err: unknown) {
       setError(formatearError(err));
-    } finally {
-      setGuardando(false);
     }
   }
 
@@ -144,11 +132,11 @@ export function AbastecimientoCombustibleVista() {
             <Button
               type="button"
               variant="outline"
-              disabled={cargando}
-              onClick={() => void cargarDatos()}
+              disabled={actualizando}
+              onClick={cargarDatos}
             >
               <IconRefresh data-icon="inline-start" />
-              {cargando ? "Actualizando..." : "Actualizar"}
+              {actualizando ? "Actualizando..." : "Actualizar"}
             </Button>
           </div>
         </div>
