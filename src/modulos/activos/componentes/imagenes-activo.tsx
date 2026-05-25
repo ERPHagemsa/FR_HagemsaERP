@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { IconPhotoPlus } from "@tabler/icons-react";
+import { IconPhotoPlus, IconTrash } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -15,12 +15,16 @@ import {
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import { cn } from "@/compartido/utilidades";
-import { crearImagenPorCodigo } from "../servicios/activos-api";
+import {
+  crearImagenPorCodigo,
+  eliminarImagenPorCodigo,
+} from "../servicios/activos-api";
 import type { ImagenActivo, TipoImagenActivo } from "../tipos/activo.tipos";
 
 type Props = {
   codigo: string;
   imagenes: ImagenActivo[];
+  editable?: boolean;
 };
 
 const tiposImagen: TipoImagenActivo[] = [
@@ -40,11 +44,12 @@ function isRenderableImageUrl(url: string) {
   );
 }
 
-export function ImagenesActivo({ codigo, imagenes }: Props) {
+export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = React.useState<string | null>(
     null
   );
@@ -114,6 +119,26 @@ export function ImagenesActivo({ codigo, imagenes }: Props) {
     }
   }
 
+  async function onDelete(imagen: ImagenActivo) {
+    const confirmado = window.confirm(
+      `Quieres eliminar la imagen ${imagen.tipoImagen.toLowerCase()} del activo?`
+    );
+
+    if (!confirmado) return;
+
+    setError(null);
+    setDeletingId(imagen.id);
+
+    try {
+      await eliminarImagenPorCodigo(codigo, imagen.id);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo eliminar la imagen");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="border-b border-border">
@@ -123,6 +148,7 @@ export function ImagenesActivo({ codigo, imagenes }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-5 pt-5">
+        {editable ? (
         <form onSubmit={onSubmit} className="grid gap-4">
           <div className="grid gap-4 lg:grid-cols-[180px_1fr_1fr_120px_auto] lg:items-end">
           <label className="grid gap-2">
@@ -205,8 +231,9 @@ export function ImagenesActivo({ codigo, imagenes }: Props) {
             </div>
           ) : null}
         </form>
+        ) : null}
 
-        {error ? (
+        {editable && error ? (
           <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
             {error}
           </div>
@@ -233,7 +260,21 @@ export function ImagenesActivo({ codigo, imagenes }: Props) {
                   )}
                 </div>
                 <figcaption className="grid gap-2 p-3">
-                  <Badge variant="outline">{imagen.tipoImagen}</Badge>
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="outline">{imagen.tipoImagen}</Badge>
+                    {editable ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => onDelete(imagen)}
+                        disabled={deletingId === imagen.id}
+                      >
+                        <IconTrash className="size-4" />
+                        {deletingId === imagen.id ? "Eliminando..." : "Eliminar"}
+                      </Button>
+                    ) : null}
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     {imagen.descripcion || "Sin descripcion"}
                   </p>

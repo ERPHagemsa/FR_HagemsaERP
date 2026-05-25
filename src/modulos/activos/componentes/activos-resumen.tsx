@@ -19,14 +19,19 @@ type Props = {
 };
 
 export function ActivosResumen({ activos }: Props) {
-  const activosVigentes = activos.filter((activo) => activo.estadoActivo === "ACTIVO");
-  const operativos = activos.filter(
+  const activosVisibles = activos.filter(
+    (activo) => activo.estadoActivo !== "ELIMINADO"
+  );
+  const activosVigentes = activosVisibles.filter(
+    (activo) => activo.estadoActivo === "ACTIVO"
+  );
+  const operativos = activosVisibles.filter(
     (activo) => activo.vehiculo?.estadoOperativo === "OPERATIVO"
   );
-  const mantenimiento = activos.filter(
+  const mantenimiento = activosVisibles.filter(
     (activo) => activo.vehiculo?.estadoOperativo === "MANTENIMIENTO"
   );
-  const noCalibrados = activos.filter(
+  const noCalibrados = activosVisibles.filter(
     (activo) => activo.vehiculo?.estadoCalibracion === "NO_CALIBRADA"
   );
 
@@ -35,7 +40,7 @@ export function ActivosResumen({ activos }: Props) {
       <ResumenCard
         icon={IconCar}
         label="Total activos"
-        value={activos.length}
+        value={activosVisibles.length}
         detail="Unidades registradas"
       />
       <ResumenCard
@@ -74,8 +79,8 @@ function ResumenCard({
   return (
     <Card>
       <CardHeader>
-        <div className="mb-3 flex size-9 items-center justify-center rounded-lg border border-border bg-muted">
-          <Icon className="size-4 text-muted-foreground" />
+        <div className="mb-4 flex size-11 items-center justify-center rounded-lg border border-primary/25 bg-primary/10">
+          <Icon className="size-5 text-primary" />
         </div>
         <CardDescription>{label}</CardDescription>
         <CardTitle className="text-3xl">{value}</CardTitle>

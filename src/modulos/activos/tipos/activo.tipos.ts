@@ -1,4 +1,4 @@
-export type EstadoActivo = "ACTIVO" | "INACTIVO" | "SINIESTRADO";
+export type EstadoActivo = "ACTIVO" | "INACTIVO" | "SINIESTRADO" | "ELIMINADO";
 export type TipoActivo =
   | "VEHICULO"
   | "EQUIPO"
@@ -108,4 +108,79 @@ export type CrearImagenActivoPayload = {
   url: string;
   descripcion?: string;
   orden?: number;
+};
+
+export type TipoDocumentoActivo =
+  | "SOAT"
+  | "POLIZA"
+  | "TARJETA_PROPIEDAD"
+  | "FACTURA"
+  | "MANUAL"
+  | "REVISION_TECNICA"
+  | "CERTIFICADO"
+  | "OTRO"
+  | "TARJETA_MERCANCIAS"
+  | "REVISION_TECNICA_12_MESES"
+  | "REVISION_TECNICA_6_MESES"
+  | "RESOLUCION_DIRECTORAL"
+  | "RESOLUCION_GERENCIAL"
+  | "IQBF"
+  | "CERTIFICADO_MATPEL"
+  | "CERTIFICADO_BONIFICACION"
+  | "CERTIFICADO_OPERATIVIDAD";
+
+export type EstadoDocumentoActivo =
+  | "VIGENTE"
+  | "POR_VENCER"
+  | "VENCIDO"
+  | "PENDIENTE"
+  | "OBSERVADO"
+  | "NO_APLICA";
+
+export type DocumentoActivo = {
+  id: string;
+  activoId: string;
+  tipoDocumento: TipoDocumentoActivo;
+  estadoDocumento: EstadoDocumentoActivo;
+  numero: string | null;
+  fechaEmision: string | null;
+  fechaVencimiento: string | null;
+  archivoUrl: string | null;
+  observacion: string | null;
+  usuarioCarga: string | null;
+  usuarioActualizacion: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CrearDocumentoActivoPayload = {
+  tipoDocumento: TipoDocumentoActivo;
+  numero: string;
+  fechaEmision: string;
+  fechaVencimiento?: string;
+  archivoUrl: string;
+  observacion?: string;
+  usuarioCarga: string;
+};
+
+export type TipoTanqueActivo = "DIESEL" | "UREA";
+export type UnidadMedidaTanque = "GALON" | "LITRO";
+
+export type TanqueActivo = {
+  id: string;
+  activoId: string;
+  tipoTanque: TipoTanqueActivo;
+  capacidad: number;
+  unidadMedida: UnidadMedidaTanque;
+  orden: number;
+  observacion: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CrearTanqueActivoPayload = {
+  tipoTanque: TipoTanqueActivo;
+  capacidad: number;
+  orden?: number;
+  observacion?: string;
 };

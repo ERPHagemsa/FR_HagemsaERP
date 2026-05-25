@@ -1,4 +1,5 @@
 import { IconCircleCheck, IconInfoCircle } from "@tabler/icons-react";
+import { cn } from "@/compartido/utilidades";
 
 const mensajes: Record<string, { titulo: string; detalle: string }> = {
   created: {
@@ -28,10 +29,23 @@ export function AvisoResultado({ accion }: Props) {
 
   const mensaje = mensajes[accion];
   const Icon = accion === "siniestrado" ? IconInfoCircle : IconCircleCheck;
+  const isDanger = accion === "siniestrado";
 
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
-      <Icon className="mt-0.5 size-5 text-primary" />
+    <div
+      className={cn(
+        "flex items-start gap-3 rounded-xl border px-4 py-3 text-sm",
+        isDanger
+          ? "border-destructive/40 bg-destructive/10"
+          : "border-emerald-500/40 bg-emerald-500/10"
+      )}
+    >
+      <Icon
+        className={cn(
+          "mt-0.5 size-5",
+          isDanger ? "text-destructive" : "text-emerald-600"
+        )}
+      />
       <div>
         <p className="font-semibold">{mensaje.titulo}</p>
         <p className="text-muted-foreground">{mensaje.detalle}</p>

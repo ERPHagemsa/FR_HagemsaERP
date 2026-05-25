@@ -18,10 +18,14 @@ import {
 } from "@/compartido/componentes/ui/tabs";
 import { ActivoAccionesCicloVida } from "../componentes/activo-acciones-ciclo-vida";
 import { AvisoResultado } from "../componentes/aviso-resultado";
+import { DocumentosActivo } from "../componentes/documentos-activo";
 import { ImagenesActivo } from "../componentes/imagenes-activo";
+import { TanquesActivo } from "../componentes/tanques-activo";
 import {
   obtenerActivoPorCodigo,
+  obtenerDocumentosPorCodigo,
   obtenerImagenesPorCodigo,
+  obtenerTanquesPorCodigo,
 } from "../servicios/activos-api";
 
 type Props = {
@@ -37,6 +41,8 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
   }
 
   const imagenes = await obtenerImagenesPorCodigo(codigo).catch(() => []);
+  const documentos = await obtenerDocumentosPorCodigo(codigo).catch(() => []);
+  const tanques = await obtenerTanquesPorCodigo(codigo).catch(() => []);
   const vehiculo = activo.vehiculo;
 
   return (
@@ -47,6 +53,9 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
             <p className="text-sm font-medium text-muted-foreground">{activo.codigo}</p>
             <h1 className="text-2xl font-semibold">{activo.descripcion}</h1>
             <p className="text-sm text-muted-foreground">{activo.ubicacion}</p>
+            <p className="mt-2 max-w-full truncate font-mono text-xs text-muted-foreground" title={activo.id}>
+              ID inventario: {activo.id}
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
@@ -76,14 +85,16 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                 <TabsList>
                   <TabsTrigger value="base">Base</TabsTrigger>
                   <TabsTrigger value="vehiculo">Vehiculo</TabsTrigger>
-                  <TabsTrigger value="documentos">Documentos</TabsTrigger>
                   <TabsTrigger value="equipamiento">Equipamiento</TabsTrigger>
                   <TabsTrigger value="dimensiones">Dimensiones</TabsTrigger>
+                  <TabsTrigger value="control">Control operativo</TabsTrigger>
                   <TabsTrigger value="combustible">Combustible</TabsTrigger>
+                  <TabsTrigger value="documentos">Documentos</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="base" className="pt-5">
                   <FichaGrid>
+                    <Dato label="ID inventario" value={activo.id} />
                     <Dato label="Codigo" value={activo.codigo} />
                     <Dato label="Tipo activo" value={activo.tipoActivo} />
                     <Dato label="Descripcion" value={activo.descripcion} />
@@ -93,7 +104,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                   </FichaGrid>
                 </TabsContent>
 
-                <TabsContent value="vehiculo" className="pt-5" forceMount>
+                <TabsContent value="vehiculo" className="pt-5">
                   <FichaGrid>
                     <Dato label="Plantilla" value={vehiculo?.plantillaInventario} />
                     <Dato label="Placa" value={vehiculo?.placaRodaje} />
@@ -109,23 +120,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                   </FichaGrid>
                 </TabsContent>
 
-                <TabsContent value="documentos" className="pt-5" forceMount>
-                  <FichaGrid>
-                    <Dato label="Tarjeta propiedad" value={vehiculo?.tarjetaPropiedad} />
-                    <Dato label="Tarjeta mercancias" value={vehiculo?.tarjetaMercancias} />
-                    <Dato label="SOAT" value={vehiculo?.soat} />
-                    <Dato label="Revision tecnica 12 meses" value={vehiculo?.revisionTecnica12Meses} />
-                    <Dato label="Revision tecnica 6 meses" value={vehiculo?.revisionTecnica6Meses} />
-                    <Dato label="Resolucion Directoral" value={vehiculo?.resolucionDirectoral} />
-                    <Dato label="Resolucion Gerencial" value={vehiculo?.resolucionGerencial} />
-                    <Dato label="IQBF" value={vehiculo?.iqbf} />
-                    <Dato label="Certificado Matpel" value={vehiculo?.certificadoMatpel} />
-                    <Dato label="Certificado bonificacion" value={vehiculo?.certificadoBonificacion} />
-                    <Dato label="Certificado operatividad" value={vehiculo?.certificadoOperatividad} />
-                  </FichaGrid>
-                </TabsContent>
-
-                <TabsContent value="equipamiento" className="pt-5" forceMount>
+                <TabsContent value="equipamiento" className="pt-5">
                   <FichaGrid>
                     <Dato label="Radio comunicacion" value={vehiculo?.radioComunicacion} />
                     <Dato label="Autorradio" value={vehiculo?.autorradio} />
@@ -141,7 +136,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                   </FichaGrid>
                 </TabsContent>
 
-                <TabsContent value="dimensiones" className="pt-5" forceMount>
+                <TabsContent value="dimensiones" className="pt-5">
                   <FichaGrid>
                     <Dato label="Ancho" value={vehiculo?.ancho} />
                     <Dato label="Longitud" value={vehiculo?.longitud} />
@@ -151,22 +146,57 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                   </FichaGrid>
                 </TabsContent>
 
-                <TabsContent value="combustible" className="pt-5" forceMount>
+                <TabsContent value="control" className="pt-5">
                   <FichaGrid>
-                    <Dato label="Capacidad tanque galones" value={vehiculo?.capacidadTanqueGalones} />
+                    <Dato label="Estado operativo" value={vehiculo?.estadoOperativo} />
                     <Dato label="Estado calibracion" value={vehiculo?.estadoCalibracion} />
                     <Dato label="Factor correccion" value={vehiculo?.factorCorreccion} />
-                    <Dato label="Estado operativo" value={vehiculo?.estadoOperativo} />
+                    <Dato label="Capacidad tanque galones" value={vehiculo?.capacidadTanqueGalones} />
                   </FichaGrid>
+                </TabsContent>
+
+                <TabsContent value="combustible" className="pt-5">
+                  <TanquesActivo
+                    codigo={activo.codigo}
+                    editable={false}
+                    tanques={tanques}
+                  />
+                </TabsContent>
+
+                <TabsContent value="documentos" className="pt-5">
+                  <DocumentosActivo
+                    codigo={activo.codigo}
+                    documentos={documentos}
+                    editable={false}
+                  />
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
 
-          <ActivoAccionesCicloVida activo={activo} />
+          <div className="grid gap-5">
+            <Card>
+              <CardHeader>
+                <CardTitle>Registro del activo</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FichaGrid>
+                  <Dato label="ID inventario" value={activo.id} />
+                  <Dato label="Fecha de creacion" value={formatearFechaHora(activo.createdAt)} />
+                  <Dato label="Ultima modificacion" value={formatearFechaHora(activo.updatedAt)} />
+                </FichaGrid>
+              </CardContent>
+            </Card>
+
+            <ActivoAccionesCicloVida activo={activo} />
+          </div>
         </div>
 
-        <ImagenesActivo codigo={activo.codigo} imagenes={imagenes} />
+        <ImagenesActivo
+          codigo={activo.codigo}
+          editable={false}
+          imagenes={imagenes}
+        />
       </div>
     </main>
   );
@@ -185,6 +215,16 @@ function EstadoCard({ titulo, valor }: { titulo: string; valor: string }) {
       </CardHeader>
     </Card>
   );
+}
+
+function formatearFechaHora(value: string) {
+  return new Intl.DateTimeFormat("es-PE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
 }
 
 function Dato({

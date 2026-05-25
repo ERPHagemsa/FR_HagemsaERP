@@ -1,15 +1,17 @@
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 
-import { ActivosResumen } from "../componentes/activos-resumen";
-import { ActivosTabla } from "../componentes/activos-tabla";
+import { ActivosInventarioListado } from "../componentes/activos-inventario-listado";
 import { obtenerActivos } from "../servicios/activos-api";
 
-export async function ActivosVista() {
+export async function ActivosInventarioVista() {
   const resultado = await obtenerActivos()
     .then((activos) => ({ activos, error: null }))
     .catch((error: unknown) => ({
       activos: [],
-      error: error instanceof Error ? error.message : "No se pudo cargar activos",
+      error:
+        error instanceof Error
+          ? error.message
+          : "No se pudo cargar el inventario de activos",
     }));
 
   return (
@@ -17,21 +19,21 @@ export async function ActivosVista() {
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
         <section className="rounded-xl border border-border bg-card px-5 py-4">
           <p className="text-sm font-medium text-muted-foreground">BC-02</p>
-          <h1 className="text-2xl font-semibold">Gestion de Activos</h1>
+          <h1 className="text-2xl font-semibold">Inventario de activos</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Maestro oficial de activos, unidades y especificaciones técnicas.
+            Listado detallado para consultar ID inventario, datos tecnicos,
+            estados y trazabilidad visible.
           </p>
         </section>
 
         {resultado.error ? (
           <Alert variant="destructive">
-            <AlertTitle>No se pudo cargar activos</AlertTitle>
+            <AlertTitle>No se pudo cargar inventario</AlertTitle>
             <AlertDescription>{resultado.error}</AlertDescription>
           </Alert>
         ) : null}
 
-        <ActivosResumen activos={resultado.activos} />
-        <ActivosTabla activos={resultado.activos} />
+        <ActivosInventarioListado activos={resultado.activos} />
       </div>
     </main>
   );

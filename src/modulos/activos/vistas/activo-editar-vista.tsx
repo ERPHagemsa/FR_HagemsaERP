@@ -2,7 +2,12 @@ import Link from "next/link";
 
 import { Button } from "@/compartido/componentes/ui/button";
 import { ActivoFormulario } from "../componentes/activo-formulario";
-import { obtenerActivoPorCodigo } from "../servicios/activos-api";
+import {
+  obtenerActivoPorCodigo,
+  obtenerDocumentosPorCodigo,
+  obtenerImagenesPorCodigo,
+  obtenerTanquesPorCodigo,
+} from "../servicios/activos-api";
 
 type Props = {
   codigo: string;
@@ -10,6 +15,9 @@ type Props = {
 
 export async function ActivoEditarVista({ codigo }: Props) {
   const activo = await obtenerActivoPorCodigo(codigo);
+  const documentos = await obtenerDocumentosPorCodigo(codigo).catch(() => []);
+  const imagenes = await obtenerImagenesPorCodigo(codigo).catch(() => []);
+  const tanques = await obtenerTanquesPorCodigo(codigo).catch(() => []);
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
@@ -24,7 +32,13 @@ export async function ActivoEditarVista({ codigo }: Props) {
           </Button>
         </section>
 
-        <ActivoFormulario activo={activo} modo="editar" />
+        <ActivoFormulario
+          activo={activo}
+          documentos={documentos}
+          imagenes={imagenes}
+          modo="editar"
+          tanques={tanques}
+        />
       </div>
     </main>
   );
