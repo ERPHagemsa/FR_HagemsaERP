@@ -150,6 +150,23 @@ function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
 }
 
+function formatearFecha(fecha?: string) {
+  if (!fecha) {
+    return "-"
+  }
+
+  const valor = new Date(fecha)
+
+  if (Number.isNaN(valor.getTime())) {
+    return fecha
+  }
+
+  return new Intl.DateTimeFormat("es-PE", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(valor)
+}
+
 export function SocioNegocioVista({
   titulo,
   etiqueta,
@@ -362,80 +379,102 @@ export function SocioNegocioVista({
                 </EmptyHeader>
               </Empty>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50 hover:bg-muted/50">
-                    <TableHead className="w-10">
-                      <Checkbox aria-label="Seleccionar todos" />
-                    </TableHead>
-                    <TableHead>Codigo SAP</TableHead>
-                    <TableHead>Socio</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Contacto</TableHead>
-                    <TableHead>Celular</TableHead>
-                    <TableHead className="w-10" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {socios.map((socio) => (
-                    <TableRow key={socio.id}>
-                      <TableCell>
-                        <Checkbox aria-label={`Seleccionar ${socio.razonSocial}`} />
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {socio.codigoInternoSap}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex min-w-48 flex-col">
-                          <span className="font-medium">{socio.razonSocial}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {socio.nombreComercial || "Sin nombre comercial"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{socio.tipo}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={estadoVariant[socio.estado]}>
-                          {socio.estado}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{socio.numeroDocumento}</TableCell>
-                      <TableCell>
-                        <div className="flex min-w-44 flex-col">
-                          <span>{socio.contacto || "Sin contacto"}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {socio.correo || "Sin correo"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{socio.numeroCelular || "-"}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label="Acciones">
-                              <HugeiconsIcon
-                                icon={MoreVerticalCircle01Icon}
-                                strokeWidth={2}
-                              />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuGroup>
-                              <DropdownMenuItem>Ver ficha</DropdownMenuItem>
-                              <DropdownMenuItem>Modificar</DropdownMenuItem>
-                              <DropdownMenuItem>Dar de baja</DropdownMenuItem>
-                            </DropdownMenuGroup>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableHead className="w-10">
+                        <Checkbox aria-label="Seleccionar todos" />
+                      </TableHead>
+                      <TableHead>Codigo SAP</TableHead>
+                      <TableHead>Socio</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Documento</TableHead>
+                      <TableHead>Contacto</TableHead>
+                      <TableHead>Celular</TableHead>
+                      <TableHead>Registro</TableHead>
+                      <TableHead>Baja</TableHead>
+                      <TableHead className="w-10" />
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {socios.map((socio) => (
+                      <TableRow key={socio.id}>
+                        <TableCell>
+                          <Checkbox aria-label={`Seleccionar ${socio.razonSocial}`} />
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {socio.codigoInternoSap}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex min-w-48 flex-col">
+                            <span className="font-medium">{socio.razonSocial}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {socio.nombreComercial || "Sin nombre comercial"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{socio.tipo}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={estadoVariant[socio.estado]}>
+                            {socio.estado}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{socio.numeroDocumento}</TableCell>
+                        <TableCell>
+                          <div className="flex min-w-44 flex-col">
+                            <span>{socio.contacto || "Sin contacto"}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {socio.correo || "Sin correo"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{socio.numeroCelular || "-"}</TableCell>
+                        <TableCell>
+                          <div className="flex min-w-40 flex-col">
+                            <span>{formatearFecha(socio.registradoEn)}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {socio.registradoPorId || "Sin usuario"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex min-w-44 flex-col">
+                            <span>
+                              {socio.fechaBaja ? formatearFecha(socio.fechaBaja) : "-"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {socio.motivoBaja || "Sin baja registrada"}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" aria-label="Acciones">
+                                <HugeiconsIcon
+                                  icon={MoreVerticalCircle01Icon}
+                                  strokeWidth={2}
+                                />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuGroup>
+                                <DropdownMenuItem>Ver ficha</DropdownMenuItem>
+                                <DropdownMenuItem>Modificar</DropdownMenuItem>
+                                <DropdownMenuItem>Dar de baja</DropdownMenuItem>
+                              </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </section>
         </div>

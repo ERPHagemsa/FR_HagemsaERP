@@ -20,6 +20,8 @@ export interface SocioDeNegocioResponse {
   sede: string
   area: string
   contrato: string
+  registradoEn?: string
+  registradoPorId?: string
   motivoBaja: string
   fechaBaja: string
   usuarioBajaId: string
@@ -45,7 +47,6 @@ export interface RegistrarSocioDeNegocioRequest {
   area?: string
   contrato?: string
   usuarioId?: string
-  origenOperacion?: string
 }
 
 export interface RegistrarClienteDesdeComercialRequest {

@@ -15,9 +15,9 @@ export default function ClientesPage() {
           detalle: "Socios tipo CLIENTE disponibles para la operacion.",
         },
         {
-          etiqueta: "Altas desde Comercial",
+          etiqueta: "Clientes desde Comercial",
           valor: "12",
-          detalle: "Eventos ClienteListoParaAlta procesados este mes.",
+          detalle: "Clientes registrados desde Comercial con usuario responsable.",
         },
         {
           etiqueta: "Observaciones",

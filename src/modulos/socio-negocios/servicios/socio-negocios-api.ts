@@ -59,7 +59,7 @@ export function registrarClienteDesdeComercial(
 ) {
   return requestJson<SocioDeNegocioResponse>({
     servicio: "socioNegocios",
-    endpoint: `${BASE_ENDPOINT}/desde-comercial/cliente-listo-para-alta`,
+    endpoint: `${BASE_ENDPOINT}/desde-comercial/prospecto-convertido-a-cliente`,
     init: {
       method: "POST",
       body: JSON.stringify(payload),

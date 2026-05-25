@@ -86,7 +86,6 @@ export function SocioNegocioFormulario({
         area: tipo === "PERSONAL" ? texto(formData, "area") : undefined,
         contrato: tipo === "PERSONAL" ? texto(formData, "contrato") : undefined,
         usuarioId: USUARIO_RESPONSABLE_ID,
-        origenOperacion: "FRONTEND_ERP",
       })
 
       router.push(rutaPorTipo[tipo])
@@ -279,7 +278,7 @@ export function SocioNegocioFormulario({
             ) : null}
 
             <p className="text-sm text-muted-foreground">
-              La operacion se registrara con el usuario autenticado del sistema.
+              La operacion guardara el registro con fecha y usuario responsable.
             </p>
 
             {error ? (

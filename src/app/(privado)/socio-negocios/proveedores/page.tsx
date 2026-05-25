@@ -15,14 +15,14 @@ export default function ProveedoresPage() {
           detalle: "Socios tipo PROVEEDOR disponibles para compras y servicios.",
         },
         {
-          etiqueta: "Altas del mes",
+          etiqueta: "Nuevos registros",
           valor: "8",
-          detalle: "Nuevos proveedores creados sin duplicidad por tipo.",
+          detalle: "Proveedores creados con fecha y usuario de registro.",
         },
         {
-          etiqueta: "Bajas pendientes",
+          etiqueta: "Proveedores inactivos",
           valor: "3",
-          detalle: "Solicitudes con motivo de baja por confirmar.",
+          detalle: "Registros con estado INACTIVO y motivo de baja.",
         },
       ]}
     />

@@ -19,9 +19,9 @@ export default function SocioNegociosPage() {
           detalle: "Documentos registrados en mas de un tipo de socio.",
         },
         {
-          etiqueta: "Bajas del mes",
+          etiqueta: "Socios dados de baja",
           valor: "7",
-          detalle: "Registros con motivo, fecha y usuario responsable.",
+          detalle: "Registros inactivos con motivo, fecha y usuario de baja.",
         },
       ]}
     />
