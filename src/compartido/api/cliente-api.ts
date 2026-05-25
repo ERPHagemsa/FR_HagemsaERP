@@ -1,3 +1,8 @@
+import axios, {
+  type AxiosInstance,
+  type AxiosRequestConfig,
+} from "axios"
+
 import {
   obtenerConfiguracionApi,
   type ServicioApi,
@@ -31,31 +36,55 @@ export class ApiError extends Error {
   }
 }
 
-function unirUrl(baseUrl: string, endpoint: string) {
-  const base = baseUrl.replace(/\/+$/, "")
-  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`
+const cacheClientes = new Map<ServicioApi, AxiosInstance>()
 
-  return `${base}${path}`
+function obtenerCliente(
+  servicio: ServicioApi,
+  baseURL: string,
+  timeout: number,
+): AxiosInstance {
+  const cached = cacheClientes.get(servicio)
+  if (cached) return cached
+
+  const cliente = axios.create({
+    baseURL,
+    timeout,
+    headers: { Accept: "application/json" },
+    validateStatus: () => true,
+  })
+  cacheClientes.set(servicio, cliente)
+  return cliente
 }
 
-async function obtenerMensajeError(response: Response, fallback: string) {
-  const contentType = response.headers.get("content-type") ?? ""
-
-  if (contentType.includes("application/json")) {
-    try {
-      const payload = (await response.json()) as ApiErrorPayload
-      const message = Array.isArray(payload.message)
-        ? payload.message.join(", ")
-        : payload.message
-
-      return message || payload.error || fallback
-    } catch {
-      return fallback
-    }
+function normalizarHeaders(
+  headers: RequestInit["headers"],
+): Record<string, string> {
+  if (!headers) return {}
+  if (headers instanceof Headers) {
+    const salida: Record<string, string> = {}
+    headers.forEach((value, key) => {
+      salida[key] = value
+    })
+    return salida
   }
+  if (Array.isArray(headers)) {
+    return Object.fromEntries(headers)
+  }
+  return headers as Record<string, string>
+}
 
-  const message = await response.text()
-  return message || fallback
+function extraerMensajeError(data: unknown, fallback: string): string {
+  if (typeof data === "string") {
+    return data || fallback
+  }
+  if (data && typeof data === "object") {
+    const payload = data as ApiErrorPayload
+    const mensaje = Array.isArray(payload.message)
+      ? payload.message.join(", ")
+      : payload.message
+    return mensaje || payload.error || fallback
+  }
+  return fallback
 }
 
 export async function requestJson<T>({
@@ -68,54 +97,58 @@ export async function requestJson<T>({
   mensajeErrorDefault = "No se pudo completar la operacion.",
 }: RequestJsonOptions): Promise<T> {
   const configuracion = obtenerConfiguracionApi(servicio)
-  const controller = new AbortController()
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    timeoutMs ?? configuracion.timeoutMs
+  const cliente = obtenerCliente(
+    servicio,
+    configuracion.baseUrl,
+    configuracion.timeoutMs,
   )
+  const method = (init?.method ?? "GET").toUpperCase()
+  const url = endpoint.startsWith("/") ? endpoint : `/${endpoint}`
 
-  let response: Response
+  const headers: Record<string, string> = {
+    ...(init?.body ? { "Content-Type": "application/json" } : {}),
+    ...normalizarHeaders(init?.headers),
+  }
 
+  const axiosConfig: AxiosRequestConfig = {
+    url,
+    method,
+    timeout: timeoutMs ?? configuracion.timeoutMs,
+    signal: init?.signal ?? undefined,
+    headers,
+    data: init?.body ?? undefined,
+  }
+
+  let response
   try {
-    response = await fetch(unirUrl(configuracion.baseUrl, endpoint), {
-      ...init,
-      signal: controller.signal,
-      headers: {
-        ...(init?.body ? { "Content-Type": "application/json" } : {}),
-        ...init?.headers,
-      },
-    })
+    response = await cliente.request<unknown>(axiosConfig)
   } catch (error: unknown) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new ApiError(
-        servicio,
-        408,
-        mensajeErrorTimeout ??
-          `La API de ${configuracion.nombre} no respondio a tiempo.`
-      )
+    if (axios.isAxiosError(error)) {
+      if (error.code === "ECONNABORTED" || error.code === "ERR_CANCELED") {
+        throw new ApiError(
+          servicio,
+          408,
+          mensajeErrorTimeout ??
+            `La API de ${configuracion.nombre} no respondio a tiempo.`,
+        )
+      }
     }
-
     throw new ApiError(
       servicio,
       0,
       mensajeErrorConexion ??
-        `No se pudo conectar con la API de ${configuracion.nombre}.`
+        `No se pudo conectar con la API de ${configuracion.nombre}.`,
     )
-  } finally {
-    clearTimeout(timeoutId)
   }
 
-  if (!response.ok) {
-    throw new ApiError(
-      servicio,
-      response.status,
-      await obtenerMensajeError(response, mensajeErrorDefault)
-    )
+  if (response.status < 200 || response.status >= 300) {
+    const mensaje = extraerMensajeError(response.data, mensajeErrorDefault)
+    throw new ApiError(servicio, response.status, mensaje)
   }
 
   if (response.status === 204) {
     return undefined as T
   }
 
-  return response.json() as Promise<T>
+  return response.data as T
 }
