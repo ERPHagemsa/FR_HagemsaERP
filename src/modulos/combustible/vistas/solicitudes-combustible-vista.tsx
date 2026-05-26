@@ -52,7 +52,9 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 
-import { formatearError, formatearFecha } from "../componentes/formato";
+import { extraerMensajeError } from "@/compartido/api";
+
+import { formatearFecha } from "../componentes/formato";
 import {
   useCrearSolicitudCombustibleMutation,
   useManifiestosQuery,
@@ -89,7 +91,7 @@ export function SolicitudesCombustibleVista() {
     const queryError = manifiestosQuery.error ?? solicitudesQuery.error;
 
     if (queryError) {
-      setError(formatearError(queryError));
+      setError(extraerMensajeError(queryError));
     }
   }, [manifiestosQuery.error, solicitudesQuery.error]);
 
@@ -108,8 +110,8 @@ export function SolicitudesCombustibleVista() {
       setPlaca("");
       setLitrosSolicitados("120");
       setMensaje(`Solicitud ${solicitud.id} creada correctamente.`);
-    } catch (err: unknown) {
-      setError(formatearError(err));
+    } catch (err) {
+      setError(extraerMensajeError(err, "No se pudo crear la solicitud."));
     }
   }
 

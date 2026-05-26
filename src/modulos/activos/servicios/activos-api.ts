@@ -1,4 +1,5 @@
-import { requestJson } from "@/compartido/api";
+import { clienteActivos } from "@/compartido/api/clientes-backend";
+
 import type {
   Activo,
   ActualizarActivoPayload,
@@ -12,53 +13,29 @@ import type {
   TanqueActivo,
 } from "../tipos/activo.tipos";
 
-export async function obtenerActivos() {
-  return requestJson<Activo[]>({
-    servicio: "activos",
-    endpoint: "/activos",
-    init: {
-      cache: "no-store",
-    },
-    mensajeErrorDefault: "No se pudo obtener el listado de activos",
-  });
+export async function obtenerActivos(): Promise<Activo[]> {
+  const { data } = await clienteActivos.get<Activo[]>("/activos");
+  return data;
 }
 
-export async function obtenerActivoPorCodigo(codigo: string) {
-  return requestJson<Activo>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}`,
-    init: {
-      cache: "no-store",
-    },
-    mensajeErrorDefault: "No se pudo obtener el activo",
-  });
+export async function obtenerActivoPorCodigo(codigo: string): Promise<Activo> {
+  const { data } = await clienteActivos.get<Activo>(
+    `/activos/codigo/${codigo}`
+  );
+  return data;
 }
 
-export async function crearActivo(payload: CrearActivoPayload) {
-  return requestJson<Activo>({
-    servicio: "activos",
-    endpoint: "/activos",
-    init: {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo crear el activo",
-  });
+export async function crearActivo(payload: CrearActivoPayload): Promise<Activo> {
+  const { data } = await clienteActivos.post<Activo>("/activos", payload);
+  return data;
 }
 
 export async function actualizarActivo(
   id: number,
   payload: ActualizarActivoPayload
-) {
-  return requestJson<Activo>({
-    servicio: "activos",
-    endpoint: `/activos/${id}`,
-    init: {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo actualizar el activo",
-  });
+): Promise<Activo> {
+  const { data } = await clienteActivos.patch<Activo>(`/activos/${id}`, payload);
+  return data;
 }
 
 export async function cambiarEstadoActivo(
@@ -68,16 +45,12 @@ export async function cambiarEstadoActivo(
     motivo?: string;
     usuario?: string;
   }
-) {
-  return requestJson<Activo>({
-    servicio: "activos",
-    endpoint: `/activos/${id}/estado-activo`,
-    init: {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo cambiar el estado del activo",
-  });
+): Promise<Activo> {
+  const { data } = await clienteActivos.patch<Activo>(
+    `/activos/${id}/estado-activo`,
+    payload
+  );
+  return data;
 }
 
 export async function siniestrarActivo(
@@ -85,128 +58,93 @@ export async function siniestrarActivo(
   payload: {
     observacion?: string;
   }
-) {
-  return requestJson<Activo>({
-    servicio: "activos",
-    endpoint: `/activos/${id}/siniestrar`,
-    init: {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo siniestrar el activo",
-  });
+): Promise<Activo> {
+  const { data } = await clienteActivos.patch<Activo>(
+    `/activos/${id}/siniestrar`,
+    payload
+  );
+  return data;
 }
 
-export async function obtenerImagenesPorCodigo(codigo: string) {
-  return requestJson<ImagenActivo[]>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}/imagenes`,
-    init: {
-      cache: "no-store",
-    },
-    mensajeErrorDefault: "No se pudo obtener las imagenes del activo",
-  });
+export async function obtenerImagenesPorCodigo(
+  codigo: string
+): Promise<ImagenActivo[]> {
+  const { data } = await clienteActivos.get<ImagenActivo[]>(
+    `/activos/codigo/${codigo}/imagenes`
+  );
+  return data;
 }
 
 export async function crearImagenPorCodigo(
   codigo: string,
   payload: CrearImagenActivoPayload
-) {
-  return requestJson<ImagenActivo>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}/imagenes`,
-    init: {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo registrar la imagen",
-  });
+): Promise<ImagenActivo> {
+  const { data } = await clienteActivos.post<ImagenActivo>(
+    `/activos/codigo/${codigo}/imagenes`,
+    payload
+  );
+  return data;
 }
 
-export async function eliminarImagenPorCodigo(codigo: string, imagenId: number) {
-  return requestJson<void>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}/imagenes/${imagenId}`,
-    init: {
-      method: "DELETE",
-    },
-    mensajeErrorDefault: "No se pudo eliminar la imagen",
-  });
+export async function eliminarImagenPorCodigo(
+  codigo: string,
+  imagenId: number
+): Promise<void> {
+  await clienteActivos.delete(`/activos/codigo/${codigo}/imagenes/${imagenId}`);
 }
 
-export async function obtenerDocumentosPorCodigo(codigo: string) {
-  return requestJson<DocumentoActivo[]>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}/documentos`,
-    init: {
-      cache: "no-store",
-    },
-    mensajeErrorDefault: "No se pudo obtener los documentos del activo",
-  });
+export async function obtenerDocumentosPorCodigo(
+  codigo: string
+): Promise<DocumentoActivo[]> {
+  const { data } = await clienteActivos.get<DocumentoActivo[]>(
+    `/activos/codigo/${codigo}/documentos`
+  );
+  return data;
 }
 
 export async function crearDocumentoPorCodigo(
   codigo: string,
   payload: CrearDocumentoActivoPayload
-) {
-  return requestJson<DocumentoActivo>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}/documentos`,
-    init: {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo registrar el documento",
-  });
+): Promise<DocumentoActivo> {
+  const { data } = await clienteActivos.post<DocumentoActivo>(
+    `/activos/codigo/${codigo}/documentos`,
+    payload
+  );
+  return data;
 }
 
 export async function eliminarDocumentoPorCodigo(
   codigo: string,
   documentoId: number
-) {
-  return requestJson<void>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}/documentos/${documentoId}`,
-    init: {
-      method: "DELETE",
-    },
-    mensajeErrorDefault: "No se pudo eliminar el documento",
-  });
+): Promise<void> {
+  await clienteActivos.delete(
+    `/activos/codigo/${codigo}/documentos/${documentoId}`
+  );
 }
 
-export async function obtenerTanquesPorCodigo(codigo: string) {
-  return requestJson<TanqueActivo[]>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}/tanques`,
-    init: {
-      cache: "no-store",
-    },
-    mensajeErrorDefault: "No se pudo obtener los tanques del activo",
-  });
+export async function obtenerTanquesPorCodigo(
+  codigo: string
+): Promise<TanqueActivo[]> {
+  const { data } = await clienteActivos.get<TanqueActivo[]>(
+    `/activos/codigo/${codigo}/tanques`
+  );
+  return data;
 }
 
 export async function crearTanquePorCodigo(
   codigo: string,
   payload: CrearTanqueActivoPayload
-) {
-  return requestJson<TanqueActivo>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}/tanques`,
-    init: {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo registrar el tanque",
-  });
+): Promise<TanqueActivo> {
+  const { data } = await clienteActivos.post<TanqueActivo>(
+    `/activos/codigo/${codigo}/tanques`,
+    payload
+  );
+  return data;
 }
 
-export async function eliminarTanquePorCodigo(codigo: string, tanqueId: number) {
-  return requestJson<void>({
-    servicio: "activos",
-    endpoint: `/activos/codigo/${codigo}/tanques/${tanqueId}`,
-    init: {
-      method: "DELETE",
-    },
-    mensajeErrorDefault: "No se pudo eliminar el tanque",
-  });
+export async function eliminarTanquePorCodigo(
+  codigo: string,
+  tanqueId: number
+): Promise<void> {
+  await clienteActivos.delete(`/activos/codigo/${codigo}/tanques/${tanqueId}`);
 }

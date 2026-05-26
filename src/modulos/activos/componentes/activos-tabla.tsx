@@ -14,6 +14,7 @@ import {
   IconTrash,
 } from "@tabler/icons-react";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -159,9 +160,7 @@ export function ActivosTabla({ activos }: Props) {
       setActivoParaBorrar(null);
       router.refresh();
     } catch (error) {
-      setDeleteError(
-        error instanceof Error ? error.message : "No se pudo borrar el activo"
-      );
+      setDeleteError(extraerMensajeError(error, "No se pudo borrar el activo"));
     } finally {
       setIsDeleting(false);
     }

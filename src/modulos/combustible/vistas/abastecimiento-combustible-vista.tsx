@@ -50,7 +50,9 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 
-import { formatearError, formatearFecha } from "../componentes/formato";
+import { extraerMensajeError } from "@/compartido/api";
+
+import { formatearFecha } from "../componentes/formato";
 import {
   useAbastecimientosCombustibleQuery,
   useCrearAbastecimientoCombustibleMutation,
@@ -88,7 +90,7 @@ export function AbastecimientoCombustibleVista() {
     const queryError = solicitudesQuery.error ?? abastecimientosQuery.error;
 
     if (queryError) {
-      setError(formatearError(queryError));
+      setError(extraerMensajeError(queryError));
     }
   }, [solicitudesQuery.error, abastecimientosQuery.error]);
 
@@ -107,8 +109,8 @@ export function AbastecimientoCombustibleVista() {
       setNroTicket("");
       setLitrosDespachados("115");
       setMensaje(`Ticket ${abastecimiento.nroTicket} registrado correctamente.`);
-    } catch (err: unknown) {
-      setError(formatearError(err));
+    } catch (err) {
+      setError(extraerMensajeError(err, "No se pudo registrar el abastecimiento."));
     }
   }
 

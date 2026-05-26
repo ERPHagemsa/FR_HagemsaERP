@@ -1,3 +1,4 @@
+import { extraerMensajeError } from "@/compartido/api";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 
 import { ActivosResumen } from "../componentes/activos-resumen";
@@ -9,7 +10,7 @@ export async function ActivosVista() {
     .then((activos) => ({ activos, error: null }))
     .catch((error: unknown) => ({
       activos: [],
-      error: error instanceof Error ? error.message : "No se pudo cargar activos",
+      error: extraerMensajeError(error, "No se pudo cargar activos"),
     }));
 
   return (

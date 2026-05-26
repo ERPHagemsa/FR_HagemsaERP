@@ -1,5 +1,6 @@
 import { IconClipboardList } from "@tabler/icons-react";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 
 import { ActivosInventarioListado } from "../componentes/activos-inventario-listado";
@@ -10,10 +11,10 @@ export async function ActivosInventarioVista() {
     .then((activos) => ({ activos, error: null }))
     .catch((error: unknown) => ({
       activos: [],
-      error:
-        error instanceof Error
-          ? error.message
-          : "No se pudo cargar el inventario de activos",
+      error: extraerMensajeError(
+        error,
+        "No se pudo cargar el inventario de activos",
+      ),
     }));
 
   return (

@@ -8,23 +8,6 @@ export default function PersonalPage() {
       accionPrincipal="Nuevo personal"
       crearHref="/socio-negocios/personal/nuevo"
       filtros={{ tipo: "PERSONAL" }}
-      metricas={[
-        {
-          etiqueta: "Personal activo",
-          valor: "148",
-          detalle: "Registros tipo PERSONAL con contrato vigente.",
-        },
-        {
-          etiqueta: "Cambios laborales",
-          valor: "21",
-          detalle: "Modificaciones de puesto, sede, area o contrato.",
-        },
-        {
-          etiqueta: "Contratos observados",
-          valor: "5",
-          detalle: "Registros que requieren completar informacion laboral.",
-        },
-      ]}
     />
   )
 }

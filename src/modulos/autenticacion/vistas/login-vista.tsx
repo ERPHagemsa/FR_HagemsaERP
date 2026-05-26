@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Login03Icon } from "@hugeicons/core-free-icons"
 
+import { extraerMensajeError } from "@/compartido/api"
+import { clienteHttp } from "@/compartido/api/cliente-http"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
@@ -22,13 +24,19 @@ import {
 } from "@/compartido/componentes/ui/field"
 import { Input } from "@/compartido/componentes/ui/input"
 
-export function LoginVista() {
+interface LoginVistaProps {
+  readonly modoDesarrolloActivo?: boolean
+}
+
+export function LoginVista({ modoDesarrolloActivo = false }: LoginVistaProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState("operaciones@hagemsa.local")
-  const [password, setPassword] = useState("demo123")
+  const motivo = searchParams.get("motivo")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
+  const [cargandoDev, setCargandoDev] = useState(false)
 
   async function iniciarSesion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -36,28 +44,28 @@ export function LoginVista() {
     setError(null)
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          message?: string
-        } | null
-
-        throw new Error(payload?.message ?? "No se pudo iniciar sesion.")
-      }
-
+      await clienteHttp.post("/api/auth/login", { email, password })
       router.replace(searchParams.get("next") || "/")
       router.refresh()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "No se pudo iniciar sesion.")
+    } catch (err) {
+      setError(extraerMensajeError(err, "No se pudo iniciar sesion."))
     } finally {
       setCargando(false)
+    }
+  }
+
+  async function entrarComoAdminDev() {
+    setCargandoDev(true)
+    setError(null)
+
+    try {
+      await clienteHttp.post("/api/auth/dev-login", {})
+      router.replace(searchParams.get("next") || "/")
+      router.refresh()
+    } catch (err) {
+      setError(extraerMensajeError(err, "No se pudo iniciar sesion dev."))
+    } finally {
+      setCargandoDev(false)
     }
   }
 
@@ -75,6 +83,15 @@ export function LoginVista() {
             </p>
           </div>
         </div>
+
+        {motivo === "sesion_expirada" ? (
+          <Alert>
+            <AlertTitle>Tu sesion expiro</AlertTitle>
+            <AlertDescription>
+              Por seguridad, te pedimos que vuelvas a ingresar tus credenciales.
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <Card>
           <CardHeader>
@@ -106,7 +123,7 @@ export function LoginVista() {
                     required
                   />
                 </Field>
-                <Button type="submit" disabled={cargando}>
+                <Button type="submit" disabled={cargando || cargandoDev}>
                   <HugeiconsIcon
                     data-icon="inline-start"
                     icon={Login03Icon}
@@ -114,6 +131,16 @@ export function LoginVista() {
                   />
                   {cargando ? "Ingresando..." : "Ingresar"}
                 </Button>
+                {modoDesarrolloActivo ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={cargando || cargandoDev}
+                    onClick={() => void entrarComoAdminDev()}
+                  >
+                    {cargandoDev ? "Entrando..." : "Entrar como admin (dev)"}
+                  </Button>
+                ) : null}
                 {error ? (
                   <Field data-invalid>
                     <FieldError>{error}</FieldError>
@@ -123,13 +150,6 @@ export function LoginVista() {
             </form>
           </CardContent>
         </Card>
-
-        <Alert>
-          <AlertTitle>Acceso temporal</AlertTitle>
-          <AlertDescription>
-            Esta pantalla deja una sesion local hasta conectar la API real de autenticacion.
-          </AlertDescription>
-        </Alert>
       </div>
     </main>
   )

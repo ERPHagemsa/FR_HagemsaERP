@@ -1,38 +1,61 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
+import { esError401, esErrorRateLimit } from "@/compartido/api"
 import {
-  COOKIE_SESION,
-  DURACION_SESION_SEGUNDOS,
-} from "@/compartido/autenticacion/sesion"
+  loginContraAuthService,
+} from "@/compartido/autenticacion/auth-service-cliente"
+import { setCookiesSesion } from "@/compartido/autenticacion/cookies-sesion"
+import { mapearPayloadAUsuario } from "@/compartido/autenticacion/sesion-servidor"
+import { decodificarAccessToken } from "@/compartido/autenticacion/tokens-jwt"
+
+type CuerpoLogin = {
+  email?: string
+  password?: string
+}
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as {
-    email?: string
-    password?: string
-  } | null
+  const body = (await request.json().catch(() => null)) as CuerpoLogin | null
 
   if (!body?.email || !body.password) {
     return NextResponse.json(
       { message: "Correo y contrasena son obligatorios." },
-      { status: 400 }
+      { status: 400 },
+    )
+  }
+
+  let tokens
+  try {
+    tokens = await loginContraAuthService(body.email, body.password)
+  } catch (error) {
+    if (esError401(error)) {
+      return NextResponse.json(
+        { message: "Credenciales invalidas." },
+        { status: 401 },
+      )
+    }
+    if (esErrorRateLimit(error)) {
+      return NextResponse.json(
+        { message: "Demasiados intentos. Esperar unos minutos." },
+        { status: 429 },
+      )
+    }
+    return NextResponse.json(
+      { message: "Servicio de autenticacion no disponible." },
+      { status: 503 },
+    )
+  }
+
+  const payload = decodificarAccessToken(tokens.accessToken)
+  if (!payload) {
+    return NextResponse.json(
+      { message: "Respuesta invalida del servicio de autenticacion." },
+      { status: 502 },
     )
   }
 
   const cookieStore = await cookies()
+  setCookiesSesion(cookieStore, tokens)
 
-  cookieStore.set(COOKIE_SESION, "sesion-local-hagemsa", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: DURACION_SESION_SEGUNDOS,
-  })
-
-  return NextResponse.json({
-    usuario: {
-      email: body.email,
-      nombre: "Hagemsa",
-    },
-  })
+  return NextResponse.json({ usuario: mapearPayloadAUsuario(payload) })
 }

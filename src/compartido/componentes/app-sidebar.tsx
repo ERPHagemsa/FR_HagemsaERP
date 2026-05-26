@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 
 import { NavMain } from "@/compartido/componentes/nav-main"
 import { NavUser } from "@/compartido/componentes/nav-user"
@@ -39,6 +40,16 @@ const data = {
   },
   navMain: [
     {
+      title: "Socio de Negocios",
+      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
+      items: [
+        { title: "Clientes", url: "/socio-negocios/clientes" },
+        { title: "Proveedores", url: "/socio-negocios/proveedores" },
+        { title: "Personal", url: "/socio-negocios/personal" },
+        { title: "Reportes", url: "/socio-negocios/reportes" },
+      ],
+    },
+    {
       title: "Activos",
       icon: <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} />,
       items: [
@@ -47,18 +58,6 @@ const data = {
         { title: "Nuevo activo", url: "/activos/nuevo" },
         { title: "Estados", url: "#" },
         { title: "Documentos", url: "#" },
-      ],
-    },
-    {
-      title: "Socio de Negocios",
-      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
-      items: [
-        { title: "Resumen", url: "/socio-negocios" },
-        { title: "Clientes", url: "/socio-negocios/clientes" },
-        { title: "Proveedores", url: "/socio-negocios/proveedores" },
-        { title: "Personal", url: "/socio-negocios/personal" },
-        { title: "Consultas", url: "/socio-negocios/consultas" },
-        { title: "Reportes", url: "/socio-negocios/reportes" },
       ],
     },
     {
@@ -196,9 +195,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-sidebar-accent"
               >
                 <span className="flex size-14 shrink-0 items-center justify-center">
-                  <img
+                  <Image
                     src="/logo/logo.svg"
                     alt="Hagemsa"
+                    width={56}
+                    height={56}
                     className="size-full object-contain"
                   />
                 </span>
