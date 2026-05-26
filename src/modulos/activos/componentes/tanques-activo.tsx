@@ -18,9 +18,9 @@ import {
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
 import {
-  crearTanquePorCodigo,
-  eliminarTanquePorCodigo,
-} from "../servicios/activos-api";
+  useCrearTanqueActivoMutation,
+  useEliminarTanqueActivoMutation,
+} from "../servicios/activos-queries";
 import type { TanqueActivo, TipoTanqueActivo } from "../tipos/activo.tipos";
 
 type Props = {
@@ -36,11 +36,13 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [tipoTanque, setTipoTanque] = React.useState<TipoTanqueActivo>("DIESEL");
   const [isSaving, setIsSaving] = React.useState(false);
-  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [message, setMessage] = React.useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const crearTanqueMutation = useCrearTanqueActivoMutation(codigo);
+  const eliminarTanqueMutation = useEliminarTanqueActivoMutation(codigo);
 
   const totalDiesel = sumarCapacidad(tanques, "DIESEL");
   const totalUrea = sumarCapacidad(tanques, "UREA");
@@ -49,6 +51,8 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const tipoTanqueSeleccionado =
+      formData.get("tipoTanque") === "UREA" ? "UREA" : "DIESEL";
     const capacidad = Number(formData.get("capacidad"));
     const orden = Number(formData.get("orden") || 1);
     const observacion = String(formData.get("observacion") ?? "").trim();
@@ -57,8 +61,8 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
     setIsSaving(true);
 
     try {
-      await crearTanquePorCodigo(codigo, {
-        tipoTanque,
+      await crearTanqueMutation.mutateAsync({
+        tipoTanque: tipoTanqueSeleccionado,
         capacidad,
         orden,
         observacion: observacion || undefined,
@@ -96,7 +100,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
     setDeletingId(tanque.id);
 
     try {
-      await eliminarTanquePorCodigo(codigo, tanque.id);
+      await eliminarTanqueMutation.mutateAsync(tanque.id);
       setMessage({
         type: "success",
         text: "Tanque eliminado correctamente.",
@@ -172,10 +176,12 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
               <select
                 className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                 name="tipoTanque"
-                onChange={(event) =>
-                  setTipoTanque(event.target.value as TipoTanqueActivo)
-                }
                 value={tipoTanque}
+                onChange={(event) => {
+                  const next =
+                    event.currentTarget.value === "UREA" ? "UREA" : "DIESEL";
+                  setTipoTanque(next);
+                }}
               >
                 {tiposTanque.map((tipo) => (
                   <option key={tipo} value={tipo}>
@@ -193,12 +199,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
               step="0.01"
               type="number"
             />
-            <Field
-              label="Unidad"
-              name="unidadMedida"
-              readOnly
-              value={tipoTanque === "DIESEL" ? "GALON" : "LITRO"}
-            />
+            <UnidadTanqueDisplay tipoTanque={tipoTanque} />
             <Field label="Orden" min="1" name="orden" step="1" type="number" />
           </div>
           <Field
@@ -329,6 +330,22 @@ function Field({
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
       <Input id={`tanque-${name}`} name={name} required={required} {...props} />
+    </div>
+  );
+}
+
+function UnidadTanqueDisplay({ tipoTanque }: { tipoTanque: TipoTanqueActivo }) {
+  const unidad = tipoTanque === "UREA" ? "Litros" : "Galones";
+
+  return (
+    <div className="grid gap-2">
+      <Label>Unidad</Label>
+      <div
+        key={unidad}
+        className="flex h-9 items-center rounded-lg border border-input bg-muted/40 px-3 text-sm font-medium text-foreground"
+      >
+        {unidad}
+      </div>
     </div>
   );
 }

@@ -12,6 +12,10 @@ export const queryKeys = {
       [...queryKeys.activos.all, "detalle", codigo] as const,
     imagenes: (codigo: string) =>
       [...queryKeys.activos.all, "imagenes", codigo] as const,
+    documentos: (codigo: string) =>
+      [...queryKeys.activos.all, "documentos", codigo] as const,
+    tanques: (codigo: string) =>
+      [...queryKeys.activos.all, "tanques", codigo] as const,
   },
   combustible: {
     all: ["combustible"] as const,

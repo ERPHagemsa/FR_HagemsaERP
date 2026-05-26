@@ -1,9 +1,10 @@
+import { requestJson } from "@/compartido/api";
 import type {
   Activo,
   ActualizarActivoPayload,
+  CrearActivoPayload,
   CrearDocumentoActivoPayload,
   CrearImagenActivoPayload,
-  CrearActivoPayload,
   CrearTanqueActivoPayload,
   DocumentoActivo,
   EstadoActivo,
@@ -11,255 +12,201 @@ import type {
   TanqueActivo,
 } from "../tipos/activo.tipos";
 
-const API_URL = process.env.NEXT_PUBLIC_ACTIVOS_API_URL ?? "https://api-activos-dev.hagemsa.com/api";;
-
-function getApiUrl() {
-  if (!API_URL) {
-    throw new Error(
-      "Falta configurar NEXT_PUBLIC_ACTIVOS_API_URL con la URL del backend de activos"
-    );
-  }
-
-  return API_URL;
-}
-
-async function parseError(response: Response, fallback: string) {
-  const text = await response.text();
-
-  if (!text) return fallback;
-
-  try {
-    const parsed = JSON.parse(text) as { message?: string | string[] };
-    const message = Array.isArray(parsed.message)
-      ? parsed.message.join(". ")
-      : parsed.message;
-
-    return message || fallback;
-  } catch {
-    return text;
-  }
-}
-
 export async function obtenerActivos() {
-  const response = await fetch(`${getApiUrl()}/activos`, {
-    cache: "no-store",
+  return requestJson<Activo[]>({
+    servicio: "activos",
+    endpoint: "/activos",
+    init: {
+      cache: "no-store",
+    },
+    mensajeErrorDefault: "No se pudo obtener el listado de activos",
   });
-
-  if (!response.ok) {
-    throw new Error("No se pudo obtener el listado de activos");
-  }
-
-  return (await response.json()) as Activo[];
 }
 
 export async function obtenerActivoPorCodigo(codigo: string) {
-  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}`, {
-    cache: "no-store",
+  return requestJson<Activo>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}`,
+    init: {
+      cache: "no-store",
+    },
+    mensajeErrorDefault: "No se pudo obtener el activo",
   });
-
-  if (!response.ok) {
-    throw new Error("No se pudo obtener el activo");
-  }
-
-  return (await response.json()) as Activo;
 }
 
 export async function crearActivo(payload: CrearActivoPayload) {
-  const response = await fetch(`${getApiUrl()}/activos`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return requestJson<Activo>({
+    servicio: "activos",
+    endpoint: "/activos",
+    init: {
+      method: "POST",
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
+    mensajeErrorDefault: "No se pudo crear el activo",
   });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response, "No se pudo crear el activo"));
-  }
-
-  return (await response.json()) as Activo;
 }
 
 export async function actualizarActivo(
-  id: string,
+  id: number,
   payload: ActualizarActivoPayload
 ) {
-  const response = await fetch(`${getApiUrl()}/activos/${id}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
+  return requestJson<Activo>({
+    servicio: "activos",
+    endpoint: `/activos/${id}`,
+    init: {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
+    mensajeErrorDefault: "No se pudo actualizar el activo",
   });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response, "No se pudo actualizar el activo"));
-  }
-
-  return (await response.json()) as Activo;
 }
 
 export async function cambiarEstadoActivo(
-  id: string,
+  id: number,
   payload: {
     estadoActivo: EstadoActivo;
     motivo?: string;
     usuario?: string;
   }
 ) {
-  const response = await fetch(`${getApiUrl()}/activos/${id}/estado-activo`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
+  return requestJson<Activo>({
+    servicio: "activos",
+    endpoint: `/activos/${id}/estado-activo`,
+    init: {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
+    mensajeErrorDefault: "No se pudo cambiar el estado del activo",
   });
-
-  if (!response.ok) {
-    throw new Error(
-      await parseError(response, "No se pudo cambiar el estado del activo")
-    );
-  }
-
-  return (await response.json()) as Activo;
 }
 
 export async function siniestrarActivo(
-  id: string,
+  id: number,
   payload: {
     observacion?: string;
   }
 ) {
-  const response = await fetch(`${getApiUrl()}/activos/${id}/siniestrar`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
+  return requestJson<Activo>({
+    servicio: "activos",
+    endpoint: `/activos/${id}/siniestrar`,
+    init: {
+      method: "PATCH",
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
+    mensajeErrorDefault: "No se pudo siniestrar el activo",
   });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response, "No se pudo siniestrar el activo"));
-  }
-
-  return (await response.json()) as Activo;
 }
 
 export async function obtenerImagenesPorCodigo(codigo: string) {
-  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}/imagenes`, {
-    cache: "no-store",
+  return requestJson<ImagenActivo[]>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}/imagenes`,
+    init: {
+      cache: "no-store",
+    },
+    mensajeErrorDefault: "No se pudo obtener las imagenes del activo",
   });
-
-  if (!response.ok) {
-    throw new Error("No se pudo obtener las imagenes del activo");
-  }
-
-  return (await response.json()) as ImagenActivo[];
 }
 
 export async function crearImagenPorCodigo(
   codigo: string,
   payload: CrearImagenActivoPayload
 ) {
-  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}/imagenes`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return requestJson<ImagenActivo>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}/imagenes`,
+    init: {
+      method: "POST",
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
+    mensajeErrorDefault: "No se pudo registrar la imagen",
   });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response, "No se pudo registrar la imagen"));
-  }
-
-  return (await response.json()) as ImagenActivo;
 }
 
-export async function eliminarImagenPorCodigo(codigo: string, imagenId: string) {
-  const response = await fetch(
-    `${getApiUrl()}/activos/codigo/${codigo}/imagenes/${imagenId}`,
-    {
+export async function eliminarImagenPorCodigo(codigo: string, imagenId: number) {
+  return requestJson<void>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}/imagenes/${imagenId}`,
+    init: {
       method: "DELETE",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(await parseError(response, "No se pudo eliminar la imagen"));
-  }
+    },
+    mensajeErrorDefault: "No se pudo eliminar la imagen",
+  });
 }
 
 export async function obtenerDocumentosPorCodigo(codigo: string) {
-  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}/documentos`, {
-    cache: "no-store",
+  return requestJson<DocumentoActivo[]>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}/documentos`,
+    init: {
+      cache: "no-store",
+    },
+    mensajeErrorDefault: "No se pudo obtener los documentos del activo",
   });
-
-  if (!response.ok) {
-    throw new Error("No se pudo obtener los documentos del activo");
-  }
-
-  return (await response.json()) as DocumentoActivo[];
 }
 
 export async function crearDocumentoPorCodigo(
   codigo: string,
   payload: CrearDocumentoActivoPayload
 ) {
-  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}/documentos`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return requestJson<DocumentoActivo>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}/documentos`,
+    init: {
+      method: "POST",
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
+    mensajeErrorDefault: "No se pudo registrar el documento",
   });
+}
 
-  if (!response.ok) {
-    throw new Error(await parseError(response, "No se pudo registrar el documento"));
-  }
-
-  return (await response.json()) as DocumentoActivo;
+export async function eliminarDocumentoPorCodigo(
+  codigo: string,
+  documentoId: number
+) {
+  return requestJson<void>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}/documentos/${documentoId}`,
+    init: {
+      method: "DELETE",
+    },
+    mensajeErrorDefault: "No se pudo eliminar el documento",
+  });
 }
 
 export async function obtenerTanquesPorCodigo(codigo: string) {
-  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}/tanques`, {
-    cache: "no-store",
+  return requestJson<TanqueActivo[]>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}/tanques`,
+    init: {
+      cache: "no-store",
+    },
+    mensajeErrorDefault: "No se pudo obtener los tanques del activo",
   });
-
-  if (!response.ok) {
-    throw new Error("No se pudo obtener los tanques del activo");
-  }
-
-  return (await response.json()) as TanqueActivo[];
 }
 
 export async function crearTanquePorCodigo(
   codigo: string,
   payload: CrearTanqueActivoPayload
 ) {
-  const response = await fetch(`${getApiUrl()}/activos/codigo/${codigo}/tanques`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return requestJson<TanqueActivo>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}/tanques`,
+    init: {
+      method: "POST",
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
+    mensajeErrorDefault: "No se pudo registrar el tanque",
   });
-
-  if (!response.ok) {
-    throw new Error(await parseError(response, "No se pudo registrar el tanque"));
-  }
-
-  return (await response.json()) as TanqueActivo;
 }
 
-export async function eliminarTanquePorCodigo(codigo: string, tanqueId: string) {
-  const response = await fetch(
-    `${getApiUrl()}/activos/codigo/${codigo}/tanques/${tanqueId}`,
-    {
+export async function eliminarTanquePorCodigo(codigo: string, tanqueId: number) {
+  return requestJson<void>({
+    servicio: "activos",
+    endpoint: `/activos/codigo/${codigo}/tanques/${tanqueId}`,
+    init: {
       method: "DELETE",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(await parseError(response, "No se pudo eliminar el tanque"));
-  }
+    },
+    mensajeErrorDefault: "No se pudo eliminar el tanque",
+  });
 }

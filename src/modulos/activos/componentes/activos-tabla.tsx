@@ -33,7 +33,7 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
-import { cambiarEstadoActivo } from "../servicios/activos-api";
+import { useCambiarEstadoActivoMutation } from "../servicios/activos-queries";
 import type {
   Activo,
   EstadoActivo,
@@ -64,6 +64,7 @@ export function ActivosTabla({ activos }: Props) {
   );
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
+  const cambiarEstadoMutation = useCambiarEstadoActivoMutation();
 
   const activosVisibles = activos.filter(
     (activo) => activo.estadoActivo !== "ELIMINADO"
@@ -147,10 +148,13 @@ export function ActivosTabla({ activos }: Props) {
     setIsDeleting(true);
 
     try {
-      await cambiarEstadoActivo(activoParaBorrar.id, {
-        estadoActivo: "ELIMINADO",
-        motivo: "Borrado desde maestro de activos",
-        usuario: "activos.web",
+      await cambiarEstadoMutation.mutateAsync({
+        id: activoParaBorrar.id,
+        payload: {
+          estadoActivo: "ELIMINADO",
+          motivo: "Borrado desde maestro de activos",
+          usuario: "activos.web",
+        },
       });
       setActivoParaBorrar(null);
       router.refresh();

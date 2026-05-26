@@ -2,7 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { IconFilePlus, IconRefresh } from "@tabler/icons-react";
+import {
+  IconExternalLink,
+  IconFilePlus,
+  IconFileUpload,
+  IconTrash,
+} from "@tabler/icons-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -17,7 +22,10 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
-import { crearDocumentoPorCodigo } from "../servicios/activos-api";
+import {
+  useCrearDocumentoActivoMutation,
+  useEliminarDocumentoActivoMutation,
+} from "../servicios/activos-queries";
 import type {
   DocumentoActivo,
   EstadoDocumentoActivo,
@@ -45,10 +53,15 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
   const router = useRouter();
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [archivoNombre, setArchivoNombre] = React.useState("");
+  const [archivoDataUrl, setArchivoDataUrl] = React.useState("");
   const [message, setMessage] = React.useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const crearDocumentoMutation = useCrearDocumentoActivoMutation(codigo);
+  const eliminarDocumentoMutation = useEliminarDocumentoActivoMutation(codigo);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,20 +72,32 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
     const formData = new FormData(form);
     const fechaVencimiento = String(formData.get("fechaVencimiento") ?? "");
     const observacion = String(formData.get("observacion") ?? "").trim();
+    const archivoUrl = archivoDataUrl || String(formData.get("archivoUrl") ?? "").trim();
+
+    if (!archivoUrl) {
+      setMessage({
+        type: "error",
+        text: "Selecciona un archivo desde tu equipo o registra una URL documental.",
+      });
+      setIsSaving(false);
+      return;
+    }
 
     try {
-      await crearDocumentoPorCodigo(codigo, {
+      await crearDocumentoMutation.mutateAsync({
         tipoDocumento: String(formData.get("tipoDocumento")) as TipoDocumentoActivo,
         numero: String(formData.get("numero") ?? "").trim(),
         fechaEmision: String(formData.get("fechaEmision") ?? ""),
         fechaVencimiento: fechaVencimiento || undefined,
-        archivoUrl: String(formData.get("archivoUrl") ?? "").trim(),
+        archivoUrl,
         observacion: observacion || undefined,
         usuarioCarga:
           String(formData.get("usuarioCarga") ?? "").trim() || "usuario.activos",
       });
 
       form.reset();
+      setArchivoNombre("");
+      setArchivoDataUrl("");
       setMostrarFormulario(false);
       setMessage({
         type: "success",
@@ -89,6 +114,55 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
       });
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function onArchivoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = event.target.files?.[0];
+    setMessage(null);
+
+    if (!archivo) {
+      setArchivoNombre("");
+      setArchivoDataUrl("");
+      return;
+    }
+
+    if (archivo.size > 10 * 1024 * 1024) {
+      event.target.value = "";
+      setArchivoNombre("");
+      setArchivoDataUrl("");
+      setMessage({
+        type: "error",
+        text: "El archivo supera 10 MB. Usa una URL documental o selecciona un archivo mas ligero.",
+      });
+      return;
+    }
+
+    setArchivoNombre(archivo.name);
+    setArchivoDataUrl(await fileToDataUrl(archivo));
+  }
+
+  async function eliminarDocumento(documento: DocumentoActivo) {
+    setMessage(null);
+    setDeletingId(documento.id);
+
+    try {
+      await eliminarDocumentoMutation.mutateAsync(documento.id);
+      setMessage({
+        type: "success",
+        text: "Documento eliminado correctamente.",
+      });
+      router.refresh();
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "No se pudo eliminar el documento.",
+      });
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -141,12 +215,35 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
             <Field name="numero" label="Numero" required />
             <Field name="fechaEmision" label="Fecha emision" type="date" required />
             <Field name="fechaVencimiento" label="Fecha vencimiento" type="date" />
+            <div className="grid gap-2">
+              <Label htmlFor="documento-archivo">
+                Archivo desde equipo
+                <span className="ml-1 text-destructive">*</span>
+              </Label>
+              <div className="flex items-center gap-2">
+                <Button asChild type="button" variant="outline">
+                  <label htmlFor="documento-archivo" className="cursor-pointer">
+                    <IconFileUpload />
+                    Seleccionar archivo
+                  </label>
+                </Button>
+                <Input
+                  id="documento-archivo"
+                  className="sr-only"
+                  type="file"
+                  onChange={onArchivoChange}
+                />
+                <span className="min-w-0 truncate rounded-full border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+                  {archivoNombre || "Ningun archivo seleccionado"}
+                </span>
+              </div>
+            </div>
             <Field
               name="archivoUrl"
-              label="Archivo o URL"
-              placeholder="https://..."
+              label="URL documental"
+              placeholder={archivoDataUrl ? "Archivo seleccionado desde equipo" : "https://..."}
               type="url"
-              required
+              disabled={Boolean(archivoDataUrl)}
             />
             <Field
               name="usuarioCarga"
@@ -186,6 +283,7 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
               <TableHead>Vencimiento</TableHead>
               <TableHead>Usuario</TableHead>
               <TableHead>Archivo</TableHead>
+              {editable ? <TableHead className="text-center">Accion</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -208,23 +306,38 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
                 <TableCell>
                   {documento.archivoUrl ? (
                     <a
-                      className="text-primary underline-offset-4 hover:underline"
+                      className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
                       href={documento.archivoUrl}
                       rel="noreferrer"
                       target="_blank"
                     >
+                      <IconExternalLink className="size-4" />
                       Abrir
                     </a>
                   ) : (
                     "-"
                   )}
                 </TableCell>
+                {editable ? (
+                  <TableCell className="text-center">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      disabled={deletingId === documento.id}
+                      onClick={() => eliminarDocumento(documento)}
+                    >
+                      <IconTrash />
+                      {deletingId === documento.id ? "Eliminando..." : "Eliminar"}
+                    </Button>
+                  </TableCell>
+                ) : null}
               </TableRow>
             ))}
             {!documentos.length ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={editable ? 8 : 7}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No hay documentos registrados para este activo.
@@ -236,6 +349,15 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
       </div>
     </div>
   );
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 function EstadoDocumentoBadge({ value }: { value: EstadoDocumentoActivo }) {
