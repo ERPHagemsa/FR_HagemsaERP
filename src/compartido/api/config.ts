@@ -29,7 +29,7 @@ export const serviciosApi = {
     baseUrl:
       process.env.NEXT_PUBLIC_SOCIO_NEGOCIOS_API_URL ??
       API_GATEWAY_URL ??
-      "http://localhost:4000/api",
+      "https://api-bc01-socio-negocio.hagemsa.com/api",
     nombre: "socio de negocio",
     timeoutMs: 8000,
   },

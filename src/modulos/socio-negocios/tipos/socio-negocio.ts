@@ -7,17 +7,17 @@ export type EstadoRegistro = "VIGENTE" | "ANULADO"
 export type FormatoExportacionSocios = "EXCEL" | "PDF"
 
 export interface PaginationMeta {
-  page: number
-  pageSize: number
-  totalItems: number
-  totalPages: number
-  hasNextPage: boolean
-  hasPreviousPage: boolean
+  pagina: number
+  limite: number
+  total: number
+  totalPaginas: number
+  tieneSiguiente: boolean
+  tieneAnterior: boolean
 }
 
 export interface PaginatedResponse<T> {
-  items: T[]
-  meta: PaginationMeta
+  datos: T[]
+  paginacion: PaginationMeta
 }
 
 export interface SocioDeNegocioResponse {
@@ -115,8 +115,8 @@ export interface ConsultarSociosDeNegocioQuery {
   sede?: string
   contrato?: string
   cuenta?: string
-  page?: number
-  pageSize?: number
+  pagina?: number
+  limite?: number
   sortBy?:
     | "codigoInternoSap"
     | "tipo"

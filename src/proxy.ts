@@ -5,6 +5,7 @@ import {
   COOKIE_ACCESS,
   COOKIE_REFRESH,
 } from "@/compartido/autenticacion/cookies-sesion"
+import { modoDesarrolloActivo } from "@/compartido/autenticacion/jwt-dev"
 import { refrescarSiNecesario } from "@/compartido/autenticacion/refrescar-sesion"
 
 const rutasPublicas = ["/login"]
@@ -34,6 +35,14 @@ function redirigirALogin(
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
+
+  if (modoDesarrolloActivo()) {
+    if (pathname === "/login") {
+      return NextResponse.redirect(new URL("/", request.url))
+    }
+    return NextResponse.next()
+  }
+
   const tieneAccess = Boolean(request.cookies.get(COOKIE_ACCESS)?.value)
   const tieneRefresh = Boolean(request.cookies.get(COOKIE_REFRESH)?.value)
   const tieneSesion = tieneAccess && tieneRefresh

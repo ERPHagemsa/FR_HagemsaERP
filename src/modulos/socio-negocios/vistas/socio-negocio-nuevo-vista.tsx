@@ -22,11 +22,7 @@ export function SocioNegocioNuevoVista({ tipo }: SocioNegocioNuevoVistaProps) {
         title={titulo}
         breadcrumbs={[
           { title: "Socio de Negocio", href: "/socio-negocios" },
-          {
-            title: tipo ? tituloPorTipo[tipo].replace("Nuevo ", "") : "Registro",
-            href: tipo ? `/socio-negocios/${tipo === "CLIENTE" ? "clientes" : tipo === "PROVEEDOR" ? "proveedores" : "personal"}` : "/socio-negocios",
-          },
-          { title: "Nuevo" },
+          { title: tipo ? tituloPorTipo[tipo].replace("Nuevo ", "") : "Registro" },
         ]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">

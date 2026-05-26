@@ -14,12 +14,11 @@ import type { PayloadAccessToken, RolPayload } from "./tokens-jwt"
 
 const ACCESS_EXPIRA_SEGUNDOS = 60 * 60 * 8 // 8h: cubre una jornada de trabajo
 const REFRESH_EXPIRA_SEGUNDOS = 60 * 60 * 24 // 24h
+const ID_USUARIO_DEV = "00000000-0000-4000-8000-000000000001"
+const JTI_USUARIO_DEV = "00000000-0000-4000-8000-000000000002"
 
 export function modoDesarrolloActivo(): boolean {
-  return (
-    process.env.NODE_ENV !== "production" &&
-    process.env.AUTH_MODO_DESARROLLO === "true"
-  )
+  return process.env.AUTH_MODO_DESARROLLO === "true"
 }
 
 export interface OpcionesUsuarioDev {
@@ -29,14 +28,14 @@ export interface OpcionesUsuarioDev {
   readonly roles?: ReadonlyArray<RolPayload>
 }
 
-export function crearTokensMockDev(
+export function crearPayloadUsuarioDev(
   opciones: OpcionesUsuarioDev = {},
-): ParTokens {
+): PayloadAccessToken {
   const ahoraSegundos = Math.floor(Date.now() / 1000)
 
-  const payload: PayloadAccessToken = {
-    sub: crypto.randomUUID(),
-    jti: crypto.randomUUID(),
+  return {
+    sub: ID_USUARIO_DEV,
+    jti: JTI_USUARIO_DEV,
     email: opciones.email ?? "dev-admin@hagemsa.local",
     type: opciones.tipo ?? "interno",
     name: opciones.nombre ?? "Admin Dev",
@@ -44,7 +43,12 @@ export function crearTokensMockDev(
     iat: ahoraSegundos,
     exp: ahoraSegundos + ACCESS_EXPIRA_SEGUNDOS,
   }
+}
 
+export function crearTokensMockDev(
+  opciones: OpcionesUsuarioDev = {},
+): ParTokens {
+  const payload = crearPayloadUsuarioDev(opciones)
   return {
     accessToken: construirJwtMock(payload),
     refreshToken: `dev-refresh.${crypto.randomUUID()}`,

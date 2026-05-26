@@ -40,12 +40,6 @@ type SocioNegocioFormularioProps = {
   tipoInicial?: TipoSocioDeNegocio
 }
 
-const rutaPorTipo = {
-  CLIENTE: "/socio-negocios/clientes",
-  PROVEEDOR: "/socio-negocios/proveedores",
-  PERSONAL: "/socio-negocios/personal",
-} satisfies Record<TipoSocioDeNegocio, string>
-
 const USUARIO_RESPONSABLE_ID = "admin"
 
 type ErrorDialogo = {
@@ -131,7 +125,7 @@ export function SocioNegocioFormulario({
         usuarioId: USUARIO_RESPONSABLE_ID,
       })
 
-      router.push(rutaPorTipo[tipo])
+      router.push("/socio-negocios")
       router.refresh()
     } catch (err: unknown) {
       setErrorDialogo(obtenerErrorDialogo(err))

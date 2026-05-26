@@ -41,11 +41,11 @@ const data = {
   navMain: [
     {
       title: "Socio de Negocios",
+      url: "/socio-negocios",
       icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
       items: [
-        { title: "Clientes", url: "/socio-negocios/clientes" },
-        { title: "Proveedores", url: "/socio-negocios/proveedores" },
-        { title: "Personal", url: "/socio-negocios/personal" },
+        { title: "Listar socios", url: "/socio-negocios/listar" },
+        { title: "Registrar socio", url: "/socio-negocios/nuevo" },
         { title: "Reportes", url: "/socio-negocios/reportes" },
       ],
     },

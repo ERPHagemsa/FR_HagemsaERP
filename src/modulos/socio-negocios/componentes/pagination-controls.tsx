@@ -33,8 +33,8 @@ export function PaginationControls({
     const paginas: (number | string)[] = []
     const maxPaginasVisibles = 5
 
-    if (meta.totalPages <= maxPaginasVisibles) {
-      for (let i = 1; i <= meta.totalPages; i++) {
+    if (meta.totalPaginas <= maxPaginasVisibles) {
+      for (let i = 1; i <= meta.totalPaginas; i++) {
         paginas.push(i)
       }
     } else {
@@ -42,13 +42,13 @@ export function PaginationControls({
       paginas.push(1)
 
       // Calcular rango de paginas alrededor de la actual
-      let inicio = Math.max(2, meta.page - 1)
-      let fin = Math.min(meta.totalPages - 1, meta.page + 1)
+      let inicio = Math.max(2, meta.pagina - 1)
+      let fin = Math.min(meta.totalPaginas - 1, meta.pagina + 1)
 
-      if (meta.page <= 2) {
-        fin = Math.min(meta.totalPages - 1, 4)
-      } else if (meta.page >= meta.totalPages - 1) {
-        inicio = Math.max(2, meta.totalPages - 3)
+      if (meta.pagina <= 2) {
+        fin = Math.min(meta.totalPaginas - 1, 4)
+      } else if (meta.pagina >= meta.totalPaginas - 1) {
+        inicio = Math.max(2, meta.totalPaginas - 3)
       }
 
       if (inicio > 2) {
@@ -59,12 +59,12 @@ export function PaginationControls({
         paginas.push(i)
       }
 
-      if (fin < meta.totalPages - 1) {
+      if (fin < meta.totalPaginas - 1) {
         paginas.push("...")
       }
 
       // Siempre mostrar ultima pagina
-      paginas.push(meta.totalPages)
+      paginas.push(meta.totalPaginas)
     }
 
     return paginas
@@ -89,17 +89,17 @@ export function PaginationControls({
           </SelectContent>
         </Select>
         <span className="text-muted-foreground">
-          Mostrando {(meta.page - 1) * meta.pageSize + 1} a{" "}
-          {Math.min(meta.page * meta.pageSize, meta.totalItems)} de{" "}
-          {meta.totalItems} registros
+          Mostrando {(meta.pagina - 1) * meta.limite + 1} a{" "}
+          {Math.min(meta.pagina * meta.limite, meta.total)} de{" "}
+          {meta.total} registros
         </span>
       </div>
       <Pagination>
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious
-              onClick={() => meta.hasPreviousPage && onPageChange(meta.page - 1)}
-              className={!meta.hasPreviousPage ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              onClick={() => meta.tieneAnterior && onPageChange(meta.pagina - 1)}
+              className={!meta.tieneAnterior ? "pointer-events-none opacity-50" : "cursor-pointer"}
             />
           </PaginationItem>
           {generarNumerosPaginas().map((pageNum, index) => (
@@ -111,8 +111,8 @@ export function PaginationControls({
               ) : (
                 <PaginationLink
                   onClick={() => onPageChange(Number(pageNum))}
-                  isActive={pageNum === meta.page}
-                  className={Number(pageNum) === meta.page ? "" : "cursor-pointer"}
+                  isActive={pageNum === meta.pagina}
+                  className={Number(pageNum) === meta.pagina ? "" : "cursor-pointer"}
                   size="icon"
                 >
                   {pageNum}
@@ -122,8 +122,8 @@ export function PaginationControls({
           ))}
           <PaginationItem>
             <PaginationNext
-              onClick={() => meta.hasNextPage && onPageChange(meta.page + 1)}
-              className={!meta.hasNextPage ? "pointer-events-none opacity-50" : "cursor-pointer"}
+              onClick={() => meta.tieneSiguiente && onPageChange(meta.pagina + 1)}
+              className={!meta.tieneSiguiente ? "pointer-events-none opacity-50" : "cursor-pointer"}
             />
           </PaginationItem>
         </PaginationContent>

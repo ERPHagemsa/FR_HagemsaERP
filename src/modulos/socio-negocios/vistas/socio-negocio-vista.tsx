@@ -25,14 +25,6 @@ import {
   CardTitle,
 } from "@/compartido/componentes/ui/card"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/compartido/componentes/ui/dialog"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -342,19 +334,6 @@ function obtenerValorFiltro(
   return typeof value === "string" ? value : ""
 }
 
-const filtrosTexto = [
-  { key: "razonSocial", label: "Razon social", placeholder: "transportes" },
-  { key: "numeroDocumento", label: "Documento", placeholder: "20123456789" },
-  { key: "correo", label: "Correo", placeholder: "empresa.com" },
-  { key: "area", label: "Area", placeholder: "Operaciones" },
-  { key: "sede", label: "Sede", placeholder: "Arequipa" },
-  { key: "cuenta", label: "Cuenta", placeholder: "Cuenta operativa" },
-] satisfies ReadonlyArray<{
-  key: keyof ConsultarSociosDeNegocioQuery
-  label: string
-  placeholder: string
-}>
-
 function AccionesSocio({
   socio,
   onActualizado,
@@ -531,7 +510,6 @@ export function SocioNegocioVista({
   const [errorOperacion, setErrorOperacion] = useState<ErrorOperacion | null>(null)
   const [paginaActual, setPaginaActual] = useState(1)
   const [registrosPorPagina, setRegistrosPorPagina] = useState(20)
-  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [filtrosFormulario, setFiltrosFormulario] =
     useState<ConsultarSociosDeNegocioQuery>(() =>
       limpiarFiltros({
@@ -551,25 +529,33 @@ export function SocioNegocioVista({
   
   const filtrosConPaginacion = useMemo(() => ({
     ...filtrosAplicados,
-    page: paginaActual,
-    pageSize: registrosPorPagina,
+    pagina: paginaActual,
+    limite: registrosPorPagina,
   }), [filtrosAplicados, paginaActual, registrosPorPagina])
   
   const sociosQuery = useSociosDeNegocioQuery(filtrosConPaginacion)
   const exportacionQuery = useExportarSociosDeNegocioQuery(
     {
       ...filtrosAplicados,
-      page: 1,
-      pageSize: registrosPorPagina,
+      pagina: 1,
+      limite: registrosPorPagina,
       formato: formatoExportacion,
     },
     false
   )
-  const socios = useMemo(() => Array.isArray(sociosQuery.data?.items) ? sociosQuery.data.items : [], [sociosQuery.data])
-  const metaPaginacion = sociosQuery.data?.meta
+  const socios = useMemo(() => Array.isArray(sociosQuery.data?.datos) ? sociosQuery.data.datos : [], [sociosQuery.data])
+  const metaPaginacion = sociosQuery.data?.paginacion
   const cargando = sociosQuery.isLoading
   const error = sociosQuery.error ? obtenerMensajeError(sociosQuery.error) : null
   const tipoBloqueado = Boolean(filtros?.tipo)
+  const [sociosSeleccionados, setSociosSeleccionados] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const idsPagina = useMemo(() => socios.map((socio) => socio.id), [socios])
+  const todosSeleccionados =
+    idsPagina.length > 0 && idsPagina.every((id) => sociosSeleccionados.has(id))
+  const algunosSeleccionados =
+    !todosSeleccionados && idsPagina.some((id) => sociosSeleccionados.has(id))
 
   const metricasVista = useMemo(() => {
     const activosVigentes = socios.filter(
@@ -600,7 +586,7 @@ export function SocioNegocioVista({
   async function exportar() {
     setReporteGenerado(null)
     const resultado = await exportacionQuery.refetch()
-    const reporte = resultado.data?.items[0]
+    const reporte = resultado.data?.datos[0]
 
     if (reporte) {
       setReporteGenerado(
@@ -637,7 +623,6 @@ export function SocioNegocioVista({
         ...(filtros?.tipo ? { tipo: filtros.tipo } : {}),
       }),
     )
-    setFiltrosAbiertos(false)
   }
 
   function limpiarBusqueda() {
@@ -655,6 +640,39 @@ export function SocioNegocioVista({
     setPaginaActual(1)
     setFiltrosFormulario(filtrosBase)
     setFiltrosAplicados(filtrosBase)
+  }
+
+  function alternarSeleccionTodos(checked: boolean | "indeterminate") {
+    setSociosSeleccionados((actual) => {
+      const siguiente = new Set(actual)
+
+      idsPagina.forEach((id) => {
+        if (checked === true) {
+          siguiente.add(id)
+        } else {
+          siguiente.delete(id)
+        }
+      })
+
+      return siguiente
+    })
+  }
+
+  function alternarSeleccionSocio(
+    id: string,
+    checked: boolean | "indeterminate",
+  ) {
+    setSociosSeleccionados((actual) => {
+      const siguiente = new Set(actual)
+
+      if (checked === true) {
+        siguiente.add(id)
+      } else {
+        siguiente.delete(id)
+      }
+
+      return siguiente
+    })
   }
 
   return (
@@ -696,7 +714,7 @@ export function SocioNegocioVista({
               return (
                 <Card
                   key={metrica.etiqueta}
-                  className={`overflow-hidden rounded-lg ${visual.cardClassName}`}
+                  className={`overflow-hidden ${visual.cardClassName}`}
                 >
                   <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
                     <div className="min-w-0">
@@ -742,35 +760,109 @@ export function SocioNegocioVista({
           </section>
 
           <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-4 border-b border-border px-4 py-3 xl:flex-row xl:items-end xl:justify-between">
               <div>
                 <h2 className="text-base font-semibold">Socios de negocio</h2>
                 <p className="text-sm text-muted-foreground">{etiqueta}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={sociosQuery.isFetching}
-                  onClick={() => {
-                    if (mostrarFiltrosReporte) {
-                      setFiltrosAbiertos(true)
-                      return
+              <form
+                className="flex flex-col gap-2 lg:flex-row lg:items-end"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  aplicarFiltros()
+                }}
+              >
+                <Field className="lg:w-48">
+                  <FieldLabel>Razon social</FieldLabel>
+                  <Input
+                    value={obtenerValorFiltro(filtrosFormulario, "razonSocial")}
+                    placeholder="Buscar socio"
+                    onChange={(event) =>
+                      actualizarFiltro("razonSocial", event.target.value)
                     }
-                    void sociosQuery.refetch()
-                  }}
-                >
-                  <HugeiconsIcon
-                    data-icon="inline-start"
-                    icon={Search01Icon}
-                    strokeWidth={2}
                   />
-                  {sociosQuery.isFetching
-                    ? "Consultando..."
-                    : mostrarFiltrosReporte
-                      ? "Buscar"
-                      : "Consultar"}
-                </Button>
+                </Field>
+                <Field className="lg:w-40">
+                  <FieldLabel>Documento</FieldLabel>
+                  <Input
+                    value={obtenerValorFiltro(
+                      filtrosFormulario,
+                      "numeroDocumento",
+                    )}
+                    placeholder="RUC/DNI"
+                    onChange={(event) =>
+                      actualizarFiltro("numeroDocumento", event.target.value)
+                    }
+                  />
+                </Field>
+                <Field className="lg:w-36">
+                  <FieldLabel>Tipo</FieldLabel>
+                  <Select
+                    value={filtrosFormulario.tipo ?? "TODOS"}
+                    disabled={tipoBloqueado}
+                    onValueChange={(value) =>
+                      actualizarFiltro(
+                        "tipo",
+                        value as ConsultarSociosDeNegocioQuery["tipo"] | "TODOS",
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="TODOS">Todos</SelectItem>
+                        <SelectItem value="CLIENTE">Cliente</SelectItem>
+                        <SelectItem value="PROVEEDOR">Proveedor</SelectItem>
+                        <SelectItem value="PERSONAL">Personal</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field className="lg:w-36">
+                  <FieldLabel>Estado</FieldLabel>
+                  <Select
+                    value={filtrosFormulario.estado ?? "TODOS"}
+                    onValueChange={(value) =>
+                      actualizarFiltro(
+                        "estado",
+                        value as ConsultarSociosDeNegocioQuery["estado"] | "TODOS",
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="TODOS">Todos</SelectItem>
+                        <SelectItem value="ACTIVO">Activo</SelectItem>
+                        <SelectItem value="INACTIVO">Inactivo</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <div className="flex gap-2">
+                  <Button type="submit" size="sm" disabled={sociosQuery.isFetching}>
+                    <HugeiconsIcon
+                      data-icon="inline-start"
+                      icon={Search01Icon}
+                      strokeWidth={2}
+                    />
+                    {sociosQuery.isFetching ? "Consultando..." : "Aplicar"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={limpiarBusqueda}
+                  >
+                    Limpiar
+                  </Button>
+                </div>
+              </form>
+              <div className="flex flex-wrap gap-2">
                 {crearHref ? (
                   <Button asChild size="sm">
                     <Link href={crearHref}>
@@ -819,7 +911,14 @@ export function SocioNegocioVista({
                   <TableHeader>
                     <TableRow className="bg-muted/70 hover:bg-muted/70">
                       <TableHead className="w-10">
-                        <Checkbox aria-label="Seleccionar todos" />
+                        <Checkbox
+                          aria-label="Seleccionar todos"
+                          checked={
+                            todosSeleccionados ||
+                            (algunosSeleccionados ? "indeterminate" : false)
+                          }
+                          onCheckedChange={alternarSeleccionTodos}
+                        />
                       </TableHead>
                       <TableHead>Codigo SAP</TableHead>
                       <TableHead>Socio</TableHead>
@@ -839,7 +938,13 @@ export function SocioNegocioVista({
                     {socios.map((socio) => (
                       <TableRow key={socio.id} className="border-border/80">
                         <TableCell>
-                          <Checkbox aria-label={`Seleccionar ${socio.razonSocial}`} />
+                          <Checkbox
+                            aria-label={`Seleccionar ${socio.razonSocial}`}
+                            checked={sociosSeleccionados.has(socio.id)}
+                            onCheckedChange={(checked) =>
+                              alternarSeleccionSocio(socio.id, checked)
+                            }
+                          />
                         </TableCell>
                         <TableCell className="font-mono text-xs">
                           {socio.codigoInternoSap}
@@ -949,188 +1054,6 @@ export function SocioNegocioVista({
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={filtrosAbiertos} onOpenChange={setFiltrosAbiertos}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Buscar socios</DialogTitle>
-            <DialogDescription>
-              Filtra el reporte por estado, texto y orden.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form
-            className="flex flex-col gap-4"
-            onSubmit={(event) => {
-              event.preventDefault()
-              aplicarFiltros()
-            }}
-          >
-            <div className="grid gap-3 md:grid-cols-3">
-              <Field>
-                <FieldLabel>Tipo</FieldLabel>
-                <Select
-                  value={filtrosFormulario.tipo ?? "TODOS"}
-                  disabled={tipoBloqueado}
-                  onValueChange={(value) =>
-                    actualizarFiltro(
-                      "tipo",
-                      value as ConsultarSociosDeNegocioQuery["tipo"] | "TODOS",
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="TODOS">Todos</SelectItem>
-                      <SelectItem value="CLIENTE">Cliente</SelectItem>
-                      <SelectItem value="PROVEEDOR">Proveedor</SelectItem>
-                      <SelectItem value="PERSONAL">Personal</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel>Estado</FieldLabel>
-                <Select
-                  value={filtrosFormulario.estado ?? "TODOS"}
-                  onValueChange={(value) =>
-                    actualizarFiltro(
-                      "estado",
-                      value as ConsultarSociosDeNegocioQuery["estado"] | "TODOS",
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="TODOS">Todos</SelectItem>
-                      <SelectItem value="ACTIVO">Activo</SelectItem>
-                      <SelectItem value="INACTIVO">Inactivo</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel>Registro</FieldLabel>
-                <Select
-                  value={filtrosFormulario.estadoRegistro ?? "TODOS"}
-                  onValueChange={(value) =>
-                    actualizarFiltro(
-                      "estadoRegistro",
-                      value as
-                        | ConsultarSociosDeNegocioQuery["estadoRegistro"]
-                        | "TODOS",
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="TODOS">Todos</SelectItem>
-                      <SelectItem value="VIGENTE">Vigente</SelectItem>
-                      <SelectItem value="ANULADO">Anulado</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              {filtrosTexto.map((filtro) => (
-                <Field key={filtro.key}>
-                  <FieldLabel htmlFor={`filtro-${filtro.key}`}>
-                    {filtro.label}
-                  </FieldLabel>
-                  <Input
-                    id={`filtro-${filtro.key}`}
-                    value={obtenerValorFiltro(filtrosFormulario, filtro.key)}
-                    placeholder={filtro.placeholder}
-                    onChange={(event) =>
-                      actualizarFiltro(filtro.key, event.target.value)
-                    }
-                  />
-                </Field>
-              ))}
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-2">
-              <Field>
-                <FieldLabel>Ordenar por</FieldLabel>
-                <Select
-                  value={filtrosFormulario.sortBy ?? "razonSocial"}
-                  onValueChange={(value) =>
-                    actualizarFiltro(
-                      "sortBy",
-                      value as ConsultarSociosDeNegocioQuery["sortBy"],
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="razonSocial">Razon social</SelectItem>
-                      <SelectItem value="codigoInternoSap">Codigo SAP</SelectItem>
-                      <SelectItem value="numeroDocumento">Documento</SelectItem>
-                      <SelectItem value="correo">Correo</SelectItem>
-                      <SelectItem value="area">Area</SelectItem>
-                      <SelectItem value="sede">Sede</SelectItem>
-                      <SelectItem value="cuenta">Cuenta</SelectItem>
-                      <SelectItem value="fechaCreacion">Fecha creacion</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field>
-                <FieldLabel>Orden</FieldLabel>
-                <Select
-                  value={filtrosFormulario.sortOrder ?? "asc"}
-                  onValueChange={(value) =>
-                    actualizarFiltro(
-                      "sortOrder",
-                      value as ConsultarSociosDeNegocioQuery["sortOrder"],
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="asc">Ascendente</SelectItem>
-                      <SelectItem value="desc">Descendente</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={limpiarBusqueda}>
-                Limpiar
-              </Button>
-              <Button type="submit" disabled={sociosQuery.isFetching}>
-                <HugeiconsIcon
-                  data-icon="inline-start"
-                  icon={Search01Icon}
-                  strokeWidth={2}
-                />
-                Aplicar filtros
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }

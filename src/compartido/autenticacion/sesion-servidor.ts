@@ -14,6 +14,7 @@
 import { cookies } from "next/headers"
 
 import { COOKIE_ACCESS } from "./cookies-sesion"
+import { crearPayloadUsuarioDev, modoDesarrolloActivo } from "./jwt-dev"
 import {
   decodificarAccessToken,
   type PayloadAccessToken,
@@ -35,7 +36,9 @@ export async function obtenerAccessToken(): Promise<string | null> {
 
 export async function obtenerSesionActual(): Promise<PayloadAccessToken | null> {
   const token = await obtenerAccessToken()
-  if (!token) return null
+  if (!token) {
+    return modoDesarrolloActivo() ? crearPayloadUsuarioDev() : null
+  }
   return decodificarAccessToken(token)
 }
 
