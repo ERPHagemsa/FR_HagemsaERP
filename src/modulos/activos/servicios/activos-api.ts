@@ -14,8 +14,23 @@ import type {
 } from "../tipos/activo.tipos";
 
 export async function obtenerActivos(): Promise<Activo[]> {
-  const { data } = await clienteActivos.get<Activo[]>("/activos");
-  return data;
+  const { data } = await clienteActivos.get<unknown>("/activos");
+
+  if (Array.isArray(data)) {
+    return data as Activo[];
+  }
+
+  if (
+    data &&
+    typeof data === "object" &&
+    Array.isArray((data as { activos?: unknown }).activos)
+  ) {
+    return (data as { activos: Activo[] }).activos;
+  }
+
+  throw new Error(
+    "La API de activos no devolvio una lista. Revisa NEXT_PUBLIC_ACTIVOS_API_URL."
+  );
 }
 
 export async function obtenerActivoPorCodigo(codigo: string): Promise<Activo> {
