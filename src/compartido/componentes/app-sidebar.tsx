@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 
 import { NavMain } from "@/compartido/componentes/nav-main"
 import { NavUser } from "@/compartido/componentes/nav-user"
@@ -32,7 +33,22 @@ import {
 } from "@hugeicons/core-free-icons"
 
 const data = {
+  user: {
+    name: "Hagemsa",
+    email: "operaciones@hagemsa.local",
+    avatar: "/avatars/shadcn.jpg",
+  },
   navMain: [
+    {
+      title: "Socio de Negocios",
+      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
+      items: [
+        { title: "Clientes", url: "/socio-negocios/clientes" },
+        { title: "Proveedores", url: "/socio-negocios/proveedores" },
+        { title: "Personal", url: "/socio-negocios/personal" },
+        { title: "Reportes", url: "/socio-negocios/reportes" },
+      ],
+    },
     {
       title: "Activos",
       icon: <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} />,
@@ -42,18 +58,6 @@ const data = {
         { title: "Nuevo activo", url: "/activos/nuevo" },
         { title: "Estados", url: "#" },
         { title: "Documentos", url: "#" },
-      ],
-    },
-    {
-      title: "Socio de Negocios",
-      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
-      items: [
-        { title: "Resumen", url: "/socio-negocios" },
-        { title: "Clientes", url: "/socio-negocios/clientes" },
-        { title: "Proveedores", url: "/socio-negocios/proveedores" },
-        { title: "Personal", url: "/socio-negocios/personal" },
-        { title: "Consultas", url: "/socio-negocios/consultas" },
-        { title: "Reportes", url: "/socio-negocios/reportes" },
       ],
     },
     {
@@ -164,8 +168,7 @@ const data = {
       title: "Configuracion",
       icon: <HugeiconsIcon icon={Settings02Icon} strokeWidth={2} />,
       items: [
-        { title: "Cuentas", url: "/admin/cuentas" },
-        { title: "Roles", url: "/admin/roles" },
+        { title: "Usuarios y roles", url: "#" },
         { title: "Parametros ERP", url: "#" },
         { title: "Preferencias", url: "#" },
       ],
@@ -192,9 +195,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-sidebar-accent"
               >
                 <span className="flex size-14 shrink-0 items-center justify-center">
-                  <img
+                  <Image
                     src="/logo/logo.svg"
                     alt="Hagemsa"
+                    width={56}
+                    height={56}
                     className="size-full object-contain"
                   />
                 </span>
@@ -220,7 +225,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           showLabel
           className="border-sidebar-border/80 bg-sidebar-accent/70 text-sidebar-foreground hover:bg-sidebar-accent"
         />
-        <NavUser />
+        <NavUser user={data.user} />
       </SidebarFooter>
     </Sidebar>
   )

@@ -1,9 +1,19 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/compartido/componentes/ui/alert-dialog"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import { Checkbox } from "@/compartido/componentes/ui/checkbox"
@@ -19,6 +29,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/compartido/componentes/ui/dropdown-menu"
 import {
@@ -27,6 +38,11 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/compartido/componentes/ui/empty"
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+} from "@/compartido/componentes/ui/field"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import {
   Table,
@@ -36,6 +52,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table"
+import { Textarea } from "@/compartido/componentes/ui/textarea"
+import { ApiError } from "@/compartido/api/axios"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Add01Icon,
@@ -49,105 +67,177 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import {
+  useDarDeBajaSocioDeNegocioMutation,
   useExportarSociosDeNegocioQuery,
+  useReactivarSocioDeNegocioMutation,
   useSociosDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
+import { PaginationControls } from "../componentes/pagination-controls"
 import type {
   ConsultarSociosDeNegocioQuery,
   FormatoExportacionSocios,
+  SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
-
-type Metrica = {
-  etiqueta: string
-  valor: string
-  detalle: string
-}
 
 type SocioNegocioVistaProps = {
   titulo: string
   etiqueta: string
   accionPrincipal?: string
   crearHref?: string
-  metricas: Metrica[]
   filtros?: ConsultarSociosDeNegocioQuery
   formatoExportacion?: FormatoExportacionSocios
 }
 
 const estadoVariant = {
-  ACTIVO: "default",
+  ACTIVO: "outline",
   INACTIVO: "secondary",
+} as const
+
+const estadoRegistroVariant = {
+  VIGENTE: "outline",
+  ANULADO: "destructive",
+} as const
+
+const estadoClassName = {
+  ACTIVO:
+    "border-border bg-background text-foreground shadow-xs",
+  INACTIVO:
+    "border-border bg-background text-muted-foreground shadow-xs",
+} as const
+
+const estadoRegistroClassName = {
+  VIGENTE:
+    "border-border bg-background text-foreground shadow-xs",
+  ANULADO:
+    "border-border bg-background text-foreground shadow-xs",
+} as const
+
+const estadoIconClassName = {
+  ACTIVO: "text-emerald-500",
+  INACTIVO: "text-zinc-500",
+} as const
+
+const estadoRegistroIconClassName = {
+  VIGENTE: "text-emerald-500",
+  ANULADO: "text-destructive",
 } as const
 
 function obtenerVisualMetrica(etiqueta: string, index: number) {
   const texto = etiqueta.toLowerCase()
 
-  if (index === 0) {
-    return {
-      icon: UserGroupIcon,
-      iconClassName: "bg-primary-foreground/15 text-primary-foreground ring-primary-foreground/20",
-      cardClassName: "border-primary bg-primary text-primary-foreground",
-      descriptionClassName: "text-primary-foreground/75",
-      detailClassName: "text-primary-foreground/80",
-      badgeClassName:
-        "border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground",
-      badge: "Total",
-    }
-  }
-
-  if (texto.includes("activo")) {
+  if (texto.includes("activo") || texto.includes("vigente")) {
     return {
       icon: CheckmarkCircle01Icon,
-      iconClassName: "bg-primary/10 text-primary ring-primary/15",
-      cardClassName: "border-border bg-card text-card-foreground",
+      iconClassName:
+        "bg-background text-emerald-500 ring-border",
+      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
       descriptionClassName: "text-muted-foreground",
       detailClassName: "text-muted-foreground",
-      badgeClassName: "border-primary/20 bg-primary/5 text-primary",
+      badgeClassName:
+        "border-border bg-background text-foreground shadow-xs",
       badge: "Operativo",
+      contexto: "Disponibles",
     }
   }
 
   if (
     texto.includes("inactivo") ||
+    texto.includes("anulado") ||
     texto.includes("observ") ||
     texto.includes("baja") ||
     texto.includes("pendiente")
   ) {
     return {
       icon: Loading03Icon,
-      iconClassName: "bg-muted text-foreground ring-border",
-      cardClassName: "border-border bg-card text-card-foreground",
+      iconClassName:
+        "bg-background text-amber-500 ring-border",
+      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
       descriptionClassName: "text-muted-foreground",
       detailClassName: "text-muted-foreground",
-      badgeClassName: "border-border bg-muted text-foreground",
+      badgeClassName:
+        "border-border bg-background text-foreground shadow-xs",
       badge: "Seguimiento",
+      contexto: "Requieren revision",
     }
   }
 
-  if (texto.includes("export") || texto.includes("formato")) {
+  if (texto.includes("export") || texto.includes("formato") || texto.includes("campos")) {
     return {
       icon: Download01Icon,
-      iconClassName: "bg-primary/10 text-primary ring-primary/15",
-      cardClassName: "border-border bg-card text-card-foreground",
+      iconClassName:
+        "bg-background text-sky-500 ring-border",
+      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
       descriptionClassName: "text-muted-foreground",
       detailClassName: "text-muted-foreground",
-      badgeClassName: "border-primary/20 bg-primary/5 text-primary",
+      badgeClassName:
+        "border-border bg-background text-foreground shadow-xs",
       badge: "Reporte",
+      contexto: "Exportable",
+    }
+  }
+
+  if (index === 0) {
+    return {
+      icon: UserGroupIcon,
+      iconClassName: "bg-background text-primary ring-border",
+      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
+      descriptionClassName: "text-muted-foreground",
+      detailClassName: "text-muted-foreground",
+      badgeClassName: "border-border bg-background text-foreground shadow-xs",
+      badge: "Total",
+      contexto: "Consulta actual",
     }
   }
 
   return {
     icon: ChartUpIcon,
-    iconClassName: "bg-accent text-accent-foreground ring-border",
-    cardClassName: "border-border bg-card text-card-foreground",
+    iconClassName: "bg-background text-primary ring-border",
+    cardClassName: "border-border bg-card text-card-foreground shadow-sm",
     descriptionClassName: "text-muted-foreground",
     detailClassName: "text-muted-foreground",
-    badgeClassName: "border-border bg-accent text-accent-foreground",
+    badgeClassName: "border-border bg-background text-foreground shadow-xs",
     badge: "Control",
+    contexto: "Control operativo",
   }
 }
 
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
+}
+
+type ErrorOperacion = {
+  titulo: string
+  descripcion: string
+}
+
+function obtenerErrorOperacion(error: unknown): ErrorOperacion {
+  if (error instanceof ApiError && error.status === 409) {
+    return {
+      titulo: "Operacion no permitida",
+      descripcion:
+        error.message ||
+        "El socio tiene un conflicto de estado o ya existe una operacion equivalente.",
+    }
+  }
+
+  if (error instanceof ApiError && error.status === 400) {
+    return {
+      titulo: "Solicitud invalida",
+      descripcion: error.message,
+    }
+  }
+
+  if (error instanceof ApiError && error.status === 0) {
+    return {
+      titulo: "Sin conexion con el servidor",
+      descripcion: error.message,
+    }
+  }
+
+  return {
+    titulo: "No se pudo completar la operacion",
+    descripcion: obtenerMensajeError(error),
+  }
 }
 
 function formatearFecha(fecha?: string) {
@@ -167,18 +257,238 @@ function formatearFecha(fecha?: string) {
   }).format(valor)
 }
 
+function EstadoSocioBadge({
+  estado,
+}: {
+  estado: SocioDeNegocioResponse["estado"]
+}) {
+  return (
+    <Badge
+      variant={estadoVariant[estado]}
+      className={`h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${estadoClassName[estado]}`}
+    >
+      <HugeiconsIcon
+        data-icon="inline-start"
+        icon={estado === "ACTIVO" ? CheckmarkCircle01Icon : Loading03Icon}
+        strokeWidth={2}
+        className={estadoIconClassName[estado]}
+      />
+      {estado}
+    </Badge>
+  )
+}
+
+function EstadoRegistroBadge({
+  estadoRegistro,
+}: {
+  estadoRegistro: SocioDeNegocioResponse["estadoRegistro"]
+}) {
+  return (
+    <Badge
+      variant={estadoRegistroVariant[estadoRegistro]}
+      className={`h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${estadoRegistroClassName[estadoRegistro]}`}
+    >
+      <HugeiconsIcon
+        data-icon="inline-start"
+        icon={estadoRegistro === "VIGENTE" ? CheckmarkCircle01Icon : Loading03Icon}
+        strokeWidth={2}
+        className={estadoRegistroIconClassName[estadoRegistro]}
+      />
+      {estadoRegistro}
+    </Badge>
+  )
+}
+
+type AccionesSocioProps = {
+  socio: SocioDeNegocioResponse
+  onActualizado: () => void
+  onMensaje: (mensaje: string) => void
+  onError: (error: ErrorOperacion) => void
+}
+
+function AccionesSocio({
+  socio,
+  onActualizado,
+  onMensaje,
+  onError,
+}: AccionesSocioProps) {
+  const bajaMutation = useDarDeBajaSocioDeNegocioMutation(socio.id, {
+    onSuccess: onActualizado,
+  })
+  const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
+    onSuccess: onActualizado,
+  })
+  const [accion, setAccion] = useState<"baja" | "anular" | "reactivar" | null>(null)
+  const [motivo, setMotivo] = useState("")
+  const procesando = bajaMutation.isPending || reactivarMutation.isPending
+  const puedeDarBaja = socio.estado === "ACTIVO" && socio.estadoRegistro === "VIGENTE"
+  const puedeReactivar = socio.estado === "INACTIVO" || socio.estadoRegistro === "ANULADO"
+  const requiereMotivo = accion === "baja" || accion === "anular"
+
+  function abrirAccion(nuevaAccion: "baja" | "anular" | "reactivar") {
+    setMotivo(
+      nuevaAccion === "anular"
+        ? "Documento registrado incorrectamente"
+        : socio.motivoBaja || "",
+    )
+    setAccion(nuevaAccion)
+  }
+
+  async function confirmarAccion() {
+    try {
+      if (accion === "baja") {
+        await bajaMutation.mutateAsync({
+          motivo: motivo.trim(),
+          usuarioId: "admin",
+          estadoRegistro: "VIGENTE",
+        })
+        onMensaje(`${socio.razonSocial} fue dado de baja.`)
+      }
+
+      if (accion === "anular") {
+        await bajaMutation.mutateAsync({
+          motivo: motivo.trim(),
+          usuarioId: "admin",
+          estadoRegistro: "ANULADO",
+        })
+        onMensaje(`${socio.razonSocial} fue anulado.`)
+      }
+
+      if (accion === "reactivar") {
+        await reactivarMutation.mutateAsync({ usuarioId: "admin" })
+        onMensaje(`${socio.razonSocial} fue reactivado.`)
+      }
+
+      setAccion(null)
+    } catch (error) {
+      onError(obtenerErrorOperacion(error))
+    }
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Acciones" disabled={procesando}>
+            <HugeiconsIcon
+              icon={procesando ? Loading03Icon : MoreVerticalCircle01Icon}
+              strokeWidth={2}
+            />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuGroup>
+            <DropdownMenuItem disabled>Ver ficha</DropdownMenuItem>
+            <DropdownMenuItem disabled>Modificar</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={!puedeDarBaja || procesando}
+              onSelect={() => abrirAccion("baja")}
+            >
+              Dar de baja
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={socio.estadoRegistro === "ANULADO" || procesando}
+              onSelect={() => abrirAccion("anular")}
+            >
+              Anular por error
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!puedeReactivar || procesando}
+              onSelect={() => abrirAccion("reactivar")}
+            >
+              Reactivar
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={accion !== null} onOpenChange={(open) => !open && setAccion(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {accion === "baja"
+                ? "Dar de baja socio"
+                : accion === "anular"
+                  ? "Anular registro"
+                  : "Reactivar socio"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {accion === "reactivar"
+                ? `Confirma la reactivacion de ${socio.razonSocial}.`
+                : `Registra el motivo para ${socio.razonSocial}.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex flex-col gap-4">
+            <div className="rounded-xl border border-border bg-muted/40 p-3">
+              <p className="font-medium">{socio.razonSocial}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {socio.codigoInternoSap} · {socio.numeroDocumento}
+              </p>
+            </div>
+
+            {requiereMotivo ? (
+              <Field>
+                <FieldLabel htmlFor={`motivo-${socio.id}`}>Motivo</FieldLabel>
+                <Textarea
+                  id={`motivo-${socio.id}`}
+                  value={motivo}
+                  onChange={(event) => setMotivo(event.target.value)}
+                  placeholder={
+                    accion === "anular"
+                      ? "Documento registrado incorrectamente"
+                      : "Dejo de operar"
+                  }
+                  disabled={procesando}
+                />
+                <FieldDescription>
+                  Este motivo quedara asociado al movimiento del socio.
+                </FieldDescription>
+              </Field>
+            ) : null}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={procesando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant={accion === "anular" ? "destructive" : "default"}
+              disabled={procesando || (requiereMotivo && !motivo.trim())}
+              onClick={(event) => {
+                event.preventDefault()
+                void confirmarAccion()
+              }}
+            >
+              {procesando ? "Procesando..." : "Confirmar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
 export function SocioNegocioVista({
   titulo,
   etiqueta,
   accionPrincipal = "Nuevo registro",
   crearHref,
-  metricas,
   filtros,
   formatoExportacion = "EXCEL",
 }: SocioNegocioVistaProps) {
-  const [hydrated, setHydrated] = useState(false)
   const [reporteGenerado, setReporteGenerado] = useState<string | null>(null)
-  const sociosQuery = useSociosDeNegocioQuery(filtros)
+  const [mensajeOperacion, setMensajeOperacion] = useState<string | null>(null)
+  const [errorOperacion, setErrorOperacion] = useState<ErrorOperacion | null>(null)
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(20)
+  
+  const filtrosConPaginacion = useMemo(() => ({
+    ...filtros,
+    page: paginaActual,
+    pageSize: registrosPorPagina,
+  }), [filtros, paginaActual, registrosPorPagina])
+  
+  const sociosQuery = useSociosDeNegocioQuery(filtrosConPaginacion)
   const exportacionQuery = useExportarSociosDeNegocioQuery(
     {
       ...filtros,
@@ -186,40 +496,36 @@ export function SocioNegocioVista({
     },
     false
   )
-  const socios = sociosQuery.data ?? []
+  const socios = useMemo(() => Array.isArray(sociosQuery.data?.items) ? sociosQuery.data.items : [], [sociosQuery.data])
+  const metaPaginacion = sociosQuery.data?.meta
   const cargando = sociosQuery.isLoading
   const error = sociosQuery.error ? obtenerMensajeError(sociosQuery.error) : null
 
-  useEffect(() => {
-    setHydrated(true)
-  }, [])
-
   const metricasVista = useMemo(() => {
-    const activos = socios.filter((socio) => socio.estado === "ACTIVO").length
+    const activosVigentes = socios.filter(
+      (socio) => socio.estado === "ACTIVO" && socio.estadoRegistro === "VIGENTE"
+    ).length
     const inactivos = socios.filter((socio) => socio.estado === "INACTIVO").length
-
-    if (!sociosQuery.data) {
-      return metricas
-    }
+    const anulados = socios.filter((socio) => socio.estadoRegistro === "ANULADO").length
 
     return [
       {
         etiqueta: "Registros consultados",
         valor: String(socios.length),
-        detalle: "Resultado recibido desde /socios-de-negocio.",
+        detalle: "Resultado recibido segun el filtro aplicado.",
       },
       {
-        etiqueta: "Activos",
-        valor: String(activos),
-        detalle: "Socios en estado ACTIVO para el filtro aplicado.",
+        etiqueta: "Activos vigentes",
+        valor: String(activosVigentes),
+        detalle: "Socios disponibles para operar y sin anulacion.",
       },
       {
-        etiqueta: "Inactivos",
-        valor: String(inactivos),
-        detalle: "Socios en estado INACTIVO para el filtro aplicado.",
+        etiqueta: "Inactivos / anulados",
+        valor: String(inactivos + anulados),
+        detalle: `${inactivos} inactivos y ${anulados} anulados en la consulta.`,
       },
     ]
-  }, [metricas, socios, sociosQuery.data])
+  }, [socios])
 
   async function exportar() {
     setReporteGenerado(null)
@@ -230,31 +536,6 @@ export function SocioNegocioVista({
         `${resultado.data.nombreArchivo} generado en formato ${resultado.data.formato}.`
       )
     }
-  }
-
-  if (!hydrated) {
-    return (
-      <>
-        <SiteHeader
-          title={titulo}
-          breadcrumbs={[
-            { title: "Socio de Negocio", href: "/socio-negocios" },
-            { title: titulo },
-          ]}
-        />
-        <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-          <div className="flex w-full flex-col gap-5">
-            <Skeleton className="h-28 w-full" />
-            <section className="grid gap-4 md:grid-cols-3">
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-32 w-full" />
-            </section>
-            <Skeleton className="h-96 w-full" />
-          </div>
-        </main>
-      </>
-    )
   }
 
   return (
@@ -282,41 +563,66 @@ export function SocioNegocioVista({
             </Alert>
           ) : null}
 
-          <section className="grid gap-4 md:grid-cols-3">
+          {mensajeOperacion ? (
+            <Alert>
+              <AlertTitle>Operacion completada</AlertTitle>
+              <AlertDescription>{mensajeOperacion}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <section className="grid gap-3 md:grid-cols-3">
             {metricasVista.map((metrica, index) => {
               const visual = obtenerVisualMetrica(metrica.etiqueta, index)
 
               return (
-              <Card key={metrica.etiqueta} className={visual.cardClassName}>
-                <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
-                  <div className="flex flex-col gap-1">
-                    <CardDescription className={visual.descriptionClassName}>
-                      {metrica.etiqueta}
-                    </CardDescription>
-                    <CardTitle className="text-3xl">{metrica.valor}</CardTitle>
-                  </div>
-                  <span
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-lg ring-1 ${visual.iconClassName}`}
-                  >
-                    <HugeiconsIcon icon={visual.icon} strokeWidth={2} />
-                  </span>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between gap-3">
-                  <p className={`text-sm leading-5 ${visual.detailClassName}`}>
-                    {metrica.detalle}
-                  </p>
-                  <Badge
-                    variant="outline"
-                    className={`shrink-0 ${visual.badgeClassName}`}
-                  >
-                    {visual.badge}
-                  </Badge>
-                </CardContent>
-              </Card>
-            )})}
+                <Card
+                  key={metrica.etiqueta}
+                  className={`overflow-hidden rounded-lg ${visual.cardClassName}`}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
+                    <div className="min-w-0">
+                      <CardDescription
+                        className={`truncate text-xs font-medium uppercase tracking-[0.08em] ${visual.descriptionClassName}`}
+                      >
+                        {metrica.etiqueta}
+                      </CardDescription>
+                      <CardTitle className="mt-2 text-3xl font-semibold tabular-nums tracking-normal">
+                        {metrica.valor}
+                      </CardTitle>
+                    </div>
+                    <span
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-md ring-1 ${visual.iconClassName}`}
+                    >
+                      <HugeiconsIcon icon={visual.icon} strokeWidth={2} />
+                    </span>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3 pt-0">
+                    <p className={`min-h-10 text-sm leading-5 ${visual.detailClassName}`}>
+                      {metrica.detalle}
+                    </p>
+                    <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                      <span className="text-xs text-muted-foreground">
+                        {visual.contexto}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={`h-6 shrink-0 gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${visual.badgeClassName}`}
+                      >
+                        <HugeiconsIcon
+                          data-icon="inline-start"
+                          icon={visual.icon}
+                          strokeWidth={2}
+                        />
+                        {visual.badge}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </section>
 
-          <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+          <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
             <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-base font-semibold">Socios de negocio</h2>
@@ -382,7 +688,7 @@ export function SocioNegocioVista({
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableRow className="bg-muted/70 hover:bg-muted/70">
                       <TableHead className="w-10">
                         <Checkbox aria-label="Seleccionar todos" />
                       </TableHead>
@@ -390,17 +696,19 @@ export function SocioNegocioVista({
                       <TableHead>Socio</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Estado</TableHead>
+                      <TableHead>Registro</TableHead>
                       <TableHead>Documento</TableHead>
                       <TableHead>Contacto</TableHead>
                       <TableHead>Celular</TableHead>
-                      <TableHead>Registro</TableHead>
+                      <TableHead>Cuenta</TableHead>
+                      <TableHead>Creacion</TableHead>
                       <TableHead>Baja</TableHead>
                       <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {socios.map((socio) => (
-                      <TableRow key={socio.id}>
+                      <TableRow key={socio.id} className="border-border/80">
                         <TableCell>
                           <Checkbox aria-label={`Seleccionar ${socio.razonSocial}`} />
                         </TableCell>
@@ -416,12 +724,18 @@ export function SocioNegocioVista({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{socio.tipo}</Badge>
+                          <Badge
+                            variant="outline"
+                            className="h-6 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+                          >
+                            {socio.tipo}
+                          </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={estadoVariant[socio.estado]}>
-                            {socio.estado}
-                          </Badge>
+                          <EstadoSocioBadge estado={socio.estado} />
+                        </TableCell>
+                        <TableCell>
+                          <EstadoRegistroBadge estadoRegistro={socio.estadoRegistro} />
                         </TableCell>
                         <TableCell>{socio.numeroDocumento}</TableCell>
                         <TableCell>
@@ -433,11 +747,12 @@ export function SocioNegocioVista({
                           </div>
                         </TableCell>
                         <TableCell>{socio.numeroCelular || "-"}</TableCell>
+                        <TableCell>{socio.cuenta || "-"}</TableCell>
                         <TableCell>
                           <div className="flex min-w-40 flex-col">
-                            <span>{formatearFecha(socio.registradoEn)}</span>
+                            <span>{formatearFecha(socio.fechaCreacion)}</span>
                             <span className="text-xs text-muted-foreground">
-                              {socio.registradoPorId || "Sin usuario"}
+                              {socio.usuarioCreacion || "Sin usuario"}
                             </span>
                           </div>
                         </TableCell>
@@ -452,23 +767,18 @@ export function SocioNegocioVista({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label="Acciones">
-                                <HugeiconsIcon
-                                  icon={MoreVerticalCircle01Icon}
-                                  strokeWidth={2}
-                                />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuGroup>
-                                <DropdownMenuItem>Ver ficha</DropdownMenuItem>
-                                <DropdownMenuItem>Modificar</DropdownMenuItem>
-                                <DropdownMenuItem>Dar de baja</DropdownMenuItem>
-                              </DropdownMenuGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <AccionesSocio
+                            socio={socio}
+                            onActualizado={() => void sociosQuery.refetch()}
+                            onMensaje={(mensaje) => {
+                              setErrorOperacion(null)
+                              setMensajeOperacion(mensaje)
+                            }}
+                            onError={(error) => {
+                              setMensajeOperacion(null)
+                              setErrorOperacion(error)
+                            }}
+                          />
                         </TableCell>
                       </TableRow>
                     ))}
@@ -476,9 +786,39 @@ export function SocioNegocioVista({
                 </Table>
               </div>
             )}
+            {socios.length > 0 && metaPaginacion ? (
+              <PaginationControls
+                meta={metaPaginacion}
+                registrosPorPagina={registrosPorPagina}
+                onPageChange={setPaginaActual}
+                onPageSizeChange={(pageSize) => {
+                  setRegistrosPorPagina(pageSize)
+                  setPaginaActual(1)
+                }}
+              />
+            ) : null}
           </section>
         </div>
       </main>
+
+      <AlertDialog
+        open={errorOperacion !== null}
+        onOpenChange={(open) => !open && setErrorOperacion(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{errorOperacion?.titulo}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {errorOperacion?.descripcion}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setErrorOperacion(null)}>
+              Entendido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

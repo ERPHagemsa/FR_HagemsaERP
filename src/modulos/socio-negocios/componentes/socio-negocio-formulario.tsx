@@ -1,21 +1,29 @@
 "use client"
 
-import { FormEvent, useEffect, useState } from "react"
+import { FormEvent, useState } from "react"
 import { useRouter } from "next/navigation"
 
-import { extraerMensajeError } from "@/compartido/api"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/compartido/componentes/ui/alert-dialog"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
   Field,
   FieldDescription,
-  FieldError,
   FieldGroup,
   FieldLabel,
   FieldLegend,
   FieldSet,
 } from "@/compartido/componentes/ui/field"
 import { Input } from "@/compartido/componentes/ui/input"
+import { ApiError } from "@/compartido/api/axios"
 import {
   Select,
   SelectContent,
@@ -40,6 +48,11 @@ const rutaPorTipo = {
 
 const USUARIO_RESPONSABLE_ID = "admin"
 
+type ErrorDialogo = {
+  titulo: string
+  descripcion: string
+}
+
 function texto(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim()
 }
@@ -51,23 +64,51 @@ function construirContacto(formData: FormData) {
   return referencia ? `${nombre} - ${referencia}` : nombre
 }
 
+function obtenerErrorDialogo(error: unknown): ErrorDialogo {
+  if (error instanceof ApiError && error.status === 409) {
+    return {
+      titulo: "Registro duplicado",
+      descripcion:
+        error.message ||
+        "Ya existe un socio de negocio con el mismo documento o codigo SAP.",
+    }
+  }
+
+  if (error instanceof ApiError && error.status === 400) {
+    return {
+      titulo: "Datos incompletos o invalidos",
+      descripcion: error.message,
+    }
+  }
+
+  if (error instanceof ApiError && error.status === 0) {
+    return {
+      titulo: "Sin conexion con el servidor",
+      descripcion: error.message,
+    }
+  }
+
+  return {
+    titulo: "No se pudo registrar el socio",
+    descripcion:
+      error instanceof Error
+        ? error.message
+        : "No se pudo registrar el socio de negocio.",
+  }
+}
+
 export function SocioNegocioFormulario({
   tipoInicial,
 }: SocioNegocioFormularioProps) {
   const router = useRouter()
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
   const [tipo, setTipo] = useState<TipoSocioDeNegocio>(tipoInicial ?? "CLIENTE")
-  const [error, setError] = useState<string | null>(null)
-  const [hydrated, setHydrated] = useState(false)
+  const [errorDialogo, setErrorDialogo] = useState<ErrorDialogo | null>(null)
   const esTipoFijo = Boolean(tipoInicial)
-
-  useEffect(() => {
-    setHydrated(true)
-  }, [])
 
   async function registrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError(null)
+    setErrorDialogo(null)
 
     const formData = new FormData(event.currentTarget)
 
@@ -86,43 +127,29 @@ export function SocioNegocioFormulario({
         sede: tipo === "PERSONAL" ? texto(formData, "sede") : undefined,
         area: tipo === "PERSONAL" ? texto(formData, "area") : undefined,
         contrato: tipo === "PERSONAL" ? texto(formData, "contrato") : undefined,
+        cuenta: texto(formData, "cuenta"),
         usuarioId: USUARIO_RESPONSABLE_ID,
       })
 
       router.push(rutaPorTipo[tipo])
       router.refresh()
-    } catch (err) {
-      setError(extraerMensajeError(err, "No se pudo registrar el socio de negocio."))
+    } catch (err: unknown) {
+      setErrorDialogo(obtenerErrorDialogo(err))
     }
   }
 
-  if (!hydrated) {
-    return (
+  return (
+    <>
       <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
         <div className="border-b border-border px-5 py-4">
-          <div className="h-6 w-40 rounded-md bg-muted" />
-          <div className="mt-2 h-4 w-96 max-w-full rounded-md bg-muted" />
+          <h2 className="text-lg font-semibold">Datos del socio</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Completa los datos que identifican al socio y permiten ubicarlo en la operacion.
+          </p>
         </div>
-        <div className="grid gap-5 px-5 py-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
-          <div className="h-64 rounded-lg bg-muted" />
-          <div className="h-64 rounded-lg bg-muted" />
-          <div className="h-40 rounded-lg bg-muted xl:col-span-2" />
-        </div>
-      </section>
-    )
-  }
-
-  return (
-    <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
-      <div className="border-b border-border px-5 py-4">
-        <h2 className="text-lg font-semibold">Datos del socio</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Completa los datos que identifican al socio y permiten ubicarlo en la operacion.
-        </p>
-      </div>
-      <div className="px-5 py-5">
-        <form onSubmit={(event) => void registrar(event)}>
-          <FieldGroup>
+        <div className="px-5 py-5">
+          <form onSubmit={(event) => void registrar(event)}>
+            <FieldGroup>
             <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
               <FieldSet className="rounded-lg border border-border p-4">
                 <FieldLegend>Identificacion</FieldLegend>
@@ -208,6 +235,15 @@ export function SocioNegocioFormulario({
                     <FieldLabel htmlFor="direccion">Direccion principal</FieldLabel>
                     <Input id="direccion" name="direccion" placeholder="Av. Principal 123" required />
                   </Field>
+
+                  <Field className="md:col-span-2 xl:col-span-3">
+                    <FieldLabel htmlFor="cuenta">Cuenta</FieldLabel>
+                    <Input
+                      id="cuenta"
+                      name="cuenta"
+                      placeholder="Cuenta Operativa 001"
+                    />
+                  </Field>
                 </div>
               </FieldSet>
             </div>
@@ -280,12 +316,6 @@ export function SocioNegocioFormulario({
               La operacion guardara el registro con fecha y usuario responsable.
             </p>
 
-            {error ? (
-              <Field data-invalid>
-                <FieldError>{error}</FieldError>
-              </Field>
-            ) : null}
-
             {registrarMutation.isSuccess ? (
               <Alert>
                 <AlertTitle>Socio registrado</AlertTitle>
@@ -298,9 +328,29 @@ export function SocioNegocioFormulario({
                 {registrarMutation.isPending ? "Registrando..." : "Registrar socio"}
               </Button>
             </div>
-          </FieldGroup>
-        </form>
-      </div>
-    </section>
+            </FieldGroup>
+          </form>
+        </div>
+      </section>
+
+      <AlertDialog
+        open={errorDialogo !== null}
+        onOpenChange={(open) => !open && setErrorDialogo(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{errorDialogo?.titulo}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {errorDialogo?.descripcion}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setErrorDialogo(null)}>
+              Entendido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

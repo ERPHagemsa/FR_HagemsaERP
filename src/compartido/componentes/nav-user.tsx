@@ -40,7 +40,15 @@ function calcularIniciales(nombre: string): string {
   return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
 }
 
-export function NavUser() {
+type NavUserProps = {
+  user?: {
+    name: string
+    email: string
+    avatar?: string
+  }
+}
+
+export function NavUser({ user }: NavUserProps = {}) {
   const { isMobile } = useSidebar()
   const router = useRouter()
   const { usuario, estaCargando } = useSesion()
@@ -55,7 +63,7 @@ export function NavUser() {
     router.refresh()
   }
 
-  if (estaCargando) {
+  if (estaCargando && !user) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
@@ -65,11 +73,25 @@ export function NavUser() {
     )
   }
 
-  if (!usuario) {
+  const usuarioActual = usuario
+    ? {
+        nombre: usuario.nombre || usuario.email,
+        email: usuario.email,
+        tipo: usuario.tipo,
+      }
+    : user
+      ? {
+          nombre: user.name,
+          email: user.email,
+          tipo: "operacion",
+        }
+      : null
+
+  if (!usuarioActual) {
     return null
   }
 
-  const iniciales = calcularIniciales(usuario.nombre || usuario.email)
+  const iniciales = calcularIniciales(usuarioActual.nombre || usuarioActual.email)
 
   return (
     <SidebarMenu>
@@ -86,9 +108,9 @@ export function NavUser() {
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{usuario.nombre || usuario.email}</span>
+                <span className="truncate font-medium">{usuarioActual.nombre}</span>
                 <span className="truncate text-xs text-sidebar-foreground/55 capitalize">
-                  {usuario.tipo}
+                  {usuarioActual.tipo}
                 </span>
               </div>
               <HugeiconsIcon
@@ -110,9 +132,9 @@ export function NavUser() {
                   <AvatarFallback className="rounded-lg">{iniciales}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{usuario.nombre || usuario.email}</span>
+                  <span className="truncate font-medium">{usuarioActual.nombre}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {usuario.email}
+                    {usuarioActual.email}
                   </span>
                 </div>
               </div>

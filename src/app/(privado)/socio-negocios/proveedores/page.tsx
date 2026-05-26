@@ -8,23 +8,6 @@ export default function ProveedoresPage() {
       accionPrincipal="Nuevo proveedor"
       crearHref="/socio-negocios/proveedores/nuevo"
       filtros={{ tipo: "PROVEEDOR" }}
-      metricas={[
-        {
-          etiqueta: "Proveedores activos",
-          valor: "96",
-          detalle: "Socios tipo PROVEEDOR disponibles para compras y servicios.",
-        },
-        {
-          etiqueta: "Nuevos registros",
-          valor: "8",
-          detalle: "Proveedores creados con fecha y usuario de registro.",
-        },
-        {
-          etiqueta: "Proveedores inactivos",
-          valor: "3",
-          detalle: "Registros con estado INACTIVO y motivo de baja.",
-        },
-      ]}
     />
   )
 }

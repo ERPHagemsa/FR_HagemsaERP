@@ -6,6 +6,8 @@ import type {
   EstadoBcResponse,
   ExportarSociosDeNegocioQuery,
   ModificarSocioDeNegocioRequest,
+  PaginatedResponse,
+  ReactivarSocioDeNegocioRequest,
   RegistrarClienteDesdeComercialRequest,
   RegistrarSocioDeNegocioRequest,
   ReporteSociosDeNegocioResponse,
@@ -78,12 +80,23 @@ export async function darDeBajaSocioDeNegocio(
   return data
 }
 
+export async function reactivarSocioDeNegocio(
+  id: string,
+  payload: ReactivarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.patch<SocioDeNegocioResponse>(
+    `${BASE_ENDPOINT}/${id}/reactivar`,
+    payload,
+  )
+  return data
+}
+
 export async function consultarSociosDeNegocio(
   query?: ConsultarSociosDeNegocioQuery,
-): Promise<SocioDeNegocioResponse[]> {
-  const { data } = await clienteSocioNegocios.get<SocioDeNegocioResponse[]>(
-    `${BASE_ENDPOINT}${crearQueryString(query)}`,
-  )
+): Promise<PaginatedResponse<SocioDeNegocioResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    PaginatedResponse<SocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}${crearQueryString(query)}`)
   return data
 }
 

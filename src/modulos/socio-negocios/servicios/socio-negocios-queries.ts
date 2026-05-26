@@ -12,6 +12,7 @@ import {
   obtenerSocioDeNegocio,
   registrarClienteDesdeComercial,
   registrarSocioDeNegocio,
+  reactivarSocioDeNegocio,
 } from "./socio-negocios-api"
 import type {
   ConsultarSociosDeNegocioQuery,
@@ -94,6 +95,19 @@ export function useDarDeBajaSocioDeNegocioMutation(
     Awaited<ReturnType<typeof darDeBajaSocioDeNegocio>>
   >({
     fn: (payload) => darDeBajaSocioDeNegocio(id, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useReactivarSocioDeNegocioMutation(
+  id: string,
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof reactivarSocioDeNegocio>[1],
+    Awaited<ReturnType<typeof reactivarSocioDeNegocio>>
+  >({
+    fn: (payload) => reactivarSocioDeNegocio(id, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }
