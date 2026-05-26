@@ -81,6 +81,10 @@ export interface PermisoResponse {
   readonly modulo: string
 }
 
+export interface AgregarPermisoARolPayload {
+  codigoPermiso: string
+}
+
 export interface ListaPermisosResponse {
   readonly items: ReadonlyArray<PermisoResponse>
 }
