@@ -1,0 +1,73 @@
+// Constantes y helpers para manejar las cookies httpOnly de sesion.
+//
+// IMPORTANTE: las cookies son httpOnly, lo que significa que el JS del cliente
+// NO puede leerlas. Solo los Route Handlers de Next y el middleware tocan estos
+// valores. El navegador las envia automaticamente en cada request same-origin.
+
+export const COOKIE_ACCESS = "hagemsa_access"
+export const COOKIE_REFRESH = "hagemsa_refresh"
+
+export type ParTokens = {
+  readonly accessToken: string
+  readonly refreshToken: string
+  readonly expiresIn: number
+  readonly refreshExpiresIn: number
+}
+
+type OpcionesCookieBase = {
+  readonly httpOnly: true
+  readonly sameSite: "lax"
+  readonly secure: boolean
+  readonly path: "/"
+}
+
+export const opcionesCookieSesion: OpcionesCookieBase = {
+  httpOnly: true,
+  sameSite: "lax",
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+}
+
+type CookieParaSet = {
+  name: string
+  value: string
+  httpOnly?: boolean
+  sameSite?: "lax" | "strict" | "none"
+  secure?: boolean
+  path?: string
+  maxAge?: number
+}
+
+type SetterCookies = {
+  set: (opciones: CookieParaSet) => void
+}
+
+type DeletorCookies = {
+  delete: (name: string) => void
+}
+
+// Setea las dos cookies (access + refresh) en una respuesta o RequestCookies
+// de Next. Funciona tanto desde Route Handlers (via cookies() de next/headers)
+// como desde el middleware (NextResponse.cookies).
+export function setCookiesSesion(
+  cookies: SetterCookies,
+  tokens: ParTokens,
+): void {
+  cookies.set({
+    ...opcionesCookieSesion,
+    name: COOKIE_ACCESS,
+    value: tokens.accessToken,
+    maxAge: tokens.expiresIn,
+  })
+  cookies.set({
+    ...opcionesCookieSesion,
+    name: COOKIE_REFRESH,
+    value: tokens.refreshToken,
+    maxAge: tokens.refreshExpiresIn,
+  })
+}
+
+export function borrarCookiesSesion(cookies: DeletorCookies): void {
+  cookies.delete(COOKIE_ACCESS)
+  cookies.delete(COOKIE_REFRESH)
+}

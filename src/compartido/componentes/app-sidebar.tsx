@@ -32,11 +32,6 @@ import {
 } from "@hugeicons/core-free-icons"
 
 const data = {
-  user: {
-    name: "Hagemsa",
-    email: "operaciones@hagemsa.local",
-    avatar: "/avatars/shadcn.jpg",
-  },
   navMain: [
     {
       title: "Activos",
@@ -169,7 +164,8 @@ const data = {
       title: "Configuracion",
       icon: <HugeiconsIcon icon={Settings02Icon} strokeWidth={2} />,
       items: [
-        { title: "Usuarios y roles", url: "#" },
+        { title: "Cuentas", url: "/admin/cuentas" },
+        { title: "Roles", url: "/admin/roles" },
         { title: "Parametros ERP", url: "#" },
         { title: "Preferencias", url: "#" },
       ],
@@ -224,7 +220,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           showLabel
           className="border-sidebar-border/80 bg-sidebar-accent/70 text-sidebar-foreground hover:bg-sidebar-accent"
         />
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   )

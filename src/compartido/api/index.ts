@@ -1,5 +1,5 @@
 // Factory y tipos genericos (para casos avanzados o instancias custom).
-export { crearClienteHttp } from "./axios"
+export { crearClienteHttp, ApiError } from "./axios"
 export type { OpcionesCliente, AxiosInstance, AxiosRequestConfig } from "./axios"
 
 // Cliente para el navegador: pega a /api/... del propio Next (same-origin).
@@ -22,11 +22,28 @@ export {
   type ServicioApi,
 } from "./config"
 
-// Legacy: requestJson y su clase ApiError. Hoy lo usan combustible y
-// socio-negocios. Para codigo nuevo, preferir los clientes preconfigurados
-// de arriba y la clase ApiError de "./axios".
-export { ApiError, requestJson } from "./cliente-api"
+// Hooks utility para consultas y mutaciones (reemplazan TanStack Query).
+export {
+  useConsulta,
+  type OpcionesConsulta,
+  type ResultadoConsulta,
+} from "./use-consulta"
+export {
+  useMutar,
+  type OpcionesMutar,
+  type ResultadoMutar,
+} from "./use-mutar"
 
-// React Query: provider y query keys compartidos.
-export { ApiQueryProvider } from "./query-provider"
-export { queryKeys } from "./query-keys"
+// Helpers para manejo consistente de errores en cualquier catch.
+export {
+  extraerMensajeError,
+  esErrorRed,
+  esErrorTimeout,
+  esError401,
+  esError403,
+  esError404,
+  esError409,
+  esErrorRateLimit,
+  obtenerStatusError,
+  obtenerCodigoError,
+} from "./formato-error"

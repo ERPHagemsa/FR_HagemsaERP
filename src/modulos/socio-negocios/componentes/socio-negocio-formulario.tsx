@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
+import { extraerMensajeError } from "@/compartido/api"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
@@ -90,10 +91,8 @@ export function SocioNegocioFormulario({
 
       router.push(rutaPorTipo[tipo])
       router.refresh()
-    } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "No se pudo registrar el socio de negocio."
-      )
+    } catch (err) {
+      setError(extraerMensajeError(err, "No se pudo registrar el socio de negocio."))
     }
   }
 

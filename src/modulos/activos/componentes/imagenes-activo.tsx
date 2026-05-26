@@ -4,6 +4,7 @@ import * as React from "react";
 import { IconPhotoPlus, IconTrash } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -113,7 +114,7 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
       setLocalImageUrl(null);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo registrar la imagen");
+      setError(extraerMensajeError(err, "No se pudo registrar la imagen"));
     } finally {
       setIsSaving(false);
     }
@@ -133,7 +134,7 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
       await eliminarImagenPorCodigo(codigo, imagen.id);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo eliminar la imagen");
+      setError(extraerMensajeError(err, "No se pudo eliminar la imagen"));
     } finally {
       setDeletingId(null);
     }

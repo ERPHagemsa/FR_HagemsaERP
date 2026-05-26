@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import * as React from "react";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -41,7 +42,7 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
       router.push(`/activos/${saved.codigo}?siniestrado=1`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo siniestrar el activo");
+      setError(extraerMensajeError(err, "No se pudo siniestrar el activo"));
     } finally {
       setIsSaving(false);
     }
@@ -61,7 +62,7 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
       router.push(`/activos/${saved.codigo}?inactive=1`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo inactivar el activo");
+      setError(extraerMensajeError(err, "No se pudo inactivar el activo"));
     } finally {
       setIsSaving(false);
     }
@@ -81,7 +82,7 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
       router.refresh();
       setMostrarConfirmacionBorrado(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo borrar el activo");
+      setError(extraerMensajeError(err, "No se pudo borrar el activo"));
     } finally {
       setIsSaving(false);
     }

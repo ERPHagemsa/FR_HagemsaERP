@@ -1,8 +1,7 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-
-import { queryKeys } from "@/compartido/api"
+import { useConsulta } from "@/compartido/api/use-consulta"
+import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
   consultarSociosDeNegocio,
@@ -20,96 +19,81 @@ import type {
 } from "../tipos/socio-negocio"
 
 export function useEstadoBcSocioDeNegocioQuery() {
-  return useQuery({
-    queryKey: queryKeys.socioNegocios.estado(),
-    queryFn: obtenerEstadoBcSocioDeNegocio,
-  })
+  return useConsulta(obtenerEstadoBcSocioDeNegocio, [])
 }
 
-export function useSociosDeNegocioQuery(
-  query?: ConsultarSociosDeNegocioQuery
-) {
-  return useQuery({
-    queryKey: queryKeys.socioNegocios.lista(query),
-    queryFn: () => consultarSociosDeNegocio(query),
-  })
+export function useSociosDeNegocioQuery(query?: ConsultarSociosDeNegocioQuery) {
+  return useConsulta(
+    () => consultarSociosDeNegocio(query),
+    [JSON.stringify(query ?? {})],
+  )
 }
 
 export function useSocioDeNegocioQuery(id: string) {
-  return useQuery({
-    queryKey: queryKeys.socioNegocios.detalle(id),
-    queryFn: () => obtenerSocioDeNegocio(id),
+  return useConsulta(() => obtenerSocioDeNegocio(id), [id], {
     enabled: Boolean(id),
   })
 }
 
 export function useExportarSociosDeNegocioQuery(
   query: ExportarSociosDeNegocioQuery,
-  enabled = false
+  enabled = false,
 ) {
-  return useQuery({
-    queryKey: queryKeys.socioNegocios.exportacion(query),
-    queryFn: () => exportarSociosDeNegocio(query),
+  return useConsulta(() => exportarSociosDeNegocio(query), [JSON.stringify(query)], {
     enabled,
   })
 }
 
-export function useRegistrarSocioDeNegocioMutation() {
-  const queryClient = useQueryClient()
+export interface OpcionesMutacionSocioNegocios {
+  readonly onSuccess?: () => unknown
+}
 
-  return useMutation({
-    mutationFn: registrarSocioDeNegocio,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.socioNegocios.listas(),
-      })
-    },
+export function useRegistrarSocioDeNegocioMutation(
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof registrarSocioDeNegocio>[0],
+    Awaited<ReturnType<typeof registrarSocioDeNegocio>>
+  >({
+    fn: (payload) => registrarSocioDeNegocio(payload),
+    onSuccess: () => opciones.onSuccess?.(),
   })
 }
 
-export function useRegistrarClienteDesdeComercialMutation() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: registrarClienteDesdeComercial,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.socioNegocios.listas(),
-      })
-    },
+export function useRegistrarClienteDesdeComercialMutation(
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof registrarClienteDesdeComercial>[0],
+    Awaited<ReturnType<typeof registrarClienteDesdeComercial>>
+  >({
+    fn: (payload) => registrarClienteDesdeComercial(payload),
+    onSuccess: () => opciones.onSuccess?.(),
   })
 }
 
-export function useModificarSocioDeNegocioMutation(id: string) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (payload: Parameters<typeof modificarSocioDeNegocio>[1]) =>
-      modificarSocioDeNegocio(id, payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.socioNegocios.listas(),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.socioNegocios.detalle(id),
-      })
-    },
+export function useModificarSocioDeNegocioMutation(
+  id: string,
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof modificarSocioDeNegocio>[1],
+    Awaited<ReturnType<typeof modificarSocioDeNegocio>>
+  >({
+    fn: (payload) => modificarSocioDeNegocio(id, payload),
+    onSuccess: () => opciones.onSuccess?.(),
   })
 }
 
-export function useDarDeBajaSocioDeNegocioMutation(id: string) {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (payload: Parameters<typeof darDeBajaSocioDeNegocio>[1]) =>
-      darDeBajaSocioDeNegocio(id, payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.socioNegocios.listas(),
-      })
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.socioNegocios.detalle(id),
-      })
-    },
+export function useDarDeBajaSocioDeNegocioMutation(
+  id: string,
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof darDeBajaSocioDeNegocio>[1],
+    Awaited<ReturnType<typeof darDeBajaSocioDeNegocio>>
+  >({
+    fn: (payload) => darDeBajaSocioDeNegocio(id, payload),
+    onSuccess: () => opciones.onSuccess?.(),
   })
 }

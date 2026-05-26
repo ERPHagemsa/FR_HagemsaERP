@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { IconFilePlus, IconRefresh } from "@tabler/icons-react";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Input } from "@/compartido/componentes/ui/input";
@@ -82,10 +83,7 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
     } catch (error) {
       setMessage({
         type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "No se pudo registrar el documento.",
+        text: extraerMensajeError(error, "No se pudo registrar el documento."),
       });
     } finally {
       setIsSaving(false);

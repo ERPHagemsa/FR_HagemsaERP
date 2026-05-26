@@ -1,0 +1,18 @@
+// Configuracion server-only. NUNCA importar desde codigo del navegador.
+// Las URLs y opciones aqui dentro NO llevan prefijo NEXT_PUBLIC_ porque solo
+// se consumen desde Route Handlers y middleware.
+
+export const URLS_SERVIDOR = {
+  // URL base del Auth Service. El frontend NUNCA pega directo: los Route
+  // Handlers de /api/auth/* hablan con este backend y devuelven al navegador
+  // solo cookies httpOnly o datos no sensibles.
+  authService: process.env.AUTH_SERVICE_URL ?? "http://localhost:8080",
+} as const
+
+export type ServicioBackendServidor = keyof typeof URLS_SERVIDOR
+
+// Cuanto antes del exp del access token forzamos refresh transparente en el
+// middleware. Default 60s.
+export const SEGUNDOS_UMBRAL_REFRESH = Number(
+  process.env.JWT_ACCESS_REFRESH_THRESHOLD_SECONDS ?? "60",
+)

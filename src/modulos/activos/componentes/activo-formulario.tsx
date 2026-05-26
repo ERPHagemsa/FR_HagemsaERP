@@ -14,6 +14,7 @@ import {
   type Icon,
 } from "@tabler/icons-react";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -294,7 +295,7 @@ export function ActivoFormulario({
       router.push(`/activos/${saved.codigo}?${isEdit ? "updated" : "created"}=1`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar el activo");
+      setError(extraerMensajeError(err, "No se pudo guardar el activo"));
     } finally {
       setIsSaving(false);
     }

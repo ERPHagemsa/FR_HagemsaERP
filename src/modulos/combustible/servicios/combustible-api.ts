@@ -1,4 +1,4 @@
-import { ApiError, requestJson } from "@/compartido/api"
+import { clienteCombustible } from "@/compartido/api/clientes-backend"
 
 import type {
   AbastecimientoResponse,
@@ -9,57 +9,45 @@ import type {
   SolicitudResponse,
 } from "../tipos/combustible"
 
-export class CombustibleApiError extends ApiError {
-  constructor(status: number, message: string) {
-    super("combustible", status, message)
-    this.name = "CombustibleApiError"
-  }
+export async function obtenerHealthCombustible(): Promise<HealthResponse> {
+  const { data } = await clienteCombustible.get<HealthResponse>("/health")
+  return data
 }
 
-function requestCombustible<T>(endpoint: string, init?: RequestInit) {
-  return requestJson<T>({
-    servicio: "combustible",
-    endpoint,
-    init,
-    mensajeErrorConexion: "No se pudo conectar con la API de combustible.",
-    mensajeErrorTimeout: "La API de combustible no respondio a tiempo.",
-  }).catch((error: unknown) => {
-    if (error instanceof ApiError) {
-      throw new CombustibleApiError(error.status, error.message)
-    }
-
-    throw error
-  })
+export async function listarManifiestos(): Promise<ManifiestoResponse[]> {
+  const { data } =
+    await clienteCombustible.get<ManifiestoResponse[]>("/manifiestos")
+  return data
 }
 
-export function obtenerHealthCombustible() {
-  return requestCombustible<HealthResponse>("/health")
+export async function crearSolicitudDesdeManifiesto(
+  payload: CrearSolicitudDesdeManifiestoRequest,
+): Promise<SolicitudResponse> {
+  const { data } = await clienteCombustible.post<SolicitudResponse>(
+    "/solicitudes/from-manifiesto",
+    payload,
+  )
+  return data
 }
 
-export function listarManifiestos() {
-  return requestCombustible<ManifiestoResponse[]>("/manifiestos")
+export async function listarSolicitudes(): Promise<SolicitudResponse[]> {
+  const { data } =
+    await clienteCombustible.get<SolicitudResponse[]>("/solicitudes")
+  return data
 }
 
-export function crearSolicitudDesdeManifiesto(
-  data: CrearSolicitudDesdeManifiestoRequest
-) {
-  return requestCombustible<SolicitudResponse>("/solicitudes/from-manifiesto", {
-    method: "POST",
-    body: JSON.stringify(data),
-  })
+export async function crearAbastecimiento(
+  payload: CrearAbastecimientoRequest,
+): Promise<AbastecimientoResponse> {
+  const { data } = await clienteCombustible.post<AbastecimientoResponse>(
+    "/abastecimientos",
+    payload,
+  )
+  return data
 }
 
-export function listarSolicitudes() {
-  return requestCombustible<SolicitudResponse[]>("/solicitudes")
-}
-
-export function crearAbastecimiento(data: CrearAbastecimientoRequest) {
-  return requestCombustible<AbastecimientoResponse>("/abastecimientos", {
-    method: "POST",
-    body: JSON.stringify(data),
-  })
-}
-
-export function listarAbastecimientos() {
-  return requestCombustible<AbastecimientoResponse[]>("/abastecimientos")
+export async function listarAbastecimientos(): Promise<AbastecimientoResponse[]> {
+  const { data } =
+    await clienteCombustible.get<AbastecimientoResponse[]>("/abastecimientos")
+  return data
 }

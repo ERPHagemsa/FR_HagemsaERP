@@ -1,5 +1,4 @@
 import axios, {
-  AxiosError,
   type AxiosInstance,
   type AxiosRequestConfig,
 } from "axios"
@@ -42,9 +41,10 @@ export function crearClienteHttp(opciones: OpcionesCliente = {}): AxiosInstance 
     headers: { Accept: "application/json" },
   })
 
-  if (opciones.obtenerAuthHeader) {
+  const { obtenerAuthHeader } = opciones
+  if (obtenerAuthHeader) {
     instancia.interceptors.request.use((config) => {
-      const auth = opciones.obtenerAuthHeader?.()
+      const auth = obtenerAuthHeader()
       if (auth) {
         config.headers.set("Authorization", auth)
       }
@@ -67,18 +67,16 @@ function transformarError(error: unknown, fallback: string): ApiError {
     return new ApiError(0, fallback)
   }
 
-  const axiosError = error as AxiosError
-
-  if (axiosError.code === "ECONNABORTED") {
+  if (error.code === "ECONNABORTED") {
     return new ApiError(408, "La operacion tardo demasiado.")
   }
 
-  if (!axiosError.response) {
+  if (!error.response) {
     return new ApiError(0, "No se pudo conectar con el servidor.")
   }
 
-  const status = axiosError.response.status
-  const data = axiosError.response.data as PayloadErrorAxios | undefined
+  const status = error.response.status
+  const data = error.response.data as PayloadErrorAxios | undefined
   const mensaje = extraerMensaje(data) ?? fallback
   const codigo = data?.codigo ?? null
 

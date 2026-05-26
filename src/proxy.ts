@@ -1,29 +1,64 @@
 import { NextResponse, type NextRequest } from "next/server"
 
-import { COOKIE_SESION } from "@/compartido/autenticacion/sesion"
+import {
+  borrarCookiesSesion,
+  COOKIE_ACCESS,
+  COOKIE_REFRESH,
+} from "@/compartido/autenticacion/cookies-sesion"
+import { refrescarSiNecesario } from "@/compartido/autenticacion/refrescar-sesion"
+
 const rutasPublicas = ["/login"]
 const prefijosPublicos = ["/api/auth"]
 
-function esRutaPublica(pathname: string) {
+function esRutaPublica(pathname: string): boolean {
   return (
-    rutasPublicas.some((ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`)) ||
-    prefijosPublicos.some((ruta) => pathname.startsWith(ruta))
+    rutasPublicas.some(
+      (ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`),
+    ) || prefijosPublicos.some((ruta) => pathname.startsWith(ruta))
   )
 }
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  const tieneSesion = Boolean(request.cookies.get(COOKIE_SESION)?.value)
-
-  if (!tieneSesion && !esRutaPublica(pathname)) {
-    const loginUrl = new URL("/login", request.url)
-    loginUrl.searchParams.set("next", pathname)
-
-    return NextResponse.redirect(loginUrl)
+function redirigirALogin(
+  request: NextRequest,
+  motivo?: "sesion_expirada",
+): NextResponse {
+  const loginUrl = new URL("/login", request.url)
+  loginUrl.searchParams.set("next", request.nextUrl.pathname)
+  if (motivo) {
+    loginUrl.searchParams.set("motivo", motivo)
   }
+  const response = NextResponse.redirect(loginUrl)
+  borrarCookiesSesion(response.cookies)
+  return response
+}
+
+export async function proxy(request: NextRequest): Promise<NextResponse> {
+  const { pathname } = request.nextUrl
+  const tieneAccess = Boolean(request.cookies.get(COOKIE_ACCESS)?.value)
+  const tieneRefresh = Boolean(request.cookies.get(COOKIE_REFRESH)?.value)
+  const tieneSesion = tieneAccess && tieneRefresh
 
   if (tieneSesion && pathname === "/login") {
     return NextResponse.redirect(new URL("/", request.url))
+  }
+
+  if (esRutaPublica(pathname)) {
+    return NextResponse.next()
+  }
+
+  if (!tieneSesion) {
+    return redirigirALogin(request)
+  }
+
+  // Hay sesion: chequear si el access esta por expirar y refrescar transparente.
+  const resultado = await refrescarSiNecesario(request)
+
+  if (resultado.tipo === "falla") {
+    return redirigirALogin(request, "sesion_expirada")
+  }
+
+  if (resultado.tipo === "refrescado") {
+    return resultado.response
   }
 
   return NextResponse.next()
