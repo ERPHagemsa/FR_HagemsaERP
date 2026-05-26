@@ -759,110 +759,108 @@ export function SocioNegocioVista({
             })}
           </section>
 
-          <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-            <div className="flex flex-col gap-4 border-b border-border px-4 py-3 xl:flex-row xl:items-end xl:justify-between">
-              <div>
-                <h2 className="text-base font-semibold">Socios de negocio</h2>
-                <p className="text-sm text-muted-foreground">{etiqueta}</p>
-              </div>
-              <form
-                className="flex flex-col gap-2 lg:flex-row lg:items-end"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  aplicarFiltros()
-                }}
-              >
-                <Field className="lg:w-48">
-                  <FieldLabel>Razon social</FieldLabel>
-                  <Input
-                    value={obtenerValorFiltro(filtrosFormulario, "razonSocial")}
-                    placeholder="Buscar socio"
-                    onChange={(event) =>
-                      actualizarFiltro("razonSocial", event.target.value)
-                    }
-                  />
-                </Field>
-                <Field className="lg:w-40">
-                  <FieldLabel>Documento</FieldLabel>
-                  <Input
-                    value={obtenerValorFiltro(
-                      filtrosFormulario,
-                      "numeroDocumento",
-                    )}
-                    placeholder="RUC/DNI"
-                    onChange={(event) =>
-                      actualizarFiltro("numeroDocumento", event.target.value)
-                    }
-                  />
-                </Field>
-                <Field className="lg:w-36">
-                  <FieldLabel>Tipo</FieldLabel>
-                  <Select
-                    value={filtrosFormulario.tipo ?? "TODOS"}
-                    disabled={tipoBloqueado}
-                    onValueChange={(value) =>
-                      actualizarFiltro(
-                        "tipo",
-                        value as ConsultarSociosDeNegocioQuery["tipo"] | "TODOS",
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="TODOS">Todos</SelectItem>
-                        <SelectItem value="CLIENTE">Cliente</SelectItem>
-                        <SelectItem value="PROVEEDOR">Proveedor</SelectItem>
-                        <SelectItem value="PERSONAL">Personal</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field className="lg:w-36">
-                  <FieldLabel>Estado</FieldLabel>
-                  <Select
-                    value={filtrosFormulario.estado ?? "TODOS"}
-                    onValueChange={(value) =>
-                      actualizarFiltro(
-                        "estado",
-                        value as ConsultarSociosDeNegocioQuery["estado"] | "TODOS",
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="TODOS">Todos</SelectItem>
-                        <SelectItem value="ACTIVO">Activo</SelectItem>
-                        <SelectItem value="INACTIVO">Inactivo</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <div className="flex gap-2">
-                  <Button type="submit" size="sm" disabled={sociosQuery.isFetching}>
-                    <HugeiconsIcon
-                      data-icon="inline-start"
-                      icon={Search01Icon}
-                      strokeWidth={2}
+          <section className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <h2 className="text-lg font-semibold">Socios de negocio</h2>
+              <p className="text-sm text-muted-foreground">{etiqueta}</p>
+            </div>
+
+            <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+                <form
+                  className="flex flex-col gap-2 lg:flex-row lg:items-center"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    aplicarFiltros()
+                  }}
+                >
+                  <Field className="lg:w-56">
+                    <Input
+                      value={obtenerValorFiltro(filtrosFormulario, "razonSocial")}
+                      placeholder="Buscar socio"
+                      onChange={(event) =>
+                        actualizarFiltro("razonSocial", event.target.value)
+                      }
                     />
-                    {sociosQuery.isFetching ? "Consultando..." : "Aplicar"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={limpiarBusqueda}
-                  >
-                    Limpiar
-                  </Button>
-                </div>
-              </form>
-              <div className="flex flex-wrap gap-2">
+                  </Field>
+                  <Field className="lg:w-40">
+                    <Input
+                      value={obtenerValorFiltro(
+                        filtrosFormulario,
+                        "numeroDocumento",
+                      )}
+                      placeholder="RUC/DNI"
+                      onChange={(event) =>
+                        actualizarFiltro("numeroDocumento", event.target.value)
+                      }
+                    />
+                  </Field>
+                  <Field className="lg:w-40">
+                    <Select
+                      value={filtrosFormulario.tipo ?? "TODOS"}
+                      disabled={tipoBloqueado}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "tipo",
+                          value as ConsultarSociosDeNegocioQuery["tipo"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Tipo: todos</SelectItem>
+                          <SelectItem value="CLIENTE">Cliente</SelectItem>
+                          <SelectItem value="PROVEEDOR">Proveedor</SelectItem>
+                          <SelectItem value="PERSONAL">Personal</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field className="lg:w-40">
+                    <Select
+                      value={filtrosFormulario.estado ?? "TODOS"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "estado",
+                          value as ConsultarSociosDeNegocioQuery["estado"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Estado: todos</SelectItem>
+                          <SelectItem value="ACTIVO">Activo</SelectItem>
+                          <SelectItem value="INACTIVO">Inactivo</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <div className="flex gap-2">
+                    <Button type="submit" size="sm" disabled={sociosQuery.isFetching}>
+                      <HugeiconsIcon
+                        data-icon="inline-start"
+                        icon={Search01Icon}
+                        strokeWidth={2}
+                      />
+                      {sociosQuery.isFetching ? "Consultando..." : "Aplicar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={limpiarBusqueda}
+                    >
+                      Limpiar
+                    </Button>
+                  </div>
+                </form>
+                <div className="flex flex-wrap gap-2">
                 {crearHref ? (
                   <Button asChild size="sm">
                     <Link href={crearHref}>
@@ -1031,6 +1029,7 @@ export function SocioNegocioVista({
                 }}
               />
             ) : null}
+            </div>
           </section>
         </div>
       </main>

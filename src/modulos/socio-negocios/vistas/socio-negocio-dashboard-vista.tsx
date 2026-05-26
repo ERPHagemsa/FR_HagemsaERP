@@ -137,7 +137,10 @@ export function SocioNegocioDashboardVista() {
     sortOrder: "desc",
   })
 
-  const socios = sociosQuery.data?.datos ?? []
+  const socios = useMemo(
+    () => sociosQuery.data?.datos ?? [],
+    [sociosQuery.data],
+  )
   const paginacion = sociosQuery.data?.paginacion
   const activos = socios.filter((socio) => socio.estado === "ACTIVO").length
   const proveedores = socios.filter((socio) => socio.tipo === "PROVEEDOR").length
