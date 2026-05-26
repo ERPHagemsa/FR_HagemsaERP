@@ -1,6 +1,7 @@
 import { clienteHttp } from "@/compartido/api/cliente-http"
 
 import type {
+  AgregarPermisoARolPayload,
   CrearRolPayload,
   CrearRolResponse,
   ListaPermisosResponse,
@@ -36,4 +37,20 @@ export async function obtenerPermisos(
     `/api/admin/permisos${query}`,
   )
   return data
+}
+
+export async function agregarPermisoARol(
+  rolId: string,
+  payload: AgregarPermisoARolPayload,
+): Promise<void> {
+  await clienteHttp.post(`/api/admin/roles/${rolId}/permisos`, payload)
+}
+
+export async function revocarPermisoDeRol(
+  rolId: string,
+  codigoPermiso: string,
+): Promise<void> {
+  await clienteHttp.delete(
+    `/api/admin/roles/${rolId}/permisos/${encodeURIComponent(codigoPermiso)}`,
+  )
 }
