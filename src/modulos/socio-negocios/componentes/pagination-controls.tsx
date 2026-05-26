@@ -38,10 +38,10 @@ export function PaginationControls({
         paginas.push(i)
       }
     } else {
-      // Siempre mostrar primera página
+      // Siempre mostrar primera pagina
       paginas.push(1)
 
-      // Calcular rango de páginas alrededor de la actual
+      // Calcular rango de paginas alrededor de la actual
       let inicio = Math.max(2, meta.page - 1)
       let fin = Math.min(meta.totalPages - 1, meta.page + 1)
 
@@ -63,7 +63,7 @@ export function PaginationControls({
         paginas.push("...")
       }
 
-      // Siempre mostrar última página
+      // Siempre mostrar ultima pagina
       paginas.push(meta.totalPages)
     }
 
@@ -73,7 +73,7 @@ export function PaginationControls({
   return (
     <div className="flex flex-col gap-4 border-t border-border px-4 py-4 md:flex-row md:items-center md:justify-between">
       <div className="flex items-center gap-3 text-sm">
-        <span className="text-muted-foreground">Registros por página:</span>
+        <span className="text-muted-foreground">Registros por pagina:</span>
         <Select
           value={String(registrosPorPagina)}
           onValueChange={(value) => onPageSizeChange(Number(value))}

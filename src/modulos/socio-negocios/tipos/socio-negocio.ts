@@ -104,6 +104,12 @@ export interface ConsultarSociosDeNegocioQuery {
   estadoRegistro?: EstadoRegistro
   numeroDocumento?: string
   codigoInternoSap?: string
+  razonSocial?: string
+  nombreComercial?: string
+  direccion?: string
+  contacto?: string
+  correo?: string
+  numeroCelular?: string
   area?: string
   puestoTrabajo?: string
   sede?: string
@@ -111,6 +117,25 @@ export interface ConsultarSociosDeNegocioQuery {
   cuenta?: string
   page?: number
   pageSize?: number
+  sortBy?:
+    | "codigoInternoSap"
+    | "tipo"
+    | "numeroDocumento"
+    | "razonSocial"
+    | "nombreComercial"
+    | "direccion"
+    | "contacto"
+    | "correo"
+    | "numeroCelular"
+    | "estado"
+    | "estadoRegistro"
+    | "area"
+    | "puestoTrabajo"
+    | "sede"
+    | "contrato"
+    | "cuenta"
+    | "fechaCreacion"
+  sortOrder?: "asc" | "desc"
 }
 
 export interface ExportarSociosDeNegocioQuery

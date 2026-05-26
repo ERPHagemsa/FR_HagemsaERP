@@ -25,6 +25,14 @@ import {
   CardTitle,
 } from "@/compartido/componentes/ui/card"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/compartido/componentes/ui/dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -43,6 +51,15 @@ import {
   FieldDescription,
   FieldLabel,
 } from "@/compartido/componentes/ui/field"
+import { Input } from "@/compartido/componentes/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import {
   Table,
@@ -86,6 +103,7 @@ type SocioNegocioVistaProps = {
   crearHref?: string
   filtros?: ConsultarSociosDeNegocioQuery
   formatoExportacion?: FormatoExportacionSocios
+  mostrarFiltrosReporte?: boolean
 }
 
 const estadoVariant = {
@@ -114,7 +132,7 @@ const estadoRegistroClassName = {
 
 const estadoIconClassName = {
   ACTIVO: "text-emerald-500",
-  INACTIVO: "text-zinc-500",
+  INACTIVO: "text-destructive",
 } as const
 
 const estadoRegistroIconClassName = {
@@ -306,6 +324,37 @@ type AccionesSocioProps = {
   onError: (error: ErrorOperacion) => void
 }
 
+function limpiarFiltros(query: ConsultarSociosDeNegocioQuery) {
+  return Object.fromEntries(
+    Object.entries(query).filter(([, value]) => {
+      if (value === undefined || value === null) return false
+      if (typeof value === "string") return value.trim() !== ""
+      return true
+    }),
+  ) as ConsultarSociosDeNegocioQuery
+}
+
+function obtenerValorFiltro(
+  filtros: ConsultarSociosDeNegocioQuery,
+  key: keyof ConsultarSociosDeNegocioQuery,
+) {
+  const value = filtros[key]
+  return typeof value === "string" ? value : ""
+}
+
+const filtrosTexto = [
+  { key: "razonSocial", label: "Razon social", placeholder: "transportes" },
+  { key: "numeroDocumento", label: "Documento", placeholder: "20123456789" },
+  { key: "correo", label: "Correo", placeholder: "empresa.com" },
+  { key: "area", label: "Area", placeholder: "Operaciones" },
+  { key: "sede", label: "Sede", placeholder: "Arequipa" },
+  { key: "cuenta", label: "Cuenta", placeholder: "Cuenta operativa" },
+] satisfies ReadonlyArray<{
+  key: keyof ConsultarSociosDeNegocioQuery
+  label: string
+  placeholder: string
+}>
+
 function AccionesSocio({
   socio,
   onActualizado,
@@ -475,23 +524,43 @@ export function SocioNegocioVista({
   crearHref,
   filtros,
   formatoExportacion = "EXCEL",
+  mostrarFiltrosReporte = false,
 }: SocioNegocioVistaProps) {
   const [reporteGenerado, setReporteGenerado] = useState<string | null>(null)
   const [mensajeOperacion, setMensajeOperacion] = useState<string | null>(null)
   const [errorOperacion, setErrorOperacion] = useState<ErrorOperacion | null>(null)
   const [paginaActual, setPaginaActual] = useState(1)
   const [registrosPorPagina, setRegistrosPorPagina] = useState(20)
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
+  const [filtrosFormulario, setFiltrosFormulario] =
+    useState<ConsultarSociosDeNegocioQuery>(() =>
+      limpiarFiltros({
+        ...(mostrarFiltrosReporte
+          ? {
+              estado: "ACTIVO",
+              estadoRegistro: "VIGENTE",
+              sortBy: "razonSocial",
+              sortOrder: "asc",
+            }
+          : {}),
+        ...filtros,
+      }),
+    )
+  const [filtrosAplicados, setFiltrosAplicados] =
+    useState<ConsultarSociosDeNegocioQuery>(() => filtrosFormulario)
   
   const filtrosConPaginacion = useMemo(() => ({
-    ...filtros,
+    ...filtrosAplicados,
     page: paginaActual,
     pageSize: registrosPorPagina,
-  }), [filtros, paginaActual, registrosPorPagina])
+  }), [filtrosAplicados, paginaActual, registrosPorPagina])
   
   const sociosQuery = useSociosDeNegocioQuery(filtrosConPaginacion)
   const exportacionQuery = useExportarSociosDeNegocioQuery(
     {
-      ...filtros,
+      ...filtrosAplicados,
+      page: 1,
+      pageSize: registrosPorPagina,
       formato: formatoExportacion,
     },
     false
@@ -500,6 +569,7 @@ export function SocioNegocioVista({
   const metaPaginacion = sociosQuery.data?.meta
   const cargando = sociosQuery.isLoading
   const error = sociosQuery.error ? obtenerMensajeError(sociosQuery.error) : null
+  const tipoBloqueado = Boolean(filtros?.tipo)
 
   const metricasVista = useMemo(() => {
     const activosVigentes = socios.filter(
@@ -530,12 +600,61 @@ export function SocioNegocioVista({
   async function exportar() {
     setReporteGenerado(null)
     const resultado = await exportacionQuery.refetch()
+    const reporte = resultado.data?.items[0]
 
-    if (resultado.data) {
+    if (reporte) {
       setReporteGenerado(
-        `${resultado.data.nombreArchivo} generado en formato ${resultado.data.formato}.`
+        `${reporte.nombreArchivo} generado en formato ${reporte.formato}.`
       )
     }
+  }
+
+  function actualizarFiltro<K extends keyof ConsultarSociosDeNegocioQuery>(
+    key: K,
+    value: ConsultarSociosDeNegocioQuery[K] | "TODOS",
+  ) {
+    setFiltrosFormulario((actual) => {
+      const siguiente = { ...actual }
+
+      if (value === "TODOS" || value === "") {
+        delete siguiente[key]
+      } else {
+        siguiente[key] = value as ConsultarSociosDeNegocioQuery[K]
+      }
+
+      return limpiarFiltros({
+        ...siguiente,
+        ...(filtros?.tipo ? { tipo: filtros.tipo } : {}),
+      })
+    })
+  }
+
+  function aplicarFiltros() {
+    setPaginaActual(1)
+    setFiltrosAplicados(
+      limpiarFiltros({
+        ...filtrosFormulario,
+        ...(filtros?.tipo ? { tipo: filtros.tipo } : {}),
+      }),
+    )
+    setFiltrosAbiertos(false)
+  }
+
+  function limpiarBusqueda() {
+    const filtrosBase = limpiarFiltros({
+      ...(mostrarFiltrosReporte
+        ? {
+            estado: "ACTIVO",
+            estadoRegistro: "VIGENTE",
+            sortBy: "razonSocial",
+            sortOrder: "asc",
+          }
+        : {}),
+      ...filtros,
+    })
+    setPaginaActual(1)
+    setFiltrosFormulario(filtrosBase)
+    setFiltrosAplicados(filtrosBase)
   }
 
   return (
@@ -633,14 +752,24 @@ export function SocioNegocioVista({
                   variant="outline"
                   size="sm"
                   disabled={sociosQuery.isFetching}
-                  onClick={() => void sociosQuery.refetch()}
+                  onClick={() => {
+                    if (mostrarFiltrosReporte) {
+                      setFiltrosAbiertos(true)
+                      return
+                    }
+                    void sociosQuery.refetch()
+                  }}
                 >
                   <HugeiconsIcon
                     data-icon="inline-start"
                     icon={Search01Icon}
                     strokeWidth={2}
                   />
-                  {sociosQuery.isFetching ? "Consultando..." : "Consultar"}
+                  {sociosQuery.isFetching
+                    ? "Consultando..."
+                    : mostrarFiltrosReporte
+                      ? "Buscar"
+                      : "Consultar"}
                 </Button>
                 {crearHref ? (
                   <Button asChild size="sm">
@@ -819,6 +948,189 @@ export function SocioNegocioVista({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={filtrosAbiertos} onOpenChange={setFiltrosAbiertos}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Buscar socios</DialogTitle>
+            <DialogDescription>
+              Filtra el reporte por estado, texto y orden.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              event.preventDefault()
+              aplicarFiltros()
+            }}
+          >
+            <div className="grid gap-3 md:grid-cols-3">
+              <Field>
+                <FieldLabel>Tipo</FieldLabel>
+                <Select
+                  value={filtrosFormulario.tipo ?? "TODOS"}
+                  disabled={tipoBloqueado}
+                  onValueChange={(value) =>
+                    actualizarFiltro(
+                      "tipo",
+                      value as ConsultarSociosDeNegocioQuery["tipo"] | "TODOS",
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="TODOS">Todos</SelectItem>
+                      <SelectItem value="CLIENTE">Cliente</SelectItem>
+                      <SelectItem value="PROVEEDOR">Proveedor</SelectItem>
+                      <SelectItem value="PERSONAL">Personal</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel>Estado</FieldLabel>
+                <Select
+                  value={filtrosFormulario.estado ?? "TODOS"}
+                  onValueChange={(value) =>
+                    actualizarFiltro(
+                      "estado",
+                      value as ConsultarSociosDeNegocioQuery["estado"] | "TODOS",
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="TODOS">Todos</SelectItem>
+                      <SelectItem value="ACTIVO">Activo</SelectItem>
+                      <SelectItem value="INACTIVO">Inactivo</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel>Registro</FieldLabel>
+                <Select
+                  value={filtrosFormulario.estadoRegistro ?? "TODOS"}
+                  onValueChange={(value) =>
+                    actualizarFiltro(
+                      "estadoRegistro",
+                      value as
+                        | ConsultarSociosDeNegocioQuery["estadoRegistro"]
+                        | "TODOS",
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="TODOS">Todos</SelectItem>
+                      <SelectItem value="VIGENTE">Vigente</SelectItem>
+                      <SelectItem value="ANULADO">Anulado</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              {filtrosTexto.map((filtro) => (
+                <Field key={filtro.key}>
+                  <FieldLabel htmlFor={`filtro-${filtro.key}`}>
+                    {filtro.label}
+                  </FieldLabel>
+                  <Input
+                    id={`filtro-${filtro.key}`}
+                    value={obtenerValorFiltro(filtrosFormulario, filtro.key)}
+                    placeholder={filtro.placeholder}
+                    onChange={(event) =>
+                      actualizarFiltro(filtro.key, event.target.value)
+                    }
+                  />
+                </Field>
+              ))}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field>
+                <FieldLabel>Ordenar por</FieldLabel>
+                <Select
+                  value={filtrosFormulario.sortBy ?? "razonSocial"}
+                  onValueChange={(value) =>
+                    actualizarFiltro(
+                      "sortBy",
+                      value as ConsultarSociosDeNegocioQuery["sortBy"],
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="razonSocial">Razon social</SelectItem>
+                      <SelectItem value="codigoInternoSap">Codigo SAP</SelectItem>
+                      <SelectItem value="numeroDocumento">Documento</SelectItem>
+                      <SelectItem value="correo">Correo</SelectItem>
+                      <SelectItem value="area">Area</SelectItem>
+                      <SelectItem value="sede">Sede</SelectItem>
+                      <SelectItem value="cuenta">Cuenta</SelectItem>
+                      <SelectItem value="fechaCreacion">Fecha creacion</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field>
+                <FieldLabel>Orden</FieldLabel>
+                <Select
+                  value={filtrosFormulario.sortOrder ?? "asc"}
+                  onValueChange={(value) =>
+                    actualizarFiltro(
+                      "sortOrder",
+                      value as ConsultarSociosDeNegocioQuery["sortOrder"],
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="asc">Ascendente</SelectItem>
+                      <SelectItem value="desc">Descendente</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={limpiarBusqueda}>
+                Limpiar
+              </Button>
+              <Button type="submit" disabled={sociosQuery.isFetching}>
+                <HugeiconsIcon
+                  data-icon="inline-start"
+                  icon={Search01Icon}
+                  strokeWidth={2}
+                />
+                Aplicar filtros
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

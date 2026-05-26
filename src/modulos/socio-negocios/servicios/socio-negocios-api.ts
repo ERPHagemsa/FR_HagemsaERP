@@ -102,9 +102,11 @@ export async function consultarSociosDeNegocio(
 
 export async function exportarSociosDeNegocio(
   query: ExportarSociosDeNegocioQuery,
-): Promise<ReporteSociosDeNegocioResponse> {
+): Promise<PaginatedResponse<ReporteSociosDeNegocioResponse>> {
   const { data } =
-    await clienteSocioNegocios.get<ReporteSociosDeNegocioResponse>(
+    await clienteSocioNegocios.get<
+      PaginatedResponse<ReporteSociosDeNegocioResponse>
+    >(
       `${BASE_ENDPOINT}/exportar${crearQueryString(query)}`,
     )
   return data

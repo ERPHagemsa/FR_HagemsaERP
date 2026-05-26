@@ -8,6 +8,7 @@ export default function ReportesPage() {
       titulo="Reportes y Exportacion"
       etiqueta="Exportaciones de prueba para el maestro de socios."
       formatoExportacion="EXCEL"
+      mostrarFiltrosReporte
     />
   )
 }
