@@ -35,12 +35,14 @@ import { DocumentosActivo } from "./documentos-activo";
 import { ImagenesActivo } from "./imagenes-activo";
 import { TanquesActivo } from "./tanques-activo";
 import {
-  actualizarActivo,
-  crearActivo,
   crearDocumentoPorCodigo,
   crearImagenPorCodigo,
   crearTanquePorCodigo,
 } from "../servicios/activos-api";
+import {
+  useActualizarActivoMutation,
+  useCrearActivoMutation,
+} from "../servicios/activos-queries";
 import type {
   Activo,
   CrearDocumentoActivoPayload,
@@ -49,10 +51,12 @@ import type {
   EstadoActivo,
   EstadoCalibracion,
   EstadoOperativo,
+  ClaseEuro,
   TipoDocumentoActivo,
   TipoImagenActivo,
   TipoTanqueActivo,
   TipoActivo,
+  TipoTransmision,
   DocumentoActivo,
   ImagenActivo,
   TanqueActivo,
@@ -93,6 +97,8 @@ export function ActivoFormulario({
   const [selectedImageFileName, setSelectedImageFileName] =
     React.useState<string>("");
   const [localImageUrl, setLocalImageUrl] = React.useState<string>("");
+  const crearActivoMutation = useCrearActivoMutation();
+  const actualizarActivoMutation = useActualizarActivoMutation();
   const documentoDraftRef = React.useRef<HTMLDivElement>(null);
   const tanqueDraftRef = React.useRef<HTMLDivElement>(null);
   const imagenDraftRef = React.useRef<HTMLDivElement>(null);
@@ -129,6 +135,14 @@ export function ActivoFormulario({
         ["Chasis", getValue("serieChasis") || activo?.vehiculo?.serieChasis],
         ["Motor", getValue("serieMotor") || activo?.vehiculo?.serieMotor],
       ],
+      equipamiento: [
+        ["Radio", getValue("radioComunicacion") || activo?.vehiculo?.radioComunicacion],
+        ["Autorradio", getValue("autorradio") || activo?.vehiculo?.autorradio],
+        ["Llantas", getValue("llantasRepuesto") || activo?.vehiculo?.llantasRepuesto],
+        ["Camara", getValue("camara") || activo?.vehiculo?.camara],
+        ["Tablet", getValue("tablet") || activo?.vehiculo?.tablet],
+        ["Seguridad", getValue("dispositivosSeguridad") || activo?.vehiculo?.dispositivosSeguridad],
+      ],
       control: [
         ["Operativo", getValue("estadoOperativo") || activo?.vehiculo?.estadoOperativo],
         ["Calibracion", getValue("estadoCalibracion") || activo?.vehiculo?.estadoCalibracion],
@@ -139,6 +153,9 @@ export function ActivoFormulario({
         ["Longitud", getValue("longitud") || activo?.vehiculo?.longitud],
         ["Alto", getValue("alto") || activo?.vehiculo?.alto],
         ["Suspension", getValue("tipoSuspension") || activo?.vehiculo?.tipoSuspension],
+        ["Euro", getValue("claseEuro") || activo?.vehiculo?.claseEuro],
+        ["Corona", getValue("ratioCorona") || activo?.vehiculo?.ratioCorona],
+        ["Transmision", getValue("tipoTransmision") || activo?.vehiculo?.tipoTransmision],
       ],
       pendientes: [
         ["Tanques", `${tanquesPendientes.length} agregado${tanquesPendientes.length === 1 ? "" : "s"}`],
@@ -267,13 +284,19 @@ export function ActivoFormulario({
           alto: numero("alto"),
           tipoSuspension: texto("tipoSuspension"),
           tipoTornamesa: texto("tipoTornamesa"),
+          claseEuro: (getValue("claseEuro") || null) as ClaseEuro | null,
+          ratioCorona: numero("ratioCorona"),
+          tipoTransmision: (getValue("tipoTransmision") || null) as TipoTransmision | null,
           estadoCalibracion: (getValue("estadoCalibracion") || "PENDIENTE") as EstadoCalibracion,
         },
       };
 
       const saved = isEdit
-        ? await actualizarActivo(activo!.id, payload)
-        : await crearActivo({
+        ? await actualizarActivoMutation.mutateAsync({
+            id: activo!.id,
+            payload,
+          })
+        : await crearActivoMutation.mutateAsync({
             codigo,
             ...payload,
           });
@@ -362,6 +385,8 @@ export function ActivoFormulario({
       "";
 
     const observacion = getValue("observacionTanque");
+    const tipoTanqueSeleccionado =
+      getValue("tipoTanque") === "UREA" ? "UREA" : "DIESEL";
     const capacidad = Number(getValue("capacidadTanque"));
 
     if (!capacidad || capacidad <= 0) {
@@ -372,7 +397,7 @@ export function ActivoFormulario({
     setTanquesPendientes((items) => [
       ...items,
       {
-        tipoTanque,
+        tipoTanque: tipoTanqueSeleccionado,
         capacidad,
         orden: Number(getValue("ordenTanque") || items.length + 1),
         observacion: observacion || undefined,
@@ -382,6 +407,12 @@ export function ActivoFormulario({
     root.querySelectorAll("input").forEach((input) => {
       input.value = "";
     });
+    const tipoSelect = root.querySelector<HTMLSelectElement>(
+      '[name="tipoTanque"]'
+    );
+    if (tipoSelect) {
+      tipoSelect.value = "DIESEL";
+    }
     setTipoTanque("DIESEL");
     actualizarResumen();
   }
@@ -471,7 +502,8 @@ export function ActivoFormulario({
           onChange={actualizarResumen}
           onInput={actualizarResumen}
         >
-          <div className={cn(!isEdit && "grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]")}>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-5 flex h-auto w-full flex-wrap justify-start gap-1 overflow-visible rounded-2xl">
               <TabsTrigger value="base" className="flex-none">
@@ -501,10 +533,6 @@ export function ActivoFormulario({
               <TabsTrigger value="documentos" className="flex-none">
                 <IconFileDescription className="size-4 text-red-600" />
                 Documentos
-              </TabsTrigger>
-              <TabsTrigger value="imagenes" className="flex-none">
-                <IconPhotoPlus className="size-4 text-red-600" />
-                Imagenes
               </TabsTrigger>
             </TabsList>
 
@@ -620,6 +648,37 @@ export function ActivoFormulario({
                   <Field name="alto" label="Alto" type="number" step="0.001" defaultValue={activo?.vehiculo?.alto ?? undefined} />
                   <Field name="tipoSuspension" label="Tipo de suspension" defaultValue={activo?.vehiculo?.tipoSuspension ?? undefined} />
                   <Field name="tipoTornamesa" label="Tipo de tornamesa" defaultValue={activo?.vehiculo?.tipoTornamesa ?? undefined} />
+                  <SelectField
+                    name="claseEuro"
+                    label="Clase Euro / NEC"
+                    defaultValue={activo?.vehiculo?.claseEuro ?? ""}
+                    values={["", "EURO_1", "EURO_2", "EURO_3", "EURO_4", "EURO_5"]}
+                  />
+                  <Field
+                    name="ratioCorona"
+                    label="Ratio de corona"
+                    max="9.99"
+                    min="0"
+                    placeholder="0.00"
+                    step="0.01"
+                    type="number"
+                    defaultValue={activo?.vehiculo?.ratioCorona ?? undefined}
+                  />
+                  <SelectField
+                    name="tipoTransmision"
+                    label="Tipo transmision"
+                    defaultValue={activo?.vehiculo?.tipoTransmision ?? ""}
+                    values={[
+                      "",
+                      "AUTOMATICA",
+                      "AUTOMATIZADA",
+                      "MECANICA_10_VELOCIDADES",
+                      "MECANICA_13_VELOCIDADES",
+                      "MECANICA_15_VELOCIDADES",
+                      "MECANICA_18_VELOCIDADES",
+                      "MECANICA_OTRA",
+                    ]}
+                  />
                 </div>
             </TabsContent>
 
@@ -659,10 +718,16 @@ export function ActivoFormulario({
                           </span>
                           <select
                             className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-                            onChange={(event) =>
-                              setTipoTanque(event.target.value as TipoTanqueActivo)
-                            }
+                            name="tipoTanque"
                             value={tipoTanque}
+                            onChange={(event) => {
+                              const next =
+                                event.currentTarget.value === "UREA"
+                                  ? "UREA"
+                                  : "DIESEL";
+                              setTipoTanque(next);
+                              actualizarResumen();
+                            }}
                           >
                             <option value="DIESEL">Diesel</option>
                             <option value="UREA">Urea</option>
@@ -676,12 +741,7 @@ export function ActivoFormulario({
                           step="0.01"
                           type="number"
                         />
-                        <Field
-                          label="Unidad"
-                          name="unidadTanque"
-                          readOnly
-                          value={tipoTanque === "DIESEL" ? "GALON" : "LITRO"}
-                        />
+                        <UnidadTanqueDisplay tipoTanque={tipoTanque} />
                         <Field
                           label="Orden"
                           min="1"
@@ -808,125 +868,128 @@ export function ActivoFormulario({
                 )}
             </TabsContent>
 
-            <TabsContent forceMount value="imagenes" className="mt-0 data-[state=inactive]:hidden">
+          </Tabs>
+          <section className="mt-6 grid gap-4 rounded-xl border border-border bg-muted/10 p-4">
               <SectionIntro
                 icon={IconPhotoPlus}
-                title="Imagenes"
-                description="Fotografias y evidencias visuales del activo."
+                title="Imagenes del activo"
+                description={
+                  isEdit
+                    ? "Fotografias y evidencias visuales registradas para el activo."
+                    : "Fotografias y evidencias visuales que se guardaran junto al activo."
+                }
               />
-                {isEdit ? (
-                  <ImagenesActivo codigo={activo!.codigo} imagenes={imagenes} />
-                ) : (
-                  <div className="grid gap-4">
-                    <div
-                      ref={imagenDraftRef}
-                      className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4"
+              {isEdit ? (
+                <ImagenesActivo codigo={activo!.codigo} imagenes={imagenes} />
+              ) : (
+                <>
+              <div
+                ref={imagenDraftRef}
+                className="grid gap-4 rounded-xl border border-border bg-background/40 p-4"
+              >
+                <div className="grid gap-4 xl:grid-cols-[140px_200px_minmax(220px,1fr)_90px] xl:items-end">
+                  <SelectField
+                    name="tipoImagen"
+                    label="Tipo"
+                    defaultValue="FRONTAL"
+                    values={[
+                      "FRONTAL",
+                      "LATERAL",
+                      "POSTERIOR",
+                      "INTERIOR",
+                      "DOCUMENTO",
+                      "OTRO",
+                    ]}
+                    required
+                  />
+                  <div className="grid gap-2">
+                    <Label htmlFor="imagen-pendiente-archivo">
+                      Imagen desde equipo
+                    </Label>
+                    <input
+                      ref={imageFileInputRef}
+                      id="imagen-pendiente-archivo"
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={onImageFileChange}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      title={selectedImageFileName || "Seleccionar imagen"}
+                      onClick={() => imageFileInputRef.current?.click()}
                     >
-                      <div className="grid gap-4 xl:grid-cols-[140px_200px_minmax(220px,1fr)_90px] xl:items-end">
-                        <SelectField
-                          name="tipoImagen"
-                          label="Tipo"
-                          defaultValue="FRONTAL"
-                          values={[
-                            "FRONTAL",
-                            "LATERAL",
-                            "POSTERIOR",
-                            "INTERIOR",
-                            "DOCUMENTO",
-                            "OTRO",
-                          ]}
-                          required
-                        />
-                        <div className="grid gap-2">
-                          <Label htmlFor="imagen-pendiente-archivo">
-                            Imagen desde equipo
-                          </Label>
-                          <input
-                            ref={imageFileInputRef}
-                            id="imagen-pendiente-archivo"
-                            type="file"
-                            accept="image/*"
-                            className="sr-only"
-                            onChange={onImageFileChange}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            title={selectedImageFileName || "Seleccionar imagen"}
-                            onClick={() => imageFileInputRef.current?.click()}
-                          >
-                            <span className="truncate">
-                              {selectedImageFileName || "Seleccionar imagen"}
-                            </span>
-                          </Button>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="urlImagen" className="flex flex-wrap gap-x-1">
-                            URL de imagen
-                            <span className="text-xs font-normal text-muted-foreground">
-                              opcional si hay archivo
-                            </span>
-                          </Label>
-                          <Input
-                            id="urlImagen"
-                            name="urlImagen"
-                            placeholder="https://servidor/imagen.jpg"
-                          />
-                        </div>
-                        <Field
-                          label="Orden"
-                          min="0"
-                          name="ordenImagen"
-                          type="number"
-                        />
-                      </div>
-                      <TextAreaField
-                        label="Descripcion"
-                        name="descripcionImagen"
-                        placeholder="Detalle de la imagen, angulo, condicion visible o comentario de evidencia."
-                      />
-                      {localImageUrl ? (
-                        <div className="grid gap-2 rounded-xl border border-border bg-background/50 p-3 sm:max-w-sm">
-                          <span className="text-sm font-medium">Vista previa</span>
-                          <img
-                            src={localImageUrl}
-                            alt={selectedImageFileName || "Imagen seleccionada"}
-                            className="aspect-[4/3] w-full rounded-lg border border-border object-cover"
-                          />
-                        </div>
-                      ) : null}
-                      <div className="flex justify-end">
-                        <Button type="button" variant="outline" onClick={agregarImagen}>
-                          Agregar imagen
-                        </Button>
-                      </div>
-                    </div>
-                    <PendingList
-                      empty="No hay imagenes agregadas para guardar."
-                      items={imagenesPendientes.map((imagen, index) => ({
-                        id: `${imagen.tipoImagen}-${index}`,
-                        title: `${formatLabel(imagen.tipoImagen)} - ${imagen.descripcion || "Sin descripcion"}`,
-                        detail: imagen.url.startsWith("data:image/")
-                          ? "Archivo seleccionado desde equipo"
-                          : imagen.url,
-                      }))}
-                      onRemove={(index) =>
-                        setImagenesPendientes((items) =>
-                          items.filter((_, itemIndex) => itemIndex !== index)
-                        )
-                      }
+                      <span className="truncate">
+                        {selectedImageFileName || "Seleccionar imagen"}
+                      </span>
+                    </Button>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="urlImagen" className="flex flex-wrap gap-x-1">
+                      URL de imagen
+                      <span className="text-xs font-normal text-muted-foreground">
+                        opcional si hay archivo
+                      </span>
+                    </Label>
+                    <Input
+                      id="urlImagen"
+                      name="urlImagen"
+                      placeholder="https://servidor/imagen.jpg"
                     />
                   </div>
-                )}
-            </TabsContent>
-          </Tabs>
-          {!isEdit ? (
+                  <Field
+                    label="Orden"
+                    min="0"
+                    name="ordenImagen"
+                    type="number"
+                  />
+                </div>
+                <TextAreaField
+                  label="Descripcion"
+                  name="descripcionImagen"
+                  placeholder="Detalle de la imagen, angulo, condicion visible o comentario de evidencia."
+                />
+                {localImageUrl ? (
+                  <div className="grid gap-2 rounded-xl border border-border bg-background/50 p-3 sm:max-w-sm">
+                    <span className="text-sm font-medium">Vista previa</span>
+                    <img
+                      src={localImageUrl}
+                      alt={selectedImageFileName || "Imagen seleccionada"}
+                      className="aspect-[4/3] w-full rounded-lg border border-border object-cover"
+                    />
+                  </div>
+                ) : null}
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" onClick={agregarImagen}>
+                    Agregar imagen
+                  </Button>
+                </div>
+              </div>
+              <PendingList
+                empty="No hay imagenes agregadas para guardar."
+                items={imagenesPendientes.map((imagen, index) => ({
+                  id: `${imagen.tipoImagen}-${index}`,
+                  title: `${formatLabel(imagen.tipoImagen)} - ${imagen.descripcion || "Sin descripcion"}`,
+                  detail: imagen.url.startsWith("data:image/")
+                    ? "Archivo seleccionado desde equipo"
+                    : imagen.url,
+                }))}
+                onRemove={(index) =>
+                  setImagenesPendientes((items) =>
+                    items.filter((_, itemIndex) => itemIndex !== index)
+                  )
+                }
+              />
+                </>
+              )}
+            </section>
+          </div>
             <ResumenRegistro
               activeTab={activeTab}
               onSelectTab={setActiveTab}
               resumen={resumen}
             />
-          ) : null}
           </div>
 
           {error ? (
@@ -976,16 +1039,22 @@ function ResumenRegistro({
       items: resumen.vehiculo,
     },
     {
-      id: "control",
-      title: "Control",
-      icon: IconShieldCheck,
-      items: resumen.control,
+      id: "equipamiento",
+      title: "Equipamiento",
+      icon: IconSettings,
+      items: resumen.equipamiento,
     },
     {
       id: "dimensiones",
       title: "Dimensiones",
       icon: IconRulerMeasure,
       items: resumen.dimensiones,
+    },
+    {
+      id: "control",
+      title: "Control",
+      icon: IconShieldCheck,
+      items: resumen.control,
     },
     {
       id: "combustible",
@@ -1123,6 +1192,22 @@ function Field({
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
       <Input id={name} name={name} required={required} {...props} />
+    </div>
+  );
+}
+
+function UnidadTanqueDisplay({ tipoTanque }: { tipoTanque: TipoTanqueActivo }) {
+  const unidad = tipoTanque === "UREA" ? "Litros" : "Galones";
+
+  return (
+    <div className="grid gap-2">
+      <Label>Unidad</Label>
+      <div
+        key={unidad}
+        className="flex h-9 items-center rounded-lg border border-input bg-muted/40 px-3 text-sm font-medium text-foreground"
+      >
+        {unidad}
+      </div>
     </div>
   );
 }

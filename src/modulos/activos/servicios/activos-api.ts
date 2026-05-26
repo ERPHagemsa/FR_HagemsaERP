@@ -1,145 +1,165 @@
-import { clienteActivos } from "@/compartido/api/clientes-backend"
+import { clienteActivos } from "@/compartido/api/clientes-backend";
 
 import type {
   Activo,
   ActualizarActivoPayload,
+  CrearActivoPayload,
   CrearDocumentoActivoPayload,
   CrearImagenActivoPayload,
-  CrearActivoPayload,
   CrearTanqueActivoPayload,
   DocumentoActivo,
   EstadoActivo,
   ImagenActivo,
   TanqueActivo,
-} from "../tipos/activo.tipos"
+} from "../tipos/activo.tipos";
 
 export async function obtenerActivos(): Promise<Activo[]> {
-  const { data } = await clienteActivos.get<Activo[]>("/activos")
-  return data
+  const { data } = await clienteActivos.get<unknown>("/activos");
+
+  if (Array.isArray(data)) {
+    return data as Activo[];
+  }
+
+  if (
+    data &&
+    typeof data === "object" &&
+    Array.isArray((data as { activos?: unknown }).activos)
+  ) {
+    return (data as { activos: Activo[] }).activos;
+  }
+
+  throw new Error(
+    "La API de activos no devolvio una lista. Revisa NEXT_PUBLIC_ACTIVOS_API_URL."
+  );
 }
 
 export async function obtenerActivoPorCodigo(codigo: string): Promise<Activo> {
   const { data } = await clienteActivos.get<Activo>(
-    `/activos/codigo/${codigo}`,
-  )
-  return data
+    `/activos/codigo/${codigo}`
+  );
+  return data;
 }
 
 export async function crearActivo(payload: CrearActivoPayload): Promise<Activo> {
-  const { data } = await clienteActivos.post<Activo>("/activos", payload)
-  return data
+  const { data } = await clienteActivos.post<Activo>("/activos", payload);
+  return data;
 }
 
 export async function actualizarActivo(
-  id: string,
-  payload: ActualizarActivoPayload,
+  id: number,
+  payload: ActualizarActivoPayload
 ): Promise<Activo> {
-  const { data } = await clienteActivos.patch<Activo>(`/activos/${id}`, payload)
-  return data
+  const { data } = await clienteActivos.patch<Activo>(`/activos/${id}`, payload);
+  return data;
 }
 
 export async function cambiarEstadoActivo(
-  id: string,
+  id: number,
   payload: {
-    estadoActivo: EstadoActivo
-    motivo?: string
-    usuario?: string
-  },
+    estadoActivo: EstadoActivo;
+    motivo?: string;
+    usuario?: string;
+  }
 ): Promise<Activo> {
   const { data } = await clienteActivos.patch<Activo>(
     `/activos/${id}/estado-activo`,
-    payload,
-  )
-  return data
+    payload
+  );
+  return data;
 }
 
 export async function siniestrarActivo(
-  id: string,
+  id: number,
   payload: {
-    observacion?: string
-  },
+    observacion?: string;
+  }
 ): Promise<Activo> {
   const { data } = await clienteActivos.patch<Activo>(
     `/activos/${id}/siniestrar`,
-    payload,
-  )
-  return data
+    payload
+  );
+  return data;
 }
 
 export async function obtenerImagenesPorCodigo(
-  codigo: string,
+  codigo: string
 ): Promise<ImagenActivo[]> {
   const { data } = await clienteActivos.get<ImagenActivo[]>(
-    `/activos/codigo/${codigo}/imagenes`,
-  )
-  return data
+    `/activos/codigo/${codigo}/imagenes`
+  );
+  return data;
 }
 
 export async function crearImagenPorCodigo(
   codigo: string,
-  payload: CrearImagenActivoPayload,
+  payload: CrearImagenActivoPayload
 ): Promise<ImagenActivo> {
   const { data } = await clienteActivos.post<ImagenActivo>(
     `/activos/codigo/${codigo}/imagenes`,
-    payload,
-  )
-  return data
+    payload
+  );
+  return data;
 }
 
 export async function eliminarImagenPorCodigo(
   codigo: string,
-  imagenId: string,
+  imagenId: number
 ): Promise<void> {
-  await clienteActivos.delete(
-    `/activos/codigo/${codigo}/imagenes/${imagenId}`,
-  )
+  await clienteActivos.delete(`/activos/codigo/${codigo}/imagenes/${imagenId}`);
 }
 
 export async function obtenerDocumentosPorCodigo(
-  codigo: string,
+  codigo: string
 ): Promise<DocumentoActivo[]> {
   const { data } = await clienteActivos.get<DocumentoActivo[]>(
-    `/activos/codigo/${codigo}/documentos`,
-  )
-  return data
+    `/activos/codigo/${codigo}/documentos`
+  );
+  return data;
 }
 
 export async function crearDocumentoPorCodigo(
   codigo: string,
-  payload: CrearDocumentoActivoPayload,
+  payload: CrearDocumentoActivoPayload
 ): Promise<DocumentoActivo> {
   const { data } = await clienteActivos.post<DocumentoActivo>(
     `/activos/codigo/${codigo}/documentos`,
-    payload,
-  )
-  return data
+    payload
+  );
+  return data;
+}
+
+export async function eliminarDocumentoPorCodigo(
+  codigo: string,
+  documentoId: number
+): Promise<void> {
+  await clienteActivos.delete(
+    `/activos/codigo/${codigo}/documentos/${documentoId}`
+  );
 }
 
 export async function obtenerTanquesPorCodigo(
-  codigo: string,
+  codigo: string
 ): Promise<TanqueActivo[]> {
   const { data } = await clienteActivos.get<TanqueActivo[]>(
-    `/activos/codigo/${codigo}/tanques`,
-  )
-  return data
+    `/activos/codigo/${codigo}/tanques`
+  );
+  return data;
 }
 
 export async function crearTanquePorCodigo(
   codigo: string,
-  payload: CrearTanqueActivoPayload,
+  payload: CrearTanqueActivoPayload
 ): Promise<TanqueActivo> {
   const { data } = await clienteActivos.post<TanqueActivo>(
     `/activos/codigo/${codigo}/tanques`,
-    payload,
-  )
-  return data
+    payload
+  );
+  return data;
 }
 
 export async function eliminarTanquePorCodigo(
   codigo: string,
-  tanqueId: string,
+  tanqueId: number
 ): Promise<void> {
-  await clienteActivos.delete(
-    `/activos/codigo/${codigo}/tanques/${tanqueId}`,
-  )
+  await clienteActivos.delete(`/activos/codigo/${codigo}/tanques/${tanqueId}`);
 }

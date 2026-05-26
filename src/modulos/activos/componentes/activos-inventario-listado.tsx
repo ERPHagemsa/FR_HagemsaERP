@@ -80,12 +80,17 @@ export function ActivosInventarioListado({ activos }: Props) {
   }, [query, tipoActivo, estadoActivo, estadoOperativo, registrosPorPagina]);
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader className="border-b border-border">
-        <CardTitle>Listado detallado de inventario</CardTitle>
-        <CardDescription>
-          {filtrados.length} de {activosVisibles.length} activos visibles
-        </CardDescription>
+        <div className="flex items-center gap-3">
+          <span className="h-8 w-1 rounded-full bg-red-600" />
+          <div>
+            <CardTitle>Listado detallado de inventario</CardTitle>
+            <CardDescription>
+              {filtrados.length} de {activosVisibles.length} activos visibles
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-5">
         <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_repeat(3,180px)]">
@@ -187,14 +192,16 @@ function InventarioItem({ activo }: { activo: Activo }) {
   const vehiculo = activo.vehiculo;
 
   return (
-    <article className="rounded-xl border border-border bg-card/60 p-4">
+    <article className="rounded-xl border border-border bg-card/60 p-4 transition-colors hover:border-red-500/40">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">ID inventario</Badge>
+            <Badge className="border-red-500/30 bg-red-500/10 text-red-600" variant="outline">
+              ID inventario
+            </Badge>
             <span
               className="max-w-full truncate font-mono text-xs text-muted-foreground"
-              title={activo.id}
+              title={String(activo.id)}
             >
               {activo.id}
             </span>
@@ -202,7 +209,12 @@ function InventarioItem({ activo }: { activo: Activo }) {
           <h3 className="mt-2 text-lg font-semibold">{activo.codigo}</h3>
           <p className="text-sm text-muted-foreground">{activo.descripcion}</p>
         </div>
-        <Button asChild size="sm" variant="outline">
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-700"
+        >
           <Link href={`/activos/${activo.codigo}`}>
             <IconEye />
             Ver detalle

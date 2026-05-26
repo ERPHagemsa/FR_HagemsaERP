@@ -11,6 +11,15 @@ export type EstadoCalibracion =
   | "NO_CALIBRADA"
   | "PENDIENTE"
   | "OBSERVADA";
+export type ClaseEuro = "EURO_1" | "EURO_2" | "EURO_3" | "EURO_4" | "EURO_5";
+export type TipoTransmision =
+  | "AUTOMATICA"
+  | "AUTOMATIZADA"
+  | "MECANICA_10_VELOCIDADES"
+  | "MECANICA_13_VELOCIDADES"
+  | "MECANICA_15_VELOCIDADES"
+  | "MECANICA_18_VELOCIDADES"
+  | "MECANICA_OTRA";
 
 export type VehiculoDetalle = {
   plantillaInventario: string;
@@ -55,10 +64,13 @@ export type VehiculoDetalle = {
   capacidadTanqueGalones: number | null;
   estadoCalibracion: EstadoCalibracion | null;
   factorCorreccion: number | null;
+  claseEuro: ClaseEuro | null;
+  ratioCorona: number | null;
+  tipoTransmision: TipoTransmision | null;
 };
 
 export type Activo = {
-  id: string;
+  id: number;
   codigo: string;
   tipoActivo: TipoActivo;
   descripcion: string;
@@ -93,8 +105,8 @@ export type TipoImagenActivo =
   | "OTRO";
 
 export type ImagenActivo = {
-  id: string;
-  activoId: string;
+  id: number;
+  activoId: number;
   tipoImagen: TipoImagenActivo;
   url: string;
   descripcion: string | null;
@@ -138,8 +150,8 @@ export type EstadoDocumentoActivo =
   | "NO_APLICA";
 
 export type DocumentoActivo = {
-  id: string;
-  activoId: string;
+  id: number;
+  activoId: number;
   tipoDocumento: TipoDocumentoActivo;
   estadoDocumento: EstadoDocumentoActivo;
   numero: string | null;
@@ -167,8 +179,8 @@ export type TipoTanqueActivo = "DIESEL" | "UREA";
 export type UnidadMedidaTanque = "GALON" | "LITRO";
 
 export type TanqueActivo = {
-  id: string;
-  activoId: string;
+  id: number;
+  activoId: number;
   tipoTanque: TipoTanqueActivo;
   capacidad: number;
   unidadMedida: UnidadMedidaTanque;

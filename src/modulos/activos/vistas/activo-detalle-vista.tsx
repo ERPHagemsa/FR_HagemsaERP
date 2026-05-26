@@ -53,7 +53,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
             <p className="text-sm font-medium text-muted-foreground">{activo.codigo}</p>
             <h1 className="text-2xl font-semibold">{activo.descripcion}</h1>
             <p className="text-sm text-muted-foreground">{activo.ubicacion}</p>
-            <p className="mt-2 max-w-full truncate font-mono text-xs text-muted-foreground" title={activo.id}>
+            <p className="mt-2 max-w-full truncate font-mono text-xs text-muted-foreground" title={String(activo.id)}>
               ID inventario: {activo.id}
             </p>
           </div>
@@ -143,6 +143,9 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Alto" value={vehiculo?.alto} />
                     <Dato label="Tipo suspension" value={vehiculo?.tipoSuspension} />
                     <Dato label="Tipo tornamesa" value={vehiculo?.tipoTornamesa} />
+                    <Dato label="Clase Euro / NEC" value={vehiculo?.claseEuro} />
+                    <Dato label="Ratio corona" value={vehiculo?.ratioCorona} />
+                    <Dato label="Tipo transmision" value={vehiculo?.tipoTransmision} />
                   </FichaGrid>
                 </TabsContent>
 
