@@ -10,7 +10,7 @@ export function useCuentas(query: ListarCuentasQuery = {}) {
     query.estado,
     query.tipoCuenta,
     query.busqueda,
-    query.offset,
-    query.limit,
+    query.pagina,
+    query.limite,
   ])
 }

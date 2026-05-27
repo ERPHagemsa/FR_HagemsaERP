@@ -6,6 +6,8 @@ import { toast } from "sonner"
 import {
   ArrowLeft01Icon,
   Copy01Icon,
+  Delete02Icon,
+  Edit02Icon,
   Key01Icon,
   PlayIcon,
   StopCircleIcon,
@@ -42,8 +44,11 @@ import { Input } from "@/compartido/componentes/ui/input"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 
 import { RolesAsignadosSeccion } from "../componentes/roles-asignados-seccion"
+import { SesionesActivasSeccion } from "../componentes/sesiones-activas-seccion"
 import { useCuenta } from "../ganchos/use-cuenta"
 import {
+  useActualizarCuenta,
+  useDesactivarCuenta,
   useReactivarCuenta,
   useResetPasswordAdmin,
   useSetPassword,
@@ -328,6 +333,201 @@ function DialogResetPassword({ cuenta }: PropsAccion) {
   )
 }
 
+function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
+  const [abierto, setAbierto] = useState(false)
+  const [nombreCompleto, setNombreCompleto] = useState(cuenta.nombreCompleto)
+  const [documentoIdentidad, setDocumentoIdentidad] = useState(
+    cuenta.documentoIdentidad ?? "",
+  )
+  const [error, setError] = useState<string | null>(null)
+  const mutation = useActualizarCuenta(cuenta.id, { onSuccess: onActualizado })
+
+  function abrir(siguiente: boolean) {
+    if (siguiente) {
+      setNombreCompleto(cuenta.nombreCompleto)
+      setDocumentoIdentidad(cuenta.documentoIdentidad ?? "")
+      setError(null)
+    }
+    setAbierto(siguiente)
+  }
+
+  async function confirmar() {
+    const nombreTrim = nombreCompleto.trim()
+    const docTrim = documentoIdentidad.trim()
+
+    if (!nombreTrim) {
+      setError("El nombre es obligatorio.")
+      return
+    }
+    setError(null)
+
+    const cambios: { nombreCompleto?: string; documentoIdentidad?: string | null } = {}
+    if (nombreTrim !== cuenta.nombreCompleto) {
+      cambios.nombreCompleto = nombreTrim
+    }
+    if (docTrim !== (cuenta.documentoIdentidad ?? "")) {
+      cambios.documentoIdentidad = docTrim || null
+    }
+
+    if (Object.keys(cambios).length === 0) {
+      setAbierto(false)
+      return
+    }
+
+    try {
+      await mutation.mutateAsync(cambios)
+      toast.success("Cuenta actualizada")
+      setAbierto(false)
+    } catch (err) {
+      const mensaje = extraerMensajeError(err, "No se pudo actualizar la cuenta.")
+      setError(mensaje)
+      toast.error(mensaje)
+    }
+  }
+
+  return (
+    <Dialog open={abierto} onOpenChange={abrir}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <HugeiconsIcon icon={Edit02Icon} strokeWidth={2} />
+          Editar
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar cuenta</DialogTitle>
+          <DialogDescription>
+            Cambia el nombre completo o el documento de identidad. El email y
+            el tipo de cuenta no son editables.
+          </DialogDescription>
+        </DialogHeader>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="nombre-editar">Nombre completo</FieldLabel>
+            <Input
+              id="nombre-editar"
+              value={nombreCompleto}
+              onChange={(e) => setNombreCompleto(e.target.value)}
+              maxLength={200}
+            />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="documento-editar">
+              Documento de identidad
+            </FieldLabel>
+            <Input
+              id="documento-editar"
+              value={documentoIdentidad}
+              onChange={(e) => setDocumentoIdentidad(e.target.value)}
+              placeholder="Dejar vacio para quitar"
+              maxLength={50}
+            />
+          </Field>
+          {error ? (
+            <Field data-invalid>
+              <FieldError>{error}</FieldError>
+            </Field>
+          ) : null}
+        </FieldGroup>
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setAbierto(false)}
+            disabled={mutation.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => void confirmar()}
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? "Guardando..." : "Guardar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DialogDesactivar({ cuenta, onActualizado }: PropsAccion) {
+  const [abierto, setAbierto] = useState(false)
+  const [razon, setRazon] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const mutation = useDesactivarCuenta(cuenta.id, { onSuccess: onActualizado })
+
+  async function confirmar() {
+    if (!razon.trim()) {
+      setError("La razon es obligatoria.")
+      return
+    }
+    setError(null)
+    try {
+      await mutation.mutateAsync({ razon: razon.trim() })
+      toast.success("Cuenta desactivada")
+      setAbierto(false)
+      setRazon("")
+    } catch (err) {
+      const mensaje = extraerMensajeError(err, "No se pudo desactivar la cuenta.")
+      setError(mensaje)
+      toast.error(mensaje)
+    }
+  }
+
+  return (
+    <Dialog open={abierto} onOpenChange={setAbierto}>
+      <DialogTrigger asChild>
+        <Button variant="destructive">
+          <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+          Desactivar
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Desactivar cuenta</DialogTitle>
+          <DialogDescription>
+            La cuenta {cuenta.email} se marcara como inactiva. Es una accion
+            permanente — no podra volver a iniciar sesion y sus sesiones
+            activas se revocaran. Usa &quot;Suspender&quot; si la baja es temporal.
+          </DialogDescription>
+        </DialogHeader>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="razon-desactivar">Razon</FieldLabel>
+            <Input
+              id="razon-desactivar"
+              value={razon}
+              onChange={(e) => setRazon(e.target.value)}
+              placeholder="Por que se desactiva esta cuenta"
+              maxLength={500}
+            />
+          </Field>
+          {error ? (
+            <Field data-invalid>
+              <FieldError>{error}</FieldError>
+            </Field>
+          ) : null}
+        </FieldGroup>
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setAbierto(false)}
+            disabled={mutation.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => void confirmar()}
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? "Desactivando..." : "Desactivar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 interface PropsCuentaDetalleVista {
   cuentaId: string
 }
@@ -414,6 +614,7 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
 
             {data.estado !== "inactivo" ? (
               <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+                <DialogEditarCuenta cuenta={data} onActualizado={refetch} />
                 {data.estado === "activo" ? (
                   <DialogSuspender cuenta={data} onActualizado={refetch} />
                 ) : null}
@@ -422,10 +623,13 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
                 ) : null}
                 <DialogSetPassword cuenta={data} />
                 <DialogResetPassword cuenta={data} />
+                <DialogDesactivar cuenta={data} onActualizado={refetch} />
               </div>
             ) : null}
 
             <RolesAsignadosSeccion cuentaId={data.id} />
+
+            <SesionesActivasSeccion cuentaId={data.id} />
           </CardContent>
         </Card>
       ) : null}

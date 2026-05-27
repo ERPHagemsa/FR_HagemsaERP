@@ -3,15 +3,19 @@
 import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
+  actualizarCuenta,
   crearCuenta,
+  desactivarCuenta,
   reactivarCuenta,
   resetPasswordAdmin,
   setPassword,
   suspenderCuenta,
 } from "../servicios/cuentas-api"
 import type {
+  ActualizarCuentaPayload,
   CrearCuentaPayload,
   CrearCuentaResponse,
+  DesactivarCuentaPayload,
   ResetPasswordResponse,
   SetPasswordPayload,
   SuspenderCuentaPayload,
@@ -55,6 +59,26 @@ export function useResetPasswordAdmin(
 ) {
   return useMutar<void, ResetPasswordResponse>({
     fn: () => resetPasswordAdmin(cuentaId),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useActualizarCuenta(
+  cuentaId: string,
+  opciones: OpcionesMutacion = {},
+) {
+  return useMutar<ActualizarCuentaPayload, void>({
+    fn: (payload) => actualizarCuenta(cuentaId, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useDesactivarCuenta(
+  cuentaId: string,
+  opciones: OpcionesMutacion = {},
+) {
+  return useMutar<DesactivarCuentaPayload, void>({
+    fn: (payload) => desactivarCuenta(cuentaId, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }

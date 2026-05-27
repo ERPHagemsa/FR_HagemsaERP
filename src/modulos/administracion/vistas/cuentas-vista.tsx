@@ -61,28 +61,26 @@ export function CuentasVista() {
   const [estado, setEstado] = useState<EstadoCuenta | "todos">("todos")
   const [tipoCuenta, setTipoCuenta] = useState<TipoCuenta | "todos">("todos")
   const [busqueda, setBusqueda] = useState("")
-  const [pagina, setPagina] = useState(0)
+  // `pagina` es 1-based — coincide con el paginador del backend.
+  const [pagina, setPagina] = useState(1)
 
   const query = useMemo<ListarCuentasQuery>(
     () => ({
       estado: estado === "todos" ? undefined : estado,
       tipoCuenta: tipoCuenta === "todos" ? undefined : tipoCuenta,
       busqueda: busqueda.trim() || undefined,
-      offset: pagina * LIMIT_PAGINA,
-      limit: LIMIT_PAGINA,
+      pagina,
+      limite: LIMIT_PAGINA,
     }),
     [estado, tipoCuenta, busqueda, pagina],
   )
 
   const { data, isLoading, isError, error } = useCuentas(query)
 
-  const totalPaginas = data ? Math.ceil(data.total / LIMIT_PAGINA) : 0
-  const paginaActual = pagina + 1
-
   function aplicarFiltros<T>(setter: (v: T) => void) {
     return (valor: T) => {
       setter(valor)
-      setPagina(0)
+      setPagina(1)
     }
   }
 
@@ -183,8 +181,8 @@ export function CuentasVista() {
                       : "No se pudieron cargar las cuentas."}
                   </TableCell>
                 </TableRow>
-              ) : data?.items && data.items.length > 0 ? (
-                data.items.map((cuenta) => (
+              ) : data?.datos && data.datos.length > 0 ? (
+                data.datos.map((cuenta) => (
                   <TableRow key={cuenta.id}>
                     <TableCell className="font-medium">
                       {cuenta.nombreCompleto}
@@ -220,17 +218,19 @@ export function CuentasVista() {
             </TableBody>
           </Table>
 
-          {data && data.total > LIMIT_PAGINA ? (
+          {data && data.paginacion.totalPaginas > 1 ? (
             <div className="flex items-center justify-between gap-2 pt-2">
               <p className="text-sm text-muted-foreground">
-                Pagina {paginaActual} de {totalPaginas} ({data.total} cuentas)
+                Pagina {data.paginacion.pagina} de{" "}
+                {data.paginacion.totalPaginas} ({data.paginacion.total}{" "}
+                cuentas)
               </p>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setPagina((p) => Math.max(0, p - 1))}
-                  disabled={pagina === 0}
+                  onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                  disabled={!data.paginacion.tieneAnterior}
                 >
                   Anterior
                 </Button>
@@ -238,7 +238,7 @@ export function CuentasVista() {
                   variant="outline"
                   size="sm"
                   onClick={() => setPagina((p) => p + 1)}
-                  disabled={paginaActual >= totalPaginas}
+                  disabled={!data.paginacion.tieneSiguiente}
                 >
                   Siguiente
                 </Button>

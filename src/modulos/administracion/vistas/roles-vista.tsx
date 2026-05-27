@@ -76,8 +76,8 @@ export function RolesVista() {
                       : "No se pudieron cargar los roles."}
                   </TableCell>
                 </TableRow>
-              ) : data?.items && data.items.length > 0 ? (
-                data.items.map((rol) => (
+              ) : data?.datos && data.datos.length > 0 ? (
+                data.datos.map((rol) => (
                   <TableRow key={rol.id}>
                     <TableCell className="font-medium">{rol.nombre}</TableCell>
                     <TableCell className="text-muted-foreground">

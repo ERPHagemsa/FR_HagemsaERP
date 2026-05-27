@@ -326,7 +326,7 @@ export function RolesAsignadosSeccion({
   const asignaciones = useAsignacionesCuenta(cuentaId)
   const roles = useRoles()
 
-  const items = asignaciones.data?.items ?? []
+  const items = asignaciones.data?.datos ?? []
   const activos = items.filter((a) => a.activa)
   const rolesYaAsignados = activos.map((a) => a.rolId)
 
@@ -342,7 +342,7 @@ export function RolesAsignadosSeccion({
         {roles.data ? (
           <DialogAsignarRol
             cuentaId={cuentaId}
-            rolesDisponibles={[...roles.data.items]}
+            rolesDisponibles={[...roles.data.datos]}
             rolesYaAsignados={rolesYaAsignados}
             onActualizado={asignaciones.refetch}
           />
@@ -375,7 +375,7 @@ export function RolesAsignadosSeccion({
           </TableHeader>
           <TableBody>
             {activos.map((asignacion) => {
-              const nombre = nombreDelRol(asignacion.rolId, roles.data?.items)
+              const nombre = nombreDelRol(asignacion.rolId, roles.data?.datos)
               const scopeVacio = Object.keys(asignacion.scope).length === 0
               return (
                 <TableRow key={asignacion.id}>

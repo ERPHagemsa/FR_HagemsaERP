@@ -1,6 +1,11 @@
 import { clienteHttp } from "@/compartido/api/cliente-http"
+import type {
+  RespuestaPaginada,
+  RespuestaRecurso,
+} from "@/compartido/api/contrato"
 
 import type {
+  AsignacionResponse,
   AsignarRolPayload,
   AsignarRolResponse,
   ListaAsignacionesResponse,
@@ -8,28 +13,28 @@ import type {
 } from "../tipos/administracion.tipos"
 
 // Las asignaciones viven bajo /api/admin/cuentas/:cuentaId/roles segun el
-// backend (asignaciones-admin.controller.ts).
+// backend (asignaciones-admin.controller.ts). Devuelve {datos, paginacion}.
 
 export async function obtenerAsignacionesCuenta(
   cuentaId: string,
   incluirHistorico = false,
 ): Promise<ListaAsignacionesResponse> {
   const query = incluirHistorico ? "?historico=true" : ""
-  const { data } = await clienteHttp.get<ListaAsignacionesResponse>(
+  const { data } = await clienteHttp.get<RespuestaPaginada<AsignacionResponse>>(
     `/api/admin/cuentas/${cuentaId}/roles${query}`,
   )
-  return data
+  return { datos: data.datos, paginacion: data.paginacion }
 }
 
 export async function asignarRol(
   cuentaId: string,
   payload: AsignarRolPayload,
 ): Promise<AsignarRolResponse> {
-  const { data } = await clienteHttp.post<AsignarRolResponse>(
+  const { data } = await clienteHttp.post<RespuestaRecurso<AsignarRolResponse>>(
     `/api/admin/cuentas/${cuentaId}/roles`,
     payload,
   )
-  return data
+  return data.datos
 }
 
 export async function revocarAsignacion(
