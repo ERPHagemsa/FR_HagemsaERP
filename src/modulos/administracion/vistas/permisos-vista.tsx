@@ -308,20 +308,38 @@ function DialogEliminarPermiso({
   onEliminado,
 }: PropsDialogEliminarPermiso) {
   const [abierto, setAbierto] = useState(false)
+  const [confirmacion, setConfirmacion] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const mutation = useEliminarPermiso({ onSuccess: () => onEliminado() })
 
+  function abrir(siguiente: boolean) {
+    if (!siguiente) {
+      setConfirmacion("")
+      setError(null)
+    }
+    setAbierto(siguiente)
+  }
+
   async function confirmar() {
+    if (confirmacion !== permiso.codigo) {
+      setError(`Escribe "${permiso.codigo}" para confirmar.`)
+      return
+    }
+    setError(null)
     try {
       await mutation.mutateAsync(permiso.id)
       toast.success("Permiso eliminado")
       setAbierto(false)
+      setConfirmacion("")
     } catch (err) {
-      toast.error(extraerMensajeError(err, "No se pudo eliminar el permiso."))
+      const mensaje = extraerMensajeError(err, "No se pudo eliminar el permiso.")
+      setError(mensaje)
+      toast.error(mensaje)
     }
   }
 
   return (
-    <Dialog open={abierto} onOpenChange={setAbierto}>
+    <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" title="Eliminar permiso">
           <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
@@ -334,8 +352,29 @@ function DialogEliminarPermiso({
             Se eliminara <code className="font-mono">{permiso.codigo}</code>{" "}
             del catalogo. Si algun rol lo tiene asignado el servidor lo
             rechazara — primero quita el permiso de los roles que lo usan.
+            Escribe el codigo para confirmar.
           </DialogDescription>
         </DialogHeader>
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="confirmar-eliminar-permiso">
+              Escribe <code className="font-mono">{permiso.codigo}</code>{" "}
+              para confirmar
+            </FieldLabel>
+            <Input
+              id="confirmar-eliminar-permiso"
+              value={confirmacion}
+              onChange={(e) => setConfirmacion(e.target.value)}
+              autoComplete="off"
+              className="font-mono"
+            />
+          </Field>
+          {error ? (
+            <Field data-invalid>
+              <FieldError>{error}</FieldError>
+            </Field>
+          ) : null}
+        </FieldGroup>
         <DialogFooter>
           <Button
             variant="ghost"
@@ -347,7 +386,7 @@ function DialogEliminarPermiso({
           <Button
             variant="destructive"
             onClick={() => void confirmar()}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || confirmacion !== permiso.codigo}
           >
             {mutation.isPending ? "Eliminando..." : "Eliminar"}
           </Button>
