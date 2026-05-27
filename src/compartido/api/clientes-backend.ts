@@ -65,3 +65,4 @@ function crearClientePorBC(servicio: ServicioApi) {
 export const clienteActivos = crearClientePorBC("activos")
 export const clienteCombustible = crearClientePorBC("combustible")
 export const clienteSocioNegocios = crearClientePorBC("socioNegocios")
+export const clienteConfiguracionGeneral = crearClientePorBC("configuracionGeneral")

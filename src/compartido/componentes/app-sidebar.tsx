@@ -167,12 +167,13 @@ const data = {
       ],
     },
     {
-      title: "Configuracion",
+      title: "CS-Configuración General",
       icon: <HugeiconsIcon icon={Settings02Icon} strokeWidth={2} />,
       items: [
-        { title: "Usuarios y roles", url: "#" },
-        { title: "Parametros ERP", url: "#" },
-        { title: "Preferencias", url: "#" },
+        { title: "Panel", url: "/configuracion" },
+        { title: "Listar maestros", url: "/configuracion/listar" },
+        { title: "Nuevo maestro", url: "/configuracion/nuevo" },
+        { title: "Reportes", url: "/configuracion/reportes" },
       ],
     },
   ],
