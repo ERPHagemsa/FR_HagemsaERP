@@ -7,6 +7,7 @@ import Image from "next/image"
 import { NavMain } from "@/compartido/componentes/nav-main"
 import { NavUser } from "@/compartido/componentes/nav-user"
 import { ThemeToggle } from "@/compartido/componentes/theme-toggle"
+import { useTieneRol } from "@/modulos/autenticacion/ganchos/use-tiene-rol"
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +28,7 @@ import {
   LegalDocument01Icon,
   Route01Icon,
   Settings02Icon,
+  Shield01Icon,
   ToolsIcon,
   TruckIcon,
   UserGroupIcon,
@@ -176,7 +178,24 @@ const data = {
   ],
 }
 
+// Bloque de IAM y administracion (gestion de identidades, accesos y auditoria
+// del Auth Service). Visible solo para SUPER_ADMIN — todas sus rutas estan
+// ademas protegidas server-side en /(privado)/admin/layout.tsx.
+const navAdmin = {
+  title: "IAM y administracion",
+  icon: <HugeiconsIcon icon={Shield01Icon} strokeWidth={2} />,
+  items: [
+    { title: "Cuentas", url: "/admin/cuentas" },
+    { title: "Roles", url: "/admin/roles" },
+    { title: "Permisos", url: "/admin/permisos" },
+    { title: "Auditoria", url: "/admin/auditoria" },
+  ],
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const esSuperAdmin = useTieneRol("SUPER_ADMIN")
+  const navMain = esSuperAdmin ? [...data.navMain, navAdmin] : data.navMain
+
   return (
     <Sidebar
       collapsible="offcanvas"
@@ -218,7 +237,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent className="px-1.5 py-3">
-        <NavMain items={data.navMain} />
+        <NavMain items={navMain} />
       </SidebarContent>
       <SidebarFooter className="gap-2 border-t border-sidebar-border/70 p-2.5">
         <ThemeToggle

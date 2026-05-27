@@ -61,26 +61,26 @@ export function NavMain({
     [items, pathname],
   )
   const activeItemTitle = activeItem?.title ?? null
-  const [hoverItem, setHoverItem] = React.useState<string | null>(null)
-  const closeTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  function cancelarCierre() {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current)
-      closeTimerRef.current = null
-    }
+  // Modulo abierto (solo uno a la vez). Se siembra con el modulo activo por
+  // ruta para que el sidebar muestre la seccion del usuario al cargar, y
+  // luego el chevron permite togglear manualmente.
+  const [openItem, setOpenItem] = React.useState<string | null>(activeItemTitle)
+
+  // Cuando la ruta cambia a otro modulo, abrimos automaticamente el nuevo.
+  // Se hace en render (no en useEffect) siguiendo el patron oficial de React
+  // para "ajustar state cuando una prop cambia" — evita un commit extra.
+  const [lastActiveTitle, setLastActiveTitle] = React.useState<string | null>(
+    activeItemTitle,
+  )
+  if (activeItemTitle !== lastActiveTitle) {
+    setLastActiveTitle(activeItemTitle)
+    if (activeItemTitle) setOpenItem(activeItemTitle)
   }
 
-  function programarCierre(itemTitle: string) {
-    cancelarCierre()
-    closeTimerRef.current = setTimeout(() => {
-      setHoverItem((actual) => (actual === itemTitle ? null : actual))
-    }, 120)
+  function alternar(itemTitle: string) {
+    setOpenItem((actual) => (actual === itemTitle ? null : itemTitle))
   }
-
-  React.useEffect(() => {
-    return () => cancelarCierre()
-  }, [])
 
   return (
     <SidebarGroup className="px-2 pt-1">
@@ -96,8 +96,7 @@ export function NavMain({
             const hasActiveChild = item.items.some((subItem) =>
               isRouteActive(pathname, subItem.url, subItem.url === moduleHref)
             )
-            const isOpen =
-              activeItemTitle === item.title || hoverItem === item.title
+            const isOpen = openItem === item.title
             const isHighlighted = isOpen || hasActiveChild || isModuleActive
 
             return (
@@ -112,10 +111,9 @@ export function NavMain({
                 <SidebarMenuButton
                   asChild
                   tooltip={item.title}
-                  aria-expanded={isOpen}
                   isActive={isHighlighted}
                   className={cn(
-                    "h-11 rounded-2xl border border-transparent px-3 font-medium text-sidebar-foreground/76 transition-all duration-300 ease-out",
+                    "h-11 rounded-2xl border border-transparent px-3 pr-12 font-medium text-sidebar-foreground/76 transition-all duration-300 ease-out",
                     "hover:translate-x-0.5 hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
                     isHighlighted &&
                       "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -136,29 +134,44 @@ export function NavMain({
                       {item.icon}
                     </span>
                     <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                    <span
-                      className={cn(
-                        "ml-auto flex size-6 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/38 transition-all duration-300 ease-out",
-                        isOpen &&
-                          "rotate-90 bg-background text-sidebar-foreground"
-                      )}
-                      onMouseEnter={(event) => {
-                        event.preventDefault()
-                        cancelarCierre()
-                        setHoverItem(item.title)
-                      }}
-                      onFocus={() => setHoverItem(item.title)}
-                      onMouseLeave={() => programarCierre(item.title)}
-                      onBlur={() => programarCierre(item.title)}
-                    >
-                      <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
-                    </span>
                   </Link>
                 </SidebarMenuButton>
+
+                {/*
+                  Chevron como boton hermano del Link, no hijo. Asi un click
+                  toggle el submenu sin disparar la navegacion. Posicionado
+                  absoluto para preservar el look del diseno original.
+                */}
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  aria-controls={`submenu-${item.title}`}
+                  aria-label={
+                    isOpen
+                      ? `Contraer ${item.title}`
+                      : `Expandir ${item.title}`
+                  }
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    alternar(item.title)
+                  }}
+                  className={cn(
+                    // `top-2.5` (10px) ancla el chevron al header de 44px (h-11)
+                    // del modulo. Si usaramos `top-1/2 -translate-y-1/2`, al
+                    // expandirse el submenu el SidebarMenuItem crece y el
+                    // chevron descenderia con el. Aqui queda fijo al header.
+                    "absolute right-3 top-2.5 z-10 flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sidebar-foreground/38 transition-all duration-300 ease-out hover:bg-background hover:text-sidebar-foreground focus-visible:bg-background focus-visible:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                    isOpen &&
+                      "rotate-90 bg-background text-sidebar-foreground"
+                  )}
+                >
+                  <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
+                </button>
+
                 {isOpen ? (
                   <SidebarMenuSub
-                    onMouseEnter={cancelarCierre}
-                    onMouseLeave={() => programarCierre(item.title)}
+                    id={`submenu-${item.title}`}
                     className="sidebar-submenu mb-2 ml-7 mt-1.5 gap-1 border-l border-sidebar-border/70 pl-3 animate-in fade-in slide-in-from-top-1 duration-200"
                   >
                     {item.items.map((subItem, index) => (
