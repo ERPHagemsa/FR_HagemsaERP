@@ -5,6 +5,7 @@
 // y secretos del Auth Service son privados al server.
 
 import { crearClienteHttp } from "@/compartido/api/axios"
+import type { RespuestaRecurso } from "@/compartido/api/contrato"
 import { URLS_SERVIDOR } from "@/compartido/api/config-servidor"
 
 export interface RespuestaTokensAuth {
@@ -22,24 +23,27 @@ const cliente = crearClienteHttp({
   mensajeErrorDefault: "No se pudo contactar al servicio de autenticacion.",
 })
 
+// El backend envuelve la respuesta como { datos: tokens }. Desempaquetamos
+// `datos` aqui para que el caller reciba el objeto plano de tokens.
 export async function loginContraAuthService(
   email: string,
   password: string,
 ): Promise<RespuestaTokensAuth> {
-  const { data } = await cliente.post<RespuestaTokensAuth>("/api/auth/login", {
-    email,
-    password,
-  })
-  return data
+  const { data } = await cliente.post<RespuestaRecurso<RespuestaTokensAuth>>(
+    "/api/auth/login",
+    { email, password },
+  )
+  return data.datos
 }
 
 export async function refrescarTokens(
   refreshToken: string,
 ): Promise<RespuestaTokensAuth> {
-  const { data } = await cliente.post<RespuestaTokensAuth>("/api/auth/refresh", {
-    refreshToken,
-  })
-  return data
+  const { data } = await cliente.post<RespuestaRecurso<RespuestaTokensAuth>>(
+    "/api/auth/refresh",
+    { refreshToken },
+  )
+  return data.datos
 }
 
 export async function logoutContraAuthService(

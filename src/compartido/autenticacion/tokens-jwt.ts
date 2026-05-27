@@ -15,6 +15,9 @@
 export interface RolPayload {
   readonly role: string
   readonly scope: Record<string, unknown>
+  // Permisos del rol resueltos al emitir el JWT. El frontend los usa para
+  // ocultar/mostrar botones; la autorizacion real la hace cada backend.
+  readonly permisos: ReadonlyArray<string>
 }
 
 export interface PayloadAccessToken {

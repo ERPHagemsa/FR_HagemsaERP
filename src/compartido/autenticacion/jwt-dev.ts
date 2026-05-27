@@ -17,8 +17,39 @@ const REFRESH_EXPIRA_SEGUNDOS = 60 * 60 * 24 // 24h
 const ID_USUARIO_DEV = "00000000-0000-4000-8000-000000000001"
 const JTI_USUARIO_DEV = "00000000-0000-4000-8000-000000000002"
 
+let advertenciaImpresa = false
+
 export function modoDesarrolloActivo(): boolean {
-  return process.env.AUTH_MODO_DESARROLLO === "true"
+  const flag = process.env.AUTH_MODO_DESARROLLO === "true"
+  const enProduccion = process.env.NODE_ENV === "production"
+
+  // Doble gate: aunque AUTH_MODO_DESARROLLO=true se filtre a un build de
+  // produccion, NODE_ENV === "production" lo neutraliza y el bypass queda
+  // desactivado. Si esto pasa, lo gritamos por logs al menos una vez para
+  // que sea facil detectarlo en observabilidad.
+  if (flag && enProduccion) {
+    if (!advertenciaImpresa) {
+      // eslint-disable-next-line no-console
+      console.error(
+        "[SEGURIDAD] AUTH_MODO_DESARROLLO=true detectado en NODE_ENV=production. " +
+          "El bypass de autenticacion permanece DESACTIVADO. " +
+          "Quitar esta variable del entorno productivo INMEDIATAMENTE.",
+      )
+      advertenciaImpresa = true
+    }
+    return false
+  }
+
+  if (flag && !advertenciaImpresa) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[DEV] AUTH_MODO_DESARROLLO=true. Bypass de autenticacion ACTIVO. " +
+        "No usar este build en produccion.",
+    )
+    advertenciaImpresa = true
+  }
+
+  return flag
 }
 
 export interface OpcionesUsuarioDev {
@@ -39,7 +70,12 @@ export function crearPayloadUsuarioDev(
     email: opciones.email ?? "dev-admin@hagemsa.local",
     type: opciones.tipo ?? "interno",
     name: opciones.nombre ?? "Admin Dev",
-    roles: opciones.roles ?? [{ role: "SUPER_ADMIN", scope: {} }],
+    // SUPER_ADMIN sintetico sin permisos asignados (el guard del frontend usa
+    // el nombre del rol; permisos se quedan vacios). Si necesitas probar UI que
+    // depende de permisos especificos, pasa opciones.roles con la lista.
+    roles: opciones.roles ?? [
+      { role: "SUPER_ADMIN", scope: {}, permisos: [] },
+    ],
     iat: ahoraSegundos,
     exp: ahoraSegundos + ACCESS_EXPIRA_SEGUNDOS,
   }
