@@ -43,7 +43,28 @@ export {
   esError403,
   esError404,
   esError409,
+  esErrorValidacion,
   esErrorRateLimit,
   obtenerStatusError,
   obtenerCodigoError,
+  obtenerTituloError,
+  obtenerTrazaId,
+  obtenerServicioError,
+  obtenerErroresCampo,
+  obtenerErroresPorCampo,
+  obtenerErrorCampo,
 } from "./formato-error"
+
+// Tipos del shape estandar que devuelven los backends del ecosistema HAGEMSA
+// (RespuestaRecurso, RespuestaPaginada, RespuestaError, etc.)
+export {
+  PAGINACION_DEFAULTS,
+  CODIGO_ERROR_CAMPO,
+  type CodigoErrorCampo,
+  type ErrorCampo,
+  type Paginacion,
+  type PaginacionQuery,
+  type RespuestaError,
+  type RespuestaPaginada,
+  type RespuestaRecurso,
+} from "./contrato"

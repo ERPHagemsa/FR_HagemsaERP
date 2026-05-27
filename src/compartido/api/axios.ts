@@ -3,25 +3,53 @@ import axios, {
   type AxiosRequestConfig,
 } from "axios"
 
+import type { ErrorCampo, RespuestaError } from "./contrato"
+
 const TIMEOUT_DEFAULT_MS = 8000
 const MENSAJE_ERROR_DEFAULT = "No se pudo completar la operacion."
 
+// Error normalizado para cualquier llamada HTTP del frontend. Guarda intacto
+// el payload del error tal como viene del backend, para que el UI
+// pueda mostrar `detalle`, `errores[]` por campo y `trazaId` para soporte.
+//
+// Para errores fuera del contrato (timeout, sin conexion, respuesta no-JSON)
+// solo `status` y `message` estan poblados; el resto queda en null.
 export class ApiError extends Error {
   readonly status: number
   readonly codigo: string | null
+  readonly tipo: string | null
+  readonly titulo: string | null
+  readonly detalle: string | null
+  readonly instancia: string | null
+  readonly fecha: string | null
+  readonly trazaId: string | null
+  readonly servicio: string | null
+  readonly errores: ReadonlyArray<ErrorCampo> | null
 
-  constructor(status: number, message: string, codigo: string | null = null) {
+  constructor(
+    status: number,
+    message: string,
+    payload: Partial<RespuestaError> | null = null,
+  ) {
     super(message)
     this.name = "ApiError"
     this.status = status
-    this.codigo = codigo
+    this.codigo = payload?.codigo ?? null
+    this.tipo = payload?.tipo ?? null
+    this.titulo = payload?.titulo ?? null
+    this.detalle = payload?.detalle ?? null
+    this.instancia = payload?.instancia ?? null
+    this.fecha = payload?.fecha ?? null
+    this.trazaId = payload?.trazaId ?? null
+    this.servicio = payload?.servicio ?? null
+    this.errores = payload?.errores ?? null
   }
 }
 
-type PayloadErrorAxios = {
+type PayloadErrorAxios = Partial<RespuestaError> & {
+  // Compatibilidad con backends legacy que aun no devuelven el shape estandar:
   message?: string | string[]
   error?: string
-  codigo?: string
   statusCode?: number
 }
 
@@ -78,13 +106,15 @@ function transformarError(error: unknown, fallback: string): ApiError {
   const status = error.response.status
   const data = error.response.data as PayloadErrorAxios | undefined
   const mensaje = extraerMensaje(data) ?? fallback
-  const codigo = data?.codigo ?? null
 
-  return new ApiError(status, mensaje, codigo)
+  return new ApiError(status, mensaje, data ?? null)
 }
 
 function extraerMensaje(payload: PayloadErrorAxios | undefined): string | null {
   if (!payload) return null
+
+  // Prioridad: `detalle` del backend estandarizado → message/error de backends legacy.
+  if (payload.detalle) return payload.detalle
 
   const message = Array.isArray(payload.message)
     ? payload.message.join(", ")

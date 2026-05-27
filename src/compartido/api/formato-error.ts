@@ -1,4 +1,5 @@
 import { ApiError } from "./axios"
+import type { ErrorCampo } from "./contrato"
 
 // Helpers para procesar errores de cualquier llamada HTTP de forma consistente.
 //
@@ -19,6 +20,19 @@ import { ApiError } from "./axios"
 //     else if (esErrorRed(err)) toast.error("Sin conexion al servidor")
 //     else toast.error(extraerMensajeError(err))
 //   }
+//
+// USO CON ERRORES DE CAMPO (status 422 — validacion con errores por campo):
+//
+//   } catch (err) {
+//     const erroresCampo = obtenerErroresCampo(err)
+//     setErrorEmail(erroresCampo.email?.mensaje ?? null)
+//     setErrorNombre(erroresCampo.nombreCompleto?.mensaje ?? null)
+//   }
+//
+// USO MOSTRANDO TRAZAID PARA SOPORTE:
+//
+//   <MensajeErrorApi error={err} />
+//   // o manualmente: "ID de soporte: " + obtenerTrazaId(err)
 
 const MENSAJE_FALLBACK = "Ocurrio un error inesperado."
 
@@ -60,6 +74,11 @@ export function esError409(err: unknown): boolean {
   return err instanceof ApiError && err.status === 409
 }
 
+// 422 — validacion fallida (el array `errores` viene poblado).
+export function esErrorValidacion(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 422
+}
+
 export function esErrorRateLimit(err: unknown): boolean {
   return err instanceof ApiError && err.status === 429
 }
@@ -69,7 +88,59 @@ export function obtenerStatusError(err: unknown): number | null {
   return err instanceof ApiError ? err.status : null
 }
 
-// Devuelve el codigo de error de la API o null si no esta presente.
+// Codigo estable del backend (AUTH_*, COMUN_*, ...) o null si no lo trae.
+// El frontend lo usa para logica condicional estable.
 export function obtenerCodigoError(err: unknown): string | null {
   return err instanceof ApiError ? err.codigo : null
+}
+
+// Titulo corto y estable del tipo de error (sin datos variables). Util para
+// encabezados de Alert / toast.
+export function obtenerTituloError(err: unknown): string | null {
+  return err instanceof ApiError ? err.titulo : null
+}
+
+// trazaId para correlacionar con logs del backend. Mostrarselo al usuario
+// cuando reporta un incidente (idealmente con copy-to-clipboard).
+export function obtenerTrazaId(err: unknown): string | null {
+  return err instanceof ApiError ? err.trazaId : null
+}
+
+// Nombre del servicio que origino el error. Util cuando el frontend habla con
+// varios backends — ayuda a saber a quien escalar.
+export function obtenerServicioError(err: unknown): string | null {
+  return err instanceof ApiError ? err.servicio : null
+}
+
+// Array crudo `errores[]` del payload de error (validacion campo a campo).
+// null si no hay; arreglo vacio si el backend lo mando vacio.
+export function obtenerErroresCampo(
+  err: unknown,
+): ReadonlyArray<ErrorCampo> | null {
+  return err instanceof ApiError ? err.errores : null
+}
+
+// Mapa `campo -> ErrorCampo` para consumo rapido en formularios.
+// Si dos items tienen el mismo `campo` gana el ultimo (raro, pero estable).
+export function obtenerErroresPorCampo(
+  err: unknown,
+): Record<string, ErrorCampo> {
+  const items = obtenerErroresCampo(err)
+  if (!items) return {}
+  const mapa: Record<string, ErrorCampo> = {}
+  for (const item of items) {
+    mapa[item.campo] = item
+  }
+  return mapa
+}
+
+// Acceso directo al mensaje de un campo especifico (ej. para FieldError).
+// Devuelve null si no hay error para ese campo.
+export function obtenerErrorCampo(
+  err: unknown,
+  campo: string,
+): string | null {
+  const items = obtenerErroresCampo(err)
+  if (!items) return null
+  return items.find((item) => item.campo === campo)?.mensaje ?? null
 }
