@@ -5,7 +5,6 @@ import {
   COOKIE_ACCESS,
   COOKIE_REFRESH,
 } from "@/compartido/autenticacion/cookies-sesion"
-import { modoDesarrolloActivo } from "@/compartido/autenticacion/jwt-dev"
 import { refrescarSiNecesario } from "@/compartido/autenticacion/refrescar-sesion"
 
 const rutasPublicas = ["/login"]
@@ -33,15 +32,15 @@ function redirigirALogin(
   return response
 }
 
+// Middleware/proxy Next.js 16: corre antes de cualquier route handler.
+// Reglas (mismas en dev y prod — el modo dev solo habilita el endpoint
+// /api/auth/dev-login y el boton en /login, no afecta el gating):
+//   1. /login y /api/auth/* son publicas (acceso sin cookie).
+//   2. Con sesion activa, /login redirige a /.
+//   3. Sin sesion, cualquier ruta privada redirige a /login.
+//   4. Con sesion, intenta refresh transparente si el access esta por expirar.
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl
-
-  if (modoDesarrolloActivo()) {
-    if (pathname === "/login") {
-      return NextResponse.redirect(new URL("/", request.url))
-    }
-    return NextResponse.next()
-  }
 
   const tieneAccess = Boolean(request.cookies.get(COOKIE_ACCESS)?.value)
   const tieneRefresh = Boolean(request.cookies.get(COOKIE_REFRESH)?.value)
