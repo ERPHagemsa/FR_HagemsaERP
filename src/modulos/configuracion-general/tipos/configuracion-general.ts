@@ -39,7 +39,10 @@ export interface ConfiguracionGeneralResponse {
   codigo: string
   nombre: string
   descripcion?: string | null
-  atributos?: Record<string, unknown> | null
+  direccion?: string | null
+  sedeId?: string | null
+  tipoCuenta?: string | null
+  tipoContrato?: string | null
   estado: EstadoDatoMaestro
   estadoRegistro: EstadoRegistro
   motivoInhabilitacion?: string | null
@@ -72,7 +75,10 @@ export interface RegistrarConfiguracionGeneralRequest {
   codigo: string
   nombre: string
   descripcion?: string
-  atributos?: Record<string, unknown>
+  direccion?: string
+  sedeId?: string
+  tipoCuenta?: string
+  tipoContrato?: string
   usuarioId: string
 }
 
@@ -80,7 +86,10 @@ export interface ModificarConfiguracionGeneralRequest {
   codigo?: string
   nombre?: string
   descripcion?: string
-  atributos?: Record<string, unknown>
+  direccion?: string
+  sedeId?: string
+  tipoCuenta?: string
+  tipoContrato?: string
   usuarioId: string
 }
 

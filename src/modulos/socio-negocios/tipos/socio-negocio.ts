@@ -1,4 +1,4 @@
-export type TipoSocioDeNegocio = "CLIENTE" | "PROVEEDOR" | "PERSONAL"
+﻿export type TipoSocioDeNegocio = "CLIENTE" | "PROVEEDOR" | "PERSONAL"
 
 export type EstadoSocioDeNegocio = "ACTIVO" | "INACTIVO"
 
@@ -20,6 +20,10 @@ export interface PaginatedResponse<T> {
   paginacion: PaginationMeta
 }
 
+export interface RespuestaDto<T> {
+  datos: T
+}
+
 export interface SocioDeNegocioResponse {
   id: string
   codigoInternoSap: string
@@ -37,7 +41,7 @@ export interface SocioDeNegocioResponse {
   usuarioCreacion: string
   fechaModificacion: string
   usuarioModificacion: string
-  puestoTrabajo: string
+  cargo: string
   sede: string
   area: string
   contrato: string
@@ -62,7 +66,7 @@ export interface RegistrarSocioDeNegocioRequest {
   contacto: string
   correo: string
   numeroCelular: string
-  puestoTrabajo?: string
+  cargo?: string
   sede?: string
   area?: string
   contrato?: string
@@ -80,7 +84,7 @@ export interface ModificarSocioDeNegocioRequest {
   contacto?: string
   correo?: string
   numeroCelular?: string
-  puestoTrabajo?: string
+  cargo?: string
   sede?: string
   area?: string
   contrato?: string
@@ -111,29 +115,19 @@ export interface ConsultarSociosDeNegocioQuery {
   correo?: string
   numeroCelular?: string
   area?: string
-  puestoTrabajo?: string
+  cargo?: string
   sede?: string
   contrato?: string
   cuenta?: string
-  pagina?: number
-  limite?: number
+  page?: number
+  pageSize?: number
   sortBy?:
     | "codigoInternoSap"
     | "tipo"
     | "numeroDocumento"
     | "razonSocial"
-    | "nombreComercial"
-    | "direccion"
-    | "contacto"
-    | "correo"
-    | "numeroCelular"
     | "estado"
     | "estadoRegistro"
-    | "area"
-    | "puestoTrabajo"
-    | "sede"
-    | "contrato"
-    | "cuenta"
     | "fechaCreacion"
   sortOrder?: "asc" | "desc"
 }
@@ -148,3 +142,4 @@ export interface ReporteSociosDeNegocioResponse {
   formato: FormatoExportacionSocios
   contenido: string
 }
+

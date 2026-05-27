@@ -117,7 +117,7 @@ export function SocioNegocioFormulario({
         contacto: construirContacto(formData),
         correo: texto(formData, "correo"),
         numeroCelular: texto(formData, "numeroCelular"),
-        puestoTrabajo: tipo === "PERSONAL" ? texto(formData, "puestoTrabajo") : undefined,
+        cargo: tipo === "PERSONAL" ? texto(formData, "cargo") : undefined,
         sede: tipo === "PERSONAL" ? texto(formData, "sede") : undefined,
         area: tipo === "PERSONAL" ? texto(formData, "area") : undefined,
         contrato: tipo === "PERSONAL" ? texto(formData, "contrato") : undefined,
@@ -287,8 +287,8 @@ export function SocioNegocioFormulario({
                 </FieldDescription>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <Field>
-                    <FieldLabel htmlFor="puestoTrabajo">Puesto de trabajo</FieldLabel>
-                    <Input id="puestoTrabajo" name="puestoTrabajo" placeholder="Conductor" required />
+                    <FieldLabel htmlFor="cargo">Cargo</FieldLabel>
+                    <Input id="cargo" name="cargo" placeholder="Conductor" required />
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="sede">Sede</FieldLabel>

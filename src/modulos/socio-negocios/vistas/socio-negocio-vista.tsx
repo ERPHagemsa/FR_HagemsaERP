@@ -529,16 +529,16 @@ export function SocioNegocioVista({
   
   const filtrosConPaginacion = useMemo(() => ({
     ...filtrosAplicados,
-    pagina: paginaActual,
-    limite: registrosPorPagina,
+    page: paginaActual,
+    pageSize: registrosPorPagina,
   }), [filtrosAplicados, paginaActual, registrosPorPagina])
   
   const sociosQuery = useSociosDeNegocioQuery(filtrosConPaginacion)
   const exportacionQuery = useExportarSociosDeNegocioQuery(
     {
       ...filtrosAplicados,
-      pagina: 1,
-      limite: registrosPorPagina,
+      page: 1,
+      pageSize: registrosPorPagina,
       formato: formatoExportacion,
     },
     false

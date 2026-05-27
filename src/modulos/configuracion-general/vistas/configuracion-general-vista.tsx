@@ -101,82 +101,34 @@ function eventoPrincipal(dato: ConfiguracionGeneralResponse) {
   return `${base}Habilitado`
 }
 
-function atributosTexto(atributos?: Record<string, unknown> | null) {
-  if (!atributos || Object.keys(atributos).length === 0) return "-"
-
-  return Object.entries(atributos)
-    .map(([clave, valor]) => `${clave}: ${String(valor)}`)
-    .join(" | ")
+function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
+  if (dato.tipoDatoMaestro === "SEDE") return dato.direccion || "-"
+  if (dato.tipoDatoMaestro === "AREA") return dato.sedeId || "-"
+  if (dato.tipoDatoMaestro === "CUENTA") return dato.tipoCuenta || "-"
+  if (dato.tipoDatoMaestro === "CONTRATO") return dato.tipoContrato || "-"
+  return "-"
 }
 
-function construirAtributosDesdeFormulario(
-  tipo: TipoDatoMaestro,
-  formData: FormData,
-): Record<string, unknown> {
-  if (tipo === "CARGO") {
-    return {
-      familia: String(formData.get("familiaCargo") ?? "").trim(),
-      nivel: String(formData.get("nivelCargo") ?? "").trim(),
-      requiereLicencia: String(formData.get("requiereLicencia") ?? "NO"),
-    }
-  }
-
-  if (tipo === "SEDE") {
-    return {
-      direccion: String(formData.get("direccionSede") ?? "").trim(),
-      ciudad: String(formData.get("ciudadSede") ?? "").trim(),
-      zona: String(formData.get("zonaSede") ?? "").trim(),
-    }
-  }
-
-  if (tipo === "AREA") {
-    return {
-      sedeReferencia: String(formData.get("sedeReferencia") ?? "").trim(),
-      responsable: String(formData.get("responsableArea") ?? "").trim(),
-      clasificacion: String(formData.get("clasificacionArea") ?? "").trim(),
-    }
-  }
-
-  if (tipo === "CUENTA") {
-    return {
-      tipoCuenta: String(formData.get("tipoCuenta") ?? "").trim(),
-      clienteReferencia: String(formData.get("clienteReferencia") ?? "").trim(),
-      centroCosto: String(formData.get("centroCosto") ?? "").trim(),
-    }
-  }
-
-  return {
-    tipoContrato: String(formData.get("tipoContrato") ?? "").trim(),
-    cuentaReferencia: String(formData.get("cuentaReferencia") ?? "").trim(),
-    vigencia: String(formData.get("vigenciaContrato") ?? "").trim(),
-  }
+function etiquetaDetalleEspecifico(tipo: TipoDatoMaestro) {
+  if (tipo === "SEDE") return "Direccion"
+  if (tipo === "AREA") return "Sede"
+  if (tipo === "CUENTA") return "Tipo de cuenta"
+  if (tipo === "CONTRATO") return "Tipo de contrato"
+  return "Dato especifico"
 }
 
-function CamposEspecificosMaestro({ tipo }: { tipo: TipoDatoMaestro }) {
+function CamposEspecificosMaestro({
+  sedes,
+  tipo,
+}: {
+  sedes: ConfiguracionGeneralResponse[]
+  tipo: TipoDatoMaestro
+}) {
   if (tipo === "CARGO") {
     return (
-      <>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="familiaCargo">Familia del cargo</label>
-          <Input id="familiaCargo" name="familiaCargo" placeholder="Operaciones" />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="nivelCargo">Nivel</label>
-          <Input id="nivelCargo" name="nivelCargo" placeholder="Operativo" />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="requiereLicencia">Requiere licencia</label>
-          <Select name="requiereLicencia" defaultValue="SI">
-            <SelectTrigger id="requiereLicencia" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="SI">Si</SelectItem>
-              <SelectItem value="NO">No</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </>
+      <p className="md:col-span-2 text-sm text-muted-foreground">
+        Cargo usa solo codigo, nombre y descripcion.
+      </p>
     )
   }
 
@@ -185,15 +137,7 @@ function CamposEspecificosMaestro({ tipo }: { tipo: TipoDatoMaestro }) {
       <>
         <div className="grid gap-2 md:col-span-2">
           <label className="text-sm font-medium" htmlFor="direccionSede">Direccion</label>
-          <Input id="direccionSede" name="direccionSede" placeholder="Av. Principal 123" />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="ciudadSede">Ciudad</label>
-          <Input id="ciudadSede" name="ciudadSede" placeholder="Arequipa" />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="zonaSede">Zona</label>
-          <Input id="zonaSede" name="zonaSede" placeholder="Sur" />
+          <Input id="direccionSede" name="direccion" placeholder="Av. Principal 123" />
         </div>
       </>
     )
@@ -202,17 +146,20 @@ function CamposEspecificosMaestro({ tipo }: { tipo: TipoDatoMaestro }) {
   if (tipo === "AREA") {
     return (
       <>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="sedeReferencia">Sede de referencia</label>
-          <Input id="sedeReferencia" name="sedeReferencia" placeholder="AQP" />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="responsableArea">Responsable</label>
-          <Input id="responsableArea" name="responsableArea" placeholder="Jefatura de operaciones" />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="clasificacionArea">Clasificacion</label>
-          <Input id="clasificacionArea" name="clasificacionArea" placeholder="Operativa" />
+        <div className="grid gap-2 md:col-span-2">
+          <label className="text-sm font-medium" htmlFor="sedeId">Sede</label>
+          <Select name="sedeId">
+            <SelectTrigger id="sedeId" className="w-full">
+              <SelectValue placeholder="Selecciona una sede activa" />
+            </SelectTrigger>
+            <SelectContent>
+              {sedes.map((sede) => (
+                <SelectItem key={sede.id} value={sede.id}>
+                  {sede.codigo} - {sede.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </>
     )
@@ -221,17 +168,18 @@ function CamposEspecificosMaestro({ tipo }: { tipo: TipoDatoMaestro }) {
   if (tipo === "CUENTA") {
     return (
       <>
-        <div className="grid gap-2">
+        <div className="grid gap-2 md:col-span-2">
           <label className="text-sm font-medium" htmlFor="tipoCuenta">Tipo de cuenta</label>
-          <Input id="tipoCuenta" name="tipoCuenta" placeholder="Operativa" />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="clienteReferencia">Cliente de referencia</label>
-          <Input id="clienteReferencia" name="clienteReferencia" placeholder="Minera Sur" />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="centroCosto">Centro de costo</label>
-          <Input id="centroCosto" name="centroCosto" placeholder="CC-OPER-001" />
+          <Select name="tipoCuenta" defaultValue="OPERATIVA">
+            <SelectTrigger id="tipoCuenta" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="OPERATIVA">Operativa</SelectItem>
+              <SelectItem value="ADMINISTRATIVA">Administrativa</SelectItem>
+              <SelectItem value="COMERCIAL">Comercial</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </>
     )
@@ -239,17 +187,18 @@ function CamposEspecificosMaestro({ tipo }: { tipo: TipoDatoMaestro }) {
 
   return (
     <>
-      <div className="grid gap-2">
+      <div className="grid gap-2 md:col-span-2">
         <label className="text-sm font-medium" htmlFor="tipoContrato">Tipo de contrato</label>
-        <Input id="tipoContrato" name="tipoContrato" placeholder="Servicio" />
-      </div>
-      <div className="grid gap-2">
-        <label className="text-sm font-medium" htmlFor="cuentaReferencia">Cuenta de referencia</label>
-        <Input id="cuentaReferencia" name="cuentaReferencia" placeholder="CTA-MINERA-SUR" />
-      </div>
-      <div className="grid gap-2">
-        <label className="text-sm font-medium" htmlFor="vigenciaContrato">Vigencia</label>
-        <Input id="vigenciaContrato" name="vigenciaContrato" placeholder="2026" />
+        <Select name="tipoContrato" defaultValue="FIJO">
+          <SelectTrigger id="tipoContrato" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="FIJO">Fijo</SelectItem>
+            <SelectItem value="TEMPORAL">Temporal</SelectItem>
+            <SelectItem value="SERVICIO">Servicio</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     </>
   )
@@ -416,6 +365,7 @@ function TablaDatosMaestros({
             <TableHead>Tipo</TableHead>
             <TableHead>Codigo</TableHead>
             <TableHead>Nombre</TableHead>
+            <TableHead>Dato especifico</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Registro</TableHead>
             <TableHead>Evento de dominio</TableHead>
@@ -438,6 +388,14 @@ function TablaDatosMaestros({
                   <span className="font-medium">{dato.nombre}</span>
                   <span className="text-xs text-muted-foreground">
                     {dato.descripcion || "Sin descripcion"}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex min-w-44 flex-col">
+                  <span>{detalleEspecifico(dato)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {etiquetaDetalleEspecifico(dato.tipoDatoMaestro)}
                   </span>
                 </div>
               </TableCell>
@@ -620,7 +578,10 @@ function FichaMaestro({ dato }: { dato?: ConfiguracionGeneralResponse }) {
         <div className="grid gap-3">
           <Dato label="Codigo" value={dato.codigo} />
           <Dato label="Descripcion" value={dato.descripcion} />
-          <Dato label="Atributos" value={atributosTexto(dato.atributos)} />
+          <Dato
+            label={etiquetaDetalleEspecifico(dato.tipoDatoMaestro)}
+            value={detalleEspecifico(dato)}
+          />
           <Dato label="Creacion" value={formatearFecha(dato.fechaCreacion)} />
           <Dato label="Usuario creacion" value={dato.usuarioCreacion} />
           <Dato label="Ultimo evento" value={eventoPrincipal(dato)} />
@@ -810,6 +771,13 @@ export function ConfiguracionGeneralNuevoVista() {
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tipoNuevo, setTipoNuevo] = useState<TipoDatoMaestro>("CARGO")
+  const sedesQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "SEDE",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
   const registrarMutation = useRegistrarConfiguracionGeneralMutation()
 
   async function registrar(event: FormEvent<HTMLFormElement>) {
@@ -818,7 +786,10 @@ export function ConfiguracionGeneralNuevoVista() {
     setError(null)
 
     const formData = new FormData(event.currentTarget)
-    const atributos = construirAtributosDesdeFormulario(tipoNuevo, formData)
+    const direccion = String(formData.get("direccion") ?? "").trim()
+    const sedeId = String(formData.get("sedeId") ?? "").trim()
+    const tipoCuenta = String(formData.get("tipoCuenta") ?? "").trim()
+    const tipoContrato = String(formData.get("tipoContrato") ?? "").trim()
 
     try {
       const creado = await registrarMutation.mutateAsync({
@@ -826,7 +797,10 @@ export function ConfiguracionGeneralNuevoVista() {
         codigo: String(formData.get("codigo") ?? "").trim(),
         nombre: String(formData.get("nombre") ?? "").trim(),
         descripcion: String(formData.get("descripcion") ?? "").trim(),
-        atributos,
+        ...(tipoNuevo === "SEDE" ? { direccion } : {}),
+        ...(tipoNuevo === "AREA" ? { sedeId } : {}),
+        ...(tipoNuevo === "CUENTA" ? { tipoCuenta } : {}),
+        ...(tipoNuevo === "CONTRATO" ? { tipoContrato } : {}),
         usuarioId: String(formData.get("usuarioId") ?? "admin").trim(),
       })
       event.currentTarget.reset()
@@ -907,11 +881,14 @@ export function ConfiguracionGeneralNuevoVista() {
                   <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
                     <h3 className="text-sm font-semibold">Datos especificos de {nombreTipo(tipoNuevo)}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Estos campos se guardan en atributos del maestro, pero se capturan con lenguaje de negocio.
+                      Se envian como campos directos del maestro usando el endpoint unico /configuracion-general.
                     </p>
                   </div>
                 </div>
-                <CamposEspecificosMaestro tipo={tipoNuevo} />
+                <CamposEspecificosMaestro
+                  sedes={sedesQuery.data?.datos ?? []}
+                  tipo={tipoNuevo}
+                />
                 <div className="grid gap-2">
                   <label className="text-sm font-medium" htmlFor="usuarioId">Usuario</label>
                   <Input id="usuarioId" name="usuarioId" defaultValue="admin" required />
@@ -939,7 +916,7 @@ export function ConfiguracionGeneralNuevoVista() {
                 <CardContent className="grid gap-3 text-sm">
                   <Dato label="Identidad" value="tipoDatoMaestro + codigo" />
                   <Dato label="Nombre unico" value="tipoDatoMaestro + nombre" />
-                  <Dato label="Datos especificos" value="Se capturan segun Cargo, Sede, Area, Cuenta o Contrato" />
+                  <Dato label="Datos especificos" value="Sede usa direccion, Area usa sedeId, Cuenta usa tipoCuenta y Contrato usa tipoContrato" />
                   <Dato label="Estado operativo" value="Solo ACTIVO + VIGENTE se consume" />
                   <Dato label="Historial" value="REGISTRO con datos_nuevos" />
                 </CardContent>
@@ -1103,7 +1080,8 @@ export function ConfiguracionGeneralReportesVista() {
                 <CardContent className="grid gap-2 text-sm text-muted-foreground">
                   <span>tipoDatoMaestro</span>
                   <span>codigo, nombre, descripcion</span>
-                  <span>atributos, estado, estadoRegistro</span>
+                  <span>direccion, sedeId, tipoCuenta, tipoContrato</span>
+                  <span>estado, estadoRegistro</span>
                   <span>fechaCreacion, usuarioCreacion</span>
                 </CardContent>
               </Card>

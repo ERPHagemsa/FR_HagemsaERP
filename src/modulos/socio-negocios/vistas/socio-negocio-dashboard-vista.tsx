@@ -131,8 +131,8 @@ function agruparPorFecha(socios: SocioDeNegocioResponse[]) {
 
 export function SocioNegocioDashboardVista() {
   const sociosQuery = useSociosDeNegocioQuery({
-    pagina: 1,
-    limite: 8,
+    page: 1,
+    pageSize: 8,
     sortBy: "fechaCreacion",
     sortOrder: "desc",
   })

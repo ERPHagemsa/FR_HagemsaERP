@@ -11,6 +11,7 @@ import type {
   RegistrarClienteDesdeComercialRequest,
   RegistrarSocioDeNegocioRequest,
   ReporteSociosDeNegocioResponse,
+  RespuestaDto,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 
@@ -32,63 +33,63 @@ function crearQueryString(
 }
 
 export async function obtenerEstadoBcSocioDeNegocio(): Promise<EstadoBcResponse> {
-  const { data } = await clienteSocioNegocios.get<EstadoBcResponse>(
+  const { data } = await clienteSocioNegocios.get<RespuestaDto<EstadoBcResponse>>(
     `${BASE_ENDPOINT}/estado`,
   )
-  return data
+  return data.datos
 }
 
 export async function registrarSocioDeNegocio(
   payload: RegistrarSocioDeNegocioRequest,
 ): Promise<SocioDeNegocioResponse> {
-  const { data } = await clienteSocioNegocios.post<SocioDeNegocioResponse>(
+  const { data } = await clienteSocioNegocios.post<RespuestaDto<SocioDeNegocioResponse>>(
     BASE_ENDPOINT,
     payload,
   )
-  return data
+  return data.datos
 }
 
 export async function registrarClienteDesdeComercial(
   payload: RegistrarClienteDesdeComercialRequest,
 ): Promise<SocioDeNegocioResponse> {
-  const { data } = await clienteSocioNegocios.post<SocioDeNegocioResponse>(
+  const { data } = await clienteSocioNegocios.post<RespuestaDto<SocioDeNegocioResponse>>(
     `${BASE_ENDPOINT}/desde-comercial/prospecto-convertido-a-cliente`,
     payload,
   )
-  return data
+  return data.datos
 }
 
 export async function modificarSocioDeNegocio(
   id: string,
   payload: ModificarSocioDeNegocioRequest,
 ): Promise<SocioDeNegocioResponse> {
-  const { data } = await clienteSocioNegocios.put<SocioDeNegocioResponse>(
+  const { data } = await clienteSocioNegocios.put<RespuestaDto<SocioDeNegocioResponse>>(
     `${BASE_ENDPOINT}/${id}`,
     payload,
   )
-  return data
+  return data.datos
 }
 
 export async function darDeBajaSocioDeNegocio(
   id: string,
   payload: DarDeBajaSocioDeNegocioRequest,
 ): Promise<SocioDeNegocioResponse> {
-  const { data } = await clienteSocioNegocios.patch<SocioDeNegocioResponse>(
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
     `${BASE_ENDPOINT}/${id}/baja`,
     payload,
   )
-  return data
+  return data.datos
 }
 
 export async function reactivarSocioDeNegocio(
   id: string,
   payload: ReactivarSocioDeNegocioRequest,
 ): Promise<SocioDeNegocioResponse> {
-  const { data } = await clienteSocioNegocios.patch<SocioDeNegocioResponse>(
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
     `${BASE_ENDPOINT}/${id}/reactivar`,
     payload,
   )
-  return data
+  return data.datos
 }
 
 export async function consultarSociosDeNegocio(
@@ -115,8 +116,8 @@ export async function exportarSociosDeNegocio(
 export async function obtenerSocioDeNegocio(
   id: string,
 ): Promise<SocioDeNegocioResponse> {
-  const { data } = await clienteSocioNegocios.get<SocioDeNegocioResponse>(
+  const { data } = await clienteSocioNegocios.get<RespuestaDto<SocioDeNegocioResponse>>(
     `${BASE_ENDPOINT}/${id}`,
   )
-  return data
+  return data.datos
 }
