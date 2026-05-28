@@ -38,6 +38,7 @@ import {
   crearDocumentoPorCodigo,
   crearImagenPorCodigo,
   crearTanquePorCodigo,
+  obtenerCarroceriasReferencia,
 } from "../servicios/activos-api";
 import {
   useActualizarActivoMutation,
@@ -45,6 +46,7 @@ import {
 } from "../servicios/activos-queries";
 import type {
   Activo,
+  CarroceriaReferencia,
   CrearDocumentoActivoPayload,
   CrearImagenActivoPayload,
   CrearTanqueActivoPayload,
@@ -59,6 +61,7 @@ import type {
   TipoTransmision,
   DocumentoActivo,
   ImagenActivo,
+  PlantillaInventario,
   TanqueActivo,
 } from "../tipos/activo.tipos";
 
@@ -94,6 +97,22 @@ export function ActivoFormulario({
   >([]);
   const [formVersion, setFormVersion] = React.useState(0);
   const [tipoTanque, setTipoTanque] = React.useState<TipoTanqueActivo>("DIESEL");
+  const [plantillaSeleccionada, setPlantillaSeleccionada] =
+    React.useState<PlantillaInventario>(
+      activo?.vehiculo?.plantillaInventario ?? "EQUIPO_LIVIANO"
+    );
+  const [carroceriasReferencia, setCarroceriasReferencia] = React.useState<
+    CarroceriaReferencia[]
+  >([]);
+  const [carroceriasError, setCarroceriasError] = React.useState<string | null>(
+    null
+  );
+  const [selectedCarroceriaReferenciaId, setSelectedCarroceriaReferenciaId] =
+    React.useState<string>(
+      activo?.vehiculo?.carroceriaReferenciaId
+        ? String(activo.vehiculo.carroceriaReferenciaId)
+        : ""
+    );
   const [selectedImageFileName, setSelectedImageFileName] =
     React.useState<string>("");
   const [localImageUrl, setLocalImageUrl] = React.useState<string>("");
@@ -108,6 +127,103 @@ export function ActivoFormulario({
   const actualizarResumen = React.useCallback(() => {
     setFormVersion((version) => version + 1);
   }, []);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    setCarroceriasError(null);
+    obtenerCarroceriasReferencia(plantillaSeleccionada)
+      .then((referencias) => {
+        if (!isMounted) return;
+        const referenciasFiltradas = referencias.filter(
+          (referencia) =>
+            referencia.plantillaInventario === plantillaSeleccionada
+        );
+        setCarroceriasReferencia(referenciasFiltradas);
+
+        if (process.env.NODE_ENV !== "production") {
+          console.log(
+            `[Activos] carrocerias cargadas ${JSON.stringify({
+              plantilla: plantillaSeleccionada,
+              total: referenciasFiltradas.length,
+              opciones: referenciasFiltradas.map((referencia) => referencia.nombre),
+            })}`
+          );
+        }
+
+        const selectedStillExists = referenciasFiltradas.some(
+          (referencia) =>
+            String(referencia.id) === selectedCarroceriaReferenciaId
+        );
+
+        if (!selectedStillExists) {
+          setSelectedCarroceriaReferenciaId("");
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setCarroceriasReferencia([]);
+        setCarroceriasError("No se pudo cargar el catalogo de carrocerias.");
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [plantillaSeleccionada, selectedCarroceriaReferenciaId]);
+
+  function setFormValue(name: string, value: string | number | null | undefined) {
+    const root = formularioRef.current;
+    const input = root?.querySelector(`[name="${name}"]`) as
+      | HTMLInputElement
+      | HTMLSelectElement
+      | HTMLTextAreaElement
+      | null;
+
+    if (!input) return;
+    input.value = value === null || value === undefined ? "" : String(value);
+  }
+
+  function aplicarCarroceriaReferencia(referenciaId: string) {
+    setSelectedCarroceriaReferenciaId(referenciaId);
+
+    const referencia = carroceriasReferencia.find(
+      (item) => String(item.id) === referenciaId
+    );
+
+    if (process.env.NODE_ENV !== "production") {
+      console.log(
+        `[Activos] carroceria seleccionada ${JSON.stringify({
+          plantilla: plantillaSeleccionada,
+          id: referencia?.id,
+          nombre: referencia?.nombre,
+          ancho: referencia?.anchoSugerido,
+          longitud: referencia?.longitudSugerida,
+          alto: referencia?.altoSugerido,
+          ejes: referencia?.ejesSugeridos,
+          categoria: referencia?.categoriaSugerida,
+        })}`
+      );
+    }
+
+    if (!referencia) {
+      setFormValue("carroceria", "");
+      setFormValue("ancho", "");
+      setFormValue("longitud", "");
+      setFormValue("alto", "");
+      setFormValue("ejes", "");
+      setFormValue("categoria", "");
+      actualizarResumen();
+      return;
+    }
+
+    setFormValue("carroceria", referencia.nombre);
+    setFormValue("ancho", referencia.anchoSugerido);
+    setFormValue("longitud", referencia.longitudSugerida);
+    setFormValue("alto", referencia.altoSugerido);
+    setFormValue("ejes", referencia.ejesSugeridos);
+    setFormValue("categoria", referencia.categoriaSugerida);
+    actualizarResumen();
+  }
   const resumen = React.useMemo<RegistroResumenData>(() => {
     const root = formularioRef.current;
     const getValue = (name: string) =>
@@ -129,6 +245,7 @@ export function ActivoFormulario({
       ],
       vehiculo: [
         ["Plantilla", getValue("plantillaInventario") || activo?.vehiculo?.plantillaInventario],
+        ["Carroceria", getValue("carroceria") || activo?.vehiculo?.carroceria],
         ["Placa", getValue("placaRodaje") || activo?.vehiculo?.placaRodaje],
         ["Marca", getValue("marca") || activo?.vehiculo?.marca],
         ["Modelo", getValue("modelo") || activo?.vehiculo?.modelo],
@@ -199,6 +316,8 @@ export function ActivoFormulario({
       const ubicacion = getValue("ubicacion");
       const tipoActivo = getValue("tipoActivo") as TipoActivo;
       const estadoActivo = getValue("estadoActivo") as EstadoActivo;
+      const plantillaInventario = getValue("plantillaInventario") as PlantillaInventario;
+      const carroceriaReferenciaId = numero("carroceriaReferenciaId");
 
       if (!isEdit && !codigo) {
         setActiveTab("base");
@@ -223,6 +342,11 @@ export function ActivoFormulario({
       if (!estadoActivo) {
         setActiveTab("base");
         throw new Error("Selecciona el estado del activo en la pestana Base.");
+      }
+
+      if (!plantillaInventario) {
+        setActiveTab("vehiculo");
+        throw new Error("Selecciona la plantilla del activo en la pestana Vehiculo.");
       }
 
       const tanqueInvalido = tanquesPendientes.find(
@@ -256,7 +380,11 @@ export function ActivoFormulario({
         estadoActivo,
         observacion: getValue("observacion") || undefined,
         vehiculo: {
-          plantillaInventario: getValue("plantillaInventario") || "EQUIPO_LIVIANO",
+          plantillaInventario,
+          carroceriaReferenciaId:
+            carroceriaReferenciaId && carroceriaReferenciaId > 0
+              ? carroceriaReferenciaId
+              : null,
           placaRodaje: texto("placaRodaje"),
           anioFabricacion: numero("anioFabricacion"),
           color: texto("color"),
@@ -591,13 +719,43 @@ export function ActivoFormulario({
                 description="Placa, marca, modelo y datos propios de la unidad."
               />
                 <div className="grid gap-4 lg:grid-cols-[260px_180px_1fr_1fr]">
-                  <SelectField
-                    name="plantillaInventario"
-                    label="Plantilla"
-                    defaultValue={activo?.vehiculo?.plantillaInventario ?? "EQUIPO_LIVIANO"}
-                    values={["CAMION", "REMOLCADOR", "SEMIREMOLQUE", "EQUIPO_LIVIANO"]}
-                    required
-                  />
+                  <label className="grid gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      Plantilla
+                      <span className="ml-1 text-destructive">*</span>
+                    </span>
+                    <select
+                      name="plantillaInventario"
+                      defaultValue={plantillaSeleccionada}
+                      required
+                      className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                      onChange={(event) => {
+                        const nuevaPlantilla = event.target
+                          .value as PlantillaInventario;
+                        setPlantillaSeleccionada(nuevaPlantilla);
+                        setSelectedCarroceriaReferenciaId("");
+                        setFormValue("carroceriaReferenciaId", "");
+                        setFormValue("carroceria", "");
+                        setFormValue("ancho", "");
+                        setFormValue("longitud", "");
+                        setFormValue("alto", "");
+                        setFormValue("ejes", "");
+                        setFormValue("categoria", "");
+                        actualizarResumen();
+                      }}
+                    >
+                      {[
+                        "CAMION",
+                        "REMOLCADOR",
+                        "SEMIREMOLQUE",
+                        "EQUIPO_LIVIANO",
+                      ].map((value) => (
+                        <option key={value} value={value}>
+                          {formatLabel(value)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <Field name="placaRodaje" label="Placa" placeholder="BTZ-750" defaultValue={activo?.vehiculo?.placaRodaje ?? undefined} />
                   <Field name="marca" label="Marca" placeholder="TOYOTA" defaultValue={activo?.vehiculo?.marca ?? undefined} />
                   <Field name="modelo" label="Modelo" placeholder="HILUX" defaultValue={activo?.vehiculo?.modelo ?? undefined} />
@@ -605,9 +763,54 @@ export function ActivoFormulario({
                 <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-5">
                   <Field name="anioFabricacion" label="Ano fabricacion" type="number" defaultValue={activo?.vehiculo?.anioFabricacion ?? undefined} />
                   <Field name="color" label="Color" defaultValue={activo?.vehiculo?.color ?? undefined} />
-                  <Field name="carroceria" label="Carroceria" defaultValue={activo?.vehiculo?.carroceria ?? undefined} />
-                  <Field name="ejes" label="Ejes" type="number" defaultValue={activo?.vehiculo?.ejes ?? undefined} />
-                  <Field name="categoria" label="Categoria" defaultValue={activo?.vehiculo?.categoria ?? undefined} />
+                  <label className="grid gap-2">
+                    <span
+                      id="carroceria-referencia-label"
+                      className="text-sm font-medium text-foreground"
+                    >
+                      Carroceria
+                    </span>
+                    <input
+                      type="hidden"
+                      name="carroceriaReferenciaId"
+                      value={selectedCarroceriaReferenciaId}
+                      readOnly
+                    />
+                    <select
+                      key={plantillaSeleccionada}
+                      id="carroceriaReferenciaSelect"
+                      name="carroceriaReferenciaSelect"
+                      aria-labelledby="carroceria-referencia-label"
+                      defaultValue={selectedCarroceriaReferenciaId}
+                      className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                      onChange={(event) =>
+                        aplicarCarroceriaReferencia(event.target.value)
+                      }
+                    >
+                      <option value="">Seleccionar referencia</option>
+                      {carroceriasReferencia.map((referencia) => (
+                        <option key={referencia.id} value={referencia.id}>
+                          {formatLabel(referencia.nombre)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <input
+                    name="carroceria"
+                    type="hidden"
+                    defaultValue={activo?.vehiculo?.carroceria ?? undefined}
+                  />
+                  <Field
+                    name="ejes"
+                    label="Ejes"
+                    type="number"
+                    defaultValue={activo?.vehiculo?.ejes ?? undefined}
+                  />
+                  <Field
+                    name="categoria"
+                    label="Categoria"
+                    defaultValue={activo?.vehiculo?.categoria ?? undefined}
+                  />
                 </div>
                 <div className="grid gap-4 pt-4 md:grid-cols-2">
                   <Field name="serieChasis" label="Serie de chasis" defaultValue={activo?.vehiculo?.serieChasis ?? undefined} />
@@ -643,9 +846,27 @@ export function ActivoFormulario({
                 description="Medidas, suspension y tornamesa."
               />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <Field name="ancho" label="Ancho" type="number" step="0.001" defaultValue={activo?.vehiculo?.ancho ?? undefined} />
-                  <Field name="longitud" label="Longitud" type="number" step="0.001" defaultValue={activo?.vehiculo?.longitud ?? undefined} />
-                  <Field name="alto" label="Alto" type="number" step="0.001" defaultValue={activo?.vehiculo?.alto ?? undefined} />
+                  <Field
+                    name="ancho"
+                    label="Ancho"
+                    type="number"
+                    step="0.001"
+                    defaultValue={activo?.vehiculo?.ancho ?? undefined}
+                  />
+                  <Field
+                    name="longitud"
+                    label="Longitud"
+                    type="number"
+                    step="0.001"
+                    defaultValue={activo?.vehiculo?.longitud ?? undefined}
+                  />
+                  <Field
+                    name="alto"
+                    label="Alto"
+                    type="number"
+                    step="0.001"
+                    defaultValue={activo?.vehiculo?.alto ?? undefined}
+                  />
                   <Field name="tipoSuspension" label="Tipo de suspension" defaultValue={activo?.vehiculo?.tipoSuspension ?? undefined} />
                   <Field name="tipoTornamesa" label="Tipo de tornamesa" defaultValue={activo?.vehiculo?.tipoTornamesa ?? undefined} />
                   <SelectField

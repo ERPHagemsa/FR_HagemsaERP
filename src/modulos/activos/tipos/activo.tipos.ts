@@ -20,9 +20,28 @@ export type TipoTransmision =
   | "MECANICA_15_VELOCIDADES"
   | "MECANICA_18_VELOCIDADES"
   | "MECANICA_OTRA";
+export type PlantillaInventario =
+  | "CAMION"
+  | "REMOLCADOR"
+  | "SEMIREMOLQUE"
+  | "EQUIPO_LIVIANO";
+
+export type CarroceriaReferencia = {
+  id: number;
+  plantillaInventario: PlantillaInventario;
+  nombre: string;
+  descripcion: string | null;
+  anchoSugerido: number | null;
+  longitudSugerida: number | null;
+  altoSugerido: number | null;
+  ejesSugeridos: number | null;
+  categoriaSugerida: string | null;
+  activo: boolean;
+};
 
 export type VehiculoDetalle = {
-  plantillaInventario: string;
+  plantillaInventario: PlantillaInventario;
+  carroceriaReferenciaId: number | null;
   tarjetaPropiedad: string | null;
   tarjetaMercancias: string | null;
   soat: string | null;
@@ -90,7 +109,7 @@ export type CrearActivoPayload = {
   estadoActivo: EstadoActivo;
   observacion?: string;
   vehiculo?: Partial<VehiculoDetalle> & {
-    plantillaInventario: string;
+    plantillaInventario: PlantillaInventario;
   };
 };
 
