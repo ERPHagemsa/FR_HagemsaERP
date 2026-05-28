@@ -24,11 +24,7 @@ import {
 } from "@/compartido/componentes/ui/field"
 import { Input } from "@/compartido/componentes/ui/input"
 
-interface LoginVistaProps {
-  readonly modoDesarrolloActivo?: boolean
-}
-
-export function LoginVista({ modoDesarrolloActivo = false }: LoginVistaProps) {
+export function LoginVista() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const motivo = searchParams.get("motivo")
@@ -36,7 +32,6 @@ export function LoginVista({ modoDesarrolloActivo = false }: LoginVistaProps) {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
-  const [cargandoDev, setCargandoDev] = useState(false)
 
   async function iniciarSesion(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -51,21 +46,6 @@ export function LoginVista({ modoDesarrolloActivo = false }: LoginVistaProps) {
       setError(extraerMensajeError(err, "No se pudo iniciar sesion."))
     } finally {
       setCargando(false)
-    }
-  }
-
-  async function entrarComoAdminDev() {
-    setCargandoDev(true)
-    setError(null)
-
-    try {
-      await clienteHttp.post("/api/auth/dev-login", {})
-      router.replace(searchParams.get("next") || "/")
-      router.refresh()
-    } catch (err) {
-      setError(extraerMensajeError(err, "No se pudo iniciar sesion dev."))
-    } finally {
-      setCargandoDev(false)
     }
   }
 
@@ -123,7 +103,7 @@ export function LoginVista({ modoDesarrolloActivo = false }: LoginVistaProps) {
                     required
                   />
                 </Field>
-                <Button type="submit" disabled={cargando || cargandoDev}>
+                <Button type="submit" disabled={cargando}>
                   <HugeiconsIcon
                     data-icon="inline-start"
                     icon={Login03Icon}
@@ -131,16 +111,6 @@ export function LoginVista({ modoDesarrolloActivo = false }: LoginVistaProps) {
                   />
                   {cargando ? "Ingresando..." : "Ingresar"}
                 </Button>
-                {modoDesarrolloActivo ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={cargando || cargandoDev}
-                    onClick={() => void entrarComoAdminDev()}
-                  >
-                    {cargandoDev ? "Entrando..." : "Entrar como admin (dev)"}
-                  </Button>
-                ) : null}
                 {error ? (
                   <Field data-invalid>
                     <FieldError>{error}</FieldError>

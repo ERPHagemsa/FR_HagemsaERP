@@ -33,10 +33,8 @@ export async function obtenerAccessToken(): Promise<string | null> {
   return cookieStore.get(COOKIE_ACCESS)?.value ?? null
 }
 
-// Solo lee la cookie real. Aun en modo desarrollo, la sesion se obtiene
-// pasando por POST /api/auth/dev-login (boton "Entrar como admin (dev)" en
-// /login), que setea las cookies httpOnly normales. Asi /login siempre es
-// accesible y se puede probar tanto el login real como el atajo dev.
+// Lee la cookie httpOnly con el access token y devuelve el payload decodificado
+// o null si no hay sesion / el token esta corrupto.
 export async function obtenerSesionActual(): Promise<PayloadAccessToken | null> {
   const token = await obtenerAccessToken()
   if (!token) return null
