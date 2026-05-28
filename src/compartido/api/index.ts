@@ -13,6 +13,7 @@ export {
   clienteActivos,
   clienteCombustible,
   clienteSocioNegocios,
+  clienteComercial,
 } from "./clientes-backend"
 
 // Config compartida de los BCs (URLs base, timeouts, nombres).

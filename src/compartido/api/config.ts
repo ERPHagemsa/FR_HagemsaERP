@@ -3,6 +3,7 @@ export type ServicioApi =
   | "combustible"
   | "socioNegocios"
   | "configuracionGeneral"
+  | "comercial"
 
 type ConfiguracionServicioApi = {
   baseUrl: string
@@ -43,6 +44,14 @@ export const serviciosApi = {
       API_GATEWAY_URL ??
       "https://api-bc14-configuracion-general.hagemsa.com/api",
     nombre: "configuracion general",
+    timeoutMs: 8000,
+  },
+  comercial: {
+    baseUrl:
+      process.env.NEXT_PUBLIC_COMERCIAL_API_URL ??
+      API_GATEWAY_URL ??
+      "https://api-bc03-comercial.hagemsa.com/api/v1",
+    nombre: "comercial",
     timeoutMs: 8000,
   },
 } satisfies Record<ServicioApi, ConfiguracionServicioApi>
