@@ -115,6 +115,7 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
 
                 <TabsContent value="contactos" className="pt-5">
                   <ContactosProspecto
+                    idProspecto={prospecto.id}
                     contactos={prospecto.contactos}
                     esTerminal={esTerminal}
                   />

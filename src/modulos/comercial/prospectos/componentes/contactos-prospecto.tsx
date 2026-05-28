@@ -1,14 +1,46 @@
-// Componente de visualizacion de contactos del prospecto.
-// Slice 2: modo solo lectura. Los puntos de extension para agregar/eliminar/marcar
-// principal se implementan en slice 4 (mutaciones de contactos).
+"use client";
 
+// Componente de gestion de contactos del prospecto (Slice 4).
+// CRUD completo: agregar (Dialog), eliminar (AlertDialog), marcar principal.
+// Guards: no eliminar el unico activo, no eliminar el principal directamente.
+// Terminal-state gating: si esTerminal todas las acciones se deshabilitan.
+// Tras cada mutacion exitosa se llama router.refresh() para refrescar los
+// Server Components padre y obtener la lista de contactos actualizada.
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+
+import { extraerMensajeError } from "@/compartido/api";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/compartido/componentes/ui/alert-dialog";
 import { Badge } from "@/compartido/componentes/ui/badge";
+import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Checkbox } from "@/compartido/componentes/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/compartido/componentes/ui/dialog";
+import { Input } from "@/compartido/componentes/ui/input";
+import { Label } from "@/compartido/componentes/ui/label";
 import {
   Table,
   TableBody,
@@ -17,24 +49,64 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/compartido/componentes/ui/tooltip";
 
+import {
+  useAgregarContactoMutation,
+  useCambiarContactoPrincipalMutation,
+  useEliminarContactoMutation,
+} from "../servicios/prospectos-queries";
+import {
+  issuesAErroresCampo,
+  schemaAgregarContacto,
+} from "../tipos/prospecto.schemas";
 import type { Contacto } from "../tipos/prospecto.tipos";
 
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+
 type Props = {
+  idProspecto: number;
   contactos: Contacto[];
-  // esTerminal: extension point para slice 4 (acciones de contacto)
   esTerminal?: boolean;
 };
 
-export function ContactosProspecto({ contactos }: Props) {
+// ---------------------------------------------------------------------------
+// Componente principal
+// ---------------------------------------------------------------------------
+
+export function ContactosProspecto({
+  idProspecto,
+  contactos,
+  esTerminal = false,
+}: Props) {
   const activos = contactos.filter((c) => c.activo);
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>
-          Contactos ({activos.length})
-        </CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardTitle>Contactos ({activos.length})</CardTitle>
+        {esTerminal ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button size="sm" disabled>
+                  Agregar contacto
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              El prospecto esta en estado terminal y no admite cambios
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <DialogAgregarContacto idProspecto={idProspecto} />
+        )}
       </CardHeader>
       <CardContent>
         {activos.length === 0 ? (
@@ -51,31 +123,18 @@ export function ContactosProspecto({ contactos }: Props) {
                   <TableHead>Telefono</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Principal</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {activos.map((contacto) => (
-                  <TableRow key={contacto.id}>
-                    <TableCell className="font-medium">
-                      {contacto.nombre}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {contacto.cargo ?? "-"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {contacto.telefono ?? "-"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {contacto.email ?? "-"}
-                    </TableCell>
-                    <TableCell>
-                      {contacto.esPrincipal ? (
-                        <Badge variant="default">Principal</Badge>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                  <FilaContacto
+                    key={contacto.id}
+                    contacto={contacto}
+                    totalActivos={activos.length}
+                    idProspecto={idProspecto}
+                    esTerminal={esTerminal}
+                  />
                 ))}
               </TableBody>
             </Table>
@@ -83,5 +142,435 @@ export function ContactosProspecto({ contactos }: Props) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Fila de contacto con acciones
+// ---------------------------------------------------------------------------
+
+type FilaContactoProps = {
+  contacto: Contacto;
+  totalActivos: number;
+  idProspecto: number;
+  esTerminal: boolean;
+};
+
+function FilaContacto({
+  contacto,
+  totalActivos,
+  idProspecto,
+  esTerminal,
+}: FilaContactoProps) {
+  const esUnicoActivo = totalActivos === 1;
+  const puedeEliminar = !esTerminal && !contacto.esPrincipal && !esUnicoActivo;
+  const puedeCambiarPrincipal = !esTerminal && !contacto.esPrincipal;
+
+  // Razon por la que no se puede eliminar (para el tooltip)
+  const motivoNoEliminar = esTerminal
+    ? "El prospecto esta en estado terminal"
+    : contacto.esPrincipal
+      ? "Primero asigna otro contacto como principal"
+      : esUnicoActivo
+        ? "No se puede eliminar el unico contacto activo"
+        : null;
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">{contacto.nombre}</TableCell>
+      <TableCell className="text-muted-foreground">
+        {contacto.cargo ?? "-"}
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {contacto.telefono ?? "-"}
+      </TableCell>
+      <TableCell className="text-muted-foreground">
+        {contacto.email ?? "-"}
+      </TableCell>
+      <TableCell>
+        {contacto.esPrincipal ? (
+          <Badge variant="default">Principal</Badge>
+        ) : (
+          <span className="text-sm text-muted-foreground">-</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <div className="flex justify-end gap-2">
+          {/* Marcar como principal */}
+          {puedeCambiarPrincipal ? (
+            <BotonMarcarPrincipal
+              idProspecto={idProspecto}
+              idContacto={contacto.id}
+            />
+          ) : null}
+
+          {/* Eliminar contacto */}
+          {!puedeEliminar ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button size="sm" variant="destructive" disabled>
+                    Eliminar
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{motivoNoEliminar}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <DialogEliminarContacto
+              idProspecto={idProspecto}
+              idContacto={contacto.id}
+              nombreContacto={contacto.nombre}
+            />
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dialog: Agregar contacto
+// ---------------------------------------------------------------------------
+
+type DialogAgregarContactoProps = {
+  idProspecto: number;
+};
+
+function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
+  const router = useRouter();
+  const [abierto, setAbierto] = React.useState(false);
+  const [erroresCampo, setErroresCampo] = React.useState<
+    Record<string, string>
+  >({});
+  const [errorGeneral, setErrorGeneral] = React.useState<string | null>(null);
+  const [isPending, setIsPending] = React.useState(false);
+  const [esPrincipal, setEsPrincipal] = React.useState(false);
+
+  const formRef = React.useRef<HTMLFormElement>(null);
+  const agregarMutation = useAgregarContactoMutation(idProspecto);
+
+  function resetearEstado() {
+    setErroresCampo({});
+    setErrorGeneral(null);
+    setIsPending(false);
+    setEsPrincipal(false);
+    formRef.current?.reset();
+  }
+
+  function handleOpenChange(open: boolean) {
+    if (!open) resetearEstado();
+    setAbierto(open);
+  }
+
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setErroresCampo({});
+    setErrorGeneral(null);
+
+    const form = event.currentTarget;
+    const datos = {
+      nombre: (
+        form.querySelector<HTMLInputElement>("[name=nombre]")?.value ?? ""
+      ).trim(),
+      cargo:
+        (
+          form.querySelector<HTMLInputElement>("[name=cargo]")?.value ?? ""
+        ).trim() || undefined,
+      telefono:
+        (
+          form.querySelector<HTMLInputElement>("[name=telefono]")?.value ?? ""
+        ).trim() || undefined,
+      email:
+        (
+          form.querySelector<HTMLInputElement>("[name=email]")?.value ?? ""
+        ).trim() || undefined,
+      esPrincipal,
+    };
+
+    const resultado = schemaAgregarContacto.safeParse(datos);
+    if (!resultado.success) {
+      setErroresCampo(issuesAErroresCampo(resultado.error));
+      return;
+    }
+
+    setIsPending(true);
+    try {
+      await agregarMutation.mutateAsync(resultado.data);
+      setAbierto(false);
+      resetearEstado();
+      router.refresh();
+    } catch (err) {
+      setErrorGeneral(
+        extraerMensajeError(err, "No se pudo agregar el contacto")
+      );
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <Dialog open={abierto} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button size="sm">Agregar contacto</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Agregar contacto</DialogTitle>
+          <DialogDescription>
+            Completa los datos del nuevo contacto. Se requiere al menos telefono
+            o email.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form
+          ref={formRef}
+          onSubmit={onSubmit}
+          className="flex flex-col gap-4"
+        >
+          {/* Nombre */}
+          <div className="grid gap-1.5">
+            <Label htmlFor="contacto-nombre">
+              Nombre
+              <span className="ml-1 text-destructive">*</span>
+            </Label>
+            <Input
+              id="contacto-nombre"
+              name="nombre"
+              placeholder="Nombre completo"
+              disabled={isPending}
+              aria-invalid={Boolean(erroresCampo.nombre)}
+            />
+            {erroresCampo.nombre ? (
+              <p className="text-xs text-destructive">{erroresCampo.nombre}</p>
+            ) : null}
+          </div>
+
+          {/* Cargo */}
+          <div className="grid gap-1.5">
+            <Label htmlFor="contacto-cargo">Cargo</Label>
+            <Input
+              id="contacto-cargo"
+              name="cargo"
+              placeholder="Cargo o puesto"
+              disabled={isPending}
+            />
+          </div>
+
+          {/* Telefono y Email en fila */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="contacto-telefono">Telefono</Label>
+              <Input
+                id="contacto-telefono"
+                name="telefono"
+                placeholder="+51 999 000 000"
+                disabled={isPending}
+                aria-invalid={Boolean(erroresCampo.telefono)}
+              />
+              {erroresCampo.telefono ? (
+                <p className="text-xs text-destructive">
+                  {erroresCampo.telefono}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="contacto-email">Email</Label>
+              <Input
+                id="contacto-email"
+                name="email"
+                type="email"
+                placeholder="correo@empresa.com"
+                disabled={isPending}
+                aria-invalid={Boolean(erroresCampo.email)}
+              />
+              {erroresCampo.email ? (
+                <p className="text-xs text-destructive">
+                  {erroresCampo.email}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          {/* esPrincipal */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="contacto-es-principal"
+              checked={esPrincipal}
+              onCheckedChange={(checked) => setEsPrincipal(checked === true)}
+              disabled={isPending}
+            />
+            <Label
+              htmlFor="contacto-es-principal"
+              className="cursor-pointer font-normal"
+            >
+              Marcar como contacto principal
+            </Label>
+          </div>
+
+          {/* Error general */}
+          {errorGeneral ? (
+            <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
+              {errorGeneral}
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={isPending}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Guardando..." : "Agregar contacto"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AlertDialog: Eliminar contacto
+// ---------------------------------------------------------------------------
+
+type DialogEliminarContactoProps = {
+  idProspecto: number;
+  idContacto: number;
+  nombreContacto: string;
+};
+
+function DialogEliminarContacto({
+  idProspecto,
+  idContacto,
+  nombreContacto,
+}: DialogEliminarContactoProps) {
+  const router = useRouter();
+  const [abierto, setAbierto] = React.useState(false);
+  const [errorGeneral, setErrorGeneral] = React.useState<string | null>(null);
+  const [isPending, setIsPending] = React.useState(false);
+
+  const eliminarMutation = useEliminarContactoMutation(idProspecto);
+
+  function handleOpenChange(open: boolean) {
+    if (!open) {
+      setErrorGeneral(null);
+      setIsPending(false);
+    }
+    setAbierto(open);
+  }
+
+  async function onConfirmar(event: React.MouseEvent) {
+    // Prevenir que AlertDialogAction cierre el dialog automaticamente
+    event.preventDefault();
+    setErrorGeneral(null);
+    setIsPending(true);
+    try {
+      await eliminarMutation.mutateAsync(idContacto);
+      setAbierto(false);
+      router.refresh();
+    } catch (err) {
+      setErrorGeneral(
+        extraerMensajeError(err, "No se pudo eliminar el contacto")
+      );
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <AlertDialog open={abierto} onOpenChange={handleOpenChange}>
+      <AlertDialogTrigger asChild>
+        <Button size="sm" variant="destructive">
+          Eliminar
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminar contacto</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta accion eliminara el contacto{" "}
+            <strong>{nombreContacto}</strong> del prospecto. Esta operacion no
+            se puede deshacer desde esta interfaz.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        {errorGeneral ? (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
+            {errorGeneral}
+          </div>
+        ) : null}
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={onConfirmar}
+            disabled={isPending}
+          >
+            {isPending ? "Eliminando..." : "Confirmar eliminacion"}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Boton: Marcar como principal
+// ---------------------------------------------------------------------------
+
+type BotonMarcarPrincipalProps = {
+  idProspecto: number;
+  idContacto: number;
+};
+
+function BotonMarcarPrincipal({
+  idProspecto,
+  idContacto,
+}: BotonMarcarPrincipalProps) {
+  const router = useRouter();
+  const [isPending, setIsPending] = React.useState(false);
+  const [errorGeneral, setErrorGeneral] = React.useState<string | null>(null);
+
+  const cambiarPrincipalMutation =
+    useCambiarContactoPrincipalMutation(idProspecto);
+
+  async function onClick() {
+    setErrorGeneral(null);
+    setIsPending(true);
+    try {
+      await cambiarPrincipalMutation.mutateAsync(idContacto);
+      router.refresh();
+    } catch (err) {
+      setErrorGeneral(
+        extraerMensajeError(err, "No se pudo cambiar el contacto principal")
+      );
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onClick}
+        disabled={isPending}
+      >
+        {isPending ? "Actualizando..." : "Marcar principal"}
+      </Button>
+      {errorGeneral ? (
+        <p className="text-xs text-destructive">{errorGeneral}</p>
+      ) : null}
+    </div>
   );
 }
