@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
+import { IconPlus } from "@tabler/icons-react";
 import {
   IconEye,
   IconRefresh,
@@ -126,6 +127,12 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
               {total} {total === 1 ? "prospecto" : "prospectos"} encontrados
             </CardDescription>
           </div>
+          <Button asChild>
+            <Link href="/comercial/prospectos/nuevo">
+              <IconPlus data-icon="inline-start" />
+              Nuevo prospecto
+            </Link>
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-5">

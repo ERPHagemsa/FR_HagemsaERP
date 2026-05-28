@@ -19,6 +19,7 @@ import {
 import { AvisoResultado } from "../componentes/aviso-resultado";
 import { ContactosProspecto } from "../componentes/contactos-prospecto";
 import { EstadoProspectoBadge } from "../componentes/estado-prospecto-badge";
+import { ProspectoAcciones } from "../componentes/prospecto-acciones";
 import { consultarProspecto } from "../servicios/prospectos-api";
 
 type Props = {
@@ -56,7 +57,10 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
             <Button asChild variant="outline">
               <Link href="/comercial/prospectos">Volver al listado</Link>
             </Button>
-            {/* Slice 3: boton Editar + Descartar — extension point */}
+            <ProspectoAcciones
+              idProspecto={prospecto.id}
+              estado={prospecto.estado}
+            />
           </div>
         </section>
 
