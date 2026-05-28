@@ -12,6 +12,7 @@ import {
   Pie,
   PieChart,
   XAxis,
+  YAxis,
 } from "recharts"
 
 import { SiteHeader } from "@/compartido/componentes/site-header"
@@ -52,8 +53,15 @@ import {
   UserGroupIcon,
 } from "@hugeicons/core-free-icons"
 
-import { useSociosDeNegocioQuery } from "../servicios/socio-negocios-queries"
-import type { SocioDeNegocioResponse } from "../tipos/socio-negocio"
+import { useResumenSociosDeNegocioQuery } from "../servicios/socio-negocios-queries"
+import type {
+  EstadoSocioDeNegocio,
+  ResumenSociosDeNegocioResponse,
+  SocioDeNegocioResponse,
+  TipoSocioDeNegocio,
+} from "../tipos/socio-negocio"
+
+const DIAS_ALTAS_RECIENTES = 8
 
 const chartConfig = {
   total: {
@@ -93,61 +101,93 @@ function formatearFecha(fecha?: string) {
   return new Intl.DateTimeFormat("es-PE", { dateStyle: "medium" }).format(valor)
 }
 
-function agruparPorTipo(socios: SocioDeNegocioResponse[]) {
-  return ["CLIENTE", "PROVEEDOR", "PERSONAL"].map((tipo) => ({
+function completarPorTipo(items: ResumenSociosDeNegocioResponse["porTipo"]) {
+  return (["CLIENTE", "PROVEEDOR", "PERSONAL"] as TipoSocioDeNegocio[]).map((tipo) => ({
     tipo,
-    total: socios.filter((socio) => socio.tipo === tipo).length,
+    total: items.find((item) => item.tipo === tipo)?.total ?? 0,
     fill: `var(--color-${tipo})`,
   }))
 }
 
-function agruparPorEstado(socios: SocioDeNegocioResponse[]) {
+function completarPorEstado(items: ResumenSociosDeNegocioResponse["porEstado"]) {
   return [
     {
       estado: "ACTIVOS",
-      total: socios.filter((socio) => socio.estado === "ACTIVO").length,
+      total: obtenerTotalEstado(items, "ACTIVO"),
       fill: "var(--color-activos)",
     },
     {
       estado: "INACTIVOS",
-      total: socios.filter((socio) => socio.estado === "INACTIVO").length,
+      total: obtenerTotalEstado(items, "INACTIVO"),
       fill: "var(--color-inactivos)",
     },
   ]
 }
 
+function obtenerTotalEstado(
+  items: ResumenSociosDeNegocioResponse["porEstado"],
+  estado: EstadoSocioDeNegocio,
+) {
+  return items.find((item) => item.estado === estado)?.total ?? 0
+}
+
+function crearFechaLocal(fecha: string) {
+  const [year, month, day] = fecha.split("-").map(Number)
+  return new Date(year, month - 1, day)
+}
+
+function formatearFechaIsoLocal(fecha: Date) {
+  const year = fecha.getFullYear()
+  const month = String(fecha.getMonth() + 1).padStart(2, "0")
+  const day = String(fecha.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 function agruparPorFecha(socios: SocioDeNegocioResponse[]) {
   const conteo = socios.reduce<Record<string, number>>((acc, socio) => {
-    const fecha = socio.fechaCreacion?.slice(0, 10) || "Sin fecha"
+    const fecha = socio.fechaCreacion?.slice(0, 10)
+    if (!fecha) return acc
     acc[fecha] = (acc[fecha] ?? 0) + 1
     return acc
   }, {})
 
-  return Object.entries(conteo)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(-8)
-    .map(([fecha, total]) => ({ fecha, total }))
+  const fechas = Object.keys(conteo).sort((a, b) => a.localeCompare(b))
+  const fechaFinal = fechas.length > 0 ? crearFechaLocal(fechas[fechas.length - 1]) : new Date()
+  const fechaInicial = new Date(fechaFinal)
+  fechaInicial.setDate(fechaInicial.getDate() - (DIAS_ALTAS_RECIENTES - 1))
+
+  return Array.from({ length: DIAS_ALTAS_RECIENTES }, (_, index) => {
+    const fecha = new Date(fechaInicial)
+    fecha.setDate(fechaInicial.getDate() + index)
+    const fechaIso = formatearFechaIsoLocal(fecha)
+
+    return {
+      fecha: fechaIso,
+      total: conteo[fechaIso] ?? 0,
+    }
+  })
 }
 
 export function SocioNegocioDashboardVista() {
-  const sociosQuery = useSociosDeNegocioQuery({
-    page: 1,
-    pageSize: 8,
-    sortBy: "fechaCreacion",
-    sortOrder: "desc",
-  })
-
-  const socios = useMemo(
-    () => sociosQuery.data?.datos ?? [],
-    [sociosQuery.data],
+  const resumenQuery = useResumenSociosDeNegocioQuery()
+  const resumen = resumenQuery.data
+  const registrosRecientes = useMemo(
+    () => resumen?.registrosRecientes ?? [],
+    [resumen],
   )
-  const paginacion = sociosQuery.data?.paginacion
-  const activos = socios.filter((socio) => socio.estado === "ACTIVO").length
-  const proveedores = socios.filter((socio) => socio.tipo === "PROVEEDOR").length
-  const clientes = socios.filter((socio) => socio.tipo === "CLIENTE").length
-  const dataPorTipo = useMemo(() => agruparPorTipo(socios), [socios])
-  const dataPorEstado = useMemo(() => agruparPorEstado(socios), [socios])
-  const dataPorFecha = useMemo(() => agruparPorFecha(socios), [socios])
+  const bajasRecientes = useMemo(() => resumen?.bajasRecientes ?? [], [resumen])
+  const dataPorTipo = useMemo(
+    () => completarPorTipo(resumen?.porTipo ?? []),
+    [resumen],
+  )
+  const dataPorEstado = useMemo(
+    () => completarPorEstado(resumen?.porEstado ?? []),
+    [resumen],
+  )
+  const dataPorFecha = useMemo(
+    () => agruparPorFecha(registrosRecientes),
+    [registrosRecientes],
+  )
 
   return (
     <>
@@ -157,11 +197,11 @@ export function SocioNegocioDashboardVista() {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
-          {sociosQuery.error ? (
+          {resumenQuery.error ? (
             <Alert variant="destructive">
               <AlertTitle>Error de API</AlertTitle>
               <AlertDescription>
-                {obtenerMensajeError(sociosQuery.error)}
+                {obtenerMensajeError(resumenQuery.error)}
               </AlertDescription>
             </Alert>
           ) : null}
@@ -170,26 +210,26 @@ export function SocioNegocioDashboardVista() {
             {[
               {
                 label: "Total socios",
-                value: paginacion?.total ?? socios.length,
+                value: resumen?.totalSocios ?? 0,
                 detail: "Registros disponibles en el maestro.",
                 icon: UserGroupIcon,
               },
               {
-                label: "Activos recientes",
-                value: activos,
-                detail: "Activos dentro de la ultima consulta.",
+                label: "Operativos activos",
+                value: resumen?.operativosActivos ?? 0,
+                detail: "Activos y disponibles para operar.",
                 icon: CheckmarkCircle01Icon,
               },
               {
-                label: "Clientes",
-                value: clientes,
-                detail: "Clientes en los ultimos registros.",
+                label: "Reactivables",
+                value: resumen?.inactivosReactivables ?? 0,
+                detail: "Inactivos con registro activo.",
                 icon: ChartUpIcon,
               },
               {
-                label: "Proveedores",
-                value: proveedores,
-                detail: "Proveedores en los ultimos registros.",
+                label: "Anulados",
+                value: resumen?.anulados ?? 0,
+                detail: "Registros anulados por control.",
                 icon: Loading03Icon,
               },
             ].map((item) => (
@@ -200,7 +240,7 @@ export function SocioNegocioDashboardVista() {
                       {item.label}
                     </CardDescription>
                     <CardTitle className="mt-2 text-3xl font-semibold tabular-nums">
-                      {sociosQuery.isLoading ? "-" : item.value}
+                      {resumenQuery.isLoading ? "-" : item.value}
                     </CardTitle>
                   </div>
                   <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
@@ -222,7 +262,7 @@ export function SocioNegocioDashboardVista() {
                   Evolucion de registros segun fecha de creacion.
                 </CardDescription>
                 <CardAction>
-                  <Badge variant="outline">Ultimos {dataPorFecha.length} dias</Badge>
+                  <Badge variant="outline">Ultimos {DIAS_ALTAS_RECIENTES} dias</Badge>
                 </CardAction>
               </CardHeader>
               <CardContent>
@@ -254,6 +294,7 @@ export function SocioNegocioDashboardVista() {
                       minTickGap={24}
                       tickFormatter={(value) => value.slice(5)}
                     />
+                    <YAxis hide allowDecimals={false} domain={[0, "dataMax + 1"]} />
                     <ChartTooltip
                       cursor={false}
                       content={<ChartTooltipContent indicator="dot" />}
@@ -333,7 +374,7 @@ export function SocioNegocioDashboardVista() {
                   </Link>
                 </Button>
               </div>
-              {sociosQuery.isLoading ? (
+              {resumenQuery.isLoading ? (
                 <div className="flex flex-col gap-3 p-4">
                   <Skeleton className="h-10 w-full" />
                   <Skeleton className="h-10 w-full" />
@@ -352,7 +393,7 @@ export function SocioNegocioDashboardVista() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {socios.map((socio) => (
+                      {registrosRecientes.map((socio) => (
                         <TableRow key={socio.id}>
                           <TableCell>
                             <div className="flex min-w-52 flex-col">
@@ -383,6 +424,32 @@ export function SocioNegocioDashboardVista() {
             </section>
 
             <aside className="flex flex-col gap-3">
+              <Card className="border-border shadow-sm">
+                <CardHeader>
+                  <CardTitle>Bajas recientes</CardTitle>
+                  <CardDescription>
+                    Socios inactivos enviados por el resumen del BC.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  {bajasRecientes.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No hay bajas recientes.</p>
+                  ) : (
+                    bajasRecientes.slice(0, 4).map((socio) => (
+                      <div
+                        key={socio.id}
+                        className="rounded-md border border-border bg-background p-3"
+                      >
+                        <p className="truncate text-sm font-medium">{socio.razonSocial}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {formatearFecha(socio.fechaBaja)} · {socio.motivoBaja || "Sin motivo"}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+
               <Card className="border-border shadow-sm">
                 <CardHeader>
                   <CardTitle>Estado operativo</CardTitle>
@@ -438,6 +505,16 @@ export function SocioNegocioDashboardVista() {
                         strokeWidth={2}
                       />
                       Ver reportes
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/socio-negocios/historial">
+                      <HugeiconsIcon
+                        data-icon="inline-start"
+                        icon={ChartUpIcon}
+                        strokeWidth={2}
+                      />
+                      Historial
                     </Link>
                   </Button>
                   <Button asChild variant="outline">

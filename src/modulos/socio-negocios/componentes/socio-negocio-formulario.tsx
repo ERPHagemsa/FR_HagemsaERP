@@ -68,7 +68,7 @@ function obtenerErrorDialogo(error: unknown): ErrorDialogo {
     }
   }
 
-  if (error instanceof ApiError && error.status === 400) {
+  if (error instanceof ApiError && (error.status === 400 || error.status === 422)) {
     return {
       titulo: "Datos incompletos o invalidos",
       descripcion: error.message,

@@ -2,9 +2,14 @@
 
 export type EstadoSocioDeNegocio = "ACTIVO" | "INACTIVO"
 
-export type EstadoRegistro = "VIGENTE" | "ANULADO"
+export type EstadoRegistro = "ACTIVO" | "ANULADO"
 
 export type FormatoExportacionSocios = "EXCEL" | "PDF"
+
+export type AccionHistorialSocioDeNegocio =
+  | "REGISTRO"
+  | "MODIFICACION"
+  | "ELIMINACION"
 
 export interface PaginationMeta {
   pagina: number
@@ -22,6 +27,33 @@ export interface PaginatedResponse<T> {
 
 export interface RespuestaDto<T> {
   datos: T
+}
+
+export interface ResumenSociosDeNegocioResponse {
+  totalSocios: number
+  operativosActivos: number
+  inactivosReactivables: number
+  anulados: number
+  porTipo: Array<{
+    tipo: TipoSocioDeNegocio
+    total: number
+  }>
+  porEstado: Array<{
+    estado: EstadoSocioDeNegocio
+    total: number
+  }>
+  porEstadoRegistro: Array<{
+    estadoRegistro: EstadoRegistro
+    total: number
+  }>
+  porTipoYEstado: Array<{
+    tipo: TipoSocioDeNegocio
+    estado: EstadoSocioDeNegocio
+    estadoRegistro: EstadoRegistro
+    total: number
+  }>
+  bajasRecientes: SocioDeNegocioResponse[]
+  registrosRecientes: SocioDeNegocioResponse[]
 }
 
 export interface SocioDeNegocioResponse {
@@ -49,6 +81,9 @@ export interface SocioDeNegocioResponse {
   motivoBaja: string
   fechaBaja: string
   usuarioBajaId: string
+  motivoAnulacion: string
+  fechaAnulacion: string
+  usuarioAnulacionId: string
 }
 
 export interface EstadoBcResponse {
@@ -132,6 +167,15 @@ export interface ConsultarSociosDeNegocioQuery {
   sortOrder?: "asc" | "desc"
 }
 
+export interface ConsultarHistorialSocioDeNegocioQuery {
+  accion?: AccionHistorialSocioDeNegocio
+  usuarioAccion?: string
+  fechaDesde?: string
+  fechaHasta?: string
+  page?: number
+  pageSize?: number
+}
+
 export interface ExportarSociosDeNegocioQuery
   extends ConsultarSociosDeNegocioQuery {
   formato: FormatoExportacionSocios
@@ -141,5 +185,15 @@ export interface ReporteSociosDeNegocioResponse {
   nombreArchivo: string
   formato: FormatoExportacionSocios
   contenido: string
+}
+
+export interface HistorialSocioDeNegocioResponse {
+  id: string
+  idRegistro: string
+  accion: AccionHistorialSocioDeNegocio
+  fechaAccion: string
+  usuarioAccion: string
+  datosAnteriores: Record<string, unknown>
+  datosNuevos: Record<string, unknown>
 }
 

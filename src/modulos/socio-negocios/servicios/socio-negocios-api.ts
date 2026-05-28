@@ -1,10 +1,12 @@
 import { clienteSocioNegocios } from "@/compartido/api/clientes-backend"
 
 import type {
+  ConsultarHistorialSocioDeNegocioQuery,
   ConsultarSociosDeNegocioQuery,
   DarDeBajaSocioDeNegocioRequest,
   EstadoBcResponse,
   ExportarSociosDeNegocioQuery,
+  HistorialSocioDeNegocioResponse,
   ModificarSocioDeNegocioRequest,
   PaginatedResponse,
   ReactivarSocioDeNegocioRequest,
@@ -12,13 +14,17 @@ import type {
   RegistrarSocioDeNegocioRequest,
   ReporteSociosDeNegocioResponse,
   RespuestaDto,
+  ResumenSociosDeNegocioResponse,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 
 const BASE_ENDPOINT = "/socios-de-negocio"
 
 function crearQueryString(
-  query?: ConsultarSociosDeNegocioQuery | ExportarSociosDeNegocioQuery,
+  query?:
+    | ConsultarSociosDeNegocioQuery
+    | ExportarSociosDeNegocioQuery
+    | ConsultarHistorialSocioDeNegocioQuery,
 ): string {
   const params = new URLSearchParams()
 
@@ -36,6 +42,13 @@ export async function obtenerEstadoBcSocioDeNegocio(): Promise<EstadoBcResponse>
   const { data } = await clienteSocioNegocios.get<RespuestaDto<EstadoBcResponse>>(
     `${BASE_ENDPOINT}/estado`,
   )
+  return data.datos
+}
+
+export async function obtenerResumenSociosDeNegocio(): Promise<ResumenSociosDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<ResumenSociosDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/resumen`)
   return data.datos
 }
 
@@ -98,6 +111,25 @@ export async function consultarSociosDeNegocio(
   const { data } = await clienteSocioNegocios.get<
     PaginatedResponse<SocioDeNegocioResponse>
   >(`${BASE_ENDPOINT}${crearQueryString(query)}`)
+  return data
+}
+
+export async function consultarHistorialSociosDeNegocio(
+  query?: ConsultarHistorialSocioDeNegocioQuery,
+): Promise<PaginatedResponse<HistorialSocioDeNegocioResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    PaginatedResponse<HistorialSocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/historial${crearQueryString(query)}`)
+  return data
+}
+
+export async function consultarHistorialSocioDeNegocio(
+  id: string,
+  query?: ConsultarHistorialSocioDeNegocioQuery,
+): Promise<PaginatedResponse<HistorialSocioDeNegocioResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    PaginatedResponse<HistorialSocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/${id}/historial${crearQueryString(query)}`)
   return data
 }
 

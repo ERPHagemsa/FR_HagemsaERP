@@ -104,7 +104,7 @@ const estadoVariant = {
 } as const
 
 const estadoRegistroVariant = {
-  VIGENTE: "outline",
+  ACTIVO: "outline",
   ANULADO: "destructive",
 } as const
 
@@ -116,7 +116,7 @@ const estadoClassName = {
 } as const
 
 const estadoRegistroClassName = {
-  VIGENTE:
+  ACTIVO:
     "border-border bg-background text-foreground shadow-xs",
   ANULADO:
     "border-border bg-background text-foreground shadow-xs",
@@ -128,7 +128,7 @@ const estadoIconClassName = {
 } as const
 
 const estadoRegistroIconClassName = {
-  VIGENTE: "text-emerald-500",
+  ACTIVO: "text-emerald-500",
   ANULADO: "text-destructive",
 } as const
 
@@ -230,7 +230,7 @@ function obtenerErrorOperacion(error: unknown): ErrorOperacion {
     }
   }
 
-  if (error instanceof ApiError && error.status === 400) {
+  if (error instanceof ApiError && (error.status === 400 || error.status === 422)) {
     return {
       titulo: "Solicitud invalida",
       descripcion: error.message,
@@ -300,7 +300,7 @@ function EstadoRegistroBadge({
     >
       <HugeiconsIcon
         data-icon="inline-start"
-        icon={estadoRegistro === "VIGENTE" ? CheckmarkCircle01Icon : Loading03Icon}
+        icon={estadoRegistro === "ACTIVO" ? CheckmarkCircle01Icon : Loading03Icon}
         strokeWidth={2}
         className={estadoRegistroIconClassName[estadoRegistro]}
       />
@@ -349,7 +349,7 @@ function AccionesSocio({
   const [accion, setAccion] = useState<"baja" | "anular" | "reactivar" | null>(null)
   const [motivo, setMotivo] = useState("")
   const procesando = bajaMutation.isPending || reactivarMutation.isPending
-  const puedeDarBaja = socio.estado === "ACTIVO" && socio.estadoRegistro === "VIGENTE"
+  const puedeDarBaja = socio.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
   const puedeReactivar = socio.estado === "INACTIVO" || socio.estadoRegistro === "ANULADO"
   const requiereMotivo = accion === "baja" || accion === "anular"
 
@@ -368,7 +368,7 @@ function AccionesSocio({
         await bajaMutation.mutateAsync({
           motivo: motivo.trim(),
           usuarioId: "admin",
-          estadoRegistro: "VIGENTE",
+          estadoRegistro: "ACTIVO",
         })
         onMensaje(`${socio.razonSocial} fue dado de baja.`)
       }
@@ -516,7 +516,7 @@ export function SocioNegocioVista({
         ...(mostrarFiltrosReporte
           ? {
               estado: "ACTIVO",
-              estadoRegistro: "VIGENTE",
+              estadoRegistro: "ACTIVO",
               sortBy: "razonSocial",
               sortOrder: "asc",
             }
@@ -558,8 +558,8 @@ export function SocioNegocioVista({
     !todosSeleccionados && idsPagina.some((id) => sociosSeleccionados.has(id))
 
   const metricasVista = useMemo(() => {
-    const activosVigentes = socios.filter(
-      (socio) => socio.estado === "ACTIVO" && socio.estadoRegistro === "VIGENTE"
+    const activosRegistrados = socios.filter(
+      (socio) => socio.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
     ).length
     const inactivos = socios.filter((socio) => socio.estado === "INACTIVO").length
     const anulados = socios.filter((socio) => socio.estadoRegistro === "ANULADO").length
@@ -571,8 +571,8 @@ export function SocioNegocioVista({
         detalle: "Resultado recibido segun el filtro aplicado.",
       },
       {
-        etiqueta: "Activos vigentes",
-        valor: String(activosVigentes),
+        etiqueta: "Activos registrados",
+        valor: String(activosRegistrados),
         detalle: "Socios disponibles para operar y sin anulacion.",
       },
       {
@@ -630,7 +630,7 @@ export function SocioNegocioVista({
       ...(mostrarFiltrosReporte
         ? {
             estado: "ACTIVO",
-            estadoRegistro: "VIGENTE",
+            estadoRegistro: "ACTIVO",
             sortBy: "razonSocial",
             sortOrder: "asc",
           }

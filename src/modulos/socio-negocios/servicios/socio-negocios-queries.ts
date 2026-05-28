@@ -4,23 +4,31 @@ import { useConsulta } from "@/compartido/api/use-consulta"
 import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
+  consultarHistorialSocioDeNegocio,
+  consultarHistorialSociosDeNegocio,
   consultarSociosDeNegocio,
   darDeBajaSocioDeNegocio,
   exportarSociosDeNegocio,
   modificarSocioDeNegocio,
   obtenerEstadoBcSocioDeNegocio,
+  obtenerResumenSociosDeNegocio,
   obtenerSocioDeNegocio,
   registrarClienteDesdeComercial,
   registrarSocioDeNegocio,
   reactivarSocioDeNegocio,
 } from "./socio-negocios-api"
 import type {
+  ConsultarHistorialSocioDeNegocioQuery,
   ConsultarSociosDeNegocioQuery,
   ExportarSociosDeNegocioQuery,
 } from "../tipos/socio-negocio"
 
 export function useEstadoBcSocioDeNegocioQuery() {
   return useConsulta(obtenerEstadoBcSocioDeNegocio, [])
+}
+
+export function useResumenSociosDeNegocioQuery() {
+  return useConsulta(obtenerResumenSociosDeNegocio, [])
 }
 
 export function useSociosDeNegocioQuery(query?: ConsultarSociosDeNegocioQuery) {
@@ -110,4 +118,24 @@ export function useReactivarSocioDeNegocioMutation(
     fn: (payload) => reactivarSocioDeNegocio(id, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
+}
+
+export function useHistorialSociosDeNegocioQuery(
+  query?: ConsultarHistorialSocioDeNegocioQuery,
+) {
+  return useConsulta(
+    () => consultarHistorialSociosDeNegocio(query),
+    [JSON.stringify(query ?? {})],
+  )
+}
+
+export function useHistorialSocioDeNegocioQuery(
+  id: string,
+  query?: ConsultarHistorialSocioDeNegocioQuery,
+) {
+  return useConsulta(
+    () => consultarHistorialSocioDeNegocio(id, query),
+    [id, JSON.stringify(query ?? {})],
+    { enabled: Boolean(id) },
+  )
 }
