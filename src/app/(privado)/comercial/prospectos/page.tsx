@@ -27,7 +27,7 @@ export default async function Page({ searchParams }: Props) {
 
   const pagina = paginaRaw ? Math.max(1, Number(paginaRaw)) : 1;
   const porPagina = porPaginaRaw ? Math.max(1, Number(porPaginaRaw)) : 10;
-  const idEjecutivoResponsable = ejecutivoRaw ? Number(ejecutivoRaw) : undefined;
+  const idEjecutivoResponsable = ejecutivoRaw ?? undefined;
 
   const filtros: FiltrosProspectos = {
     estado,

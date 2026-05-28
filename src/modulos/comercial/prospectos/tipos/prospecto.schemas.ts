@@ -115,13 +115,49 @@ export type DatosRegistrarProspecto = z.infer<typeof schemaRegistrarProspecto>;
 // Schema de actualizacion de prospecto (todos los campos opcionales)
 // ---------------------------------------------------------------------------
 
-export const schemaActualizarProspecto = z.object({
-  nombreComercial: z.string().min(1, "El nombre comercial no puede estar vacio").optional(),
-  razonSocial: z.string().optional(),
-  medioContactoInicial: z
-    .enum(["CORREO", "LLAMADA", "PRESENCIAL", "OTRO"])
-    .optional(),
-});
+export const schemaActualizarProspecto = z
+  .object({
+    nombreComercial: z
+      .string()
+      .min(1, "El nombre comercial no puede estar vacio")
+      .optional(),
+    razonSocial: z.string().optional(),
+    tipoDocumento: z.enum(["RUC", "DNI", "CE"]).optional(),
+    numeroDocumento: z.string().min(1, "El numero de documento no puede estar vacio").optional(),
+    medioContactoInicial: z
+      .enum(["CORREO", "LLAMADA", "PRESENCIAL", "OTRO"])
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.tipoDocumento || !data.numeroDocumento) return;
+    const { tipoDocumento, numeroDocumento } = data;
+
+    if (tipoDocumento === "RUC" && !REGEX_RUC.test(numeroDocumento)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "El RUC debe tener exactamente 11 digitos y comenzar con 10 o 20",
+        path: ["numeroDocumento"],
+      });
+    }
+
+    if (tipoDocumento === "DNI" && !REGEX_DNI.test(numeroDocumento)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "El DNI debe tener exactamente 8 digitos",
+        path: ["numeroDocumento"],
+      });
+    }
+
+    if (tipoDocumento === "CE" && !REGEX_CE.test(numeroDocumento)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "El carnet de extranjeria debe tener entre 9 y 12 caracteres alfanumericos",
+        path: ["numeroDocumento"],
+      });
+    }
+  });
 
 export type DatosActualizarProspecto = z.infer<typeof schemaActualizarProspecto>;
 

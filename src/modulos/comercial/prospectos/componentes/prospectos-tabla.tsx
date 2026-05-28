@@ -288,7 +288,7 @@ function FilaProspecto({ prospecto }: { prospecto: Prospecto }) {
         <EstadoProspectoBadge estado={prospecto.estado} />
       </TableCell>
       <TableCell className="truncate text-sm text-muted-foreground">
-        {formatearFecha(prospecto.updatedAt)}
+        {prospecto.fechaModificacion ? formatearFecha(prospecto.fechaModificacion) : "—"}
       </TableCell>
       <TableCell className="text-center">
         <Button asChild size="icon-sm" variant="outline">

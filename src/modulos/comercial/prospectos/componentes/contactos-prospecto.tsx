@@ -85,12 +85,10 @@ export function ContactosProspecto({
   contactos,
   esTerminal = false,
 }: Props) {
-  const activos = contactos.filter((c) => c.activo);
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-4">
-        <CardTitle>Contactos ({activos.length})</CardTitle>
+        <CardTitle>Contactos ({contactos.length})</CardTitle>
         {esTerminal ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -109,7 +107,7 @@ export function ContactosProspecto({
         )}
       </CardHeader>
       <CardContent>
-        {activos.length === 0 ? (
+        {contactos.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Este prospecto no tiene contactos registrados.
           </p>
@@ -127,11 +125,11 @@ export function ContactosProspecto({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activos.map((contacto) => (
+                {contactos.map((contacto) => (
                   <FilaContacto
                     key={contacto.id}
                     contacto={contacto}
-                    totalActivos={activos.length}
+                    totalActivos={contactos.length}
                     idProspecto={idProspecto}
                     esTerminal={esTerminal}
                   />

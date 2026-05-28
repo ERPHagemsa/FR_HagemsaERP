@@ -92,7 +92,7 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
                 <TabsList>
                   <TabsTrigger value="datos">Datos generales</TabsTrigger>
                   <TabsTrigger value="contactos">
-                    Contactos ({prospecto.contactos.filter((c) => c.activo).length})
+                    Contactos ({prospecto.contactos.length})
                   </TabsTrigger>
                 </TabsList>
 
@@ -134,11 +134,15 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
                 <Dato label="ID" value={prospecto.id} />
                 <Dato
                   label="Fecha creacion"
-                  value={formatearFechaHora(prospecto.createdAt)}
+                  value={formatearFechaHora(prospecto.fechaCreacion)}
                 />
                 <Dato
                   label="Ultima modificacion"
-                  value={formatearFechaHora(prospecto.updatedAt)}
+                  value={
+                    prospecto.fechaModificacion
+                      ? formatearFechaHora(prospecto.fechaModificacion)
+                      : "—"
+                  }
                 />
               </FichaGrid>
             </CardContent>

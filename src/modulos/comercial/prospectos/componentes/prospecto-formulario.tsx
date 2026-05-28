@@ -163,6 +163,9 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
     const datos = {
       nombreComercial: getValue(root, "nombreComercial") || undefined,
       razonSocial: getValue(root, "razonSocial") || undefined,
+      tipoDocumento:
+        (getValue(root, "tipoDocumento") as TipoDocumento) || undefined,
+      numeroDocumento: getValue(root, "numeroDocumento") || undefined,
       medioContactoInicial:
         (getValue(root, "medioContactoInicial") as MedioContactoInicial) ||
         undefined,
@@ -241,32 +244,31 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
             />
           </div>
 
-          {/* Documento: solo en modo nuevo */}
-          {!esEdicion ? (
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <CampoSelect
-                label="Tipo de documento"
-                name="tipoDocumento"
-                requerido
-                opciones={[
-                  { valor: "RUC", etiqueta: "RUC" },
-                  { valor: "DNI", etiqueta: "DNI" },
-                  { valor: "CE", etiqueta: "Carnet de extranjeria" },
-                ]}
-                defaultValue="RUC"
-                error={erroresCampo["tipoDocumento"]}
-                disabled={isSaving}
-              />
-              <CampoTexto
-                label="Numero de documento"
-                name="numeroDocumento"
-                requerido
-                error={erroresCampo["numeroDocumento"]}
-                disabled={isSaving}
-                onChange={() => limpiarErrorCampo("numeroDocumento")}
-              />
-            </div>
-          ) : null}
+          {/* Documento: requerido en nuevo, opcional en editar */}
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <CampoSelect
+              label="Tipo de documento"
+              name="tipoDocumento"
+              requerido={!esEdicion}
+              opciones={[
+                { valor: "RUC", etiqueta: "RUC" },
+                { valor: "DNI", etiqueta: "DNI" },
+                { valor: "CE", etiqueta: "Carnet de extranjeria" },
+              ]}
+              defaultValue={prospecto?.tipoDocumento ?? "RUC"}
+              error={erroresCampo["tipoDocumento"]}
+              disabled={isSaving}
+            />
+            <CampoTexto
+              label="Numero de documento"
+              name="numeroDocumento"
+              requerido={!esEdicion}
+              defaultValue={prospecto?.numeroDocumento}
+              error={erroresCampo["numeroDocumento"]}
+              disabled={isSaving}
+              onChange={() => limpiarErrorCampo("numeroDocumento")}
+            />
+          </div>
 
           <div className="mt-4">
             <CampoSelect

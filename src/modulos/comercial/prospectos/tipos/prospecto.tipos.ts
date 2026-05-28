@@ -21,8 +21,8 @@ export type Contacto = {
   cargo: string | null;
   telefono: string | null;
   email: string | null;
+  observaciones: string | null;
   esPrincipal: boolean;
-  activo: boolean;
 };
 
 export type Prospecto = {
@@ -33,10 +33,12 @@ export type Prospecto = {
   numeroDocumento: string;
   medioContactoInicial: MedioContactoInicial;
   estado: EstadoProspecto;
+  idEjecutivoResponsable: string;
   motivoDescarte: string | null;
   contactos: Contacto[];
-  createdAt: string;
-  updatedAt: string;
+  fechaCreacion: string;
+  usuarioCreacion: string;
+  fechaModificacion: string | null;
 };
 
 // ---------------------------------------------------------------------------
@@ -56,7 +58,7 @@ export type RespuestaPaginadaProspectos = {
 
 export type FiltrosProspectos = {
   estado?: EstadoProspecto;
-  idEjecutivoResponsable?: number;
+  idEjecutivoResponsable?: string;
   busqueda?: string;
   pagina?: number;
   porPagina?: number;
@@ -88,6 +90,8 @@ export type PayloadRegistrarProspecto = {
 export type PayloadActualizarProspecto = {
   nombreComercial?: string;
   razonSocial?: string;
+  tipoDocumento?: TipoDocumento;
+  numeroDocumento?: string;
   medioContactoInicial?: MedioContactoInicial;
 };
 
