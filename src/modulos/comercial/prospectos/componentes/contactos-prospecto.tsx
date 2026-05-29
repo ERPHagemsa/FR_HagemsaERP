@@ -9,9 +9,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { extraerMensajeError } from "@/compartido/api";
+import { BotonIconoAccion } from "@/compartido/componentes/ui/boton-icono-accion";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -22,7 +24,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/compartido/componentes/ui/alert-dialog";
-import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -121,7 +122,6 @@ export function ContactosProspecto({
                   <TableHead>Cargo</TableHead>
                   <TableHead>Telefono</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Principal</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -184,19 +184,26 @@ function FilaContacto({
         {contacto.telefono ?? "-"}
       </TableCell>
       <TableCell className="text-muted-foreground">
-        {contacto.email ?? "-"}
+        <span className="block max-w-[240px] break-words">
+          {contacto.email ?? "-"}
+        </span>
       </TableCell>
-      <TableCell>
-        {contacto.esPrincipal ? (
-          <Badge variant="default">Principal</Badge>
-        ) : (
-          <span className="text-sm text-muted-foreground">-</span>
-        )}
-      </TableCell>
-      <TableCell>
-        <div className="flex justify-end gap-2">
-          {/* Marcar como principal */}
-          {puedeCambiarPrincipal ? (
+      <TableCell className="whitespace-nowrap">
+        <div className="flex items-center justify-end gap-1">
+          {/* Estrella: rellena dorada si es principal; contorno (clickeable) si no */}
+          {contacto.esPrincipal ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex size-8 items-center justify-center rounded-4xl bg-amber-400/15">
+                  <Star
+                    className="size-4 fill-amber-400 text-amber-400"
+                    aria-label="Contacto principal"
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Contacto principal</TooltipContent>
+            </Tooltip>
+          ) : puedeCambiarPrincipal ? (
             <BotonMarcarPrincipal
               idProspecto={idProspecto}
               idContacto={contacto.id}
@@ -205,16 +212,12 @@ function FilaContacto({
 
           {/* Eliminar contacto */}
           {!puedeEliminar ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button size="sm" variant="destructive" disabled>
-                    Eliminar
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{motivoNoEliminar}</TooltipContent>
-            </Tooltip>
+            <BotonIconoAccion
+              icono={Trash2}
+              etiqueta={motivoNoEliminar ?? "No se puede eliminar"}
+              tono="destructivo"
+              disabled
+            />
           ) : (
             <DialogEliminarContacto
               idProspecto={idProspecto}
@@ -475,9 +478,11 @@ function DialogEliminarContacto({
   return (
     <AlertDialog open={abierto} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger asChild>
-        <Button size="sm" variant="destructive">
-          Eliminar
-        </Button>
+        <BotonIconoAccion
+          icono={Trash2}
+          etiqueta="Eliminar contacto"
+          tono="destructivo"
+        />
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -542,8 +547,12 @@ function BotonMarcarPrincipal({
   }
 
   return (
-    <Button size="sm" variant="outline" onClick={onClick} disabled={isPending}>
-      {isPending ? "Actualizando..." : "Marcar principal"}
-    </Button>
+    <BotonIconoAccion
+      icono={Star}
+      etiqueta="Marcar como principal"
+      tono="advertencia"
+      onClick={onClick}
+      disabled={isPending}
+    />
   );
 }

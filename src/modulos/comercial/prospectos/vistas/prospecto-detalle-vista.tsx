@@ -82,7 +82,7 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
         ) : null}
 
         {/* Ficha */}
-        <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+        <div className="grid gap-5 xl:grid-cols-[1fr_260px]">
           <Card>
             <CardHeader>
               <CardTitle>Ficha del prospecto</CardTitle>
@@ -125,7 +125,7 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
           </Card>
 
           {/* Sidebar con registro */}
-          <Card>
+          <Card className="self-start">
             <CardHeader>
               <CardTitle>Registro</CardTitle>
             </CardHeader>
