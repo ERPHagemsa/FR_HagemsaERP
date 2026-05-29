@@ -10,6 +10,7 @@ import {
   COOKIE_REFRESH,
   setCookiesSesion,
 } from "@/compartido/autenticacion/cookies-sesion"
+import { extraerIpCliente } from "@/compartido/autenticacion/extraer-ip-cliente"
 import { mapearPayloadAUsuario } from "@/compartido/autenticacion/sesion-servidor"
 import { decodificarAccessToken } from "@/compartido/autenticacion/tokens-jwt"
 
@@ -18,7 +19,7 @@ import { decodificarAccessToken } from "@/compartido/autenticacion/tokens-jwt"
 // principalmente un fallback (ej. cuando el cliente recibe 401 desde un BC
 // con un access vencido por inactividad).
 
-export async function POST() {
+export async function POST(request: Request) {
   const cookieStore = await cookies()
   const refreshToken = cookieStore.get(COOKIE_REFRESH)?.value
 
@@ -29,9 +30,11 @@ export async function POST() {
     )
   }
 
+  const ipCliente = extraerIpCliente(request)
+
   let tokens
   try {
-    tokens = await refrescarTokens(refreshToken)
+    tokens = await refrescarTokens(refreshToken, ipCliente)
   } catch (error) {
     borrarCookiesSesion(cookieStore)
     if (esError401(error)) {

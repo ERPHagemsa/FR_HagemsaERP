@@ -18,6 +18,7 @@ import {
   COOKIE_REFRESH,
   opcionesCookieSesion,
 } from "./cookies-sesion"
+import { extraerIpCliente } from "./extraer-ip-cliente"
 import { decodificarAccessToken, vaACaducar } from "./tokens-jwt"
 
 export type ResultadoRefresh =
@@ -51,11 +52,19 @@ export async function refrescarSiNecesario(
     return { tipo: "no_se_necesita" }
   }
 
+  const ipCliente = extraerIpCliente(request)
+  const headersFetch: Record<string, string> = {
+    "Content-Type": "application/json",
+  }
+  if (ipCliente) {
+    headersFetch["X-Cliente-Ip"] = ipCliente
+  }
+
   let datos: RespuestaRefresh
   try {
     const respuesta = await fetch(`${URLS_SERVIDOR.authService}/api/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: headersFetch,
       body: JSON.stringify({ refreshToken }),
     })
 
