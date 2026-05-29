@@ -130,7 +130,7 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
               <CardTitle>Registro</CardTitle>
             </CardHeader>
             <CardContent>
-              <FichaGrid>
+              <div className="grid gap-4">
                 <Dato label="ID" value={prospecto.id} />
                 <Dato
                   label="Fecha creacion"
@@ -144,7 +144,7 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
                       : "—"
                   }
                 />
-              </FichaGrid>
+              </div>
             </CardContent>
           </Card>
         </div>
