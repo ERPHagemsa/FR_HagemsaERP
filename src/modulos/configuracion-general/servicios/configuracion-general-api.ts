@@ -1,12 +1,15 @@
 import { clienteConfiguracionGeneral } from "@/compartido/api/clientes-backend"
 
 import type {
-  CambiarEstadoConfiguracionGeneralRequest,
+  AnularConfiguracionGeneralRequest,
   ConfiguracionGeneralResponse,
   ConsultarConfiguracionGeneralQuery,
   EstadoBcConfiguracionGeneralResponse,
+  ExportarConfiguracionGeneralQuery,
+  InhabilitarConfiguracionGeneralRequest,
   ModificarConfiguracionGeneralRequest,
   PaginatedResponse,
+  ReactivarConfiguracionGeneralRequest,
   RegistrarConfiguracionGeneralRequest,
 } from "../tipos/configuracion-general"
 
@@ -70,7 +73,7 @@ export async function modificarConfiguracionGeneral(
 
 export async function inhabilitarConfiguracionGeneral(
   id: string,
-  payload: CambiarEstadoConfiguracionGeneralRequest,
+  payload: InhabilitarConfiguracionGeneralRequest,
 ): Promise<ConfiguracionGeneralResponse> {
   const { data } = await clienteConfiguracionGeneral.patch<
     ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
@@ -80,7 +83,7 @@ export async function inhabilitarConfiguracionGeneral(
 
 export async function reactivarConfiguracionGeneral(
   id: string,
-  payload: CambiarEstadoConfiguracionGeneralRequest,
+  payload: ReactivarConfiguracionGeneralRequest,
 ): Promise<ConfiguracionGeneralResponse> {
   const { data } = await clienteConfiguracionGeneral.patch<
     ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
@@ -90,7 +93,7 @@ export async function reactivarConfiguracionGeneral(
 
 export async function anularConfiguracionGeneral(
   id: string,
-  payload: CambiarEstadoConfiguracionGeneralRequest,
+  payload: AnularConfiguracionGeneralRequest,
 ): Promise<ConfiguracionGeneralResponse> {
   const { data } = await clienteConfiguracionGeneral.patch<
     ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
@@ -117,7 +120,7 @@ export async function consultarCatalogoConfiguracionGeneral(
 }
 
 export async function exportarConfiguracionGeneral(
-  query?: ConsultarConfiguracionGeneralQuery,
+  query?: ExportarConfiguracionGeneralQuery,
 ): Promise<PaginatedResponse<ConfiguracionGeneralResponse>> {
   const { data } = await clienteConfiguracionGeneral.get<
     PaginatedResponse<ConfiguracionGeneralResponse>

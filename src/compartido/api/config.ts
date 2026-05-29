@@ -41,7 +41,7 @@ export const serviciosApi = {
     baseUrl:
       process.env.NEXT_PUBLIC_CONFIGURACION_GENERAL_API_URL ??
       API_GATEWAY_URL ??
-      "https://api-bc14-configuracion-general.hagemsa.com/api",
+      "https://api-bc14-configuracion-general.hagemsa.com",
     nombre: "configuracion general",
     timeoutMs: 8000,
   },

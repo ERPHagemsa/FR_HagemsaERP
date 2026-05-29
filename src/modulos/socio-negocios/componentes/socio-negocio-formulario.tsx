@@ -33,6 +33,8 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select"
 
+import { useCatalogoConfiguracionGeneralQuery } from "@/modulos/configuracion-general/servicios/configuracion-general-queries"
+import type { ConfiguracionGeneralResponse } from "@/modulos/configuracion-general/tipos/configuracion-general"
 import { useRegistrarSocioDeNegocioMutation } from "../servicios/socio-negocios-queries"
 import type { TipoSocioDeNegocio } from "../tipos/socio-negocio"
 
@@ -49,6 +51,11 @@ type ErrorDialogo = {
 
 function texto(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim()
+}
+
+function textoOpcional(formData: FormData, name: string) {
+  const valor = texto(formData, name)
+  return valor || undefined
 }
 
 function construirContacto(formData: FormData) {
@@ -91,37 +98,134 @@ function obtenerErrorDialogo(error: unknown): ErrorDialogo {
   }
 }
 
+function CatalogoSelect({
+  datos,
+  disabled,
+  id,
+  name,
+  placeholder,
+}: {
+  datos: ConfiguracionGeneralResponse[]
+  disabled?: boolean
+  id: string
+  name: string
+  placeholder: string
+}) {
+  return (
+    <Select name={name} disabled={disabled}>
+      <SelectTrigger id={id} className="w-full">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {datos.length > 0 ? (
+            datos.map((dato) => (
+              <SelectItem key={dato.id} value={dato.nombre}>
+                {dato.codigo} - {dato.nombre}
+              </SelectItem>
+            ))
+          ) : (
+            <SelectItem value="__sin_datos__" disabled>
+              Sin registros disponibles
+            </SelectItem>
+          )}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  )
+}
+
 export function SocioNegocioFormulario({
   tipoInicial,
 }: SocioNegocioFormularioProps) {
   const router = useRouter()
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
+  const cargosQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "CARGO",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
+  const sedesQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "SEDE",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
+  const areasQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "AREA",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
+  const cuentasQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "CUENTA",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
+  const contratosQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "CONTRATO",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
   const [tipo, setTipo] = useState<TipoSocioDeNegocio>(tipoInicial ?? "CLIENTE")
   const [errorDialogo, setErrorDialogo] = useState<ErrorDialogo | null>(null)
   const esTipoFijo = Boolean(tipoInicial)
+  const catalogosCargando =
+    cargosQuery.isLoading ||
+    sedesQuery.isLoading ||
+    areasQuery.isLoading ||
+    cuentasQuery.isLoading ||
+    contratosQuery.isLoading
+  const cargos = cargosQuery.data?.datos ?? []
+  const sedes = sedesQuery.data?.datos ?? []
+  const areas = areasQuery.data?.datos ?? []
+  const cuentas = cuentasQuery.data?.datos ?? []
+  const contratos = contratosQuery.data?.datos ?? []
+  const referenciasContacto = [...areas, ...cargos]
 
   async function registrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErrorDialogo(null)
 
     const formData = new FormData(event.currentTarget)
+    const cargo = textoOpcional(formData, "cargo")
+    const sede = textoOpcional(formData, "sede")
+    const area = textoOpcional(formData, "area")
+    const contrato = textoOpcional(formData, "contrato")
+    const nombrePrincipal = texto(formData, "razonSocial")
+
+    if (tipo === "PERSONAL" && (!cargo || !sede || !area || !contrato)) {
+      setErrorDialogo({
+        titulo: "Datos laborales incompletos",
+        descripcion: "Selecciona cargo, sede, area y contrato desde el catalogo.",
+      })
+      return
+    }
 
     try {
       await registrarMutation.mutateAsync({
         codigoInternoSap: texto(formData, "codigoInternoSap"),
         tipo,
         numeroDocumento: texto(formData, "numeroDocumento"),
-        razonSocial: texto(formData, "razonSocial"),
-        nombreComercial: texto(formData, "nombreComercial"),
+        razonSocial: nombrePrincipal,
+        nombreComercial: tipo === "PERSONAL" ? nombrePrincipal : texto(formData, "nombreComercial"),
         direccion: texto(formData, "direccion"),
         contacto: construirContacto(formData),
         correo: texto(formData, "correo"),
         numeroCelular: texto(formData, "numeroCelular"),
-        cargo: tipo === "PERSONAL" ? texto(formData, "cargo") : undefined,
-        sede: tipo === "PERSONAL" ? texto(formData, "sede") : undefined,
-        area: tipo === "PERSONAL" ? texto(formData, "area") : undefined,
-        contrato: tipo === "PERSONAL" ? texto(formData, "contrato") : undefined,
-        cuenta: texto(formData, "cuenta"),
+        cargo: tipo === "PERSONAL" ? cargo : undefined,
+        sede: tipo === "PERSONAL" ? sede : undefined,
+        area: tipo === "PERSONAL" ? area : undefined,
+        contrato: tipo === "PERSONAL" ? contrato : undefined,
+        cuenta: textoOpcional(formData, "cuenta"),
         usuarioId: USUARIO_RESPONSABLE_ID,
       })
 
@@ -206,7 +310,9 @@ export function SocioNegocioFormulario({
                 </FieldDescription>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <Field>
-                    <FieldLabel htmlFor="razonSocial">Razon social o nombres</FieldLabel>
+                    <FieldLabel htmlFor="razonSocial">
+                      {tipo === "PERSONAL" ? "Nombres y apellidos" : "Razon social"}
+                    </FieldLabel>
                     <Input
                       id="razonSocial"
                       name="razonSocial"
@@ -215,15 +321,17 @@ export function SocioNegocioFormulario({
                     />
                   </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="nombreComercial">Nombre comercial</FieldLabel>
-                    <Input
-                      id="nombreComercial"
-                      name="nombreComercial"
-                      placeholder={tipo === "PERSONAL" ? "Juan Perez" : "Cliente Demo"}
-                      required
-                    />
-                  </Field>
+                  {tipo !== "PERSONAL" ? (
+                    <Field>
+                      <FieldLabel htmlFor="nombreComercial">Nombre comercial</FieldLabel>
+                      <Input
+                        id="nombreComercial"
+                        name="nombreComercial"
+                        placeholder="Cliente Demo"
+                        required
+                      />
+                    </Field>
+                  ) : null}
 
                   <Field className="md:col-span-2 xl:col-span-3">
                     <FieldLabel htmlFor="direccion">Direccion principal</FieldLabel>
@@ -232,10 +340,12 @@ export function SocioNegocioFormulario({
 
                   <Field className="md:col-span-2 xl:col-span-3">
                     <FieldLabel htmlFor="cuenta">Cuenta</FieldLabel>
-                    <Input
+                    <CatalogoSelect
+                      datos={cuentas}
+                      disabled={cuentasQuery.isLoading}
                       id="cuenta"
                       name="cuenta"
-                      placeholder="Cuenta Operativa 001"
+                      placeholder={cuentasQuery.isLoading ? "Cargando cuentas..." : "Selecciona una cuenta"}
                     />
                   </Field>
                 </div>
@@ -260,10 +370,16 @@ export function SocioNegocioFormulario({
 
                 <Field>
                   <FieldLabel htmlFor="referenciaContacto">Area o cargo</FieldLabel>
-                  <Input
+                  <CatalogoSelect
+                    datos={referenciasContacto}
+                    disabled={areasQuery.isLoading || cargosQuery.isLoading}
                     id="referenciaContacto"
                     name="referenciaContacto"
-                    placeholder="Compras"
+                    placeholder={
+                      areasQuery.isLoading || cargosQuery.isLoading
+                        ? "Cargando catalogo..."
+                        : "Selecciona area o cargo"
+                    }
                   />
                 </Field>
 
@@ -288,19 +404,43 @@ export function SocioNegocioFormulario({
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   <Field>
                     <FieldLabel htmlFor="cargo">Cargo</FieldLabel>
-                    <Input id="cargo" name="cargo" placeholder="Conductor" required />
+                    <CatalogoSelect
+                      datos={cargos}
+                      disabled={cargosQuery.isLoading}
+                      id="cargo"
+                      name="cargo"
+                      placeholder={cargosQuery.isLoading ? "Cargando cargos..." : "Selecciona un cargo"}
+                    />
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="sede">Sede</FieldLabel>
-                    <Input id="sede" name="sede" placeholder="Arequipa" required />
+                    <CatalogoSelect
+                      datos={sedes}
+                      disabled={sedesQuery.isLoading}
+                      id="sede"
+                      name="sede"
+                      placeholder={sedesQuery.isLoading ? "Cargando sedes..." : "Selecciona una sede"}
+                    />
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="area">Area</FieldLabel>
-                    <Input id="area" name="area" placeholder="Operaciones" required />
+                    <CatalogoSelect
+                      datos={areas}
+                      disabled={areasQuery.isLoading}
+                      id="area"
+                      name="area"
+                      placeholder={areasQuery.isLoading ? "Cargando areas..." : "Selecciona un area"}
+                    />
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="contrato">Contrato</FieldLabel>
-                    <Input id="contrato" name="contrato" placeholder="Indefinido" required />
+                    <CatalogoSelect
+                      datos={contratos}
+                      disabled={contratosQuery.isLoading}
+                      id="contrato"
+                      name="contrato"
+                      placeholder={contratosQuery.isLoading ? "Cargando contratos..." : "Selecciona un contrato"}
+                    />
                   </Field>
                 </div>
               </FieldSet>
@@ -318,7 +458,7 @@ export function SocioNegocioFormulario({
             ) : null}
 
             <div className="flex justify-end">
-              <Button type="submit" disabled={registrarMutation.isPending}>
+              <Button type="submit" disabled={registrarMutation.isPending || catalogosCargando}>
                 {registrarMutation.isPending ? "Registrando..." : "Registrar socio"}
               </Button>
             </div>

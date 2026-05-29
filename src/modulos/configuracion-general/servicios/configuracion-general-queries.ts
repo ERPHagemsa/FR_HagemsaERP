@@ -14,7 +14,10 @@ import {
   reactivarConfiguracionGeneral,
   registrarConfiguracionGeneral,
 } from "./configuracion-general-api"
-import type { ConsultarConfiguracionGeneralQuery } from "../tipos/configuracion-general"
+import type {
+  ConsultarConfiguracionGeneralQuery,
+  ExportarConfiguracionGeneralQuery,
+} from "../tipos/configuracion-general"
 
 export function useEstadoBcConfiguracionGeneralQuery() {
   return useConsulta(obtenerEstadoBcConfiguracionGeneral, [])
@@ -35,7 +38,7 @@ export function useCatalogoConfiguracionGeneralQuery(query?: ConsultarConfigurac
 }
 
 export function useExportarConfiguracionGeneralQuery(
-  query?: ConsultarConfiguracionGeneralQuery,
+  query?: ExportarConfiguracionGeneralQuery,
   enabled = false,
 ) {
   return useConsulta(
