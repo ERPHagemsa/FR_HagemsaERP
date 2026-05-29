@@ -9,6 +9,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { extraerMensajeError } from "@/compartido/api";
 import {
@@ -241,7 +242,6 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
   const [erroresCampo, setErroresCampo] = React.useState<
     Record<string, string>
   >({});
-  const [errorGeneral, setErrorGeneral] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
   const [esPrincipal, setEsPrincipal] = React.useState(false);
 
@@ -250,7 +250,6 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
 
   function resetearEstado() {
     setErroresCampo({});
-    setErrorGeneral(null);
     setIsPending(false);
     setEsPrincipal(false);
     formRef.current?.reset();
@@ -265,7 +264,6 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
     event.preventDefault();
 
     setErroresCampo({});
-    setErrorGeneral(null);
 
     const form = event.currentTarget;
     const datos = {
@@ -298,11 +296,12 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
       await agregarMutation.mutateAsync(resultado.data);
       setAbierto(false);
       resetearEstado();
+      toast.success("Contacto agregado", {
+        description: "El contacto fue agregado al prospecto.",
+      });
       router.refresh();
     } catch (err) {
-      setErrorGeneral(
-        extraerMensajeError(err, "No se pudo agregar el contacto")
-      );
+      toast.error(extraerMensajeError(err, "No se pudo agregar el contacto"));
     } finally {
       setIsPending(false);
     }
@@ -408,13 +407,6 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
             </Label>
           </div>
 
-          {/* Error general */}
-          {errorGeneral ? (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-              {errorGeneral}
-            </div>
-          ) : null}
-
           <DialogFooter>
             <Button
               type="button"
@@ -451,14 +443,12 @@ function DialogEliminarContacto({
 }: DialogEliminarContactoProps) {
   const router = useRouter();
   const [abierto, setAbierto] = React.useState(false);
-  const [errorGeneral, setErrorGeneral] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
 
   const eliminarMutation = useEliminarContactoMutation(idProspecto);
 
   function handleOpenChange(open: boolean) {
     if (!open) {
-      setErrorGeneral(null);
       setIsPending(false);
     }
     setAbierto(open);
@@ -467,16 +457,16 @@ function DialogEliminarContacto({
   async function onConfirmar(event: React.MouseEvent) {
     // Prevenir que AlertDialogAction cierre el dialog automaticamente
     event.preventDefault();
-    setErrorGeneral(null);
     setIsPending(true);
     try {
       await eliminarMutation.mutateAsync(idContacto);
       setAbierto(false);
+      toast.success("Contacto eliminado", {
+        description: "El contacto fue eliminado del prospecto.",
+      });
       router.refresh();
     } catch (err) {
-      setErrorGeneral(
-        extraerMensajeError(err, "No se pudo eliminar el contacto")
-      );
+      toast.error(extraerMensajeError(err, "No se pudo eliminar el contacto"));
     } finally {
       setIsPending(false);
     }
@@ -498,12 +488,6 @@ function DialogEliminarContacto({
             se puede deshacer desde esta interfaz.
           </AlertDialogDescription>
         </AlertDialogHeader>
-
-        {errorGeneral ? (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-            {errorGeneral}
-          </div>
-        ) : null}
 
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
@@ -536,19 +520,20 @@ function BotonMarcarPrincipal({
 }: BotonMarcarPrincipalProps) {
   const router = useRouter();
   const [isPending, setIsPending] = React.useState(false);
-  const [errorGeneral, setErrorGeneral] = React.useState<string | null>(null);
 
   const cambiarPrincipalMutation =
     useCambiarContactoPrincipalMutation(idProspecto);
 
   async function onClick() {
-    setErrorGeneral(null);
     setIsPending(true);
     try {
       await cambiarPrincipalMutation.mutateAsync(idContacto);
+      toast.success("Contacto principal actualizado", {
+        description: "Se asigno el nuevo contacto principal del prospecto.",
+      });
       router.refresh();
     } catch (err) {
-      setErrorGeneral(
+      toast.error(
         extraerMensajeError(err, "No se pudo cambiar el contacto principal")
       );
     } finally {
@@ -557,18 +542,8 @@ function BotonMarcarPrincipal({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={onClick}
-        disabled={isPending}
-      >
-        {isPending ? "Actualizando..." : "Marcar principal"}
-      </Button>
-      {errorGeneral ? (
-        <p className="text-xs text-destructive">{errorGeneral}</p>
-      ) : null}
-    </div>
+    <Button size="sm" variant="outline" onClick={onClick} disabled={isPending}>
+      {isPending ? "Actualizando..." : "Marcar principal"}
+    </Button>
   );
 }

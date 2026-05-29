@@ -1,23 +1,40 @@
-import { IconCircleCheck, IconInfoCircle } from "@tabler/icons-react";
-import { cn } from "@/compartido/utilidades";
+"use client";
 
-const mensajes: Record<string, { titulo: string; detalle: string }> = {
+// Puente entre el query param `?accion=...` (que dejan las redirecciones tras
+// registrar / actualizar / descartar, y el redirect server-side de "bloqueado")
+// y una notificacion toast de sonner. Dispara el toast una sola vez al montar y
+// limpia el query param para no volver a dispararlo en un refresh.
+
+import { usePathname, useRouter } from "next/navigation";
+import * as React from "react";
+import { toast } from "sonner";
+
+type TipoToast = "success" | "info" | "warning";
+
+const mensajes: Record<
+  string,
+  { titulo: string; detalle: string; tipo: TipoToast }
+> = {
   registrado: {
     titulo: "Prospecto registrado",
     detalle: "El prospecto fue creado correctamente en el modulo comercial.",
+    tipo: "success",
   },
   actualizado: {
     titulo: "Prospecto actualizado",
     detalle: "Los cambios fueron guardados correctamente.",
+    tipo: "success",
   },
   descartado: {
     titulo: "Prospecto descartado",
     detalle: "El prospecto fue marcado como DESCARTADO.",
+    tipo: "info",
   },
   bloqueado: {
     titulo: "Prospecto no editable",
     detalle:
       "El prospecto se encuentra en un estado terminal y no admite modificaciones.",
+    tipo: "warning",
   },
 };
 
@@ -26,31 +43,19 @@ type Props = {
 };
 
 export function AvisoResultado({ accion }: Props) {
-  if (!accion || !mensajes[accion]) return null;
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const mensaje = mensajes[accion];
-  const esPeligro = accion === "descartado" || accion === "bloqueado";
-  const Icon = esPeligro ? IconInfoCircle : IconCircleCheck;
+  React.useEffect(() => {
+    if (!accion) return;
+    const mensaje = mensajes[accion];
+    if (!mensaje) return;
 
-  return (
-    <div
-      className={cn(
-        "flex items-start gap-3 rounded-xl border px-4 py-3 text-sm",
-        esPeligro
-          ? "border-destructive/40 bg-destructive/10"
-          : "border-emerald-500/40 bg-emerald-500/10"
-      )}
-    >
-      <Icon
-        className={cn(
-          "mt-0.5 size-5",
-          esPeligro ? "text-destructive" : "text-emerald-600"
-        )}
-      />
-      <div>
-        <p className="font-semibold">{mensaje.titulo}</p>
-        <p className="text-muted-foreground">{mensaje.detalle}</p>
-      </div>
-    </div>
-  );
+    toast[mensaje.tipo](mensaje.titulo, { description: mensaje.detalle });
+
+    // Limpia ?accion del URL para que un refresh no repita la notificacion.
+    router.replace(pathname, { scroll: false });
+  }, [accion, pathname, router]);
+
+  return null;
 }

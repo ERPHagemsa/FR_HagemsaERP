@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 
 import {
   esError409,
@@ -73,7 +74,6 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
   const router = useRouter();
   const formularioRef = React.useRef<HTMLDivElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [errorGeneral, setErrorGeneral] = React.useState<string | null>(null);
   const [erroresCampo, setErroresCampo] = React.useState<
     Record<string, string>
   >({});
@@ -97,7 +97,6 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
     const root = formularioRef.current;
     if (!root) return;
 
-    setErrorGeneral(null);
     setErroresCampo({});
     setIsSaving(true);
 
@@ -109,7 +108,7 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
       }
     } catch (err) {
       // Errores de red/inesperados (los de API se manejan dentro de cada handler)
-      setErrorGeneral(extraerMensajeError(err, "No se pudo guardar el prospecto"));
+      toast.error(extraerMensajeError(err, "No se pudo guardar el prospecto"));
     } finally {
       setIsSaving(false);
     }
@@ -193,15 +192,13 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
 
   function aplicarErrorApi(err: unknown) {
     if (esError409(err)) {
-      setErrorGeneral(
+      toast.error(
         "Ya existe un prospecto registrado con ese numero de documento (RUC/DNI/CE)."
       );
       return;
     }
     // 422 plano y 400: extraerMensajeError los maneja igual (string legible)
-    setErrorGeneral(
-      extraerMensajeError(err, "No se pudo guardar el prospecto")
-    );
+    toast.error(extraerMensajeError(err, "No se pudo guardar el prospecto"));
   }
 
   const urlCancelar = esEdicion
@@ -345,13 +342,6 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
                 />
               </div>
             </>
-          ) : null}
-
-          {/* Error general */}
-          {errorGeneral ? (
-            <div className="mt-5 rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-              {errorGeneral}
-            </div>
           ) : null}
 
           {/* Footer */}

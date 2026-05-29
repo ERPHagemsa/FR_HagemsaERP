@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 
 import { extraerMensajeError } from "@/compartido/api";
 import {
@@ -30,7 +31,6 @@ export function ProspectoDescartarDialog({ idProspecto, disabled }: Props) {
   const [abierto, setAbierto] = React.useState(false);
   const [motivo, setMotivo] = React.useState("");
   const [errorMotivo, setErrorMotivo] = React.useState<string | null>(null);
-  const [errorGeneral, setErrorGeneral] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
 
   const descartarMutation = useDescartarProspectoMutation();
@@ -40,7 +40,6 @@ export function ProspectoDescartarDialog({ idProspecto, disabled }: Props) {
       // Limpiar al cerrar
       setMotivo("");
       setErrorMotivo(null);
-      setErrorGeneral(null);
       setIsPending(false);
     }
     setAbierto(open);
@@ -51,7 +50,6 @@ export function ProspectoDescartarDialog({ idProspecto, disabled }: Props) {
     event.preventDefault();
 
     setErrorMotivo(null);
-    setErrorGeneral(null);
 
     const resultado = schemaDescartarProspecto.safeParse({ motivo });
     if (!resultado.success) {
@@ -69,9 +67,7 @@ export function ProspectoDescartarDialog({ idProspecto, disabled }: Props) {
       router.push(`/comercial/prospectos/${idProspecto}?accion=descartado`);
       router.refresh();
     } catch (err) {
-      setErrorGeneral(
-        extraerMensajeError(err, "No se pudo descartar el prospecto")
-      );
+      toast.error(extraerMensajeError(err, "No se pudo descartar el prospecto"));
     } finally {
       setIsPending(false);
     }
@@ -115,12 +111,6 @@ export function ProspectoDescartarDialog({ idProspecto, disabled }: Props) {
             <p className="text-xs text-destructive">{errorMotivo}</p>
           ) : null}
         </div>
-
-        {errorGeneral ? (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-            {errorGeneral}
-          </div>
-        ) : null}
 
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
