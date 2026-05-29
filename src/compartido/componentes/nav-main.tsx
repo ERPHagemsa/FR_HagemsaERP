@@ -31,6 +31,24 @@ function isRouteActive(pathname: string, href: string, exact = false) {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+// Devuelve la URL del subitem que mejor coincide con la ruta actual: de todos
+// los que matchean por prefijo, gana el de URL mas larga (mas especifica). Asi,
+// estando en "/comercial/prospectos", Prospectos (/comercial/prospectos) le gana
+// a Cotizaciones (/comercial) y solo se marca el correcto. Evita el falso
+// positivo cuando la URL de un subitem es prefijo de la de un hermano.
+function urlSubitemActivo(
+  pathname: string,
+  subitems: { url: string }[],
+): string | null {
+  let mejor: string | null = null
+  for (const { url } of subitems) {
+    if (isRouteActive(pathname, url) && (!mejor || url.length > mejor.length)) {
+      mejor = url
+    }
+  }
+  return mejor
+}
+
 export function NavMain({
   items,
 }: {
@@ -93,9 +111,8 @@ export function NavMain({
             const moduleHref =
               item.url ?? item.items.find((subItem) => subItem.url !== "#")?.url ?? "#"
             const isModuleActive = isRouteActive(pathname, moduleHref)
-            const hasActiveChild = item.items.some((subItem) =>
-              isRouteActive(pathname, subItem.url, subItem.url === moduleHref)
-            )
+            const subUrlActiva = urlSubitemActivo(pathname, item.items)
+            const hasActiveChild = subUrlActiva !== null
             const isOpen = openItem === item.title
             const isHighlighted = isOpen || hasActiveChild || isModuleActive
 
@@ -186,11 +203,7 @@ export function NavMain({
                       >
                         <SidebarMenuSubButton
                           asChild
-                          isActive={isRouteActive(
-                            pathname,
-                            subItem.url,
-                            subItem.url === moduleHref,
-                          )}
+                          isActive={subItem.url === subUrlActiva}
                           className="group/sub relative h-8 rounded-xl px-3 text-sidebar-foreground/60 transition-all duration-300 ease-out before:absolute before:-left-[17px] before:size-1.5 before:rounded-full before:bg-sidebar-border before:transition-all before:duration-300 hover:translate-x-0.5 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:before:bg-primary data-active:bg-transparent data-active:font-semibold data-active:text-primary data-active:before:bg-primary"
                         >
                           <Link href={subItem.url}>
