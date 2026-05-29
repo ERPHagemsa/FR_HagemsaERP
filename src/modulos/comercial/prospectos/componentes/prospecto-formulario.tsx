@@ -128,7 +128,6 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
         telefono: getValue(root, "contacto.telefono") || undefined,
         email: getValue(root, "contacto.email") || undefined,
         observaciones: getValue(root, "contacto.observaciones") || undefined,
-        esPrincipal: true,
       },
     };
 

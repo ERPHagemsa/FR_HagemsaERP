@@ -74,7 +74,8 @@ export type PayloadContactoInicial = {
   telefono?: string;
   email?: string;
   observaciones?: string;
-  esPrincipal: boolean;
+  // esPrincipal NO se envia al registrar: el backend marca el contacto inicial
+  // como principal. esPrincipal solo viaja al agregar un contacto (ver PayloadAgregarContacto).
 };
 
 export type PayloadRegistrarProspecto = {

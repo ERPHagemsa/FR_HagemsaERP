@@ -32,30 +32,50 @@ const REGEX_DNI = /^\d{8}$/;
 const REGEX_CE = /^[a-zA-Z0-9]{9,12}$/;
 
 // ---------------------------------------------------------------------------
-// Schema de contacto (reutilizado en registro y alta de contacto)
+// Schema de contacto
+//
+// Campos base compartidos por el contacto inicial (registro de prospecto) y
+// el alta de contacto a un prospecto existente. `esPrincipal` NO es un campo
+// base: solo se envia al agregar un contacto, no al registrar el prospecto
+// (en el registro el backend marca el contacto inicial como principal).
 // ---------------------------------------------------------------------------
 
+const camposContacto = {
+  nombre: z.string().min(1, "El nombre del contacto es requerido"),
+  cargo: z.string().optional(),
+  telefono: z.string().optional(),
+  email: z
+    .union([z.string().email("El email no tiene un formato valido"), z.literal("")])
+    .optional(),
+};
+
+// Exige al menos telefono o email — comun a ambos schemas de contacto.
+function refinarTelefonoOEmail(
+  data: { telefono?: string; email?: string },
+  ctx: z.RefinementCtx
+) {
+  const tieneTelefono = data.telefono && data.telefono.trim().length > 0;
+  const tieneEmail = data.email && data.email.trim().length > 0;
+  if (!tieneTelefono && !tieneEmail) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Ingresa al menos telefono o email",
+      path: ["telefono"],
+    });
+  }
+}
+
+// Contacto inicial del registro de prospecto — sin esPrincipal.
+export const schemaContactoInicial = z
+  .object(camposContacto)
+  .superRefine(refinarTelefonoOEmail);
+
+export type DatosContactoInicial = z.infer<typeof schemaContactoInicial>;
+
+// Alta de contacto a un prospecto existente — incluye esPrincipal.
 export const schemaAgregarContacto = z
-  .object({
-    nombre: z.string().min(1, "El nombre del contacto es requerido"),
-    cargo: z.string().optional(),
-    telefono: z.string().optional(),
-    email: z
-      .union([z.string().email("El email no tiene un formato valido"), z.literal("")])
-      .optional(),
-    esPrincipal: z.boolean(),
-  })
-  .superRefine((data, ctx) => {
-    const tieneTelefono = data.telefono && data.telefono.trim().length > 0;
-    const tieneEmail = data.email && data.email.trim().length > 0;
-    if (!tieneTelefono && !tieneEmail) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Ingresa al menos telefono o email",
-        path: ["telefono"],
-      });
-    }
-  });
+  .object({ ...camposContacto, esPrincipal: z.boolean() })
+  .superRefine(refinarTelefonoOEmail);
 
 export type DatosAgregarContacto = z.infer<typeof schemaAgregarContacto>;
 
@@ -77,7 +97,7 @@ export const schemaRegistrarProspecto = z
       ["CORREO", "LLAMADA", "PRESENCIAL", "OTRO"],
       { message: "Selecciona un medio de contacto valido" }
     ),
-    contactoInicial: schemaAgregarContacto,
+    contactoInicial: schemaContactoInicial,
   })
   .superRefine((data, ctx) => {
     const { tipoDocumento, numeroDocumento } = data;
