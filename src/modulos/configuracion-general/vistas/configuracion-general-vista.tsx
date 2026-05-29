@@ -639,9 +639,9 @@ function TablaDatosMaestros({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {datos.map((dato) => (
+          {datos.map((dato, index) => (
             <TableRow
-              key={dato.id}
+              key={`${dato.id}-${dato.tipoDatoMaestro}-${dato.codigo}-${index}`}
               className={onSelect ? "cursor-pointer border-border/80" : "border-border/80"}
               onClick={() => onSelect?.(dato)}
             >

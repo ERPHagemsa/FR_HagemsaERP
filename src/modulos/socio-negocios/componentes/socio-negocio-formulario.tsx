@@ -33,10 +33,14 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select"
 
-import { useCatalogoConfiguracionGeneralQuery } from "@/modulos/configuracion-general/servicios/configuracion-general-queries"
-import type { ConfiguracionGeneralResponse } from "@/modulos/configuracion-general/tipos/configuracion-general"
-import { useRegistrarSocioDeNegocioMutation } from "../servicios/socio-negocios-queries"
-import type { TipoSocioDeNegocio } from "../tipos/socio-negocio"
+import {
+  useMaestrosConfiguracionGeneralQuery,
+  useRegistrarSocioDeNegocioMutation,
+} from "../servicios/socio-negocios-queries"
+import type {
+  MaestroConfiguracionGeneralIntegracion,
+  TipoSocioDeNegocio,
+} from "../tipos/socio-negocio"
 
 type SocioNegocioFormularioProps = {
   tipoInicial?: TipoSocioDeNegocio
@@ -103,16 +107,25 @@ function CatalogoSelect({
   disabled,
   id,
   name,
+  onValueChange,
   placeholder,
+  value,
 }: {
-  datos: ConfiguracionGeneralResponse[]
+  datos: MaestroConfiguracionGeneralIntegracion[]
   disabled?: boolean
   id: string
   name: string
+  onValueChange?: (value: string) => void
   placeholder: string
+  value?: string
 }) {
   return (
-    <Select name={name} disabled={disabled}>
+    <Select
+      name={name}
+      disabled={disabled}
+      value={value}
+      onValueChange={onValueChange}
+    >
       <SelectTrigger id={id} className="w-full">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
@@ -121,7 +134,7 @@ function CatalogoSelect({
           {datos.length > 0 ? (
             datos.map((dato) => (
               <SelectItem key={dato.id} value={dato.nombre}>
-                {dato.codigo} - {dato.nombre}
+                {dato.nombre}
               </SelectItem>
             ))
           ) : (
@@ -140,40 +153,25 @@ export function SocioNegocioFormulario({
 }: SocioNegocioFormularioProps) {
   const router = useRouter()
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
-  const cargosQuery = useCatalogoConfiguracionGeneralQuery({
+  const [sedeSeleccionada, setSedeSeleccionada] = useState<string | undefined>()
+  const cargosQuery = useMaestrosConfiguracionGeneralQuery({
     tipoDatoMaestro: "CARGO",
-    page: 1,
-    pageSize: 100,
-    sortBy: "nombre",
-    sortOrder: "asc",
   })
-  const sedesQuery = useCatalogoConfiguracionGeneralQuery({
+  const sedesQuery = useMaestrosConfiguracionGeneralQuery({
     tipoDatoMaestro: "SEDE",
-    page: 1,
-    pageSize: 100,
-    sortBy: "nombre",
-    sortOrder: "asc",
   })
-  const areasQuery = useCatalogoConfiguracionGeneralQuery({
+  const sedeSeleccionadaMaestro = sedesQuery.data?.find(
+    (sede) => sede.nombre === sedeSeleccionada,
+  )
+  const sedeSeleccionadaId = sedeSeleccionadaMaestro?.idExterno ?? sedeSeleccionadaMaestro?.id
+  const areasQuery = useMaestrosConfiguracionGeneralQuery({
     tipoDatoMaestro: "AREA",
-    page: 1,
-    pageSize: 100,
-    sortBy: "nombre",
-    sortOrder: "asc",
   })
-  const cuentasQuery = useCatalogoConfiguracionGeneralQuery({
+  const cuentasQuery = useMaestrosConfiguracionGeneralQuery({
     tipoDatoMaestro: "CUENTA",
-    page: 1,
-    pageSize: 100,
-    sortBy: "nombre",
-    sortOrder: "asc",
   })
-  const contratosQuery = useCatalogoConfiguracionGeneralQuery({
+  const contratosQuery = useMaestrosConfiguracionGeneralQuery({
     tipoDatoMaestro: "CONTRATO",
-    page: 1,
-    pageSize: 100,
-    sortBy: "nombre",
-    sortOrder: "asc",
   })
   const [tipo, setTipo] = useState<TipoSocioDeNegocio>(tipoInicial ?? "CLIENTE")
   const [errorDialogo, setErrorDialogo] = useState<ErrorDialogo | null>(null)
@@ -184,11 +182,29 @@ export function SocioNegocioFormulario({
     areasQuery.isLoading ||
     cuentasQuery.isLoading ||
     contratosQuery.isLoading
-  const cargos = cargosQuery.data?.datos ?? []
-  const sedes = sedesQuery.data?.datos ?? []
-  const areas = areasQuery.data?.datos ?? []
-  const cuentas = cuentasQuery.data?.datos ?? []
-  const contratos = contratosQuery.data?.datos ?? []
+  const cargos = (cargosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
+  const sedes = (sedesQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
+  const areas = (areasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
+  const cuentas = (cuentasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
+  const contratos = (contratosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
+  const maestrosConsultados =
+    cargosQuery.isSuccess &&
+    sedesQuery.isSuccess &&
+    areasQuery.isSuccess &&
+    cuentasQuery.isSuccess &&
+    contratosQuery.isSuccess
+  const faltanMaestros =
+    maestrosConsultados &&
+    (cargos.length === 0 ||
+      sedes.length === 0 ||
+      areas.length === 0 ||
+      cuentas.length === 0 ||
+      contratos.length === 0)
+  const sedeKeys = [sedeSeleccionadaMaestro?.id, sedeSeleccionadaMaestro?.idExterno].filter(Boolean)
+  const areasPorSede =
+    sedeKeys.length > 0
+      ? areas.filter((area) => !area.sedeId || sedeKeys.includes(area.sedeId))
+      : areas
   const referenciasContacto = [...areas, ...cargos]
 
   async function registrar(event: FormEvent<HTMLFormElement>) {
@@ -248,6 +264,14 @@ export function SocioNegocioFormulario({
         <div className="px-5 py-5">
           <form onSubmit={(event) => void registrar(event)}>
             <FieldGroup>
+            {tipo === "PERSONAL" && faltanMaestros ? (
+              <Alert variant="destructive">
+                <AlertTitle>Maestros no sincronizados</AlertTitle>
+                <AlertDescription>
+                  BC01 no devolvio todos los maestros requeridos para registrar personal. Verifica la proyeccion de Configuracion General.
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
               <FieldSet className="rounded-lg border border-border p-4">
                 <FieldLegend>Identificacion</FieldLegend>
@@ -419,17 +443,28 @@ export function SocioNegocioFormulario({
                       disabled={sedesQuery.isLoading}
                       id="sede"
                       name="sede"
+                      value={sedeSeleccionada}
+                      onValueChange={(value) => {
+                        setSedeSeleccionada(value)
+                      }}
                       placeholder={sedesQuery.isLoading ? "Cargando sedes..." : "Selecciona una sede"}
                     />
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="area">Area</FieldLabel>
                     <CatalogoSelect
-                      datos={areas}
+                      key={`area-${sedeSeleccionadaId ?? "sin-sede"}`}
+                      datos={areasPorSede}
                       disabled={areasQuery.isLoading}
                       id="area"
                       name="area"
-                      placeholder={areasQuery.isLoading ? "Cargando areas..." : "Selecciona un area"}
+                      placeholder={
+                        areasQuery.isLoading
+                          ? "Cargando areas..."
+                          : sedeSeleccionadaId
+                            ? "Selecciona un area"
+                            : "Selecciona un area"
+                      }
                     />
                   </Field>
                   <Field>

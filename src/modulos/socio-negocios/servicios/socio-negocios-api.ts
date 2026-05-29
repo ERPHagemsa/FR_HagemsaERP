@@ -2,11 +2,13 @@ import { clienteSocioNegocios } from "@/compartido/api/clientes-backend"
 
 import type {
   ConsultarHistorialSocioDeNegocioQuery,
+  ConsultarMaestrosConfiguracionGeneralQuery,
   ConsultarSociosDeNegocioQuery,
   DarDeBajaSocioDeNegocioRequest,
   EstadoBcResponse,
   ExportarSociosDeNegocioQuery,
   HistorialSocioDeNegocioResponse,
+  MaestroConfiguracionGeneralIntegracion,
   ModificarSocioDeNegocioRequest,
   PaginatedResponse,
   ReactivarSocioDeNegocioRequest,
@@ -24,7 +26,8 @@ function crearQueryString(
   query?:
     | ConsultarSociosDeNegocioQuery
     | ExportarSociosDeNegocioQuery
-    | ConsultarHistorialSocioDeNegocioQuery,
+    | ConsultarHistorialSocioDeNegocioQuery
+    | ConsultarMaestrosConfiguracionGeneralQuery,
 ): string {
   const params = new URLSearchParams()
 
@@ -49,6 +52,15 @@ export async function obtenerResumenSociosDeNegocio(): Promise<ResumenSociosDeNe
   const { data } = await clienteSocioNegocios.get<
     RespuestaDto<ResumenSociosDeNegocioResponse>
   >(`${BASE_ENDPOINT}/resumen`)
+  return data.datos
+}
+
+export async function consultarMaestrosConfiguracionGeneral(
+  query: ConsultarMaestrosConfiguracionGeneralQuery,
+): Promise<MaestroConfiguracionGeneralIntegracion[]> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<MaestroConfiguracionGeneralIntegracion[]>
+  >(`/integracion/configuracion-general/maestros${crearQueryString(query)}`)
   return data.datos
 }
 

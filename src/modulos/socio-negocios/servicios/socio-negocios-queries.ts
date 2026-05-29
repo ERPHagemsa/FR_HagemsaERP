@@ -6,6 +6,7 @@ import { useMutar } from "@/compartido/api/use-mutar"
 import {
   consultarHistorialSocioDeNegocio,
   consultarHistorialSociosDeNegocio,
+  consultarMaestrosConfiguracionGeneral,
   consultarSociosDeNegocio,
   darDeBajaSocioDeNegocio,
   exportarSociosDeNegocio,
@@ -19,6 +20,7 @@ import {
 } from "./socio-negocios-api"
 import type {
   ConsultarHistorialSocioDeNegocioQuery,
+  ConsultarMaestrosConfiguracionGeneralQuery,
   ConsultarSociosDeNegocioQuery,
   ExportarSociosDeNegocioQuery,
 } from "../tipos/socio-negocio"
@@ -42,6 +44,17 @@ export function useSocioDeNegocioQuery(id: string) {
   return useConsulta(() => obtenerSocioDeNegocio(id), [id], {
     enabled: Boolean(id),
   })
+}
+
+export function useMaestrosConfiguracionGeneralQuery(
+  query: ConsultarMaestrosConfiguracionGeneralQuery,
+  enabled = true,
+) {
+  return useConsulta(
+    () => consultarMaestrosConfiguracionGeneral(query),
+    [JSON.stringify(query)],
+    { enabled },
+  )
 }
 
 export function useExportarSociosDeNegocioQuery(

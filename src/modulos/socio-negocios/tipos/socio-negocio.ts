@@ -6,6 +6,13 @@ export type EstadoRegistro = "ACTIVO" | "ANULADO"
 
 export type FormatoExportacionSocios = "EXCEL" | "PDF"
 
+export type TipoDatoMaestroIntegracion =
+  | "CARGO"
+  | "SEDE"
+  | "AREA"
+  | "CUENTA"
+  | "CONTRATO"
+
 export type AccionHistorialSocioDeNegocio =
   | "REGISTRO"
   | "MODIFICACION"
@@ -89,6 +96,27 @@ export interface SocioDeNegocioResponse {
 export interface EstadoBcResponse {
   boundedContext: string
   agregado: string
+}
+
+export interface MaestroConfiguracionGeneralIntegracion {
+  id: string
+  idExterno: string
+  tipoDatoMaestro: TipoDatoMaestroIntegracion
+  codigo: string
+  nombre: string
+  estado: EstadoSocioDeNegocio
+  sedeId?: string | null
+  ubicacionId?: string | null
+  fechaSincronizacion?: string | null
+  ultimoEventoId?: string | null
+  ultimoEvento?: string | null
+}
+
+export interface ConsultarMaestrosConfiguracionGeneralQuery {
+  tipoDatoMaestro: TipoDatoMaestroIntegracion
+  estado?: EstadoSocioDeNegocio
+  sedeId?: string
+  ubicacionId?: string
 }
 
 export interface RegistrarSocioDeNegocioRequest {
