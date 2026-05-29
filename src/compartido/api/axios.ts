@@ -59,6 +59,12 @@ export type OpcionesCliente = {
   withCredentials?: boolean
   obtenerAuthHeader?: () => string | null | undefined
   mensajeErrorDefault?: string
+  // Hook opcional que se invoca ante un 401. Debe intentar refrescar la sesion
+  // (idealmente single-flight) y devolver true si lo logro; en ese caso la
+  // request original se reintenta UNA vez. Lo usa el cliente del navegador para
+  // recuperar llamadas /api cuyo access token expiro entre navegaciones, sin
+  // disparar refresh concurrente (ver cliente-http.ts).
+  alRecibir401?: () => Promise<boolean>
 }
 
 export function crearClienteHttp(opciones: OpcionesCliente = {}): AxiosInstance {
@@ -78,6 +84,31 @@ export function crearClienteHttp(opciones: OpcionesCliente = {}): AxiosInstance 
       }
       return config
     })
+  }
+
+  // Interceptor de reintento ante 401. Se registra ANTES del de normalizacion
+  // para recibir el error de axios crudo (con `config`) y poder reintentar.
+  const { alRecibir401 } = opciones
+  if (alRecibir401) {
+    instancia.interceptors.response.use(
+      (response) => response,
+      async (error: unknown) => {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          const cfg = error.config as
+            | (AxiosRequestConfig & { _reintentado?: boolean })
+            | undefined
+          if (cfg && !cfg._reintentado) {
+            cfg._reintentado = true
+            const refrescado = await alRecibir401()
+            if (refrescado) {
+              // Reintenta UNA vez; la cookie nueva viaja sola (same-origin).
+              return instancia(cfg)
+            }
+          }
+        }
+        return Promise.reject(error)
+      },
+    )
   }
 
   const mensajeFallback = opciones.mensajeErrorDefault ?? MENSAJE_ERROR_DEFAULT

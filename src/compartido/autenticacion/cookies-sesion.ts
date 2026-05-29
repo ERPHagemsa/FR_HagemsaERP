@@ -53,11 +53,18 @@ export function setCookiesSesion(
   cookies: SetterCookies,
   tokens: ParTokens,
 ): void {
+  // IMPORTANTE: el `maxAge` de la cookie de access NO se ata al `expiresIn` del
+  // token (1h), sino al del refresh (~30d). La validez REAL del access token la
+  // define su claim `exp` (los backends rechazan los vencidos); la cookie solo
+  // necesita seguir presente para que el middleware pueda DETECTAR el token
+  // vencido y refrescarlo. Si la cookie expirara a la hora, tras estar inactivo
+  // >1h el navegador la borraría y el middleware desloguearía al usuario aunque
+  // el refresh token (30d) siguiera válido — desperdiciando la sesión larga.
   cookies.set({
     ...opcionesCookieSesion,
     name: COOKIE_ACCESS,
     value: tokens.accessToken,
-    maxAge: tokens.expiresIn,
+    maxAge: tokens.refreshExpiresIn,
   })
   cookies.set({
     ...opcionesCookieSesion,
