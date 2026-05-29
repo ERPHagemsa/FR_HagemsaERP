@@ -4,18 +4,13 @@ import Link from "next/link"
 import type { FormEvent } from "react"
 import { useState } from "react"
 import {
-  Archive,
   Ban,
   CheckCircle2,
-  Clock3,
   Database,
   FileDown,
   History,
   Plus,
-  RotateCcw,
   Search,
-  Settings2,
-  SlidersHorizontal,
 } from "lucide-react"
 
 import { SiteHeader } from "@/compartido/componentes/site-header"
@@ -24,7 +19,6 @@ import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -49,6 +43,8 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
+import { paisesLatinoamerica } from "@/compartido/datos/ubicaciones"
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 
 import {
   useCatalogoConfiguracionGeneralQuery,
@@ -62,6 +58,7 @@ import type {
   ConsultarConfiguracionGeneralQuery,
   EstadoDatoMaestro,
   EstadoRegistro,
+  NivelArea,
   TipoDatoMaestro,
 } from "../tipos/configuracion-general"
 
@@ -95,10 +92,10 @@ function nombreTipo(tipo: TipoDatoMaestro) {
 function eventoPrincipal(dato: ConfiguracionGeneralResponse) {
   const base = nombreTipo(dato.tipoDatoMaestro)
 
-  if (dato.estadoRegistro === "ANULADO") return `${base}Anulado`
-  if (dato.estado === "INACTIVO") return `${base}Inhabilitado`
-  if (dato.fechaModificacion) return `${base}Actualizado`
-  return `${base}Habilitado`
+  if (dato.estadoRegistro === "ANULADO") return `${base} anulado`
+  if (dato.estado === "INACTIVO") return `${base} inhabilitado`
+  if (dato.fechaModificacion) return `${base} actualizado`
+  return `${base} habilitado`
 }
 
 function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
@@ -117,27 +114,245 @@ function etiquetaDetalleEspecifico(tipo: TipoDatoMaestro) {
   return "Dato especifico"
 }
 
+function textoEstadoConfiguracion(dato: ConfiguracionGeneralResponse) {
+  if (dato.estadoRegistro === "ANULADO") return "Retirada"
+  if (dato.estado === "INACTIVO") return "Pausada"
+  return "Disponible"
+}
+
+function textoVigencia(estadoRegistro: EstadoRegistro) {
+  return estadoRegistro === "ANULADO" ? "Retirada" : "Vigente"
+}
+
+function valorOpcional(formData: FormData, key: string) {
+  const value = String(formData.get(key) ?? "").trim()
+  return value && value !== "__none" ? value : undefined
+}
+
+function ejemplosFormulario(tipo: TipoDatoMaestro) {
+  const ejemplos = {
+    CARGO: {
+      codigo: "CARGO-013",
+      nombre: "Supervisor de Patio",
+      descripcion: "Supervisa patio y control de unidades.",
+    },
+    SEDE: {
+      codigo: "SEDE-009",
+      nombre: "Base Tacna",
+      descripcion: "Base de soporte sur.",
+    },
+    AREA: {
+      codigo: "AREA-010",
+      nombre: "Control Documentario",
+      descripcion: "Control de guias, manifiestos y documentos.",
+    },
+    CUENTA: {
+      codigo: "CTA-007",
+      nombre: "Cuenta Construccion Sur",
+      descripcion: "Cuenta para clientes de construccion.",
+    },
+    CONTRATO: {
+      codigo: "CONT-009",
+      nombre: "Contrato Construccion Sur 2026",
+      descripcion: "Servicio logistico para proyecto de construccion.",
+    },
+  } satisfies Record<TipoDatoMaestro, Record<"codigo" | "nombre" | "descripcion", string>>
+
+  return ejemplos[tipo]
+}
+
 function CamposEspecificosMaestro({
+  areas,
+  cargos,
+  cuentas,
+  departamento,
+  distrito,
+  nivelArea,
+  onNivelAreaChange,
+  onUbicacionChange,
+  pais,
+  provincia,
   sedes,
   tipo,
 }: {
+  areas: ConfiguracionGeneralResponse[]
+  cargos: ConfiguracionGeneralResponse[]
+  cuentas: ConfiguracionGeneralResponse[]
+  departamento: string
+  distrito: string
+  nivelArea: NivelArea
+  onNivelAreaChange: (nivel: NivelArea) => void
+  onUbicacionChange: (ubicacion: {
+    pais?: string
+    departamento?: string
+    provincia?: string
+    distrito?: string
+  }) => void
+  pais: string
+  provincia: string
   sedes: ConfiguracionGeneralResponse[]
   tipo: TipoDatoMaestro
 }) {
   if (tipo === "CARGO") {
     return (
-      <p className="md:col-span-2 text-sm text-muted-foreground">
-        Cargo usa solo codigo, nombre y descripcion.
-      </p>
+      <div className="grid gap-2 md:col-span-2">
+        <label className="text-sm font-medium" htmlFor="cargoSuperiorId">Cargo superior</label>
+        <Select name="cargoSuperiorId" defaultValue="__none">
+          <SelectTrigger id="cargoSuperiorId" className="w-full">
+            <SelectValue placeholder="Selecciona un cargo superior" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none">Sin cargo superior</SelectItem>
+            {cargos.map((cargo) => (
+              <SelectItem key={cargo.id} value={cargo.id}>
+                {cargo.codigo} - {cargo.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     )
   }
 
   if (tipo === "SEDE") {
+    const paisSeleccionado = paisesLatinoamerica.find((item) => item.nombre === pais)
+    const departamentos = paisSeleccionado?.departamentos ?? []
+    const departamentoSeleccionado = departamentos.find((item) => item.nombre === departamento)
+    const provincias = departamentoSeleccionado?.provincias ?? []
+    const provinciaSeleccionada = provincias.find((item) => item.nombre === provincia)
+    const distritos = provinciaSeleccionada?.distritos ?? []
+    const usarCatalogo = departamentos.length > 0
+
     return (
       <>
-        <div className="grid gap-2 md:col-span-2">
+        <div className="grid gap-2">
           <label className="text-sm font-medium" htmlFor="direccionSede">Direccion</label>
-          <Input id="direccionSede" name="direccion" placeholder="Av. Principal 123" />
+          <Input id="direccionSede" name="direccion" placeholder="Av. Principal 123" required />
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="pais">Pais</label>
+          <Select
+            name="pais"
+            value={pais}
+            onValueChange={(value) => {
+              onUbicacionChange({
+                pais: value,
+                departamento: "",
+                provincia: "",
+                distrito: "",
+              })
+            }}
+            required
+          >
+            <SelectTrigger id="pais" className="w-full">
+              <SelectValue placeholder="Selecciona un pais" />
+            </SelectTrigger>
+            <SelectContent>
+              {paisesLatinoamerica.map((item) => (
+                <SelectItem key={item.codigo} value={item.nombre}>
+                  {item.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {usarCatalogo ? (
+          <>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="departamento">Departamento</label>
+              <Select
+                name="departamento"
+                value={departamento}
+                onValueChange={(value) => {
+                  onUbicacionChange({
+                    departamento: value,
+                    provincia: "",
+                    distrito: "",
+                  })
+                }}
+                required
+              >
+                <SelectTrigger id="departamento" className="w-full">
+                  <SelectValue placeholder="Selecciona un departamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departamentos.map((item) => (
+                    <SelectItem key={item.codigo} value={item.nombre}>
+                      {item.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="provincia">Provincia</label>
+              <Select
+                name="provincia"
+                value={provincia}
+                onValueChange={(value) => {
+                  onUbicacionChange({
+                    provincia: value,
+                    distrito: "",
+                  })
+                }}
+                required
+              >
+                <SelectTrigger id="provincia" className="w-full">
+                  <SelectValue placeholder="Selecciona una provincia" />
+                </SelectTrigger>
+                <SelectContent>
+                  {provincias.map((item) => (
+                    <SelectItem key={item.codigo} value={item.nombre}>
+                      {item.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="distrito">Distrito</label>
+              <Select
+                name="distrito"
+                value={distrito}
+                onValueChange={(value) => onUbicacionChange({ distrito: value })}
+                required
+              >
+                <SelectTrigger id="distrito" className="w-full">
+                  <SelectValue placeholder="Selecciona un distrito" />
+                </SelectTrigger>
+                <SelectContent>
+                  {distritos.map((item) => (
+                    <SelectItem key={item.codigo} value={item.nombre}>
+                      {item.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="departamento">Departamento / Region</label>
+              <Input id="departamento" name="departamento" placeholder="Region" required />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="provincia">Provincia / Ciudad</label>
+              <Input id="provincia" name="provincia" placeholder="Provincia" required />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium" htmlFor="distrito">Distrito / Comuna</label>
+              <Input id="distrito" name="distrito" placeholder="Distrito" required />
+            </div>
+          </>
+        )}
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="ciudad">Ciudad</label>
+          <Input id="ciudad" name="ciudad" placeholder={provincia || "Ciudad"} />
+        </div>
+        <div className="grid gap-2 md:col-span-2">
+          <label className="text-sm font-medium" htmlFor="referenciaUbicacion">Referencia</label>
+          <Input id="referenciaUbicacion" name="referenciaUbicacion" placeholder="Zona industrial" />
         </div>
       </>
     )
@@ -148,7 +363,7 @@ function CamposEspecificosMaestro({
       <>
         <div className="grid gap-2 md:col-span-2">
           <label className="text-sm font-medium" htmlFor="sedeId">Sede</label>
-          <Select name="sedeId">
+          <Select name="sedeId" required>
             <SelectTrigger id="sedeId" className="w-full">
               <SelectValue placeholder="Selecciona una sede activa" />
             </SelectTrigger>
@@ -161,6 +376,41 @@ function CamposEspecificosMaestro({
             </SelectContent>
           </Select>
         </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="nivelArea">Nivel</label>
+          <Select
+            name="nivelArea"
+            value={nivelArea}
+            onValueChange={(value) => onNivelAreaChange(value as NivelArea)}
+          >
+            <SelectTrigger id="nivelArea" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="AREA">Area</SelectItem>
+              <SelectItem value="GERENCIA">Gerencia</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {nivelArea === "AREA" ? (
+          <div className="grid gap-2">
+            <label className="text-sm font-medium" htmlFor="gerenciaId">Gerencia</label>
+            <Select name="gerenciaId" required>
+              <SelectTrigger id="gerenciaId" className="w-full">
+                <SelectValue placeholder="Selecciona una gerencia" />
+              </SelectTrigger>
+              <SelectContent>
+                {areas
+                  .filter((area) => area.nivelArea === "GERENCIA")
+                  .map((area) => (
+                    <SelectItem key={area.id} value={area.id}>
+                      {area.codigo} - {area.nombre}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
       </>
     )
   }
@@ -187,16 +437,32 @@ function CamposEspecificosMaestro({
 
   return (
     <>
-      <div className="grid gap-2 md:col-span-2">
+      <div className="grid gap-2">
         <label className="text-sm font-medium" htmlFor="tipoContrato">Tipo de contrato</label>
-        <Select name="tipoContrato" defaultValue="FIJO">
+        <Select name="tipoContrato" defaultValue="ANUAL">
           <SelectTrigger id="tipoContrato" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="FIJO">Fijo</SelectItem>
-            <SelectItem value="TEMPORAL">Temporal</SelectItem>
-            <SelectItem value="SERVICIO">Servicio</SelectItem>
+            <SelectItem value="ANUAL">Anual</SelectItem>
+            <SelectItem value="MENSUAL">Mensual</SelectItem>
+            <SelectItem value="PROYECTO">Por proyecto</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid gap-2">
+        <label className="text-sm font-medium" htmlFor="cuentaId">Cuenta</label>
+        <Select name="cuentaId" defaultValue="__none">
+          <SelectTrigger id="cuentaId" className="w-full">
+            <SelectValue placeholder="Selecciona una cuenta" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none">Sin cuenta asociada</SelectItem>
+            {cuentas.map((cuenta) => (
+              <SelectItem key={cuenta.id} value={cuenta.id}>
+                {cuenta.codigo} - {cuenta.nombre}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -218,7 +484,7 @@ function EstadoDatoBadge({ dato }: { dato: ConfiguracionGeneralResponse }) {
       ) : (
         <Ban className="size-3.5 text-destructive" />
       )}
-      {esAnulado ? "ANULADO" : dato.estado}
+      {textoEstadoConfiguracion(dato)}
     </Badge>
   )
 }
@@ -257,23 +523,23 @@ function MetricasMaestros({
   cargando?: boolean
 }) {
   const activosVigentes = datos.filter(
-    (dato) => dato.estado === "ACTIVO" && dato.estadoRegistro === "VIGENTE",
+    (dato) => dato.estado === "ACTIVO" && dato.estadoRegistro === "ACTIVO",
   ).length
   const inactivos = datos.filter((dato) => dato.estado === "INACTIVO").length
   const anulados = datos.filter((dato) => dato.estadoRegistro === "ANULADO").length
 
   const metricas = [
     {
-      etiqueta: "Datos maestros",
+      etiqueta: "Configuraciones",
       valor: total || datos.length,
       detalle: "Cargo, Sede, Area, Cuenta y Contrato consultados.",
       icon: Database,
-      contexto: "Maestro BC14",
+      contexto: "Catálogo",
     },
     {
       etiqueta: "Activos vigentes",
       valor: activosVigentes,
-      detalle: "Disponibles para los bounded contexts consumidores.",
+      detalle: "Disponibles para los procesos que usan configuración.",
       icon: CheckCircle2,
       contexto: "Operativos",
     },
@@ -285,11 +551,11 @@ function MetricasMaestros({
       contexto: "Seguimiento",
     },
     {
-      etiqueta: "Historial",
+      etiqueta: "Cambios",
       valor: historial ?? "-",
-      detalle: "Auditoria propia de Configuracion General.",
+      detalle: "Movimientos registrados para seguimiento.",
       icon: History,
-      contexto: "Append-only",
+      contexto: "Trazabilidad",
     },
   ]
 
@@ -352,7 +618,7 @@ function TablaDatosMaestros({
   if (datos.length === 0) {
     return (
       <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-        No existen datos maestros para la consulta aplicada.
+        No existen configuraciones para la consulta aplicada.
       </div>
     )
   }
@@ -368,7 +634,7 @@ function TablaDatosMaestros({
             <TableHead>Dato especifico</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Registro</TableHead>
-            <TableHead>Evento de dominio</TableHead>
+            <TableHead>Último movimiento</TableHead>
             <TableHead>Modificacion</TableHead>
           </TableRow>
         </TableHeader>
@@ -404,10 +670,10 @@ function TablaDatosMaestros({
               </TableCell>
               <TableCell>
                 <Badge
-                  variant={dato.estadoRegistro === "VIGENTE" ? "outline" : "destructive"}
+                  variant={dato.estadoRegistro === "ACTIVO" ? "outline" : "destructive"}
                   className="h-6 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
                 >
-                  {dato.estadoRegistro}
+                  {textoVigencia(dato.estadoRegistro)}
                 </Badge>
               </TableCell>
               <TableCell className="font-medium">{eventoPrincipal(dato)}</TableCell>
@@ -502,7 +768,7 @@ function FiltrosMaestros({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="TODOS">Registro: todos</SelectItem>
-            <SelectItem value="VIGENTE">Vigente</SelectItem>
+            <SelectItem value="ACTIVO">Vigente</SelectItem>
             <SelectItem value="ANULADO">Anulado</SelectItem>
           </SelectContent>
         </Select>
@@ -511,7 +777,7 @@ function FiltrosMaestros({
         <Button asChild size="sm">
           <Link href="/configuracion/nuevo">
             <Plus className="size-4" />
-            Nuevo maestro
+            Nueva configuración
           </Link>
         </Button>
         <Button variant="outline" size="sm" onClick={onExportar} disabled={exportando}>
@@ -528,7 +794,7 @@ function ConteoPorTipo({ datos }: { datos: ConfiguracionGeneralResponse[] }) {
     <Card className="border-border shadow-sm">
       <CardHeader>
         <CardTitle>Distribucion</CardTitle>
-        <CardDescription>Registros agrupados por dato maestro.</CardDescription>
+        <CardDescription>Registros agrupados por tipo de configuración.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
         {tipos
@@ -551,7 +817,7 @@ function FichaMaestro({ dato }: { dato?: ConfiguracionGeneralResponse }) {
     return (
       <Card className="border-border shadow-sm">
         <CardHeader>
-          <CardTitle>Ficha del maestro</CardTitle>
+          <CardTitle>Ficha de configuración</CardTitle>
           <CardDescription>Selecciona un registro de la tabla.</CardDescription>
         </CardHeader>
       </Card>
@@ -561,7 +827,7 @@ function FichaMaestro({ dato }: { dato?: ConfiguracionGeneralResponse }) {
   return (
     <Card className="border-border shadow-sm">
       <CardHeader>
-        <CardTitle>Ficha del maestro</CardTitle>
+        <CardTitle>Ficha de configuración</CardTitle>
         <CardDescription>Lectura del registro seleccionado por negocio.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
@@ -617,7 +883,7 @@ export function ConfiguracionGeneralDashboardVista() {
         <div className="flex w-full flex-col gap-5">
           {query.error ? (
             <Alert variant="destructive">
-              <AlertTitle>Error de API</AlertTitle>
+              <AlertTitle>No se pudo cargar la información</AlertTitle>
               <AlertDescription>{obtenerMensajeError(query.error)}</AlertDescription>
             </Alert>
           ) : null}
@@ -628,7 +894,7 @@ export function ConfiguracionGeneralDashboardVista() {
             <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
               <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-base font-semibold">Datos maestros recientes</h2>
+                  <h2 className="text-base font-semibold">Configuraciones recientes</h2>
                   <p className="text-sm text-muted-foreground">
                     Consulta real de Cargo, Sede, Area, Cuenta y Contrato.
                   </p>
@@ -643,12 +909,21 @@ export function ConfiguracionGeneralDashboardVista() {
             <aside className="flex flex-col gap-3">
               <Card className="border-border shadow-sm">
                 <CardHeader>
-                  <CardTitle>Estado del BC</CardTitle>
-                  <CardDescription>Respuesta de /configuracion-general/estado.</CardDescription>
+                  <CardTitle>Estado del servicio</CardTitle>
+                  <CardDescription>Disponibilidad actual del servicio de configuración.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-3 text-sm">
-                  <Dato label="Bounded context" value={estadoQuery.data?.boundedContext} />
-                  <Dato label="Agregado" value={estadoQuery.data?.agregado} />
+                  <Dato
+                    label="Conexión"
+                    value={
+                      estadoQuery.isLoading
+                        ? "Verificando"
+                        : estadoQuery.error
+                          ? "No disponible"
+                          : "Disponible"
+                    }
+                  />
+                  <Dato label="Uso" value="Cargos, sedes, areas, cuentas y contratos" />
                 </CardContent>
               </Card>
               <ConteoPorTipo datos={datos} />
@@ -661,7 +936,7 @@ export function ConfiguracionGeneralDashboardVista() {
                   <Button asChild>
                     <Link href="/configuracion/nuevo">
                       <Plus className="size-4" />
-                      Registrar maestro
+                      Registrar configuración
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
@@ -673,7 +948,7 @@ export function ConfiguracionGeneralDashboardVista() {
                   <Button asChild variant="outline">
                     <Link href="/configuracion/listar">
                       <Database className="size-4" />
-                      Listar maestros
+                      Ver configuraciones
                     </Link>
                   </Button>
                 </CardContent>
@@ -709,17 +984,17 @@ export function ConfiguracionGeneralListadoVista() {
   return (
     <>
       <SiteHeader
-        title="Listar datos maestros"
+        title="Configuraciones"
         breadcrumbs={[
           { title: "CS-Configuración General", href: "/configuracion" },
-          { title: "Listar datos maestros" },
+          { title: "Configuraciones" },
         ]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
           {consulta.error ? (
             <Alert variant="destructive">
-              <AlertTitle>Error de API</AlertTitle>
+              <AlertTitle>No se pudo cargar la información</AlertTitle>
               <AlertDescription>{obtenerMensajeError(consulta.error)}</AlertDescription>
             </Alert>
           ) : null}
@@ -728,7 +1003,7 @@ export function ConfiguracionGeneralListadoVista() {
             <Alert>
               <AlertTitle>Exportacion consultada</AlertTitle>
               <AlertDescription>
-                El endpoint devolvio {exportacion.data.datos.length} registros filtrados.
+                Se encontraron {exportacion.data.datos.length} registros para exportar.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -738,9 +1013,9 @@ export function ConfiguracionGeneralListadoVista() {
           <section className="grid gap-5 xl:grid-cols-[1fr_340px]">
             <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
               <div className="border-b border-border px-4 py-3">
-                <h2 className="text-base font-semibold">Maestro de Configuracion General</h2>
+                <h2 className="text-base font-semibold">Configuraciones registradas</h2>
                 <p className="text-sm text-muted-foreground">
-                  Consulta paginada de /configuracion-general con filtros del backend.
+                  Consulta por tipo, estado y vigencia de los registros disponibles.
                 </p>
               </div>
               <FiltrosMaestros
@@ -768,11 +1043,39 @@ export function ConfiguracionGeneralListadoVista() {
 }
 
 export function ConfiguracionGeneralNuevoVista() {
+  const { usuario } = useSesion()
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tipoNuevo, setTipoNuevo] = useState<TipoDatoMaestro>("CARGO")
+  const [nivelAreaNuevo, setNivelAreaNuevo] = useState<NivelArea>("AREA")
+  const [paisNuevo, setPaisNuevo] = useState("Peru")
+  const [departamentoNuevo, setDepartamentoNuevo] = useState("")
+  const [provinciaNuevo, setProvinciaNuevo] = useState("")
+  const [distritoNuevo, setDistritoNuevo] = useState("")
+  const ejemplos = ejemplosFormulario(tipoNuevo)
+  const cargosQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "CARGO",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
   const sedesQuery = useCatalogoConfiguracionGeneralQuery({
     tipoDatoMaestro: "SEDE",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
+  const areasQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "AREA",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
+  const cuentasQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "CUENTA",
     page: 1,
     pageSize: 100,
     sortBy: "nombre",
@@ -785,26 +1088,76 @@ export function ConfiguracionGeneralNuevoVista() {
     setMensaje(null)
     setError(null)
 
-    const formData = new FormData(event.currentTarget)
-    const direccion = String(formData.get("direccion") ?? "").trim()
-    const sedeId = String(formData.get("sedeId") ?? "").trim()
-    const tipoCuenta = String(formData.get("tipoCuenta") ?? "").trim()
-    const tipoContrato = String(formData.get("tipoContrato") ?? "").trim()
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const cargoSuperiorId = valorOpcional(formData, "cargoSuperiorId")
+    const direccion = valorOpcional(formData, "direccion")
+    const pais = valorOpcional(formData, "pais")
+    const departamento = valorOpcional(formData, "departamento")
+    const provincia = valorOpcional(formData, "provincia")
+    const ciudad = valorOpcional(formData, "ciudad")
+    const distrito = valorOpcional(formData, "distrito")
+    const referenciaUbicacion = valorOpcional(formData, "referenciaUbicacion")
+    const sedeId = valorOpcional(formData, "sedeId")
+    const nivelArea = valorOpcional(formData, "nivelArea") as NivelArea | undefined
+    const gerenciaId = valorOpcional(formData, "gerenciaId")
+    const tipoCuenta = valorOpcional(formData, "tipoCuenta")
+    const tipoContrato = valorOpcional(formData, "tipoContrato")
+    const cuentaId = valorOpcional(formData, "cuentaId")
+
+    if (tipoNuevo === "AREA") {
+      if (!sedeId) {
+        setError("Selecciona la sede a la que pertenece el area.")
+        return
+      }
+
+      if (nivelArea === "AREA" && !gerenciaId) {
+        setError("Selecciona la gerencia superior del area.")
+        return
+      }
+    }
+
+    if (tipoNuevo === "SEDE" && (!pais || !direccion || !departamento || !provincia || !distrito)) {
+      setError("Completa pais, direccion, departamento, provincia y distrito de la sede.")
+      return
+    }
 
     try {
       const creado = await registrarMutation.mutateAsync({
         tipoDatoMaestro: tipoNuevo,
         codigo: String(formData.get("codigo") ?? "").trim(),
         nombre: String(formData.get("nombre") ?? "").trim(),
-        descripcion: String(formData.get("descripcion") ?? "").trim(),
-        ...(tipoNuevo === "SEDE" ? { direccion } : {}),
-        ...(tipoNuevo === "AREA" ? { sedeId } : {}),
+        descripcion: valorOpcional(formData, "descripcion") ?? null,
+        ...(tipoNuevo === "CARGO" ? { cargoSuperiorId: cargoSuperiorId ?? null } : {}),
+        ...(tipoNuevo === "SEDE"
+          ? {
+              direccion: direccion ?? null,
+              pais: pais ?? null,
+              departamento: departamento ?? null,
+              provincia: provincia ?? null,
+              ciudad: ciudad ?? null,
+              distrito: distrito ?? null,
+              referenciaUbicacion: referenciaUbicacion ?? null,
+            }
+          : {}),
+        ...(tipoNuevo === "AREA"
+          ? {
+              sedeId: sedeId ?? null,
+              nivelArea: nivelArea ?? null,
+              gerenciaId: nivelArea === "AREA" ? gerenciaId ?? null : null,
+            }
+          : {}),
         ...(tipoNuevo === "CUENTA" ? { tipoCuenta } : {}),
-        ...(tipoNuevo === "CONTRATO" ? { tipoContrato } : {}),
-        usuarioId: String(formData.get("usuarioId") ?? "admin").trim(),
+        ...(tipoNuevo === "CONTRATO" ? { tipoContrato, cuentaId: cuentaId ?? null } : {}),
+        usuarioCreacion: usuario?.email ?? "admin",
       })
-      event.currentTarget.reset()
+      form.reset()
       setTipoNuevo("CARGO")
+      setNivelAreaNuevo("AREA")
+      setPaisNuevo("Peru")
+      setDepartamentoNuevo("")
+      setProvinciaNuevo("")
+      setDistritoNuevo("")
       setMensaje(`${creado.tipoDatoMaestro} ${creado.codigo} fue registrado.`)
     } catch (err) {
       setError(obtenerMensajeError(err))
@@ -814,10 +1167,10 @@ export function ConfiguracionGeneralNuevoVista() {
   return (
     <>
       <SiteHeader
-        title="Nuevo dato maestro"
+        title="Nueva configuración"
         breadcrumbs={[
           { title: "CS-Configuración General", href: "/configuracion" },
-          { title: "Nuevo dato maestro" },
+          { title: "Nueva configuración" },
         ]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
@@ -835,23 +1188,41 @@ export function ConfiguracionGeneralNuevoVista() {
             </Alert>
           ) : null}
 
-          <section className="grid gap-5 xl:grid-cols-[1fr_340px]">
+          <section>
             <form
               className="rounded-lg border border-border bg-card text-card-foreground shadow-sm"
               onSubmit={(event) => void registrar(event)}
             >
-              <div className="border-b border-border px-5 py-4">
-                <h2 className="text-lg font-semibold">Registrar y habilitar maestro</h2>
+              <div className="flex flex-col gap-2 border-b border-border px-5 py-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-semibold">Registrar configuración</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Completa la informacion que usaran las areas para clasificar cargos,
+                      sedes, areas, cuentas y contratos.
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="w-fit rounded-full">
+                    Activo al guardar
+                  </Badge>
+                </div>
                 <p className="text-sm text-muted-foreground">
-                  POST /configuracion-general crea el agregado y registra historial REGISTRO.
+                  El registro quedara disponible para seleccionarse en los procesos relacionados.
                 </p>
               </div>
               <div className="grid gap-4 p-5 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="tipoDatoMaestro">Tipo de dato maestro</label>
+                  <label className="text-sm font-medium" htmlFor="tipoDatoMaestro">Tipo de configuración</label>
                   <Select
                     value={tipoNuevo}
-                    onValueChange={(value) => setTipoNuevo(value as TipoDatoMaestro)}
+                    onValueChange={(value) => {
+                      setTipoNuevo(value as TipoDatoMaestro)
+                      setNivelAreaNuevo("AREA")
+                      setPaisNuevo("Peru")
+                      setDepartamentoNuevo("")
+                      setProvinciaNuevo("")
+                      setDistritoNuevo("")
+                    }}
                   >
                     <SelectTrigger id="tipoDatoMaestro" className="w-full">
                       <SelectValue />
@@ -867,72 +1238,46 @@ export function ConfiguracionGeneralNuevoVista() {
                 </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium" htmlFor="codigo">Codigo</label>
-                  <Input id="codigo" name="codigo" placeholder="CARGO-001" required />
+                  <Input id="codigo" name="codigo" placeholder={ejemplos.codigo} required />
                 </div>
                 <div className="grid gap-2 md:col-span-2">
                   <label className="text-sm font-medium" htmlFor="nombre">Nombre</label>
-                  <Input id="nombre" name="nombre" placeholder="Conductor" required />
+                  <Input id="nombre" name="nombre" placeholder={ejemplos.nombre} required />
                 </div>
                 <div className="grid gap-2 md:col-span-2">
                   <label className="text-sm font-medium" htmlFor="descripcion">Descripcion</label>
-                  <Textarea id="descripcion" name="descripcion" placeholder="Cargo operativo" />
-                </div>
-                <div className="md:col-span-2">
-                  <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
-                    <h3 className="text-sm font-semibold">Datos especificos de {nombreTipo(tipoNuevo)}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Se envian como campos directos del maestro usando el endpoint unico /configuracion-general.
-                    </p>
-                  </div>
+                  <Textarea id="descripcion" name="descripcion" placeholder={ejemplos.descripcion} />
                 </div>
                 <CamposEspecificosMaestro
+                  areas={areasQuery.data?.datos ?? []}
+                  cargos={cargosQuery.data?.datos ?? []}
+                  cuentas={cuentasQuery.data?.datos ?? []}
+                  departamento={departamentoNuevo}
+                  distrito={distritoNuevo}
+                  nivelArea={nivelAreaNuevo}
+                  onNivelAreaChange={setNivelAreaNuevo}
+                  onUbicacionChange={(ubicacion) => {
+                    if (ubicacion.pais !== undefined) setPaisNuevo(ubicacion.pais)
+                    if (ubicacion.departamento !== undefined) setDepartamentoNuevo(ubicacion.departamento)
+                    if (ubicacion.provincia !== undefined) setProvinciaNuevo(ubicacion.provincia)
+                    if (ubicacion.distrito !== undefined) setDistritoNuevo(ubicacion.distrito)
+                  }}
+                  pais={paisNuevo}
+                  provincia={provinciaNuevo}
                   sedes={sedesQuery.data?.datos ?? []}
                   tipo={tipoNuevo}
                 />
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="usuarioId">Usuario</label>
-                  <Input id="usuarioId" name="usuarioId" defaultValue="admin" required />
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium" htmlFor="estadoInicial">Estado inicial</label>
-                  <Input id="estadoInicial" value="ACTIVO + VIGENTE" readOnly />
-                </div>
               </div>
               <div className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-4">
-                <Button type="button" variant="outline">Cancelar</Button>
+                <Button asChild variant="outline">
+                  <Link href="/configuracion/listar">Cancelar</Link>
+                </Button>
                 <Button type="submit" disabled={registrarMutation.isPending}>
                   <CheckCircle2 className="size-4" />
-                  {registrarMutation.isPending ? "Registrando..." : "Registrar y habilitar"}
+                  {registrarMutation.isPending ? "Guardando..." : "Guardar configuración"}
                 </Button>
               </div>
             </form>
-
-            <aside className="flex flex-col gap-3">
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle>Reglas de negocio</CardTitle>
-                  <CardDescription>Validaciones esperadas del backend.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3 text-sm">
-                  <Dato label="Identidad" value="tipoDatoMaestro + codigo" />
-                  <Dato label="Nombre unico" value="tipoDatoMaestro + nombre" />
-                  <Dato label="Datos especificos" value="Sede usa direccion, Area usa sedeId, Cuenta usa tipoCuenta y Contrato usa tipoContrato" />
-                  <Dato label="Estado operativo" value="Solo ACTIVO + VIGENTE se consume" />
-                  <Dato label="Historial" value="REGISTRO con datos_nuevos" />
-                </CardContent>
-              </Card>
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle>Evento resultante</CardTitle>
-                  <CardDescription>Hecho de dominio en tiempo pasado.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="rounded-md border border-border bg-background px-3 py-2 text-sm font-medium">
-                    CargoHabilitado / SedeHabilitada / AreaHabilitada
-                  </div>
-                </CardContent>
-              </Card>
-            </aside>
           </section>
         </div>
       </main>
@@ -951,38 +1296,48 @@ export function ConfiguracionGeneralReportesVista() {
   const exportacion = useExportarConfiguracionGeneralQuery(query, true)
   const datos = exportacion.data?.datos ?? catalogo.data?.datos ?? []
   const total = exportacion.data?.paginacion?.total ?? datos.length
-  const eventos = [
+  const disponibles = datos.filter(
+    (dato) => dato.estado === "ACTIVO" && dato.estadoRegistro === "ACTIVO",
+  ).length
+  const pausadas = datos.filter(
+    (dato) => dato.estado === "INACTIVO" && dato.estadoRegistro !== "ANULADO",
+  ).length
+  const retiradas = datos.filter((dato) => dato.estadoRegistro === "ANULADO").length
+  const resumen = [
     {
-      titulo: "Habilitados",
+      titulo: "Disponibles",
+      valor: disponibles,
+      detalle: "Listas para usarse en los procesos del sistema.",
       icon: CheckCircle2,
-      eventos: ["CargoHabilitado", "SedeHabilitada", "AreaHabilitada", "CuentaHabilitada", "ContratoHabilitado"],
     },
     {
-      titulo: "Actualizados",
-      icon: SlidersHorizontal,
-      eventos: ["CargoActualizado", "SedeActualizada", "AreaActualizada", "CuentaActualizada", "ContratoActualizado"],
+      titulo: "Pausadas",
+      valor: pausadas,
+      detalle: "Se conservan en consulta, pero no se usan para nuevas operaciones.",
+      icon: Ban,
     },
     {
-      titulo: "Inhabilitados",
-      icon: Archive,
-      eventos: ["CargoInhabilitado", "SedeInhabilitada", "AreaInhabilitada", "CuentaInhabilitada", "ContratoInhabilitado"],
+      titulo: "Retiradas",
+      valor: retiradas,
+      detalle: "Quedan como referencia historica y no aparecen como opciones activas.",
+      icon: History,
     },
   ]
 
   return (
     <>
       <SiteHeader
-        title="Reportes y eventos"
+        title="Reportes"
         breadcrumbs={[
           { title: "CS-Configuración General", href: "/configuracion" },
-          { title: "Reportes y eventos" },
+          { title: "Reportes" },
         ]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
           {exportacion.error ? (
             <Alert variant="destructive">
-              <AlertTitle>Error de API</AlertTitle>
+              <AlertTitle>No se pudo cargar la información</AlertTitle>
               <AlertDescription>{obtenerMensajeError(exportacion.error)}</AlertDescription>
             </Alert>
           ) : null}
@@ -990,102 +1345,42 @@ export function ConfiguracionGeneralReportesVista() {
           <MetricasMaestros datos={datos} total={total} cargando={exportacion.isLoading} />
 
           <section className="grid gap-3 md:grid-cols-3">
-            {eventos.map((grupo) => (
-              <Card key={grupo.titulo} className="border-border shadow-sm">
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <CardTitle>{grupo.titulo}</CardTitle>
-                      <CardDescription>Eventos de dominio publicados por BC14.</CardDescription>
-                    </div>
-                    <span className="flex size-9 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border">
-                      <grupo.icon className="size-4" />
-                    </span>
+            {resumen.map((item) => (
+              <Card key={item.titulo} className="border-border shadow-sm">
+                <CardHeader className="flex flex-row items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <CardDescription>{item.titulo}</CardDescription>
+                    <CardTitle className="mt-2 text-3xl tabular-nums">
+                      {exportacion.isLoading ? "-" : item.valor}
+                    </CardTitle>
                   </div>
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border">
+                    <item.icon className="size-4" />
+                  </span>
                 </CardHeader>
-                <CardContent className="flex flex-col gap-2">
-                  {grupo.eventos.map((evento) => (
-                    <div key={evento} className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm">
-                      <Clock3 className="size-4 text-muted-foreground" />
-                      <span className="font-medium">{evento}</span>
-                    </div>
-                  ))}
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">{item.detalle}</p>
                 </CardContent>
               </Card>
             ))}
           </section>
 
-          <section className="grid gap-5 xl:grid-cols-[1fr_340px]">
+          <section>
             <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
               <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-base font-semibold">Exportacion filtrada</h2>
+                  <h2 className="text-base font-semibold">Configuraciones para revisar</h2>
                   <p className="text-sm text-muted-foreground">
-                    GET /configuracion-general/exportar devuelve DTO paginado filtrado.
+                    Vista consolidada de cargos, sedes, areas, cuentas y contratos.
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => void exportacion.refetch()}>
                   <FileDown className="size-4" />
-                  Refrescar exportacion
+                  Actualizar
                 </Button>
               </div>
               <TablaDatosMaestros datos={datos} cargando={exportacion.isLoading} />
             </section>
-
-            <aside className="flex flex-col gap-3">
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle>Catalogo operativo</CardTitle>
-                  <CardDescription>GET /catalogo fuerza ACTIVO + VIGENTE.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3 text-sm">
-                  <Dato label="Registros catalogo" value={String(catalogo.data?.datos.length ?? 0)} />
-                  <Dato label="Filtro interno" value="estado ACTIVO + estadoRegistro VIGENTE" />
-                </CardContent>
-              </Card>
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle>Reactivacion y anulacion</CardTitle>
-                  <CardDescription>Estados complementarios del maestro.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3 text-sm">
-                  <div className="rounded-md border border-border bg-background p-3">
-                    <div className="flex items-center gap-2 font-medium">
-                      <RotateCcw className="size-4 text-primary" />
-                      Reactivacion
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                      PATCH /:id/reactivar recupera un INACTIVO no anulado.
-                    </p>
-                  </div>
-                  <div className="rounded-md border border-border bg-background p-3">
-                    <div className="flex items-center gap-2 font-medium">
-                      <Settings2 className="size-4 text-primary" />
-                      Anulacion
-                    </div>
-                    <p className="mt-1 text-muted-foreground">
-                      PATCH /:id/anular marca estadoRegistro ANULADO.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle>Campos base</CardTitle>
-                  <CardDescription>Alineados al backend actual.</CardDescription>
-                  <CardAction>
-                    <Badge variant="outline">API</Badge>
-                  </CardAction>
-                </CardHeader>
-                <CardContent className="grid gap-2 text-sm text-muted-foreground">
-                  <span>tipoDatoMaestro</span>
-                  <span>codigo, nombre, descripcion</span>
-                  <span>direccion, sedeId, tipoCuenta, tipoContrato</span>
-                  <span>estado, estadoRegistro</span>
-                  <span>fechaCreacion, usuarioCreacion</span>
-                </CardContent>
-              </Card>
-            </aside>
           </section>
         </div>
       </main>

@@ -6,6 +6,7 @@ import {
   loginContraAuthService,
 } from "@/compartido/autenticacion/auth-service-cliente"
 import { setCookiesSesion } from "@/compartido/autenticacion/cookies-sesion"
+import { extraerIpCliente } from "@/compartido/autenticacion/extraer-ip-cliente"
 import { mapearPayloadAUsuario } from "@/compartido/autenticacion/sesion-servidor"
 import { decodificarAccessToken } from "@/compartido/autenticacion/tokens-jwt"
 
@@ -24,9 +25,11 @@ export async function POST(request: Request) {
     )
   }
 
+  const ipCliente = extraerIpCliente(request)
+
   let tokens
   try {
-    tokens = await loginContraAuthService(body.email, body.password)
+    tokens = await loginContraAuthService(body.email, body.password, ipCliente)
   } catch (error) {
     if (esError401(error)) {
       return NextResponse.json(

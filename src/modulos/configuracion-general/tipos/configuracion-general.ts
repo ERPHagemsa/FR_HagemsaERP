@@ -2,7 +2,9 @@ export type TipoDatoMaestro = "CARGO" | "SEDE" | "AREA" | "CUENTA" | "CONTRATO"
 
 export type EstadoDatoMaestro = "ACTIVO" | "INACTIVO"
 
-export type EstadoRegistro = "VIGENTE" | "ANULADO"
+export type EstadoRegistro = "ACTIVO" | "ANULADO"
+
+export type NivelArea = "GERENCIA" | "AREA"
 
 export type AccionHistorial =
   | "REGISTRO"
@@ -12,13 +14,10 @@ export type AccionHistorial =
   | "ANULACION"
 
 export interface PaginationMeta {
-  page?: number
-  pageSize?: number
   pagina?: number
   limite?: number
   total: number
-  totalPaginas?: number
-  totalPages?: number
+  totalPaginas: number
   tieneSiguiente?: boolean
   tieneAnterior?: boolean
 }
@@ -39,10 +38,20 @@ export interface ConfiguracionGeneralResponse {
   codigo: string
   nombre: string
   descripcion?: string | null
+  cargoSuperiorId?: string | null
   direccion?: string | null
+  pais?: string | null
+  departamento?: string | null
+  provincia?: string | null
+  ciudad?: string | null
+  distrito?: string | null
+  referenciaUbicacion?: string | null
   sedeId?: string | null
+  nivelArea?: NivelArea | null
+  gerenciaId?: string | null
   tipoCuenta?: string | null
   tipoContrato?: string | null
+  cuentaId?: string | null
   estado: EstadoDatoMaestro
   estadoRegistro: EstadoRegistro
   motivoInhabilitacion?: string | null
@@ -74,28 +83,57 @@ export interface RegistrarConfiguracionGeneralRequest {
   tipoDatoMaestro: TipoDatoMaestro
   codigo: string
   nombre: string
-  descripcion?: string
-  direccion?: string
-  sedeId?: string
-  tipoCuenta?: string
-  tipoContrato?: string
-  usuarioId: string
+  descripcion?: string | null
+  cargoSuperiorId?: string | null
+  direccion?: string | null
+  pais?: string | null
+  departamento?: string | null
+  provincia?: string | null
+  ciudad?: string | null
+  distrito?: string | null
+  referenciaUbicacion?: string | null
+  sedeId?: string | null
+  nivelArea?: NivelArea | null
+  gerenciaId?: string | null
+  tipoCuenta?: string | null
+  tipoContrato?: string | null
+  cuentaId?: string | null
+  usuarioCreacion: string
 }
 
 export interface ModificarConfiguracionGeneralRequest {
   codigo?: string
   nombre?: string
-  descripcion?: string
-  direccion?: string
-  sedeId?: string
-  tipoCuenta?: string
-  tipoContrato?: string
-  usuarioId: string
+  descripcion?: string | null
+  cargoSuperiorId?: string | null
+  direccion?: string | null
+  pais?: string | null
+  departamento?: string | null
+  provincia?: string | null
+  ciudad?: string | null
+  distrito?: string | null
+  referenciaUbicacion?: string | null
+  sedeId?: string | null
+  nivelArea?: NivelArea | null
+  gerenciaId?: string | null
+  tipoCuenta?: string | null
+  tipoContrato?: string | null
+  cuentaId?: string | null
+  usuarioModificacion: string
 }
 
-export interface CambiarEstadoConfiguracionGeneralRequest {
-  motivo?: string
-  usuarioId: string
+export interface InhabilitarConfiguracionGeneralRequest {
+  motivo: string
+  usuarioModificacion: string
+}
+
+export interface ReactivarConfiguracionGeneralRequest {
+  usuarioModificacion: string
+}
+
+export interface AnularConfiguracionGeneralRequest {
+  motivo: string
+  usuarioModificacion: string
 }
 
 export interface ConsultarConfiguracionGeneralQuery {
@@ -113,6 +151,11 @@ export interface ConsultarConfiguracionGeneralQuery {
     | "estado"
     | "estadoRegistro"
     | "fechaCreacion"
-    | "fechaModificacion"
   sortOrder?: "asc" | "desc"
+}
+
+export type FormatoExportacionConfiguracionGeneral = "EXCEL" | "PDF"
+
+export type ExportarConfiguracionGeneralQuery = ConsultarConfiguracionGeneralQuery & {
+  formato?: FormatoExportacionConfiguracionGeneral
 }

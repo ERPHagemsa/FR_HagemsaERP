@@ -170,11 +170,11 @@ const data = {
     },
     {
       title: "CS-Configuración General",
+      url: "/configuracion",
       icon: <HugeiconsIcon icon={Settings02Icon} strokeWidth={2} />,
       items: [
-        { title: "Panel", url: "/configuracion" },
-        { title: "Listar maestros", url: "/configuracion/listar" },
-        { title: "Nuevo maestro", url: "/configuracion/nuevo" },
+        { title: "Configuraciones", url: "/configuracion/listar" },
+        { title: "Nueva configuración", url: "/configuracion/nuevo" },
         { title: "Reportes", url: "/configuracion/reportes" },
       ],
     },
