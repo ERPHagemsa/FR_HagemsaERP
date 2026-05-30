@@ -4,8 +4,11 @@ import {
   borrarCookiesSesion,
   COOKIE_ACCESS,
   COOKIE_REFRESH,
+  COOKIE_SESION_VALIDADA,
+  marcarSesionValidada,
 } from "@/compartido/autenticacion/cookies-sesion"
 import { refrescarSiNecesario } from "@/compartido/autenticacion/refrescar-sesion"
+import { validarSesionRemota } from "@/compartido/autenticacion/validar-sesion"
 
 const rutasPublicas = ["/login"]
 const prefijosPublicos = ["/api/auth"]
@@ -75,10 +78,35 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 
   if (resultado.tipo === "refrescado") {
+    // El refresh acaba de rotar el par contra el Auth Service: el access es
+    // nuevo y valido, no hace falta revalidar. Cacheamos esa validez.
+    marcarSesionValidada(resultado.response.cookies)
     return resultado.response
   }
 
-  return NextResponse.next()
+  // Access vigente (no se refresco): decodificarlo en local NO detecta una
+  // sesion revocada (logout en otro dispositivo o revocacion admin). Validamos
+  // contra el Auth Service, pero con cache corto (COOKIE_SESION_VALIDADA) para
+  // no pegarle en cada navegacion. Acota la latencia de revocacion a la duracion
+  // de esa cookie (~20s) en vez de a la expiracion del access token.
+  const yaValidada = Boolean(request.cookies.get(COOKIE_SESION_VALIDADA)?.value)
+  if (yaValidada) {
+    return NextResponse.next()
+  }
+
+  const accessToken = request.cookies.get(COOKIE_ACCESS)?.value
+  if (!accessToken) {
+    return redirigirALogin(request, "sesion_expirada")
+  }
+
+  const validacion = await validarSesionRemota(accessToken)
+  if (validacion.tipo === "revocada") {
+    return redirigirALogin(request, "sesion_expirada")
+  }
+
+  const response = NextResponse.next()
+  marcarSesionValidada(response.cookies)
+  return response
 }
 
 export const config = {

@@ -7,6 +7,15 @@
 export const COOKIE_ACCESS = "hagemsa_access"
 export const COOKIE_REFRESH = "hagemsa_refresh"
 
+// Cookie de cache de la validacion de sesion contra el Auth Service. El
+// middleware valida que el jti no este revocado en cada navegacion, pero NO en
+// cada una: tras una validacion OK setea esta cookie con un maxAge corto y
+// mientras este presente saltea el round-trip. Asi acota la latencia de
+// revocacion a su duracion (ver SEGUNDOS_CACHE_VALIDACION) sin pegarle al Auth
+// Service en cada click.
+export const COOKIE_SESION_VALIDADA = "hagemsa_sesion_ok"
+export const SEGUNDOS_CACHE_VALIDACION = 20
+
 export type ParTokens = {
   readonly accessToken: string
   readonly refreshToken: string
@@ -74,7 +83,20 @@ export function setCookiesSesion(
   })
 }
 
+// Marca la sesion como validada por un periodo corto (cache de la validacion
+// remota contra el Auth Service). Mientras la cookie viva, el middleware no
+// vuelve a consultar la blacklist.
+export function marcarSesionValidada(cookies: SetterCookies): void {
+  cookies.set({
+    ...opcionesCookieSesion,
+    name: COOKIE_SESION_VALIDADA,
+    value: "1",
+    maxAge: SEGUNDOS_CACHE_VALIDACION,
+  })
+}
+
 export function borrarCookiesSesion(cookies: DeletorCookies): void {
   cookies.delete(COOKIE_ACCESS)
   cookies.delete(COOKIE_REFRESH)
+  cookies.delete(COOKIE_SESION_VALIDADA)
 }
