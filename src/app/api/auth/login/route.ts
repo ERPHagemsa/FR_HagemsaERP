@@ -1,7 +1,13 @@
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 
-import { esError401, esErrorRateLimit } from "@/compartido/api"
+import {
+  esError401,
+  esError409,
+  esErrorRateLimit,
+  extraerMensajeError,
+  obtenerCodigoError,
+} from "@/compartido/api"
 import {
   loginContraAuthService,
 } from "@/compartido/autenticacion/auth-service-cliente"
@@ -32,9 +38,27 @@ export async function POST(request: Request) {
     tokens = await loginContraAuthService(body.email, body.password, ipCliente)
   } catch (error) {
     if (esError401(error)) {
+      // Generico: no revelamos si el email existe o si la password es incorrecta.
       return NextResponse.json(
         { message: "Credenciales invalidas." },
         { status: 401 },
+      )
+    }
+    // Cuenta suspendida o inactiva: el Auth Service ya verifico la password
+    // antes de revelar el estado, asi que es seguro mostrar el motivo preciso.
+    const codigo = obtenerCodigoError(error)
+    if (
+      esError409(error) &&
+      (codigo === "AUTH_CUENTA_SUSPENDIDA" || codigo === "AUTH_CUENTA_INACTIVA")
+    ) {
+      return NextResponse.json(
+        {
+          message: extraerMensajeError(
+            error,
+            "Tu cuenta no esta habilitada para iniciar sesion.",
+          ),
+        },
+        { status: 409 },
       )
     }
     if (esErrorRateLimit(error)) {
