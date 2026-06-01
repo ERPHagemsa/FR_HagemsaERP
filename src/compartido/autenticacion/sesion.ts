@@ -8,6 +8,7 @@
 export interface UsuarioSesion {
   readonly id: string
   readonly email: string
+  readonly nombreUsuario: string
   readonly nombre: string
   readonly tipo: string
   readonly roles: ReadonlyArray<string>

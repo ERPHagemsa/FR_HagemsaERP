@@ -6,6 +6,7 @@ export type TipoCuenta = "interno" | "cliente" | "proveedor"
 export interface CuentaResponse {
   readonly id: string
   readonly email: string
+  readonly nombreUsuario: string
   readonly nombreCompleto: string
   readonly tipoCuenta: TipoCuenta
   readonly estado: EstadoCuenta
@@ -31,6 +32,7 @@ export interface ListarCuentasQuery {
 
 export interface CrearCuentaPayload {
   email: string
+  nombreUsuario: string
   nombreCompleto: string
   tipoCuenta: TipoCuenta
   documentoIdentidad?: string
