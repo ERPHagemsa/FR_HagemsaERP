@@ -47,6 +47,8 @@ const camposContacto = {
   email: z
     .union([z.string().email("El email no tiene un formato valido"), z.literal("")])
     .optional(),
+  // Spec 5.7: observaciones opcionales — compartido por contacto inicial y alta de contacto.
+  observaciones: z.string().optional(),
 };
 
 // Exige al menos telefono o email — comun a ambos schemas de contacto.
@@ -72,12 +74,11 @@ export const schemaContactoInicial = z
 
 export type DatosContactoInicial = z.infer<typeof schemaContactoInicial>;
 
-// Alta de contacto a un prospecto existente — incluye esPrincipal y observaciones.
+// Alta de contacto a un prospecto existente — incluye esPrincipal.
+// observaciones ya viene de camposContacto.
 export const schemaAgregarContacto = z
   .object({
     ...camposContacto,
-    // Spec 5.7: observaciones opcionales
-    observaciones: z.string().optional(),
     esPrincipal: z.boolean(),
   })
   .superRefine(refinarTelefonoOEmail);

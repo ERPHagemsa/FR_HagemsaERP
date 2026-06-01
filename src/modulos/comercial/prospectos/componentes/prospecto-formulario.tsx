@@ -212,12 +212,12 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
     // 400: si el backend devuelve errores por campo (array errores[]),
     // los mapeamos al estado para mostrarlos inline junto al campo.
     // Si no trae errores de campo, cae al toast generico.
-    const erroresCampo = obtenerErroresPorCampo(err);
-    const camposConError = Object.keys(erroresCampo);
+    const erroresPorCampoApi = obtenerErroresPorCampo(err);
+    const camposConError = Object.keys(erroresPorCampoApi);
     if (camposConError.length > 0) {
       const nuevosMensajes: Record<string, string> = {};
       for (const campo of camposConError) {
-        nuevosMensajes[campo] = erroresCampo[campo].mensaje;
+        nuevosMensajes[campo] = erroresPorCampoApi[campo].mensaje;
       }
       setErroresCampo(nuevosMensajes);
       // Toast adicional para que el usuario note que hay errores de campo
