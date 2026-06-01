@@ -34,7 +34,11 @@ export async function POST(request: Request) {
 
   let tokens
   try {
-    tokens = await refrescarTokens(refreshToken, ipCliente)
+    tokens = await refrescarTokens(
+      refreshToken,
+      ipCliente,
+      request.headers.get("user-agent"),
+    )
   } catch (error) {
     borrarCookiesSesion(cookieStore)
     if (esError401(error)) {

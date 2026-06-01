@@ -39,6 +39,7 @@ export async function POST(request: Request) {
       body.identificador,
       body.password,
       ipCliente,
+      request.headers.get("user-agent"),
     )
   } catch (error) {
     if (esError401(error)) {

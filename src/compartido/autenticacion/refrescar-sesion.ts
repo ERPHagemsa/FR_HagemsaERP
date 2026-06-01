@@ -53,11 +53,15 @@ export async function refrescarSiNecesario(
   }
 
   const ipCliente = extraerIpCliente(request)
+  const userAgenteCliente = request.headers.get("user-agent")
   const headersFetch: Record<string, string> = {
     "Content-Type": "application/json",
   }
   if (ipCliente) {
     headersFetch["X-Cliente-Ip"] = ipCliente
+  }
+  if (userAgenteCliente) {
+    headersFetch["X-Cliente-User-Agent"] = userAgenteCliente
   }
 
   let datos: RespuestaRefresh

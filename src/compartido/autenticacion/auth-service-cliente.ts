@@ -28,15 +28,30 @@ const cliente = crearClienteHttp({
 //
 // `ipCliente` se reenvia como header X-Cliente-Ip para que el audit log del
 // Auth Service registre la IP real del usuario final, no la del frontend Cloud Run.
+// Reenvia al Auth Service los datos del cliente final (browser) que el BFF ve
+// en la request entrante: la IP y el User-Agent reales. Sin esto, el Auth
+// Service registraria al BFF como cliente (IP de Cloud Run, UA "axios/x.y").
+function construirHeadersCliente(
+  ipCliente: string | null,
+  userAgenteCliente: string | null,
+): Record<string, string> | undefined {
+  const headers: Record<string, string> = {}
+  if (ipCliente) headers["X-Cliente-Ip"] = ipCliente
+  if (userAgenteCliente) headers["X-Cliente-User-Agent"] = userAgenteCliente
+  return Object.keys(headers).length > 0 ? headers : undefined
+}
+
 export async function loginContraAuthService(
   identificador: string,
   password: string,
   ipCliente: string | null,
+  userAgenteCliente: string | null,
 ): Promise<RespuestaTokensAuth> {
+  const headers = construirHeadersCliente(ipCliente, userAgenteCliente)
   const { data } = await cliente.post<RespuestaRecurso<RespuestaTokensAuth>>(
     "/api/auth/login",
     { identificador, password },
-    ipCliente ? { headers: { "X-Cliente-Ip": ipCliente } } : undefined,
+    headers ? { headers } : undefined,
   )
   return data.datos
 }
@@ -44,11 +59,13 @@ export async function loginContraAuthService(
 export async function refrescarTokens(
   refreshToken: string,
   ipCliente: string | null,
+  userAgenteCliente: string | null,
 ): Promise<RespuestaTokensAuth> {
+  const headers = construirHeadersCliente(ipCliente, userAgenteCliente)
   const { data } = await cliente.post<RespuestaRecurso<RespuestaTokensAuth>>(
     "/api/auth/refresh",
     { refreshToken },
-    ipCliente ? { headers: { "X-Cliente-Ip": ipCliente } } : undefined,
+    headers ? { headers } : undefined,
   )
   return data.datos
 }
