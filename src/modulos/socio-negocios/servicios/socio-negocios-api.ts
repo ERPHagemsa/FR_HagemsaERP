@@ -1,4 +1,7 @@
-import { clienteSocioNegocios } from "@/compartido/api/clientes-backend"
+import {
+  clienteConfiguracionGeneral,
+  clienteSocioNegocios,
+} from "@/compartido/api/clientes-backend"
 
 import type {
   ConsultarHistorialSocioDeNegocioQuery,
@@ -58,9 +61,14 @@ export async function obtenerResumenSociosDeNegocio(): Promise<ResumenSociosDeNe
 export async function consultarMaestrosConfiguracionGeneral(
   query: ConsultarMaestrosConfiguracionGeneralQuery,
 ): Promise<MaestroConfiguracionGeneralIntegracion[]> {
-  const { data } = await clienteSocioNegocios.get<
-    RespuestaDto<MaestroConfiguracionGeneralIntegracion[]>
-  >(`/integracion/configuracion-general/maestros${crearQueryString(query)}`)
+  const queryCatalogo = {
+    page: 1,
+    pageSize: 100,
+    ...query,
+  }
+  const { data } = await clienteConfiguracionGeneral.get<
+    PaginatedResponse<MaestroConfiguracionGeneralIntegracion>
+  >(`/configuracion-general/catalogo${crearQueryString(queryCatalogo)}`)
   return data.datos
 }
 

@@ -1,10 +1,32 @@
-export type TipoDatoMaestro = "CARGO" | "SEDE" | "AREA" | "CUENTA" | "CONTRATO"
+export type TipoDatoMaestro =
+  | "CARGO"
+  | "UBICACION"
+  | "SEDE"
+  | "AREA"
+  | "ALMACEN"
+  | "CUENTA"
+  | "CONTRATO"
 
 export type EstadoDatoMaestro = "ACTIVO" | "INACTIVO"
 
 export type EstadoRegistro = "ACTIVO" | "ANULADO"
 
 export type NivelArea = "GERENCIA" | "AREA"
+
+export type TipoUbicacion =
+  | "SEDE"
+  | "CLIENTE"
+  | "PLANTA"
+  | "MINA"
+  | "PUERTO"
+  | "ALMACEN"
+  | "ALMACEN_TEMPORAL"
+  | "PATIO"
+  | "TERMINAL"
+  | "PUNTO_CARGA"
+  | "PUNTO_DESCARGA"
+  | "PUNTO_ACOPIO"
+  | "OTRO"
 
 export type AccionHistorial =
   | "REGISTRO"
@@ -32,6 +54,30 @@ export interface EstadoBcConfiguracionGeneralResponse {
   agregado: string
 }
 
+export interface ResumenConfiguracionGeneralResponse {
+  totalMaestros: number
+  activos: number
+  inactivos: number
+  anulados: number
+  vigentesConsumibles: number
+  porTipoDatoMaestro: Array<{
+    tipoDatoMaestro: TipoDatoMaestro
+    total: number
+    activos: number
+    inactivos: number
+    anulados: number
+    vigentesConsumibles: number
+  }>
+  porEstado: Array<{
+    estado: EstadoDatoMaestro
+    total: number
+  }>
+  porEstadoRegistro: Array<{
+    estadoRegistro: EstadoRegistro
+    total: number
+  }>
+}
+
 export interface ConfiguracionGeneralResponse {
   id: string
   tipoDatoMaestro: TipoDatoMaestro
@@ -39,6 +85,8 @@ export interface ConfiguracionGeneralResponse {
   nombre: string
   descripcion?: string | null
   cargoSuperiorId?: string | null
+  ubicacionId?: string | null
+  tipoUbicacion?: TipoUbicacion | null
   direccion?: string | null
   pais?: string | null
   departamento?: string | null
@@ -46,9 +94,14 @@ export interface ConfiguracionGeneralResponse {
   ciudad?: string | null
   distrito?: string | null
   referenciaUbicacion?: string | null
+  latitud?: number | null
+  longitud?: number | null
   sedeId?: string | null
   nivelArea?: NivelArea | null
   gerenciaId?: string | null
+  esTemporal?: boolean | null
+  fechaInicio?: string | null
+  fechaFin?: string | null
   tipoCuenta?: string | null
   tipoContrato?: string | null
   cuentaId?: string | null
@@ -85,6 +138,8 @@ export interface RegistrarConfiguracionGeneralRequest {
   nombre: string
   descripcion?: string | null
   cargoSuperiorId?: string | null
+  ubicacionId?: string | null
+  tipoUbicacion?: TipoUbicacion | null
   direccion?: string | null
   pais?: string | null
   departamento?: string | null
@@ -92,9 +147,14 @@ export interface RegistrarConfiguracionGeneralRequest {
   ciudad?: string | null
   distrito?: string | null
   referenciaUbicacion?: string | null
+  latitud?: number | null
+  longitud?: number | null
   sedeId?: string | null
   nivelArea?: NivelArea | null
   gerenciaId?: string | null
+  esTemporal?: boolean | null
+  fechaInicio?: string | null
+  fechaFin?: string | null
   tipoCuenta?: string | null
   tipoContrato?: string | null
   cuentaId?: string | null
@@ -106,6 +166,8 @@ export interface ModificarConfiguracionGeneralRequest {
   nombre?: string
   descripcion?: string | null
   cargoSuperiorId?: string | null
+  ubicacionId?: string | null
+  tipoUbicacion?: TipoUbicacion | null
   direccion?: string | null
   pais?: string | null
   departamento?: string | null
@@ -113,9 +175,14 @@ export interface ModificarConfiguracionGeneralRequest {
   ciudad?: string | null
   distrito?: string | null
   referenciaUbicacion?: string | null
+  latitud?: number | null
+  longitud?: number | null
   sedeId?: string | null
   nivelArea?: NivelArea | null
   gerenciaId?: string | null
+  esTemporal?: boolean | null
+  fechaInicio?: string | null
+  fechaFin?: string | null
   tipoCuenta?: string | null
   tipoContrato?: string | null
   cuentaId?: string | null

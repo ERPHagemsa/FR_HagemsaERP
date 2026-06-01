@@ -11,6 +11,7 @@ import type {
   PaginatedResponse,
   ReactivarConfiguracionGeneralRequest,
   RegistrarConfiguracionGeneralRequest,
+  ResumenConfiguracionGeneralResponse,
 } from "../tipos/configuracion-general"
 
 const BASE_ENDPOINT = "/configuracion-general"
@@ -49,6 +50,13 @@ export async function obtenerEstadoBcConfiguracionGeneral(): Promise<EstadoBcCon
   const { data } = await clienteConfiguracionGeneral.get<
     EstadoBcConfiguracionGeneralResponse | RespuestaConDatos<EstadoBcConfiguracionGeneralResponse>
   >(`${BASE_ENDPOINT}/estado`)
+  return extraerDatos(data)
+}
+
+export async function obtenerResumenDashboardConfiguracionGeneral(): Promise<ResumenConfiguracionGeneralResponse> {
+  const { data } = await clienteConfiguracionGeneral.get<
+    ResumenConfiguracionGeneralResponse | RespuestaConDatos<ResumenConfiguracionGeneralResponse>
+  >(`${BASE_ENDPOINT}/dashboard/resumen`)
   return extraerDatos(data)
 }
 

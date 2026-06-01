@@ -4,13 +4,16 @@ import Link from "next/link"
 import type { FormEvent } from "react"
 import { useState } from "react"
 import {
+  ArrowRight,
   Ban,
   CheckCircle2,
   Database,
   FileDown,
+  Layers3,
   History,
   Plus,
   Search,
+  ShieldCheck,
 } from "lucide-react"
 
 import { SiteHeader } from "@/compartido/componentes/site-header"
@@ -21,6 +24,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card"
@@ -52,6 +56,7 @@ import {
   useEstadoBcConfiguracionGeneralQuery,
   useExportarConfiguracionGeneralQuery,
   useRegistrarConfiguracionGeneralMutation,
+  useResumenDashboardConfiguracionGeneralQuery,
 } from "../servicios/configuracion-general-queries"
 import type {
   ConfiguracionGeneralResponse,
@@ -59,16 +64,38 @@ import type {
   EstadoDatoMaestro,
   EstadoRegistro,
   NivelArea,
+  ResumenConfiguracionGeneralResponse,
   TipoDatoMaestro,
+  TipoUbicacion,
 } from "../tipos/configuracion-general"
 
 const tipos: Array<{ value: "TODOS" | TipoDatoMaestro; label: string }> = [
   { value: "TODOS", label: "Tipo: todos" },
   { value: "CARGO", label: "Cargo" },
+  { value: "UBICACION", label: "Ubicacion" },
   { value: "SEDE", label: "Sede" },
   { value: "AREA", label: "Area" },
+  { value: "ALMACEN", label: "Almacen" },
   { value: "CUENTA", label: "Cuenta" },
   { value: "CONTRATO", label: "Contrato" },
+]
+
+const tiposConsumibles: TipoDatoMaestro[] = ["CARGO", "SEDE", "AREA", "CUENTA", "CONTRATO"]
+
+const tiposUbicacion: Array<{ value: TipoUbicacion; label: string }> = [
+  { value: "SEDE", label: "Sede" },
+  { value: "CLIENTE", label: "Cliente" },
+  { value: "PLANTA", label: "Planta" },
+  { value: "MINA", label: "Mina" },
+  { value: "PUERTO", label: "Puerto" },
+  { value: "ALMACEN", label: "Almacen" },
+  { value: "ALMACEN_TEMPORAL", label: "Almacen temporal" },
+  { value: "PATIO", label: "Patio" },
+  { value: "TERMINAL", label: "Terminal" },
+  { value: "PUNTO_CARGA", label: "Punto de carga" },
+  { value: "PUNTO_DESCARGA", label: "Punto de descarga" },
+  { value: "PUNTO_ACOPIO", label: "Punto de acopio" },
+  { value: "OTRO", label: "Otro" },
 ]
 
 function obtenerMensajeError(error: unknown) {
@@ -89,6 +116,10 @@ function nombreTipo(tipo: TipoDatoMaestro) {
   return tipo.charAt(0) + tipo.slice(1).toLowerCase()
 }
 
+function etiquetaTipo(tipo: TipoDatoMaestro) {
+  return tipos.find((item) => item.value === tipo)?.label ?? nombreTipo(tipo)
+}
+
 function eventoPrincipal(dato: ConfiguracionGeneralResponse) {
   const base = nombreTipo(dato.tipoDatoMaestro)
 
@@ -99,16 +130,20 @@ function eventoPrincipal(dato: ConfiguracionGeneralResponse) {
 }
 
 function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
-  if (dato.tipoDatoMaestro === "SEDE") return dato.direccion || "-"
+  if (dato.tipoDatoMaestro === "UBICACION") return dato.tipoUbicacion || dato.direccion || "-"
+  if (dato.tipoDatoMaestro === "SEDE") return dato.ubicacionId || "-"
   if (dato.tipoDatoMaestro === "AREA") return dato.sedeId || "-"
+  if (dato.tipoDatoMaestro === "ALMACEN") return dato.ubicacionId || "-"
   if (dato.tipoDatoMaestro === "CUENTA") return dato.tipoCuenta || "-"
   if (dato.tipoDatoMaestro === "CONTRATO") return dato.tipoContrato || "-"
   return "-"
 }
 
 function etiquetaDetalleEspecifico(tipo: TipoDatoMaestro) {
-  if (tipo === "SEDE") return "Direccion"
+  if (tipo === "UBICACION") return "Tipo / direccion"
+  if (tipo === "SEDE") return "Ubicacion"
   if (tipo === "AREA") return "Sede"
+  if (tipo === "ALMACEN") return "Ubicacion"
   if (tipo === "CUENTA") return "Tipo de cuenta"
   if (tipo === "CONTRATO") return "Tipo de contrato"
   return "Dato especifico"
@@ -129,12 +164,25 @@ function valorOpcional(formData: FormData, key: string) {
   return value && value !== "__none" ? value : undefined
 }
 
+function numeroOpcional(formData: FormData, key: string) {
+  const value = valorOpcional(formData, key)
+  if (!value) return undefined
+
+  const numero = Number(value)
+  return Number.isFinite(numero) ? numero : undefined
+}
+
 function ejemplosFormulario(tipo: TipoDatoMaestro) {
   const ejemplos = {
     CARGO: {
       codigo: "CARGO-013",
       nombre: "Supervisor de Patio",
       descripcion: "Supervisa patio y control de unidades.",
+    },
+    UBICACION: {
+      codigo: "UBI-001",
+      nombre: "Ubicacion Base Lima",
+      descripcion: "Punto fisico de la base Lima.",
     },
     SEDE: {
       codigo: "SEDE-009",
@@ -148,13 +196,18 @@ function ejemplosFormulario(tipo: TipoDatoMaestro) {
     },
     CUENTA: {
       codigo: "CTA-007",
-      nombre: "Cuenta Construccion Sur",
-      descripcion: "Cuenta para clientes de construccion.",
+      nombre: "Cuenta Southern",
+      descripcion: "Cuenta comercial minera.",
     },
     CONTRATO: {
       codigo: "CONT-009",
-      nombre: "Contrato Construccion Sur 2026",
-      descripcion: "Servicio logistico para proyecto de construccion.",
+      nombre: "Contrato Southern 2026",
+      descripcion: "Contrato operativo vigente.",
+    },
+    ALMACEN: {
+      codigo: "ALM-001",
+      nombre: "Almacen Central Lima",
+      descripcion: "Almacen principal de Lima.",
     },
   } satisfies Record<TipoDatoMaestro, Record<"codigo" | "nombre" | "descripcion", string>>
 
@@ -174,6 +227,7 @@ function CamposEspecificosMaestro({
   provincia,
   sedes,
   tipo,
+  ubicaciones,
 }: {
   areas: ConfiguracionGeneralResponse[]
   cargos: ConfiguracionGeneralResponse[]
@@ -192,6 +246,7 @@ function CamposEspecificosMaestro({
   provincia: string
   sedes: ConfiguracionGeneralResponse[]
   tipo: TipoDatoMaestro
+  ubicaciones: ConfiguracionGeneralResponse[]
 }) {
   if (tipo === "CARGO") {
     return (
@@ -214,7 +269,7 @@ function CamposEspecificosMaestro({
     )
   }
 
-  if (tipo === "SEDE") {
+  if (tipo === "UBICACION") {
     const paisSeleccionado = paisesLatinoamerica.find((item) => item.nombre === pais)
     const departamentos = paisSeleccionado?.departamentos ?? []
     const departamentoSeleccionado = departamentos.find((item) => item.nombre === departamento)
@@ -226,8 +281,23 @@ function CamposEspecificosMaestro({
     return (
       <>
         <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="direccionSede">Direccion</label>
-          <Input id="direccionSede" name="direccion" placeholder="Av. Principal 123" required />
+          <label className="text-sm font-medium" htmlFor="tipoUbicacion">Tipo de ubicacion</label>
+          <Select name="tipoUbicacion" defaultValue="SEDE">
+            <SelectTrigger id="tipoUbicacion" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {tiposUbicacion.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="direccion">Direccion</label>
+          <Input id="direccion" name="direccion" placeholder="Av. Principal 123" required />
         </div>
         <div className="grid gap-2">
           <label className="text-sm font-medium" htmlFor="pais">Pais</label>
@@ -346,15 +416,39 @@ function CamposEspecificosMaestro({
             </div>
           </>
         )}
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="ciudad">Ciudad</label>
-          <Input id="ciudad" name="ciudad" placeholder={provincia || "Ciudad"} />
-        </div>
         <div className="grid gap-2 md:col-span-2">
           <label className="text-sm font-medium" htmlFor="referenciaUbicacion">Referencia</label>
           <Input id="referenciaUbicacion" name="referenciaUbicacion" placeholder="Zona industrial" />
         </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="latitud">Latitud</label>
+          <Input id="latitud" name="latitud" type="number" step="any" placeholder="-12.046374" />
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="longitud">Longitud</label>
+          <Input id="longitud" name="longitud" type="number" step="any" placeholder="-77.042793" />
+        </div>
       </>
+    )
+  }
+
+  if (tipo === "SEDE") {
+    return (
+      <div className="grid gap-2 md:col-span-2">
+        <label className="text-sm font-medium" htmlFor="ubicacionIdSede">Ubicacion</label>
+        <Select name="ubicacionId" required>
+          <SelectTrigger id="ubicacionIdSede" className="w-full">
+            <SelectValue placeholder="Selecciona una ubicacion activa" />
+          </SelectTrigger>
+          <SelectContent>
+            {ubicaciones.map((ubicacion) => (
+              <SelectItem key={ubicacion.id} value={ubicacion.id}>
+                {ubicacion.codigo} - {ubicacion.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     )
   }
 
@@ -420,16 +514,74 @@ function CamposEspecificosMaestro({
       <>
         <div className="grid gap-2 md:col-span-2">
           <label className="text-sm font-medium" htmlFor="tipoCuenta">Tipo de cuenta</label>
-          <Select name="tipoCuenta" defaultValue="OPERATIVA">
+          <Select name="tipoCuenta" defaultValue="CLIENTE">
             <SelectTrigger id="tipoCuenta" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="OPERATIVA">Operativa</SelectItem>
-              <SelectItem value="ADMINISTRATIVA">Administrativa</SelectItem>
-              <SelectItem value="COMERCIAL">Comercial</SelectItem>
+              <SelectItem value="CLIENTE">Cliente</SelectItem>
+              <SelectItem value="PROVEEDOR">Proveedor</SelectItem>
+              <SelectItem value="INTERNA">Interna</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      </>
+    )
+  }
+
+  if (tipo === "ALMACEN") {
+    return (
+      <>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="ubicacionIdAlmacen">Ubicacion</label>
+          <Select name="ubicacionId" required>
+            <SelectTrigger id="ubicacionIdAlmacen" className="w-full">
+              <SelectValue placeholder="Selecciona una ubicacion activa" />
+            </SelectTrigger>
+            <SelectContent>
+              {ubicaciones.map((ubicacion) => (
+                <SelectItem key={ubicacion.id} value={ubicacion.id}>
+                  {ubicacion.codigo} - {ubicacion.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="sedeIdAlmacen">Sede</label>
+          <Select name="sedeId" defaultValue="__none">
+            <SelectTrigger id="sedeIdAlmacen" className="w-full">
+              <SelectValue placeholder="Selecciona una sede" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none">Sin sede asociada</SelectItem>
+              {sedes.map((sede) => (
+                <SelectItem key={sede.id} value={sede.id}>
+                  {sede.codigo} - {sede.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="esTemporal">Temporal</label>
+          <Select name="esTemporal" defaultValue="false">
+            <SelectTrigger id="esTemporal" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="false">No</SelectItem>
+              <SelectItem value="true">Si</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="fechaInicio">Fecha inicio</label>
+          <Input id="fechaInicio" name="fechaInicio" type="date" />
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="fechaFin">Fecha fin</label>
+          <Input id="fechaFin" name="fechaFin" type="date" />
         </div>
       </>
     )
@@ -439,14 +591,15 @@ function CamposEspecificosMaestro({
     <>
       <div className="grid gap-2">
         <label className="text-sm font-medium" htmlFor="tipoContrato">Tipo de contrato</label>
-        <Select name="tipoContrato" defaultValue="ANUAL">
+        <Select name="tipoContrato" defaultValue="SERVICIO_TRANSPORTE">
           <SelectTrigger id="tipoContrato" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ANUAL">Anual</SelectItem>
-            <SelectItem value="MENSUAL">Mensual</SelectItem>
-            <SelectItem value="PROYECTO">Por proyecto</SelectItem>
+            <SelectItem value="SERVICIO_TRANSPORTE">Servicio transporte</SelectItem>
+            <SelectItem value="SERVICIO_LOGISTICO">Servicio logistico</SelectItem>
+            <SelectItem value="ALQUILER">Alquiler</SelectItem>
+            <SelectItem value="OTRO">Otro</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -532,7 +685,7 @@ function MetricasMaestros({
     {
       etiqueta: "Configuraciones",
       valor: total || datos.length,
-      detalle: "Cargo, Sede, Area, Cuenta y Contrato consultados.",
+      detalle: "Ubicacion, Sede, Area, Almacen, Cargo, Cuenta y Contrato consultados.",
       icon: Database,
       contexto: "Catálogo",
     },
@@ -590,6 +743,249 @@ function MetricasMaestros({
               </Badge>
             </div>
           </CardContent>
+        </Card>
+      ))}
+    </section>
+  )
+}
+
+function MetricasResumenDashboard({
+  cargando,
+  resumen,
+}: {
+  cargando?: boolean
+  resumen?: ResumenConfiguracionGeneralResponse
+}) {
+  const metricas = [
+    {
+      etiqueta: "Maestros",
+      valor: resumen?.totalMaestros ?? 0,
+      detalle: "Total gobernado por Configuracion General.",
+      icon: Database,
+      contexto: "Gobierno",
+    },
+    {
+      etiqueta: "Activos",
+      valor: resumen?.activos ?? 0,
+      detalle: "Registros habilitados para consumo interno.",
+      icon: ShieldCheck,
+      contexto: "Estado",
+    },
+    {
+      etiqueta: "Consumibles",
+      valor: resumen?.vigentesConsumibles ?? 0,
+      detalle: "Activos y vigentes para otros bounded contexts.",
+      icon: CheckCircle2,
+      contexto: "Catalogo",
+    },
+    {
+      etiqueta: "Retenidos",
+      valor: (resumen?.inactivos ?? 0) + (resumen?.anulados ?? 0),
+      detalle: `${resumen?.inactivos ?? 0} inactivos y ${resumen?.anulados ?? 0} anulados.`,
+      icon: History,
+      contexto: "Control",
+    },
+  ]
+
+  return (
+    <section className="grid gap-3 md:grid-cols-4">
+      {metricas.map((metrica) => (
+        <Card key={metrica.etiqueta} className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
+            <div className="min-w-0">
+              <CardDescription className="text-xs font-medium uppercase tracking-[0.08em]">
+                {metrica.etiqueta}
+              </CardDescription>
+              <CardTitle className="mt-2 text-3xl font-semibold tabular-nums">
+                {cargando ? "-" : metrica.valor}
+              </CardTitle>
+            </div>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border">
+              <metrica.icon className="size-4" />
+            </span>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 pt-0">
+            <p className="text-sm text-muted-foreground">{metrica.detalle}</p>
+            <div className="flex items-center justify-between gap-3">
+              <Badge variant="secondary">{metrica.contexto}</Badge>
+              <span className="text-xs text-muted-foreground">Resumen</span>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </section>
+  )
+}
+
+function ResumenPorTipoDashboard({
+  cargando,
+  resumen,
+}: {
+  cargando?: boolean
+  resumen?: ResumenConfiguracionGeneralResponse
+}) {
+  const datos = resumen?.porTipoDatoMaestro ?? []
+  const totalBase = Math.max(...datos.map((item) => item.total), 1)
+  const datosOrdenados = [...datos].sort((a, b) =>
+    a.tipoDatoMaestro.localeCompare(b.tipoDatoMaestro),
+  )
+
+  return (
+    <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-base font-semibold">Cobertura del catalogo</h2>
+          <p className="text-sm text-muted-foreground">
+            Lectura por tipo de maestro y disponibilidad para consumo.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/configuracion/listar">
+            Ver listado
+            <ArrowRight data-icon="inline-end" />
+          </Link>
+        </Button>
+      </div>
+      <div className="grid gap-3 p-4 md:grid-cols-2">
+        {cargando ? (
+          <>
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </>
+        ) : datosOrdenados.length > 0 ? (
+          datosOrdenados.map((item) => (
+            <div key={item.tipoDatoMaestro} className="grid gap-2 rounded-md border border-border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <TipoBadge tipo={item.tipoDatoMaestro} />
+                  {tiposConsumibles.includes(item.tipoDatoMaestro) ? (
+                    <Badge variant="secondary">Consumible</Badge>
+                  ) : (
+                    <Badge variant="outline">Base</Badge>
+                  )}
+                </div>
+                <span className="text-sm font-medium tabular-nums">
+                  {item.vigentesConsumibles}/{item.total}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${Math.max((item.total / totalBase) * 100, 3)}%` }}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <span>Activos: {item.activos}</span>
+                <span>Inactivos: {item.inactivos}</span>
+                <span>Anulados: {item.anulados}</span>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="py-8 text-center text-sm text-muted-foreground md:col-span-2">
+            No hay datos de resumen disponibles.
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function EstadoResumenDashboard({
+  estadoServicio,
+  resumen,
+}: {
+  estadoServicio?: "cargando" | "disponible" | "no-disponible"
+  resumen?: ResumenConfiguracionGeneralResponse
+}) {
+  const estados = resumen?.porEstado ?? []
+  const registros = resumen?.porEstadoRegistro ?? []
+
+  return (
+    <Card className="border-border shadow-sm">
+      <CardHeader>
+        <CardTitle>Estado y consumo</CardTitle>
+        <CardDescription>Disponibilidad del servicio y vigencia del catalogo.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-muted-foreground">Servicio</span>
+          <Badge variant={estadoServicio === "no-disponible" ? "destructive" : "outline"}>
+            {estadoServicio === "cargando"
+              ? "Verificando"
+              : estadoServicio === "no-disponible"
+                ? "No disponible"
+                : "Disponible"}
+          </Badge>
+        </div>
+        <Separator />
+        <div className="grid gap-3">
+          {estados.map((item) => (
+            <div key={item.estado} className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">{item.estado}</span>
+              <span className="font-medium tabular-nums">{item.total}</span>
+            </div>
+          ))}
+          {registros.map((item) => (
+            <div key={item.estadoRegistro} className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground">Registro {item.estadoRegistro}</span>
+              <span className="font-medium tabular-nums">{item.total}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function FlujosConfiguracionGeneral() {
+  const flujos = [
+    {
+      titulo: "Catalogos consumibles",
+      descripcion: "Cargo, sede, area, cuenta y contrato para otros BC.",
+      href: "/configuracion/listar",
+      accion: "Ver catalogo",
+      icon: Layers3,
+    },
+    {
+      titulo: "Registrar maestro",
+      descripcion: "Crear ubicaciones, sedes, areas, almacenes, cuentas y contratos.",
+      href: "/configuracion/nuevo",
+      accion: "Nuevo registro",
+      icon: Plus,
+    },
+    {
+      titulo: "Reportes",
+      descripcion: "Consulta consolidada para exportacion y seguimiento.",
+      href: "/configuracion/reportes",
+      accion: "Ver reportes",
+      icon: FileDown,
+    },
+  ]
+
+  return (
+    <section className="grid gap-3 md:grid-cols-3">
+      {flujos.map((flujo) => (
+        <Card key={flujo.titulo} className="border-border shadow-sm">
+          <CardHeader className="flex flex-row items-start justify-between gap-3">
+            <div className="min-w-0">
+              <CardTitle className="text-base">{flujo.titulo}</CardTitle>
+              <CardDescription>{flujo.descripcion}</CardDescription>
+            </div>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border">
+              <flujo.icon className="size-4" />
+            </span>
+          </CardHeader>
+          <CardFooter>
+            <Button asChild variant="outline" size="sm" className="w-full justify-between">
+              <Link href={flujo.href}>
+                {flujo.accion}
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          </CardFooter>
         </Card>
       ))}
     </section>
@@ -863,15 +1259,14 @@ function FichaMaestro({ dato }: { dato?: ConfiguracionGeneralResponse }) {
 }
 
 export function ConfiguracionGeneralDashboardVista() {
-  const query = useConfiguracionGeneralQuery({
-    page: 1,
-    pageSize: 6,
-    sortBy: "fechaCreacion",
-    sortOrder: "desc",
-  })
+  const resumenQuery = useResumenDashboardConfiguracionGeneralQuery()
   const estadoQuery = useEstadoBcConfiguracionGeneralQuery()
-  const datos = query.data?.datos ?? []
-  const total = query.data?.paginacion?.total ?? datos.length
+  const resumen = resumenQuery.data ?? undefined
+  const estadoServicio = estadoQuery.isLoading
+    ? "cargando"
+    : estadoQuery.error
+      ? "no-disponible"
+      : "disponible"
 
   return (
     <>
@@ -881,30 +1276,19 @@ export function ConfiguracionGeneralDashboardVista() {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
-          {query.error ? (
+          {resumenQuery.error ? (
             <Alert variant="destructive">
               <AlertTitle>No se pudo cargar la información</AlertTitle>
-              <AlertDescription>{obtenerMensajeError(query.error)}</AlertDescription>
+              <AlertDescription>{obtenerMensajeError(resumenQuery.error)}</AlertDescription>
             </Alert>
           ) : null}
 
-          <MetricasMaestros datos={datos} total={total} cargando={query.isLoading} />
+          <MetricasResumenDashboard resumen={resumen} cargando={resumenQuery.isLoading} />
+
+          <FlujosConfiguracionGeneral />
 
           <section className="grid gap-5 xl:grid-cols-[1fr_340px]">
-            <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-              <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="text-base font-semibold">Configuraciones recientes</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Consulta real de Cargo, Sede, Area, Cuenta y Contrato.
-                  </p>
-                </div>
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/configuracion/listar">Ver listado</Link>
-                </Button>
-              </div>
-              <TablaDatosMaestros datos={datos} cargando={query.isLoading} />
-            </section>
+            <ResumenPorTipoDashboard resumen={resumen} cargando={resumenQuery.isLoading} />
 
             <aside className="flex flex-col gap-3">
               <Card className="border-border shadow-sm">
@@ -923,10 +1307,10 @@ export function ConfiguracionGeneralDashboardVista() {
                           : "Disponible"
                     }
                   />
-                  <Dato label="Uso" value="Cargos, sedes, areas, cuentas y contratos" />
+                  <Dato label="Uso" value="Ubicaciones, sedes, areas, almacenes, cargos, cuentas y contratos" />
                 </CardContent>
               </Card>
-              <ConteoPorTipo datos={datos} />
+              <EstadoResumenDashboard resumen={resumen} estadoServicio={estadoServicio} />
               <Card className="border-border shadow-sm">
                 <CardHeader>
                   <CardTitle>Accesos rapidos</CardTitle>
@@ -972,10 +1356,6 @@ export function ConfiguracionGeneralListadoVista() {
   const exportacion = useExportarConfiguracionGeneralQuery(query, false)
   const datos = consulta.data?.datos ?? []
   const total = consulta.data?.paginacion?.total ?? datos.length
-  const [seleccionado, setSeleccionado] = useState<ConfiguracionGeneralResponse | undefined>()
-  const seleccionActual = seleccionado && datos.some((dato) => dato.id === seleccionado.id)
-    ? seleccionado
-    : datos[0]
 
   async function exportar() {
     await exportacion.refetch()
@@ -1010,7 +1390,7 @@ export function ConfiguracionGeneralListadoVista() {
 
           <MetricasMaestros datos={datos} total={total} cargando={consulta.isLoading} />
 
-          <section className="grid gap-5 xl:grid-cols-[1fr_340px]">
+          <section>
             <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
               <div className="border-b border-border px-4 py-3">
                 <h2 className="text-base font-semibold">Configuraciones registradas</h2>
@@ -1027,14 +1407,8 @@ export function ConfiguracionGeneralListadoVista() {
               <TablaDatosMaestros
                 datos={datos}
                 cargando={consulta.isLoading}
-                onSelect={setSeleccionado}
               />
             </section>
-
-            <aside className="flex flex-col gap-3">
-              <FichaMaestro dato={seleccionActual} />
-              <ConteoPorTipo datos={datos} />
-            </aside>
           </section>
         </div>
       </main>
@@ -1053,6 +1427,13 @@ export function ConfiguracionGeneralNuevoVista() {
   const [provinciaNuevo, setProvinciaNuevo] = useState("")
   const [distritoNuevo, setDistritoNuevo] = useState("")
   const ejemplos = ejemplosFormulario(tipoNuevo)
+  const ubicacionesQuery = useCatalogoConfiguracionGeneralQuery({
+    tipoDatoMaestro: "UBICACION",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  })
   const cargosQuery = useCatalogoConfiguracionGeneralQuery({
     tipoDatoMaestro: "CARGO",
     page: 1,
@@ -1091,16 +1472,22 @@ export function ConfiguracionGeneralNuevoVista() {
     const form = event.currentTarget
     const formData = new FormData(form)
     const cargoSuperiorId = valorOpcional(formData, "cargoSuperiorId")
+    const ubicacionId = valorOpcional(formData, "ubicacionId")
+    const tipoUbicacion = valorOpcional(formData, "tipoUbicacion") as TipoUbicacion | undefined
     const direccion = valorOpcional(formData, "direccion")
     const pais = valorOpcional(formData, "pais")
     const departamento = valorOpcional(formData, "departamento")
     const provincia = valorOpcional(formData, "provincia")
-    const ciudad = valorOpcional(formData, "ciudad")
     const distrito = valorOpcional(formData, "distrito")
     const referenciaUbicacion = valorOpcional(formData, "referenciaUbicacion")
+    const latitud = numeroOpcional(formData, "latitud")
+    const longitud = numeroOpcional(formData, "longitud")
     const sedeId = valorOpcional(formData, "sedeId")
     const nivelArea = valorOpcional(formData, "nivelArea") as NivelArea | undefined
     const gerenciaId = valorOpcional(formData, "gerenciaId")
+    const esTemporal = valorOpcional(formData, "esTemporal") === "true"
+    const fechaInicio = valorOpcional(formData, "fechaInicio")
+    const fechaFin = valorOpcional(formData, "fechaFin")
     const tipoCuenta = valorOpcional(formData, "tipoCuenta")
     const tipoContrato = valorOpcional(formData, "tipoContrato")
     const cuentaId = valorOpcional(formData, "cuentaId")
@@ -1117,8 +1504,18 @@ export function ConfiguracionGeneralNuevoVista() {
       }
     }
 
-    if (tipoNuevo === "SEDE" && (!pais || !direccion || !departamento || !provincia || !distrito)) {
-      setError("Completa pais, direccion, departamento, provincia y distrito de la sede.")
+    if (tipoNuevo === "UBICACION" && (!pais || !direccion || !departamento || !provincia || !distrito)) {
+      setError("Completa pais, direccion, departamento, provincia y distrito de la ubicacion.")
+      return
+    }
+
+    if (tipoNuevo === "SEDE" && !ubicacionId) {
+      setError("Selecciona la ubicacion de la sede.")
+      return
+    }
+
+    if (tipoNuevo === "ALMACEN" && !ubicacionId) {
+      setError("Selecciona la ubicacion del almacen.")
       return
     }
 
@@ -1129,22 +1526,35 @@ export function ConfiguracionGeneralNuevoVista() {
         nombre: String(formData.get("nombre") ?? "").trim(),
         descripcion: valorOpcional(formData, "descripcion") ?? null,
         ...(tipoNuevo === "CARGO" ? { cargoSuperiorId: cargoSuperiorId ?? null } : {}),
-        ...(tipoNuevo === "SEDE"
+        ...(tipoNuevo === "UBICACION"
           ? {
+              tipoUbicacion: tipoUbicacion ?? "OTRO",
               direccion: direccion ?? null,
               pais: pais ?? null,
               departamento: departamento ?? null,
               provincia: provincia ?? null,
-              ciudad: ciudad ?? null,
+              ciudad: provincia ?? null,
               distrito: distrito ?? null,
               referenciaUbicacion: referenciaUbicacion ?? null,
+              latitud: latitud ?? null,
+              longitud: longitud ?? null,
             }
           : {}),
+        ...(tipoNuevo === "SEDE" ? { ubicacionId: ubicacionId ?? null } : {}),
         ...(tipoNuevo === "AREA"
           ? {
               sedeId: sedeId ?? null,
               nivelArea: nivelArea ?? null,
               gerenciaId: nivelArea === "AREA" ? gerenciaId ?? null : null,
+            }
+          : {}),
+        ...(tipoNuevo === "ALMACEN"
+          ? {
+              ubicacionId: ubicacionId ?? null,
+              sedeId: sedeId ?? null,
+              esTemporal,
+              fechaInicio: fechaInicio ?? null,
+              fechaFin: fechaFin ?? null,
             }
           : {}),
         ...(tipoNuevo === "CUENTA" ? { tipoCuenta } : {}),
@@ -1199,7 +1609,7 @@ export function ConfiguracionGeneralNuevoVista() {
                     <h2 className="text-lg font-semibold">Registrar configuración</h2>
                     <p className="text-sm text-muted-foreground">
                       Completa la informacion que usaran las areas para clasificar cargos,
-                      sedes, areas, cuentas y contratos.
+                      ubicaciones, sedes, areas, almacenes, cargos, cuentas y contratos.
                     </p>
                   </div>
                   <Badge variant="outline" className="w-fit rounded-full">
@@ -1229,8 +1639,10 @@ export function ConfiguracionGeneralNuevoVista() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="CARGO">Cargo</SelectItem>
+                      <SelectItem value="UBICACION">Ubicacion</SelectItem>
                       <SelectItem value="SEDE">Sede</SelectItem>
                       <SelectItem value="AREA">Area</SelectItem>
+                      <SelectItem value="ALMACEN">Almacen</SelectItem>
                       <SelectItem value="CUENTA">Cuenta</SelectItem>
                       <SelectItem value="CONTRATO">Contrato</SelectItem>
                     </SelectContent>
@@ -1266,6 +1678,7 @@ export function ConfiguracionGeneralNuevoVista() {
                   provincia={provinciaNuevo}
                   sedes={sedesQuery.data?.datos ?? []}
                   tipo={tipoNuevo}
+                  ubicaciones={ubicacionesQuery.data?.datos ?? []}
                 />
               </div>
               <div className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-4">
@@ -1371,7 +1784,7 @@ export function ConfiguracionGeneralReportesVista() {
                 <div>
                   <h2 className="text-base font-semibold">Configuraciones para revisar</h2>
                   <p className="text-sm text-muted-foreground">
-                    Vista consolidada de cargos, sedes, areas, cuentas y contratos.
+                    Vista consolidada de ubicaciones, sedes, areas, almacenes, cargos, cuentas y contratos.
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => void exportacion.refetch()}>

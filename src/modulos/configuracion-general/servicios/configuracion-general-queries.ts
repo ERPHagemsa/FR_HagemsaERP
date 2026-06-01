@@ -11,6 +11,7 @@ import {
   inhabilitarConfiguracionGeneral,
   modificarConfiguracionGeneral,
   obtenerEstadoBcConfiguracionGeneral,
+  obtenerResumenDashboardConfiguracionGeneral,
   reactivarConfiguracionGeneral,
   registrarConfiguracionGeneral,
 } from "./configuracion-general-api"
@@ -21,6 +22,10 @@ import type {
 
 export function useEstadoBcConfiguracionGeneralQuery() {
   return useConsulta(obtenerEstadoBcConfiguracionGeneral, [])
+}
+
+export function useResumenDashboardConfiguracionGeneralQuery() {
+  return useConsulta(obtenerResumenDashboardConfiguracionGeneral, [])
 }
 
 export function useConfiguracionGeneralQuery(query?: ConsultarConfiguracionGeneralQuery) {

@@ -12,6 +12,8 @@ export type TipoDatoMaestroIntegracion =
   | "AREA"
   | "CUENTA"
   | "CONTRATO"
+  | "UBICACION"
+  | "ALMACEN"
 
 export type AccionHistorialSocioDeNegocio =
   | "REGISTRO"
@@ -81,10 +83,20 @@ export interface SocioDeNegocioResponse {
   fechaModificacion: string
   usuarioModificacion: string
   cargo: string
+  cargoId?: string | null
+  cargoNombre?: string | null
   sede: string
+  sedeId?: string | null
+  sedeNombre?: string | null
   area: string
+  areaId?: string | null
+  areaNombre?: string | null
   contrato: string
+  contratoId?: string | null
+  contratoNombre?: string | null
   cuenta: string
+  cuentaId?: string | null
+  cuentaNombre?: string | null
   motivoBaja: string
   fechaBaja: string
   usuarioBajaId: string
@@ -100,11 +112,12 @@ export interface EstadoBcResponse {
 
 export interface MaestroConfiguracionGeneralIntegracion {
   id: string
-  idExterno: string
+  idExterno?: string
   tipoDatoMaestro: TipoDatoMaestroIntegracion
   codigo: string
   nombre: string
   estado: EstadoSocioDeNegocio
+  areaId?: string | null
   sedeId?: string | null
   ubicacionId?: string | null
   fechaSincronizacion?: string | null
@@ -117,11 +130,19 @@ export interface ConsultarMaestrosConfiguracionGeneralQuery {
   estado?: EstadoSocioDeNegocio
   sedeId?: string
   ubicacionId?: string
+  page?: number
+  pageSize?: number
 }
 
-export interface RegistrarSocioDeNegocioRequest {
+/**
+ * DTOs específicos por tipo de socio
+ * - CLIENTE/PROVEEDOR: Campos básicos + contacto con área/cargo donde atiende
+ * - PERSONAL: Campos básicos + datos laborales (ubicación, sede, área, cargo, contrato)
+ */
+
+/** Base común para todos los tipos */
+interface RegistrarSocioDeNegocioBase {
   codigoInternoSap: string
-  tipo: TipoSocioDeNegocio
   numeroDocumento: string
   razonSocial: string
   nombreComercial: string
@@ -129,16 +150,51 @@ export interface RegistrarSocioDeNegocioRequest {
   contacto: string
   correo: string
   numeroCelular: string
-  cargo?: string
-  sede?: string
-  area?: string
-  contrato?: string
-  cuenta?: string
+  cuentaId?: string
+  cuentaNombre?: string
   usuarioId?: string
 }
 
-export type RegistrarClienteDesdeComercialRequest =
-  RegistrarSocioDeNegocioRequest & { tipo: "CLIENTE" }
+/** Cliente: contacto + área/cargo OPCIONAL (donde atiende en nuestras operaciones) */
+export interface RegistrarClienteRequest extends RegistrarSocioDeNegocioBase {
+  tipo: "CLIENTE"
+  areaId?: string
+  areaNombre?: string
+  cargoId?: string
+  cargoNombre?: string
+}
+
+/** Proveedor: contacto + área/cargo OPCIONAL (donde atiende en nuestras operaciones) */
+export interface RegistrarProveedorRequest extends RegistrarSocioDeNegocioBase {
+  tipo: "PROVEEDOR"
+  areaId?: string
+  areaNombre?: string
+  cargoId?: string
+  cargoNombre?: string
+}
+
+/** Personal: TODOS los datos laborales OBLIGATORIOS */
+export interface RegistrarPersonalRequest extends RegistrarSocioDeNegocioBase {
+  tipo: "PERSONAL"
+  ubicacionId: string
+  ubicacionNombre: string
+  sedeId: string
+  sedeNombre: string
+  areaId: string
+  areaNombre: string
+  cargoId: string
+  cargoNombre: string
+  contratoId: string
+  contratoNombre: string
+}
+
+/** Request unificado (compatible con el backend) */
+export type RegistrarSocioDeNegocioRequest =
+  | RegistrarClienteRequest
+  | RegistrarProveedorRequest
+  | RegistrarPersonalRequest
+
+export type RegistrarClienteDesdeComercialRequest = RegistrarClienteRequest
 
 export interface ModificarSocioDeNegocioRequest {
   razonSocial?: string
@@ -147,11 +203,16 @@ export interface ModificarSocioDeNegocioRequest {
   contacto?: string
   correo?: string
   numeroCelular?: string
-  cargo?: string
-  sede?: string
-  area?: string
-  contrato?: string
-  cuenta?: string
+  cargoId?: string
+  cargoNombre?: string
+  sedeId?: string
+  sedeNombre?: string
+  areaId?: string
+  areaNombre?: string
+  contratoId?: string
+  contratoNombre?: string
+  cuentaId?: string
+  cuentaNombre?: string
   usuarioId: string
 }
 
