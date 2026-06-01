@@ -20,7 +20,6 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
-import { Separator } from "@/compartido/componentes/ui/separator";
 import { cn } from "@/compartido/utilidades";
 
 import {
@@ -241,100 +240,154 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="px-5 pt-5 pb-0">
-          {/* Datos generales del prospecto */}
-          <SeccionTitulo
-            titulo="Datos del prospecto"
-            descripcion="Informacion comercial y de identificacion."
-          />
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <CampoTexto
-              label="Nombre comercial"
-              name="nombreComercial"
-              requerido
-              defaultValue={prospecto?.nombreComercial}
-              error={erroresCampo["nombreComercial"]}
-              disabled={isSaving}
-              onChange={() => limpiarErrorCampo("nombreComercial")}
-            />
-            <CampoTexto
-              label="Razon social"
-              name="razonSocial"
-              defaultValue={prospecto?.razonSocial ?? undefined}
-              error={erroresCampo["razonSocial"]}
-              disabled={isSaving}
-              onChange={() => limpiarErrorCampo("razonSocial")}
-            />
-          </div>
-
-          {/* Documento: requerido en nuevo, opcional en editar */}
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <CampoSelect
-              label="Tipo de documento"
-              name="tipoDocumento"
-              requerido={!esEdicion}
-              opciones={[
-                { valor: "RUC", etiqueta: "RUC" },
-                { valor: "DNI", etiqueta: "DNI" },
-                { valor: "CE", etiqueta: "Carnet de extranjeria" },
-              ]}
-              defaultValue={prospecto?.tipoDocumento ?? "RUC"}
-              error={erroresCampo["tipoDocumento"]}
-              disabled={isSaving}
-            />
-            <CampoTexto
-              label="Numero de documento"
-              name="numeroDocumento"
-              requerido={!esEdicion}
-              defaultValue={prospecto?.numeroDocumento}
-              error={erroresCampo["numeroDocumento"]}
-              disabled={isSaving}
-              onChange={() => limpiarErrorCampo("numeroDocumento")}
-            />
-          </div>
-
-          <div className="mt-4">
-            <CampoSelect
-              label="Medio de contacto inicial"
-              name="medioContactoInicial"
-              requerido
-              opciones={[
-                { valor: "CORREO", etiqueta: "Correo electronico" },
-                { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
-                { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
-                { valor: "OTRO", etiqueta: "Otro" },
-              ]}
-              defaultValue={prospecto?.medioContactoInicial ?? "CORREO"}
-              error={erroresCampo["medioContactoInicial"]}
-              disabled={isSaving}
-            />
-          </div>
-
-          {/* Ejecutivo responsable: solo editable en modo edicion.
-              En modo nuevo el backend lo asigna automaticamente. */}
           {esEdicion ? (
-            <div className="mt-4">
-              <CampoTexto
-                label="ID ejecutivo responsable"
-                name="idEjecutivoResponsable"
-                defaultValue={prospecto?.idEjecutivoResponsable}
-                error={erroresCampo["idEjecutivoResponsable"]}
-                disabled={isSaving}
-                onChange={() => limpiarErrorCampo("idEjecutivoResponsable")}
-              />
-            </div>
-          ) : null}
-
-          {/* Seccion contacto inicial: solo en modo nuevo */}
-          {!esEdicion ? (
+            /* ----- Edicion: una sola columna, sin contacto inicial ----- */
             <>
-              <Separator className="my-6" />
               <SeccionTitulo
-                titulo="Contacto inicial"
-                descripcion="Persona de contacto con la que se inicio la relacion comercial. Se requiere al menos telefono o email."
+                titulo="Datos del prospecto"
+                descripcion="Informacion comercial y de identificacion."
               />
 
               <div className="grid gap-4 md:grid-cols-2">
+                <CampoTexto
+                  label="Nombre comercial"
+                  name="nombreComercial"
+                  requerido
+                  defaultValue={prospecto?.nombreComercial}
+                  error={erroresCampo["nombreComercial"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("nombreComercial")}
+                />
+                <CampoTexto
+                  label="Razon social"
+                  name="razonSocial"
+                  defaultValue={prospecto?.razonSocial ?? undefined}
+                  error={erroresCampo["razonSocial"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("razonSocial")}
+                />
+              </div>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <CampoSelect
+                  label="Tipo de documento"
+                  name="tipoDocumento"
+                  opciones={[
+                    { valor: "RUC", etiqueta: "RUC" },
+                    { valor: "DNI", etiqueta: "DNI" },
+                    { valor: "CE", etiqueta: "Carnet de extranjeria" },
+                  ]}
+                  defaultValue={prospecto?.tipoDocumento ?? "RUC"}
+                  error={erroresCampo["tipoDocumento"]}
+                  disabled={isSaving}
+                />
+                <CampoTexto
+                  label="Numero de documento"
+                  name="numeroDocumento"
+                  defaultValue={prospecto?.numeroDocumento}
+                  error={erroresCampo["numeroDocumento"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("numeroDocumento")}
+                />
+              </div>
+
+              <div className="mt-4">
+                <CampoSelect
+                  label="Medio de contacto inicial"
+                  name="medioContactoInicial"
+                  requerido
+                  opciones={[
+                    { valor: "CORREO", etiqueta: "Correo electronico" },
+                    { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
+                    { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
+                    { valor: "OTRO", etiqueta: "Otro" },
+                  ]}
+                  defaultValue={prospecto?.medioContactoInicial ?? "CORREO"}
+                  error={erroresCampo["medioContactoInicial"]}
+                  disabled={isSaving}
+                />
+              </div>
+
+              {/* Ejecutivo responsable: editable solo en edicion.
+                  En alta el backend lo asigna automaticamente. */}
+              <div className="mt-4">
+                <CampoTexto
+                  label="ID ejecutivo responsable"
+                  name="idEjecutivoResponsable"
+                  defaultValue={prospecto?.idEjecutivoResponsable}
+                  error={erroresCampo["idEjecutivoResponsable"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("idEjecutivoResponsable")}
+                />
+              </div>
+            </>
+          ) : (
+            /* ----- Nuevo: dos columnas (datos | contacto inicial) ----- */
+            <div className="grid gap-y-8 lg:grid-cols-2">
+              {/* Columna 1: datos del prospecto */}
+              <div className="flex flex-col gap-4 lg:pr-10">
+                <SeccionTitulo
+                  titulo="Datos del prospecto"
+                  descripcion="Informacion comercial y de identificacion."
+                />
+                <CampoTexto
+                  label="Nombre comercial"
+                  name="nombreComercial"
+                  requerido
+                  error={erroresCampo["nombreComercial"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("nombreComercial")}
+                />
+                <CampoTexto
+                  label="Razon social"
+                  name="razonSocial"
+                  error={erroresCampo["razonSocial"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("razonSocial")}
+                />
+                <CampoSelect
+                  label="Tipo de documento"
+                  name="tipoDocumento"
+                  requerido
+                  opciones={[
+                    { valor: "RUC", etiqueta: "RUC" },
+                    { valor: "DNI", etiqueta: "DNI" },
+                    { valor: "CE", etiqueta: "Carnet de extranjeria" },
+                  ]}
+                  defaultValue="RUC"
+                  error={erroresCampo["tipoDocumento"]}
+                  disabled={isSaving}
+                />
+                <CampoTexto
+                  label="Numero de documento"
+                  name="numeroDocumento"
+                  requerido
+                  error={erroresCampo["numeroDocumento"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("numeroDocumento")}
+                />
+                <CampoSelect
+                  label="Medio de contacto inicial"
+                  name="medioContactoInicial"
+                  requerido
+                  opciones={[
+                    { valor: "CORREO", etiqueta: "Correo electronico" },
+                    { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
+                    { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
+                    { valor: "OTRO", etiqueta: "Otro" },
+                  ]}
+                  defaultValue="CORREO"
+                  error={erroresCampo["medioContactoInicial"]}
+                  disabled={isSaving}
+                />
+              </div>
+
+              {/* Columna 2: contacto inicial */}
+              <div className="flex flex-col gap-4 lg:border-l lg:border-border lg:pl-10">
+                <SeccionTitulo
+                  titulo="Contacto inicial"
+                  descripcion="Persona de contacto con la que se inicio la relacion comercial. Se requiere al menos telefono o email."
+                />
                 <CampoTexto
                   label="Nombre del contacto"
                   name="contacto.nombre"
@@ -349,9 +402,6 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
                   error={erroresCampo["contacto.cargo"]}
                   disabled={isSaving}
                 />
-              </div>
-
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
                 <CampoTexto
                   label="Telefono"
                   name="contacto.telefono"
@@ -374,17 +424,14 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
                     limpiarErrorCampo("contacto.telefono");
                   }}
                 />
-              </div>
-
-              <div className="mt-4">
                 <CampoTextarea
                   label="Observaciones"
                   name="contacto.observaciones"
                   disabled={isSaving}
                 />
               </div>
-            </>
-          ) : null}
+            </div>
+          )}
 
           {/* Footer */}
           <div className="-mx-5 mt-5 flex items-center justify-end gap-2 border-t border-border bg-muted/40 px-5 py-4">
