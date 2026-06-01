@@ -28,7 +28,7 @@ export function LoginVista() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const motivo = searchParams.get("motivo")
-  const [email, setEmail] = useState("")
+  const [identificador, setIdentificador] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
@@ -39,7 +39,7 @@ export function LoginVista() {
     setError(null)
 
     try {
-      await clienteHttp.post("/api/auth/login", { email, password })
+      await clienteHttp.post("/api/auth/login", { identificador, password })
       router.replace(searchParams.get("next") || "/")
       router.refresh()
     } catch (err) {
@@ -82,13 +82,15 @@ export function LoginVista() {
             <form onSubmit={(event) => void iniciarSesion(event)}>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="email">Correo</FieldLabel>
+                  <FieldLabel htmlFor="identificador">
+                    Usuario o correo
+                  </FieldLabel>
                   <Input
-                    id="email"
-                    autoComplete="email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
+                    id="identificador"
+                    autoComplete="username"
+                    type="text"
+                    value={identificador}
+                    onChange={(event) => setIdentificador(event.target.value)}
                     required
                   />
                 </Field>

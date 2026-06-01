@@ -29,13 +29,13 @@ const cliente = crearClienteHttp({
 // `ipCliente` se reenvia como header X-Cliente-Ip para que el audit log del
 // Auth Service registre la IP real del usuario final, no la del frontend Cloud Run.
 export async function loginContraAuthService(
-  email: string,
+  identificador: string,
   password: string,
   ipCliente: string | null,
 ): Promise<RespuestaTokensAuth> {
   const { data } = await cliente.post<RespuestaRecurso<RespuestaTokensAuth>>(
     "/api/auth/login",
-    { email, password },
+    { identificador, password },
     ipCliente ? { headers: { "X-Cliente-Ip": ipCliente } } : undefined,
   )
   return data.datos
