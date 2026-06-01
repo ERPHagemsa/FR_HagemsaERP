@@ -88,7 +88,8 @@ const data = {
       icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
       items: [
         { title: "Prospectos", url: "/comercial/prospectos" },
-        { title: "Cotizaciones", url: "/comercial" },
+        { title: "Cotizaciones", url: "/comercial/cotizaciones" },
+        { title: "Nueva solicitud", url: "/comercial/cotizaciones/nueva-solicitud" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
       ],
