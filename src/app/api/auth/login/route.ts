@@ -17,16 +17,16 @@ import { mapearPayloadAUsuario } from "@/compartido/autenticacion/sesion-servido
 import { decodificarAccessToken } from "@/compartido/autenticacion/tokens-jwt"
 
 type CuerpoLogin = {
-  email?: string
+  identificador?: string
   password?: string
 }
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as CuerpoLogin | null
 
-  if (!body?.email || !body.password) {
+  if (!body?.identificador || !body.password) {
     return NextResponse.json(
-      { message: "Correo y contrasena son obligatorios." },
+      { message: "Usuario o correo y contrasena son obligatorios." },
       { status: 400 },
     )
   }
@@ -35,10 +35,14 @@ export async function POST(request: Request) {
 
   let tokens
   try {
-    tokens = await loginContraAuthService(body.email, body.password, ipCliente)
+    tokens = await loginContraAuthService(
+      body.identificador,
+      body.password,
+      ipCliente,
+    )
   } catch (error) {
     if (esError401(error)) {
-      // Generico: no revelamos si el email existe o si la password es incorrecta.
+      // Generico: no revelamos si el usuario/correo existe o si la password es incorrecta.
       return NextResponse.json(
         { message: "Credenciales invalidas." },
         { status: 401 },
