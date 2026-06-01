@@ -20,6 +20,13 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -314,20 +321,21 @@ function FiltroSelect({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className={cn("grid gap-1.5", className)}>
+    <div className={cn("grid gap-1.5", className)}>
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <select
-        className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {valores.map((valor, i) => (
-          <option key={valor} value={valor}>
-            {etiquetas[i]}
-          </option>
-        ))}
-      </select>
-    </label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {valores.map((valor, i) => (
+            <SelectItem key={valor} value={valor}>
+              {etiquetas[i]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
