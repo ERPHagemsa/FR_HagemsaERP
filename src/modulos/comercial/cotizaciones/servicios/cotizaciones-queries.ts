@@ -4,6 +4,7 @@ import { useConsulta, useMutar } from "@/compartido/api";
 
 import type {
   FiltrosCotizaciones,
+  FiltrosModalidades,
   PayloadBorrador,
   PayloadEnviar,
   PayloadNuevaVersion,
@@ -20,6 +21,7 @@ import {
   marcarPerdida,
   nuevaVersion,
 } from "./cotizaciones-api";
+import { listarModalidades } from "./modalidades-api";
 import { registrarSolicitudCliente } from "./solicitudes-cliente-api";
 
 // ---------------------------------------------------------------------------
@@ -98,4 +100,15 @@ export function useCancelarCotizacionMutation(id: string) {
   return useMutar<undefined, Awaited<ReturnType<typeof cancelarCotizacion>>>({
     fn: () => cancelarCotizacion(id),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Modalidades (catalogo de lectura)
+// ---------------------------------------------------------------------------
+
+export function useListarModalidades(filtros: FiltrosModalidades = {}) {
+  return useConsulta(
+    () => listarModalidades(filtros),
+    [JSON.stringify(filtros)]
+  );
 }
