@@ -167,6 +167,8 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
       medioContactoInicial:
         (getValue(root, "medioContactoInicial") as MedioContactoInicial) ||
         undefined,
+      idEjecutivoResponsable:
+        getValue(root, "idEjecutivoResponsable") || undefined,
     };
 
     const resultado = schemaActualizarProspecto.safeParse(datos);
@@ -282,6 +284,21 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
               disabled={isSaving}
             />
           </div>
+
+          {/* Ejecutivo responsable: solo editable en modo edicion.
+              En modo nuevo el backend lo asigna automaticamente. */}
+          {esEdicion ? (
+            <div className="mt-4">
+              <CampoTexto
+                label="ID ejecutivo responsable"
+                name="idEjecutivoResponsable"
+                defaultValue={prospecto?.idEjecutivoResponsable}
+                error={erroresCampo["idEjecutivoResponsable"]}
+                disabled={isSaving}
+                onChange={() => limpiarErrorCampo("idEjecutivoResponsable")}
+              />
+            </div>
+          ) : null}
 
           {/* Seccion contacto inicial: solo en modo nuevo */}
           {!esEdicion ? (

@@ -285,6 +285,10 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
         (
           form.querySelector<HTMLInputElement>("[name=email]")?.value ?? ""
         ).trim() || undefined,
+      observaciones:
+        (
+          form.querySelector<HTMLTextAreaElement>("[name=observaciones]")?.value ?? ""
+        ).trim() || undefined,
       esPrincipal,
     };
 
@@ -392,6 +396,19 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
                 </p>
               ) : null}
             </div>
+          </div>
+
+          {/* Observaciones — campo opcional (spec 5.7) */}
+          <div className="grid gap-1.5">
+            <Label htmlFor="contacto-observaciones">Observaciones</Label>
+            <textarea
+              id="contacto-observaciones"
+              name="observaciones"
+              rows={3}
+              placeholder="Notas adicionales sobre el contacto"
+              disabled={isPending}
+              className="min-h-20 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+            />
           </div>
 
           {/* esPrincipal */}

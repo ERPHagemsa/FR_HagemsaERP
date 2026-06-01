@@ -94,6 +94,8 @@ export type PayloadActualizarProspecto = {
   tipoDocumento?: TipoDocumento;
   numeroDocumento?: string;
   medioContactoInicial?: MedioContactoInicial;
+  // Spec 5.4: el ejecutivo responsable puede reasignarse via PATCH
+  idEjecutivoResponsable?: string;
 };
 
 export type PayloadDescartarProspecto = {
@@ -105,5 +107,7 @@ export type PayloadAgregarContacto = {
   cargo?: string;
   telefono?: string;
   email?: string;
+  // Spec 5.7: observaciones opcionales al agregar un contacto
+  observaciones?: string;
   esPrincipal: boolean;
 };

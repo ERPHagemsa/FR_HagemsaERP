@@ -72,9 +72,14 @@ export const schemaContactoInicial = z
 
 export type DatosContactoInicial = z.infer<typeof schemaContactoInicial>;
 
-// Alta de contacto a un prospecto existente — incluye esPrincipal.
+// Alta de contacto a un prospecto existente — incluye esPrincipal y observaciones.
 export const schemaAgregarContacto = z
-  .object({ ...camposContacto, esPrincipal: z.boolean() })
+  .object({
+    ...camposContacto,
+    // Spec 5.7: observaciones opcionales
+    observaciones: z.string().optional(),
+    esPrincipal: z.boolean(),
+  })
   .superRefine(refinarTelefonoOEmail);
 
 export type DatosAgregarContacto = z.infer<typeof schemaAgregarContacto>;
@@ -147,6 +152,8 @@ export const schemaActualizarProspecto = z
     medioContactoInicial: z
       .enum(["CORREO", "LLAMADA", "PRESENCIAL", "OTRO"])
       .optional(),
+    // Spec 5.4: reasignar el ejecutivo responsable
+    idEjecutivoResponsable: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (!data.tipoDocumento || !data.numeroDocumento) return;
