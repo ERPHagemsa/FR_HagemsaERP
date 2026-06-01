@@ -34,3 +34,36 @@ export const schemaRegistrarSC = z.object({
 });
 
 export type DatosRegistrarSC = z.infer<typeof schemaRegistrarSC>;
+
+// ---------------------------------------------------------------------------
+// Schemas de transiciones de estado (Slice 4)
+// ---------------------------------------------------------------------------
+
+// POST /cotizaciones/:id/enviar — validezDias es opcional (default 10 en backend)
+export const schemaEnviar = z.object({
+  validezDias: z
+    .number({ message: "Ingresa un numero de dias valido" })
+    .int("Debe ser un numero entero")
+    .min(1, "La validez debe ser al menos 1 dia")
+    .optional(),
+});
+
+export type DatosEnviar = z.infer<typeof schemaEnviar>;
+
+// POST /cotizaciones/:id/nueva-version — motivo requerido
+export const schemaNuevaVersion = z.object({
+  motivo: z
+    .string()
+    .min(1, "El motivo es requerido para crear una nueva version"),
+});
+
+export type DatosNuevaVersion = z.infer<typeof schemaNuevaVersion>;
+
+// PATCH /cotizaciones/:id/perdida — motivoPerdida requerido
+export const schemaPerdida = z.object({
+  motivoPerdida: z
+    .string()
+    .min(1, "El motivo de perdida es requerido"),
+});
+
+export type DatosPerdida = z.infer<typeof schemaPerdida>;
