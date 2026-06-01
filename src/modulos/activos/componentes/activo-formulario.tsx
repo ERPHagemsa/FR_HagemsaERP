@@ -7,6 +7,7 @@ import {
   IconFileDescription,
   IconGasStation,
   IconPhotoPlus,
+  IconReceipt2,
   IconRulerMeasure,
   IconSettings,
   IconShieldCheck,
@@ -243,6 +244,13 @@ export function ActivoFormulario({
         ["Ubicacion", getValue("ubicacion") || activo?.ubicacion],
         ["Estado", getValue("estadoActivo") || activo?.estadoActivo],
       ],
+      adquisicion: [
+        ["Valor", getValue("valorUnidad") || activo?.valorUnidad],
+        ["Moneda", getValue("moneda") || activo?.moneda],
+        ["Proveedor", getValue("proveedor") || activo?.proveedor],
+        ["Factura", getValue("numeroFactura") || activo?.numeroFactura],
+        ["Fecha", getValue("fechaFactura") || activo?.fechaFactura],
+      ],
       vehiculo: [
         ["Plantilla", getValue("plantillaInventario") || activo?.vehiculo?.plantillaInventario],
         ["Carroceria", getValue("carroceria") || activo?.vehiculo?.carroceria],
@@ -379,6 +387,11 @@ export function ActivoFormulario({
         ubicacion,
         estadoActivo,
         observacion: getValue("observacion") || undefined,
+        valorUnidad: numero("valorUnidad"),
+        moneda: getValue("moneda") || "PEN",
+        proveedor: getValue("proveedor") || null,
+        numeroFactura: getValue("numeroFactura") || null,
+        fechaFactura: getValue("fechaFactura") || null,
         vehiculo: {
           plantillaInventario,
           carroceriaReferenciaId:
@@ -638,6 +651,10 @@ export function ActivoFormulario({
                 <IconClipboardText className="size-4 text-red-600" />
                 Base
               </TabsTrigger>
+              <TabsTrigger value="adquisicion" className="flex-none">
+                <IconReceipt2 className="size-4 text-red-600" />
+                Adquisicion
+              </TabsTrigger>
               <TabsTrigger value="vehiculo" className="flex-none">
                 <IconTruck className="size-4 text-red-600" />
                 Vehiculo
@@ -690,7 +707,7 @@ export function ActivoFormulario({
                     name="estadoActivo"
                     label="Estado activo"
                     defaultValue={activo?.estadoActivo ?? "ACTIVO"}
-                    values={["ACTIVO", "INACTIVO", "SINIESTRADO", "ELIMINADO"]}
+                    values={["ACTIVO", "INACTIVO", "SINIESTRADO"]}
                     required
                   />
                 </div>
@@ -710,6 +727,51 @@ export function ActivoFormulario({
                     required
                   />
                 </div>
+            </TabsContent>
+
+            <TabsContent forceMount value="adquisicion" className="mt-0 data-[state=inactive]:hidden">
+              <SectionIntro
+                icon={IconReceipt2}
+                title="Datos economicos y adquisicion"
+                description="Valor de unidad, proveedor y datos de factura."
+              />
+              <div className="grid gap-4 md:grid-cols-[1fr_140px]">
+                <Field
+                  name="valorUnidad"
+                  label="Valor de unidad"
+                  min="0"
+                  placeholder="0.00"
+                  step="0.01"
+                  type="number"
+                  defaultValue={activo?.valorUnidad ?? undefined}
+                />
+                <SelectField
+                  name="moneda"
+                  label="Moneda"
+                  defaultValue={activo?.moneda ?? "PEN"}
+                  values={["PEN", "USD"]}
+                />
+              </div>
+              <div className="grid gap-4 pt-4 md:grid-cols-3">
+                <Field
+                  name="proveedor"
+                  label="Proveedor"
+                  placeholder="Proveedor o razon social"
+                  defaultValue={activo?.proveedor ?? undefined}
+                />
+                <Field
+                  name="numeroFactura"
+                  label="Numero de factura"
+                  placeholder="F001-000123"
+                  defaultValue={activo?.numeroFactura ?? undefined}
+                />
+                <Field
+                  name="fechaFactura"
+                  label="Fecha de factura"
+                  type="date"
+                  defaultValue={toDateInputValue(activo?.fechaFactura)}
+                />
+              </div>
             </TabsContent>
 
             <TabsContent forceMount value="vehiculo" className="mt-0 data-[state=inactive]:hidden">
@@ -1254,6 +1316,12 @@ function ResumenRegistro({
       items: resumen.base,
     },
     {
+      id: "adquisicion",
+      title: "Adquisicion",
+      icon: IconReceipt2,
+      items: resumen.adquisicion,
+    },
+    {
       id: "vehiculo",
       title: "Vehiculo",
       icon: IconTruck,
@@ -1509,6 +1577,11 @@ function formatSummaryValue(value: unknown) {
   if (value === null || value === undefined || value === "") return "Pendiente";
 
   return String(value);
+}
+
+function toDateInputValue(value: string | null | undefined) {
+  if (!value) return undefined;
+  return value.slice(0, 10);
 }
 
 function isHttpUrl(value: string) {

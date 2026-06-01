@@ -84,6 +84,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
               <Tabs defaultValue="base">
                 <TabsList>
                   <TabsTrigger value="base">Base</TabsTrigger>
+                  <TabsTrigger value="adquisicion">Adquisicion</TabsTrigger>
                   <TabsTrigger value="vehiculo">Vehiculo</TabsTrigger>
                   <TabsTrigger value="equipamiento">Equipamiento</TabsTrigger>
                   <TabsTrigger value="dimensiones">Dimensiones</TabsTrigger>
@@ -101,6 +102,16 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Ubicacion" value={activo.ubicacion} />
                     <Dato label="Estado activo" value={activo.estadoActivo} />
                     <Dato label="Observacion" value={activo.observacion} />
+                  </FichaGrid>
+                </TabsContent>
+
+                <TabsContent value="adquisicion" className="pt-5">
+                  <FichaGrid>
+                    <Dato label="Valor de unidad" value={formatearMonto(activo.valorUnidad, activo.moneda)} />
+                    <Dato label="Moneda" value={activo.moneda} />
+                    <Dato label="Proveedor" value={activo.proveedor} />
+                    <Dato label="Numero factura" value={activo.numeroFactura} />
+                    <Dato label="Fecha factura" value={formatearFecha(activo.fechaFactura)} />
                   </FichaGrid>
                 </TabsContent>
 
@@ -228,6 +239,27 @@ function formatearFechaHora(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatearFecha(value: string | null | undefined) {
+  if (!value) return null;
+  return new Intl.DateTimeFormat("es-PE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatearMonto(
+  value: number | null | undefined,
+  moneda: string | null | undefined
+) {
+  if (value === null || value === undefined) return null;
+
+  return new Intl.NumberFormat("es-PE", {
+    style: "currency",
+    currency: moneda || "PEN",
+  }).format(value);
 }
 
 function Dato({

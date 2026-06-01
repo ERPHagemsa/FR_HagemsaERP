@@ -56,8 +56,8 @@ const data = {
       title: "Activos",
       icon: <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} />,
       items: [
-        { title: "Registro de activos", url: "/activos" },
-        { title: "Inventario de activos", url: "/activos/inventario" },
+        { title: "Resumen de activos", url: "/activos" },
+        { title: "Listado de activos", url: "/activos/inventario" },
         { title: "Nuevo activo", url: "/activos/nuevo" },
         { title: "Estados", url: "#" },
         { title: "Documentos", url: "#" },

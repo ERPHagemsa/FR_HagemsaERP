@@ -10,6 +10,7 @@ import type {
   CrearTanqueActivoPayload,
   DocumentoActivo,
   EstadoActivo,
+  EstadoRegistro,
   ImagenActivo,
   PlantillaInventario,
   TanqueActivo,
@@ -212,6 +213,21 @@ export async function cambiarEstadoActivo(
 ): Promise<Activo> {
   const { data } = await clienteActivos.patch<Activo>(
     `/activos/${id}/estado-activo`,
+    payload
+  );
+  return data;
+}
+
+export async function cambiarEstadoRegistro(
+  id: number,
+  payload: {
+    estadoRegistro: EstadoRegistro;
+    motivo?: string;
+    usuario?: string;
+  }
+): Promise<Activo> {
+  const { data } = await clienteActivos.patch<Activo>(
+    `/activos/${id}/estado-registro`,
     payload
   );
   return data;
