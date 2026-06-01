@@ -43,7 +43,7 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
         <section className="flex flex-col gap-4 rounded-xl border border-border bg-card px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm font-medium text-muted-foreground">
-              Prospecto #{prospecto.id}
+              Prospecto
             </p>
             <h1 className="text-2xl font-semibold">{prospecto.nombreComercial}</h1>
             {prospecto.razonSocial ? (
@@ -131,7 +131,6 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
             </CardHeader>
             <CardContent>
               <div className="grid gap-4">
-                <Dato label="ID" value={prospecto.id} />
                 <Dato
                   label="Fecha creacion"
                   value={formatearFechaHora(prospecto.fechaCreacion)}

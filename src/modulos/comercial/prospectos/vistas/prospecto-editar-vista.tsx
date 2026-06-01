@@ -28,7 +28,7 @@ export async function ProspectoEditarVista({ id }: Props) {
         <section className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4">
           <div>
             <p className="text-sm font-medium text-muted-foreground">
-              Prospecto #{prospecto.id}
+              Prospecto
             </p>
             <h1 className="text-2xl font-semibold">
               Editar — {prospecto.nombreComercial}

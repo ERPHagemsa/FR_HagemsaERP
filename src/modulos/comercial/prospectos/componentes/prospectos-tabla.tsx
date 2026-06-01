@@ -197,9 +197,8 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[5%]">ID</TableHead>
-                <TableHead className="w-[22%]">Nombre comercial</TableHead>
-                <TableHead className="w-[18%]">Razon social</TableHead>
+                <TableHead className="w-[25%]">Nombre comercial</TableHead>
+                <TableHead className="w-[20%]">Razon social</TableHead>
                 <TableHead className="w-[12%]">Documento</TableHead>
                 <TableHead className="w-[14%]">Medio contacto</TableHead>
                 <TableHead className="w-[10%]">Estado</TableHead>
@@ -214,7 +213,7 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
               {!prospectos.length ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={7}
                     className="h-28 text-center text-muted-foreground"
                   >
                     No se encontraron prospectos con los filtros aplicados.
@@ -264,9 +263,6 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
 function FilaProspecto({ prospecto }: { prospecto: Prospecto }) {
   return (
     <TableRow>
-      <TableCell className="font-medium text-muted-foreground">
-        #{prospecto.id}
-      </TableCell>
       <TableCell>
         <span className="truncate font-medium">{prospecto.nombreComercial}</span>
       </TableCell>
