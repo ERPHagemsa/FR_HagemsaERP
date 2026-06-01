@@ -166,7 +166,7 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
               Ejecutivo responsable
             </span>
             <Input
-              type="number"
+              type="text"
               placeholder="ID ejecutivo"
               value={ejecutivoLocal}
               onChange={(e) => setEjecutivoLocal(e.target.value)}

@@ -24,7 +24,7 @@ export async function listarProspectos(
   return data;
 }
 
-export async function consultarProspecto(id: number): Promise<Prospecto> {
+export async function consultarProspecto(id: string): Promise<Prospecto> {
   const { data } = await clienteComercial.get<Prospecto>(`/prospectos/${id}`);
   return data;
 }
@@ -35,8 +35,8 @@ export async function consultarProspecto(id: number): Promise<Prospecto> {
 
 export async function registrarProspecto(
   payload: PayloadRegistrarProspecto
-): Promise<{ id: number }> {
-  const { data } = await clienteComercial.post<{ id: number }>(
+): Promise<{ id: string }> {
+  const { data } = await clienteComercial.post<{ id: string }>(
     "/prospectos",
     payload
   );
@@ -48,7 +48,7 @@ export async function registrarProspecto(
 // ---------------------------------------------------------------------------
 
 export async function actualizarProspecto(
-  id: number,
+  id: string,
   payload: PayloadActualizarProspecto
 ): Promise<void> {
   await clienteComercial.patch(`/prospectos/${id}`, payload);
@@ -59,7 +59,7 @@ export async function actualizarProspecto(
 // ---------------------------------------------------------------------------
 
 export async function descartarProspecto(
-  id: number,
+  id: string,
   payload: PayloadDescartarProspecto
 ): Promise<void> {
   await clienteComercial.patch(`/prospectos/${id}/descartar`, payload);
@@ -70,7 +70,7 @@ export async function descartarProspecto(
 // ---------------------------------------------------------------------------
 
 export async function agregarContacto(
-  idProspecto: number,
+  idProspecto: string,
   payload: PayloadAgregarContacto
 ): Promise<void> {
   await clienteComercial.post(
@@ -80,8 +80,8 @@ export async function agregarContacto(
 }
 
 export async function eliminarContacto(
-  idProspecto: number,
-  idContacto: number
+  idProspecto: string,
+  idContacto: string
 ): Promise<void> {
   await clienteComercial.delete(
     `/prospectos/${idProspecto}/contactos/${idContacto}`
@@ -89,11 +89,11 @@ export async function eliminarContacto(
 }
 
 export async function cambiarContactoPrincipal(
-  idProspecto: number,
-  idContacto: number
+  idProspecto: string,
+  idContacto: string
 ): Promise<void> {
+  // El PATCH .../principal no lleva body — se envía sin cuerpo
   await clienteComercial.patch(
-    `/prospectos/${idProspecto}/contactos/${idContacto}/principal`,
-    {}
+    `/prospectos/${idProspecto}/contactos/${idContacto}/principal`
   );
 }

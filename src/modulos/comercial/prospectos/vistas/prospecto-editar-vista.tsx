@@ -7,7 +7,7 @@ import { ProspectoFormulario } from "../componentes/prospecto-formulario";
 import { consultarProspecto } from "../servicios/prospectos-api";
 
 type Props = {
-  id: number;
+  id: string;
 };
 
 export async function ProspectoEditarVista({ id }: Props) {

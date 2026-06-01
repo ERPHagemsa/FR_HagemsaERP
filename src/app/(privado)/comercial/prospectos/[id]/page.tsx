@@ -17,7 +17,7 @@ export default async function Page({ params, searchParams }: Props) {
   return (
     <>
       <SiteHeader title="Detalle de prospecto" />
-      <ProspectoDetalleVista id={Number(id)} accion={accion} />
+      <ProspectoDetalleVista id={id} accion={accion} />
     </>
   );
 }

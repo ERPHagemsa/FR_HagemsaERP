@@ -28,7 +28,7 @@ export function useProspectosQuery(filtros: FiltrosProspectos = {}) {
   return useConsulta(() => listarProspectos(filtros), [JSON.stringify(filtros)]);
 }
 
-export function useProspectoQuery(id: number) {
+export function useProspectoQuery(id: string) {
   return useConsulta(() => consultarProspecto(id), [id], {
     enabled: Boolean(id),
   });
@@ -49,7 +49,7 @@ export function useRegistrarProspectoMutation() {
 
 export function useActualizarProspectoMutation() {
   return useMutar<
-    { id: number; payload: PayloadActualizarProspecto },
+    { id: string; payload: PayloadActualizarProspecto },
     Awaited<ReturnType<typeof actualizarProspecto>>
   >({
     fn: ({ id, payload }) => actualizarProspecto(id, payload),
@@ -58,14 +58,14 @@ export function useActualizarProspectoMutation() {
 
 export function useDescartarProspectoMutation() {
   return useMutar<
-    { id: number; payload: PayloadDescartarProspecto },
+    { id: string; payload: PayloadDescartarProspecto },
     Awaited<ReturnType<typeof descartarProspecto>>
   >({
     fn: ({ id, payload }) => descartarProspecto(id, payload),
   });
 }
 
-export function useAgregarContactoMutation(idProspecto: number) {
+export function useAgregarContactoMutation(idProspecto: string) {
   return useMutar<
     PayloadAgregarContacto,
     Awaited<ReturnType<typeof agregarContacto>>
@@ -74,18 +74,18 @@ export function useAgregarContactoMutation(idProspecto: number) {
   });
 }
 
-export function useEliminarContactoMutation(idProspecto: number) {
+export function useEliminarContactoMutation(idProspecto: string) {
   return useMutar<
-    number,
+    string,
     Awaited<ReturnType<typeof eliminarContacto>>
   >({
     fn: (idContacto) => eliminarContacto(idProspecto, idContacto),
   });
 }
 
-export function useCambiarContactoPrincipalMutation(idProspecto: number) {
+export function useCambiarContactoPrincipalMutation(idProspecto: string) {
   return useMutar<
-    number,
+    string,
     Awaited<ReturnType<typeof cambiarContactoPrincipal>>
   >({
     fn: (idContacto) => cambiarContactoPrincipal(idProspecto, idContacto),

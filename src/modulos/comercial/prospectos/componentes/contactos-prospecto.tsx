@@ -73,7 +73,7 @@ import type { Contacto } from "../tipos/prospecto.tipos";
 // ---------------------------------------------------------------------------
 
 type Props = {
-  idProspecto: number;
+  idProspecto: string;
   contactos: Contacto[];
   esTerminal?: boolean;
 };
@@ -151,7 +151,7 @@ export function ContactosProspecto({
 type FilaContactoProps = {
   contacto: Contacto;
   totalActivos: number;
-  idProspecto: number;
+  idProspecto: string;
   esTerminal: boolean;
 };
 
@@ -236,7 +236,7 @@ function FilaContacto({
 // ---------------------------------------------------------------------------
 
 type DialogAgregarContactoProps = {
-  idProspecto: number;
+  idProspecto: string;
 };
 
 function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
@@ -434,8 +434,8 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
 // ---------------------------------------------------------------------------
 
 type DialogEliminarContactoProps = {
-  idProspecto: number;
-  idContacto: number;
+  idProspecto: string;
+  idContacto: string;
   nombreContacto: string;
 };
 
@@ -515,8 +515,8 @@ function DialogEliminarContacto({
 // ---------------------------------------------------------------------------
 
 type BotonMarcarPrincipalProps = {
-  idProspecto: number;
-  idContacto: number;
+  idProspecto: string;
+  idContacto: string;
 };
 
 function BotonMarcarPrincipal({

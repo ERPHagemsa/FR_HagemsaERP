@@ -23,7 +23,7 @@ import { ProspectoAcciones } from "../componentes/prospecto-acciones";
 import { consultarProspecto } from "../servicios/prospectos-api";
 
 type Props = {
-  id: number;
+  id: string;
   accion?: string;
 };
 

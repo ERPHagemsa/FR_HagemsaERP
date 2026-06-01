@@ -13,7 +13,7 @@ import type { EstadoProspecto } from "../tipos/prospecto.tipos";
 import { ProspectoDescartarDialog } from "./prospecto-descartar-dialog";
 
 type Props = {
-  idProspecto: number;
+  idProspecto: string;
   estado: EstadoProspecto;
 };
 

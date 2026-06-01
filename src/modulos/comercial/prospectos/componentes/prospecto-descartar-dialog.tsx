@@ -22,7 +22,7 @@ import { useDescartarProspectoMutation } from "../servicios/prospectos-queries";
 import { schemaDescartarProspecto } from "../tipos/prospecto.schemas";
 
 type Props = {
-  idProspecto: number;
+  idProspecto: string;
   disabled?: boolean;
 };
 

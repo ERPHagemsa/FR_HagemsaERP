@@ -11,7 +11,7 @@ export default async function Page({ params }: Props) {
   return (
     <>
       <SiteHeader title="Editar prospecto" />
-      <ProspectoEditarVista id={Number(id)} />
+      <ProspectoEditarVista id={id} />
     </>
   );
 }

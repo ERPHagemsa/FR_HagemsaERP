@@ -16,7 +16,7 @@ export type EstadoProspecto = "ACTIVO" | "CONVERTIDO" | "DESCARTADO";
 // ---------------------------------------------------------------------------
 
 export type Contacto = {
-  id: number;
+  id: string;
   nombre: string;
   cargo: string | null;
   telefono: string | null;
@@ -26,7 +26,7 @@ export type Contacto = {
 };
 
 export type Prospecto = {
-  id: number;
+  id: string;
   nombreComercial: string;
   razonSocial: string | null;
   tipoDocumento: TipoDocumento;
