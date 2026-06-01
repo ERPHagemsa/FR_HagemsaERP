@@ -20,7 +20,13 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
-import { cn } from "@/compartido/utilidades";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select";
 
 import {
   useActualizarProspectoMutation,
@@ -73,7 +79,7 @@ type Props = {
 
 export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
   const router = useRouter();
-  const formularioRef = React.useRef<HTMLDivElement>(null);
+  const formularioRef = React.useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [erroresCampo, setErroresCampo] = React.useState<
     Record<string, string>
@@ -232,7 +238,13 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
     : "/comercial/prospectos";
 
   return (
-    <div ref={formularioRef}>
+    <form
+      ref={formularioRef}
+      onSubmit={(e) => {
+        e.preventDefault();
+        void onSubmit();
+      }}
+    >
       <Card>
         <CardHeader className="border-b border-border">
           <CardTitle>
@@ -438,7 +450,7 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
             <Button type="button" variant="outline" asChild disabled={isSaving}>
               <Link href={urlCancelar}>Cancelar</Link>
             </Button>
-            <Button type="button" onClick={onSubmit} disabled={isSaving}>
+            <Button type="submit" disabled={isSaving}>
               {isSaving
                 ? "Guardando..."
                 : esEdicion
@@ -448,7 +460,7 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </form>
   );
 }
 
@@ -529,23 +541,22 @@ function CampoSelect({
         {label}
         {requerido ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      <select
-        id={name}
-        name={name}
-        defaultValue={defaultValue}
-        disabled={disabled}
-        aria-invalid={Boolean(error)}
-        className={cn(
-          "h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}
-      >
-        {opciones.map((opcion) => (
-          <option key={opcion.valor} value={opcion.valor}>
-            {opcion.etiqueta}
-          </option>
-        ))}
-      </select>
+      <Select name={name} defaultValue={defaultValue} disabled={disabled}>
+        <SelectTrigger
+          id={name}
+          aria-invalid={Boolean(error)}
+          className="w-full"
+        >
+          <SelectValue placeholder="Selecciona una opcion" />
+        </SelectTrigger>
+        <SelectContent>
+          {opciones.map((opcion) => (
+            <SelectItem key={opcion.valor} value={opcion.valor}>
+              {opcion.etiqueta}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {error ? (
         <p className="text-xs text-destructive">{error}</p>
       ) : null}
