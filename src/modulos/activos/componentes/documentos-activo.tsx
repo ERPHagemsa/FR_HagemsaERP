@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 import {
   IconExternalLink,
   IconFilePlus,
@@ -22,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
-import { cn } from "@/compartido/utilidades";
 import {
   useCrearDocumentoActivoMutation,
   useEliminarDocumentoActivoMutation,
@@ -57,17 +57,12 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [archivoNombre, setArchivoNombre] = React.useState("");
   const [archivoDataUrl, setArchivoDataUrl] = React.useState("");
-  const [message, setMessage] = React.useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
   const crearDocumentoMutation = useCrearDocumentoActivoMutation(codigo);
   const eliminarDocumentoMutation = useEliminarDocumentoActivoMutation(codigo);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
-    setMessage(null);
     setIsSaving(true);
 
     const formData = new FormData(form);
@@ -76,10 +71,7 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
     const archivoUrl = archivoDataUrl || String(formData.get("archivoUrl") ?? "").trim();
 
     if (!archivoUrl) {
-      setMessage({
-        type: "error",
-        text: "Selecciona un archivo desde tu equipo o registra una URL documental.",
-      });
+      toast.error("Selecciona un archivo desde tu equipo o registra una URL documental.");
       setIsSaving(false);
       return;
     }
@@ -100,16 +92,10 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
       setArchivoNombre("");
       setArchivoDataUrl("");
       setMostrarFormulario(false);
-      setMessage({
-        type: "success",
-        text: "Documento registrado correctamente.",
-      });
+      toast.success("Documento registrado correctamente.");
       router.refresh();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text: extraerMensajeError(error, "No se pudo registrar el documento."),
-      });
+      toast.error(extraerMensajeError(error, "No se pudo registrar el documento."));
     } finally {
       setIsSaving(false);
     }
@@ -117,7 +103,6 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
 
   async function onArchivoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const archivo = event.target.files?.[0];
-    setMessage(null);
 
     if (!archivo) {
       setArchivoNombre("");
@@ -129,10 +114,9 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
       event.target.value = "";
       setArchivoNombre("");
       setArchivoDataUrl("");
-      setMessage({
-        type: "error",
-        text: "El archivo supera 10 MB. Usa una URL documental o selecciona un archivo mas ligero.",
-      });
+      toast.error(
+        "El archivo supera 10 MB. Usa una URL documental o selecciona un archivo mas ligero."
+      );
       return;
     }
 
@@ -141,24 +125,14 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
   }
 
   async function eliminarDocumento(documento: DocumentoActivo) {
-    setMessage(null);
     setDeletingId(documento.id);
 
     try {
       await eliminarDocumentoMutation.mutateAsync(documento.id);
-      setMessage({
-        type: "success",
-        text: "Documento eliminado correctamente.",
-      });
+      toast.success("Documento eliminado correctamente.");
       router.refresh();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "No se pudo eliminar el documento.",
-      });
+      toast.error(extraerMensajeError(error, "No se pudo eliminar el documento."));
     } finally {
       setDeletingId(null);
     }
@@ -184,19 +158,6 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
           </Button>
         ) : null}
       </div>
-
-      {editable && message ? (
-        <div
-          className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
-            message.type === "success"
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
-              : "border-destructive/40 bg-destructive/10 text-destructive"
-          )}
-        >
-          {message.text}
-        </div>
-      ) : null}
 
       {editable && mostrarFormulario ? (
         <form

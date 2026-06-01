@@ -1,5 +1,5 @@
 export type EstadoActivo = "ACTIVO" | "INACTIVO" | "SINIESTRADO";
-export type EstadoRegistro = "ACTIVO" | "ANULADO";
+export type EstadoRegistro = boolean;
 export type TipoActivo =
   | "VEHICULO"
   | "EQUIPO"

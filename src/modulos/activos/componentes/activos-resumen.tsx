@@ -20,7 +20,7 @@ type Props = {
 
 export function ActivosResumen({ activos }: Props) {
   const activosVisibles = activos.filter(
-    (activo) => activo.estadoRegistro !== "ANULADO"
+    (activo) => activo.estadoRegistro !== false
   );
   const activosVigentes = activosVisibles.filter(
     (activo) => activo.estadoActivo === "ACTIVO"

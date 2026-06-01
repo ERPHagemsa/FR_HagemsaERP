@@ -61,7 +61,7 @@ export async function ActivosVista() {
     }));
 
   const activosVisibles = resultado.activos.filter(
-    (activo) => activo.estadoRegistro !== "ANULADO",
+    (activo) => activo.estadoRegistro !== false,
   );
   const ultimosActivos = [...activosVisibles]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

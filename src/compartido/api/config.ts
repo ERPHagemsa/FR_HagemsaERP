@@ -18,7 +18,7 @@ export const serviciosApi = {
     baseUrl:
       process.env.NEXT_PUBLIC_ACTIVOS_API_URL ??
       API_GATEWAY_URL ??
-      "https://api-activos-dev.hagemsa.com/api",
+      "https://api-activos-dev.hagemsa.com",
     nombre: "activos",
     timeoutMs: 8000,
   },
