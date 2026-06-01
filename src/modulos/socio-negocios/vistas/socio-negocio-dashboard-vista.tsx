@@ -597,7 +597,7 @@ export function SocioNegocioDashboardVista() {
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
                   <Button asChild>
-                    <Link href="/socio-negocios/nuevo">
+                    <Link href="/socio-negocios/nuevo?tipo=CLIENTE">
                       <HugeiconsIcon data-icon="inline-start" icon={Add01Icon} strokeWidth={2} />
                       Registrar socio
                     </Link>

@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useState } from "react"
+import { type FormEvent, type ReactNode, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -47,6 +47,10 @@ const USUARIO_RESPONSABLE_ID = "admin"
 type ErrorDialogo = {
   titulo: string
   descripcion: string
+}
+
+type SocioNegocioFormularioPersonalProps = {
+  selectorTipo?: ReactNode
 }
 
 function texto(formData: FormData, name: string) {
@@ -144,7 +148,9 @@ function CatalogoSelect({
   )
 }
 
-export function SocioNegocioFormularioPersonal() {
+export function SocioNegocioFormularioPersonal({
+  selectorTipo,
+}: SocioNegocioFormularioPersonalProps) {
   const router = useRouter()
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState<string | undefined>()
@@ -311,15 +317,15 @@ export function SocioNegocioFormularioPersonal() {
     <>
       <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
         <div className="border-b border-border px-5 py-4">
-          <div className="mb-2 flex items-center gap-3">
-            <h2 className="text-lg font-semibold">Datos del personal</h2>
-            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-900 dark:text-green-200">
-              PERSONAL
-            </span>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold">Nuevo personal</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Registra los datos personales, laborales y contractuales del colaborador.
+              </p>
+            </div>
+            {selectorTipo ? <div className="w-full lg:max-w-xs">{selectorTipo}</div> : null}
           </div>
-          <p className="text-sm text-muted-foreground">
-            Completa todos los datos personales y laborales del empleado.
-          </p>
         </div>
         <div className="px-5 py-5">
           <form onSubmit={(event) => void registrar(event)}>

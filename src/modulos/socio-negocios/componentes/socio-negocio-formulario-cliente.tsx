@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useState } from "react"
+import { type FormEvent, type ReactNode, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -49,6 +49,10 @@ type ErrorDialogo = {
   descripcion: string
 }
 
+type SocioNegocioFormularioClienteProps = {
+  selectorTipo?: ReactNode
+}
+
 function texto(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim()
 }
@@ -56,13 +60,6 @@ function texto(formData: FormData, name: string) {
 function textoOpcional(formData: FormData, name: string) {
   const valor = texto(formData, name)
   return valor || undefined
-}
-
-function construirContacto(formData: FormData) {
-  const nombre = texto(formData, "nombreContacto")
-  const referencia = texto(formData, "referenciaContacto")
-
-  return referencia ? `${nombre} - ${referencia}` : nombre
 }
 
 function buscarMaestro(
@@ -151,7 +148,9 @@ function CatalogoSelect({
   )
 }
 
-export function SocioNegocioFormularioCliente() {
+export function SocioNegocioFormularioCliente({
+  selectorTipo,
+}: SocioNegocioFormularioClienteProps) {
   const router = useRouter()
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
   const [errorDialogo, setErrorDialogo] = useState<ErrorDialogo | null>(null)
@@ -168,7 +167,6 @@ export function SocioNegocioFormularioCliente() {
   const cuentas = (cuentasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
   const areas = (areasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
   const cargos = (cargosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
-  const referenciasContacto = [...areas, ...cargos]
 
   const catalogosCargando =
     cuentasQuery.isLoading || areasQuery.isLoading || cargosQuery.isLoading
@@ -179,16 +177,12 @@ export function SocioNegocioFormularioCliente() {
 
     const formData = new FormData(event.currentTarget)
     const cargoId = textoOpcional(formData, "cargo")
+    const areaId = textoOpcional(formData, "area")
     const cuentaId = textoOpcional(formData, "cuenta")
-    const referenciaContactoId = textoOpcional(formData, "referenciaContacto")
 
-    const cargos_maestro = buscarMaestro(cargos, cargoId)
+    const cargoMaestro = buscarMaestro(cargos, cargoId)
+    const areaMaestro = buscarMaestro(areas, areaId)
     const cuentaMaestro = buscarMaestro(cuentas, cuentaId)
-    const referenciaContactoMaestro = buscarMaestro(referenciasContacto, referenciaContactoId)
-
-    const contacto = referenciaContactoMaestro
-      ? `${texto(formData, "nombreContacto")} - ${referenciaContactoMaestro.nombre}`
-      : construirContacto(formData)
 
     try {
       const payload: RegistrarClienteRequest = {
@@ -198,13 +192,13 @@ export function SocioNegocioFormularioCliente() {
         razonSocial: texto(formData, "razonSocial"),
         nombreComercial: texto(formData, "nombreComercial"),
         direccion: texto(formData, "direccion"),
-        contacto,
+        contacto: texto(formData, "nombreContacto"),
         correo: texto(formData, "correo"),
         numeroCelular: texto(formData, "numeroCelular"),
-        cargoId: cargos_maestro?.id,
-        cargoNombre: cargos_maestro?.nombre,
-        areaId: referenciaContactoMaestro?.areaId || undefined,
-        areaNombre: referenciaContactoMaestro?.areaId ? referenciaContactoMaestro.nombre : undefined,
+        areaId: areaMaestro?.id,
+        areaNombre: areaMaestro?.nombre,
+        cargoId: cargoMaestro?.id,
+        cargoNombre: cargoMaestro?.nombre,
         cuentaId: cuentaMaestro?.id,
         cuentaNombre: cuentaMaestro?.nombre,
         usuarioId: USUARIO_RESPONSABLE_ID,
@@ -223,15 +217,15 @@ export function SocioNegocioFormularioCliente() {
     <>
       <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
         <div className="border-b border-border px-5 py-4">
-          <div className="mb-2 flex items-center gap-3">
-            <h2 className="text-lg font-semibold">Datos del cliente</h2>
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-              CLIENTE
-            </span>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold">Nuevo cliente</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Registra los datos comerciales y el contacto principal del cliente.
+              </p>
+            </div>
+            {selectorTipo ? <div className="w-full lg:max-w-xs">{selectorTipo}</div> : null}
           </div>
-          <p className="text-sm text-muted-foreground">
-            Completa los datos que identifican al cliente y permiten ubicarlo en la operacion.
-          </p>
         </div>
         <div className="px-5 py-5">
           <form onSubmit={(event) => void registrar(event)}>
@@ -318,11 +312,11 @@ export function SocioNegocioFormularioCliente() {
               </div>
 
               <FieldSet className="rounded-lg border border-border p-4">
-                <FieldLegend>Datos de contacto (OPCIONAL)</FieldLegend>
+                <FieldLegend>Datos de contacto</FieldLegend>
                 <FieldDescription>
-                  Nombre y departamento del contacto principal donde coordinamos con el cliente.
+                  Persona con la que se coordina por parte del cliente.
                 </FieldDescription>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                   <Field>
                     <FieldLabel htmlFor="nombreContacto">Nombre del contacto</FieldLabel>
                     <Input
@@ -334,16 +328,29 @@ export function SocioNegocioFormularioCliente() {
                   </Field>
 
                   <Field>
-                    <FieldLabel htmlFor="referenciaContacto">Departamento o cargo en cliente</FieldLabel>
+                    <FieldLabel htmlFor="area">Departamento</FieldLabel>
                     <CatalogoSelect
-                      datos={referenciasContacto}
-                      disabled={areasQuery.isLoading || cargosQuery.isLoading}
-                      id="referenciaContacto"
-                      name="referenciaContacto"
+                      datos={areas}
+                      disabled={areasQuery.isLoading}
+                      id="area"
+                      name="area"
                       placeholder={
-                        areasQuery.isLoading || cargosQuery.isLoading
-                          ? "Cargando..."
-                          : "Selecciona (opcional)"
+                        areasQuery.isLoading
+                          ? "Cargando departamentos..."
+                          : "Selecciona un departamento"
+                      }
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="cargo">Cargo</FieldLabel>
+                    <CatalogoSelect
+                      datos={cargos}
+                      disabled={cargosQuery.isLoading}
+                      id="cargo"
+                      name="cargo"
+                      placeholder={
+                        cargosQuery.isLoading ? "Cargando cargos..." : "Selecciona un cargo"
                       }
                     />
                   </Field>
