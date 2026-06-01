@@ -42,3 +42,5 @@ gcloud run deploy front-ddd \
   --clear-base-image \
   --set-build-env-vars="${BUILD_VARS}" \
   --set-env-vars="${VARS}"
+
+  

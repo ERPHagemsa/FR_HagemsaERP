@@ -1,4 +1,5 @@
-export type EstadoActivo = "ACTIVO" | "INACTIVO" | "SINIESTRADO" | "ELIMINADO";
+export type EstadoActivo = "ACTIVO" | "INACTIVO" | "SINIESTRADO";
+export type EstadoRegistro = "ACTIVO" | "ANULADO";
 export type TipoActivo =
   | "VEHICULO"
   | "EQUIPO"
@@ -95,7 +96,13 @@ export type Activo = {
   descripcion: string;
   ubicacion: string;
   estadoActivo: EstadoActivo;
+  estadoRegistro?: EstadoRegistro;
   observacion: string | null;
+  valorUnidad: number | null;
+  moneda: string | null;
+  proveedor: string | null;
+  numeroFactura: string | null;
+  fechaFactura: string | null;
   vehiculo: VehiculoDetalle | null;
   createdAt: string;
   updatedAt: string;
@@ -108,6 +115,11 @@ export type CrearActivoPayload = {
   ubicacion: string;
   estadoActivo: EstadoActivo;
   observacion?: string;
+  valorUnidad?: number | null;
+  moneda?: string | null;
+  proveedor?: string | null;
+  numeroFactura?: string | null;
+  fechaFactura?: string | null;
   vehiculo?: Partial<VehiculoDetalle> & {
     plantillaInventario: PlantillaInventario;
   };

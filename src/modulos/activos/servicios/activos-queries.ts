@@ -8,10 +8,12 @@ import type {
   CrearImagenActivoPayload,
   CrearTanqueActivoPayload,
   EstadoActivo,
+  EstadoRegistro,
 } from "../tipos/activo.tipos";
 import {
   actualizarActivo,
   cambiarEstadoActivo,
+  cambiarEstadoRegistro,
   crearActivo,
   crearDocumentoPorCodigo,
   crearImagenPorCodigo,
@@ -83,6 +85,22 @@ export function useCambiarEstadoActivoMutation() {
     Awaited<ReturnType<typeof cambiarEstadoActivo>>
   >({
     fn: ({ id, payload }) => cambiarEstadoActivo(id, payload),
+  });
+}
+
+export function useCambiarEstadoRegistroMutation() {
+  return useMutar<
+    {
+      id: number;
+      payload: {
+        estadoRegistro: EstadoRegistro;
+        motivo?: string;
+        usuario?: string;
+      };
+    },
+    Awaited<ReturnType<typeof cambiarEstadoRegistro>>
+  >({
+    fn: ({ id, payload }) => cambiarEstadoRegistro(id, payload),
   });
 }
 

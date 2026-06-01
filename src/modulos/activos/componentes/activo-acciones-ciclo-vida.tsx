@@ -15,6 +15,7 @@ import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
   useCambiarEstadoActivoMutation,
+  useCambiarEstadoRegistroMutation,
   useSiniestrarActivoMutation,
 } from "../servicios/activos-queries";
 import type { Activo } from "../tipos/activo.tipos";
@@ -31,9 +32,10 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
   const [mostrarConfirmacionBorrado, setMostrarConfirmacionBorrado] =
     React.useState(false);
   const cambiarEstadoMutation = useCambiarEstadoActivoMutation();
+  const cambiarEstadoRegistroMutation = useCambiarEstadoRegistroMutation();
   const siniestrarMutation = useSiniestrarActivoMutation();
   const estaCerrado =
-    activo.estadoActivo === "SINIESTRADO" || activo.estadoActivo === "ELIMINADO";
+    activo.estadoActivo === "SINIESTRADO" || activo.estadoRegistro === "ANULADO";
 
   async function onSiniestrar() {
     if (!confirm("Se marcara el activo como SINIESTRADO. Deseas continuar?")) return;
@@ -84,10 +86,10 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
     setIsSaving(true);
 
     try {
-      const saved = await cambiarEstadoMutation.mutateAsync({
+      const saved = await cambiarEstadoRegistroMutation.mutateAsync({
         id: activo.id,
         payload: {
-          estadoActivo: "ELIMINADO",
+          estadoRegistro: "ANULADO",
           motivo: motivo.trim() || "Borrado logico desde Activos",
           usuario: "activos.web",
         },

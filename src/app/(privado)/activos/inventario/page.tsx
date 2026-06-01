@@ -7,7 +7,7 @@ export const revalidate = 0;
 export default function ActivosInventarioPage() {
   return (
     <>
-      <SiteHeader title="Inventario de activos" />
+      <SiteHeader title="Listado de activos" />
       <ActivosInventarioVista />
     </>
   );

@@ -34,7 +34,7 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
-import { useCambiarEstadoActivoMutation } from "../servicios/activos-queries";
+import { useCambiarEstadoRegistroMutation } from "../servicios/activos-queries";
 import type {
   Activo,
   EstadoActivo,
@@ -65,10 +65,10 @@ export function ActivosTabla({ activos }: Props) {
   );
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
-  const cambiarEstadoMutation = useCambiarEstadoActivoMutation();
+  const cambiarEstadoRegistroMutation = useCambiarEstadoRegistroMutation();
 
   const activosVisibles = activos.filter(
-    (activo) => activo.estadoActivo !== "ELIMINADO"
+    (activo) => activo.estadoRegistro !== "ANULADO"
   );
   const normalizedQuery = query.trim().toUpperCase();
   const filtrados = activosVisibles.filter((activo) => {
@@ -149,10 +149,10 @@ export function ActivosTabla({ activos }: Props) {
     setIsDeleting(true);
 
     try {
-      await cambiarEstadoMutation.mutateAsync({
+      await cambiarEstadoRegistroMutation.mutateAsync({
         id: activoParaBorrar.id,
         payload: {
-          estadoActivo: "ELIMINADO",
+          estadoRegistro: "ANULADO",
           motivo: "Borrado desde maestro de activos",
           usuario: "activos.web",
         },
@@ -171,7 +171,7 @@ export function ActivosTabla({ activos }: Props) {
       <CardHeader className="border-b border-border">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <CardTitle>Maestro de unidades</CardTitle>
+            <CardTitle>Listado de activos</CardTitle>
             <CardDescription>
               {filtrados.length} de {activosVisibles.length} activos visibles
             </CardDescription>
@@ -380,7 +380,7 @@ export function ActivosTabla({ activos }: Props) {
                           setDeleteError(null);
                           setActivoParaBorrar(activo);
                         }}
-                        disabled={activo.estadoActivo === "ELIMINADO"}
+                        disabled={activo.estadoRegistro === "ANULADO"}
                       >
                         <IconTrash />
                         <span className="sr-only">Borrar</span>
@@ -518,7 +518,7 @@ function EstadoBadge({
 
 function estadoActivoVariant(value: EstadoActivo): BadgeVariant {
   if (value === "ACTIVO") return "default";
-  if (value === "SINIESTRADO" || value === "ELIMINADO") return "destructive";
+  if (value === "SINIESTRADO") return "destructive";
   return "secondary";
 }
 
