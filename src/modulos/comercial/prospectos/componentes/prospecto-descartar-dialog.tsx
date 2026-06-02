@@ -17,6 +17,7 @@ import {
 } from "@/compartido/componentes/ui/alert-dialog";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Label } from "@/compartido/componentes/ui/label";
+import { Textarea } from "@/compartido/componentes/ui/textarea";
 
 import { useDescartarProspectoMutation } from "../servicios/prospectos-queries";
 import { schemaDescartarProspecto } from "../tipos/prospecto.schemas";
@@ -94,7 +95,7 @@ export function ProspectoDescartarDialog({ idProspecto, disabled }: Props) {
             Motivo
             <span className="ml-1 text-destructive">*</span>
           </Label>
-          <textarea
+          <Textarea
             id="motivo-descarte"
             rows={3}
             value={motivo}
@@ -104,7 +105,7 @@ export function ProspectoDescartarDialog({ idProspecto, disabled }: Props) {
             }}
             disabled={isPending}
             placeholder="Describe el motivo del descarte..."
-            className="min-h-20 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="min-h-20"
             aria-invalid={Boolean(errorMotivo)}
           />
           {errorMotivo ? (
