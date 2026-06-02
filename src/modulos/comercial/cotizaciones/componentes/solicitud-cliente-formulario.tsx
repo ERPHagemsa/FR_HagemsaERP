@@ -21,6 +21,7 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
+import { Textarea } from "@/compartido/componentes/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -375,12 +376,12 @@ function CampoTextarea({
         {label}
         {requerido ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      <textarea
+      <Textarea
         id={name}
         name={name}
         rows={3}
         aria-invalid={Boolean(error)}
-        className="min-h-24 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+        className="min-h-24"
         {...props}
       />
       {error ? <p className="text-xs text-destructive">{error}</p> : null}

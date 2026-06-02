@@ -28,6 +28,7 @@ import {
 } from "@/compartido/componentes/ui/dialog";
 import { Label } from "@/compartido/componentes/ui/label";
 import { Input } from "@/compartido/componentes/ui/input";
+import { Textarea } from "@/compartido/componentes/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -370,7 +371,7 @@ function DialogNuevaVersion({ idCotizacion, onExito }: DialogNuevaVersionProps) 
             <Label htmlFor="motivo-version">
               Motivo <span className="text-destructive">*</span>
             </Label>
-            <textarea
+            <Textarea
               id="motivo-version"
               rows={3}
               value={motivo}
@@ -380,7 +381,7 @@ function DialogNuevaVersion({ idCotizacion, onExito }: DialogNuevaVersionProps) 
               }}
               disabled={isPending}
               placeholder="Describe el motivo de la nueva version..."
-              className="min-h-20 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="min-h-20"
               aria-invalid={Boolean(errorMotivo)}
             />
             {errorMotivo ? (
@@ -567,7 +568,7 @@ function DialogPerdida({ idCotizacion, onExito }: DialogPerdidaProps) {
             <Label htmlFor="motivo-perdida">
               Motivo de perdida <span className="text-destructive">*</span>
             </Label>
-            <textarea
+            <Textarea
               id="motivo-perdida"
               rows={3}
               value={motivoPerdida}
@@ -577,7 +578,7 @@ function DialogPerdida({ idCotizacion, onExito }: DialogPerdidaProps) {
               }}
               disabled={isPending}
               placeholder="Describe el motivo por el que se perdio la cotizacion..."
-              className="min-h-20 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="min-h-20"
               aria-invalid={Boolean(errorMotivo)}
             />
             {errorMotivo ? (
