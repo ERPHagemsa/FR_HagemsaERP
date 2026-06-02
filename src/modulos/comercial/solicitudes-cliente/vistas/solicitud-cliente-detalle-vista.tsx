@@ -102,14 +102,16 @@ export async function SolicitudClienteDetalleVista({ id }: Props) {
           </CardContent>
         </Card>
 
-        {/* Motivo de descarte (solo si DESCARTADA) */}
-        {sc.estado === "DESCARTADA" && sc.motivoDescarte ? (
+        {/* Motivo de descarte (visible siempre que estado sea DESCARTADA — REQ-SC-15) */}
+        {sc.estado === "DESCARTADA" ? (
           <Card>
             <CardHeader>
               <CardTitle>Motivo de descarte</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">{sc.motivoDescarte}</p>
+              <p className="text-sm text-muted-foreground">
+                {sc.motivoDescarte ?? "Sin motivo registrado"}
+              </p>
             </CardContent>
           </Card>
         ) : null}

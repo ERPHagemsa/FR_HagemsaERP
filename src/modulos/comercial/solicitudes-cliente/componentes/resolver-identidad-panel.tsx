@@ -135,19 +135,19 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
         </Alert>
       ) : null}
 
-      {/* Resultado: PROSPECTO */}
-      {resultado?.veredicto === "PROSPECTO" && resultado.cliente ? (
+      {/* Resultado: PROSPECTO_EXISTENTE */}
+      {resultado?.veredicto === "PROSPECTO_EXISTENTE" && resultado.prospecto ? (
         <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3">
           <p className="text-sm font-medium text-foreground">
             Prospecto encontrado
           </p>
           <p className="text-sm text-muted-foreground">
-            {resultado.cliente.razonSocial ?? resultado.cliente.nombreComercial}
+            {resultado.prospecto.razonSocial ?? "Sin razon social registrada"}
           </p>
           <Button
             type="button"
             size="sm"
-            onClick={() => onUsarOrigen(resultado.cliente!.clienteId)}
+            onClick={() => onUsarOrigen(resultado.prospecto!.prospectoId)}
           >
             Usar este origen
           </Button>
@@ -170,8 +170,8 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
         </Alert>
       ) : null}
 
-      {/* Resultado: CLIENTE (V1 — deshabilitado) */}
-      {resultado?.veredicto === "CLIENTE" ? (
+      {/* Resultado: CLIENTE / CLIENTE_INACTIVO (V1 — deshabilitado) */}
+      {resultado?.veredicto === "CLIENTE" || resultado?.veredicto === "CLIENTE_INACTIVO" ? (
         <Alert>
           <AlertDescription>
             Resolucion de clientes no disponible en esta version. Ingresa el origen manualmente.
