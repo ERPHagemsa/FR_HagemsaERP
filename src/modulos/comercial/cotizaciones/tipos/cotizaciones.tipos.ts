@@ -361,7 +361,7 @@ export function accionesPermitidas(estado: EstadoCotizacion): AccionesPermitidas
     case "ENVIADA":
       return { editar: false, enviar: false, nuevaVersion: true, ganar: true, perder: true, cancelar: false };
     case "EN_REVISION":
-      return { editar: true, enviar: true, nuevaVersion: false, ganar: true, perder: true, cancelar: false };
+      return { editar: true, enviar: true, nuevaVersion: true, ganar: true, perder: true, cancelar: false };
     case "GANADA":
     case "PERDIDA":
     case "CANCELADA":
