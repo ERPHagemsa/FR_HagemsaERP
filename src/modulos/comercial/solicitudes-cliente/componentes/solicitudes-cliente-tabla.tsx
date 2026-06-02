@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
-import { Eye, RefreshCw, Search } from "lucide-react";
+import { Eye, Plus, RefreshCw, Search } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -123,11 +123,19 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   return (
     <Card>
       <CardHeader className="border-b border-border">
-        <div>
-          <CardTitle>Solicitudes de cliente</CardTitle>
-          <CardDescription>
-            {total} {total === 1 ? "solicitud" : "solicitudes"} encontradas
-          </CardDescription>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <CardTitle>Solicitudes de cliente</CardTitle>
+            <CardDescription>
+              {total} {total === 1 ? "solicitud" : "solicitudes"} encontradas
+            </CardDescription>
+          </div>
+          <Button asChild>
+            <Link href="/comercial/solicitudes-cliente/nueva">
+              <Plus data-icon="inline-start" />
+              Nueva solicitud
+            </Link>
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-5">

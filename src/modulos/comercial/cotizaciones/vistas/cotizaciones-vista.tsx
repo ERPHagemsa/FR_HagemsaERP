@@ -37,7 +37,7 @@ export async function CotizacionesVista({
           <p className="text-sm font-medium text-muted-foreground">BC-03</p>
           <h1 className="text-2xl font-semibold">Cotizaciones</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Gestion de cotizaciones y solicitudes de cliente.
+            Gestion de cotizaciones.
           </p>
         </section>
 
