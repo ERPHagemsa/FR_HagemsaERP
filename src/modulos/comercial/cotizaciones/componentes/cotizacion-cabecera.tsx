@@ -1,8 +1,11 @@
+import Link from "next/link";
+
 import {
   Card,
   CardContent,
   CardHeader,
 } from "@/compartido/componentes/ui/card";
+import { Button } from "@/compartido/componentes/ui/button";
 import { Separator } from "@/compartido/componentes/ui/separator";
 
 import type { Cotizacion } from "../tipos/cotizaciones.tipos";
@@ -37,7 +40,16 @@ export function CotizacionCabecera({ cotizacion }: Props) {
           <Dato label="Canal de entrada" value={formatearCanal(cotizacion.canalEntrada)} />
           <Dato label="Ejecutivo responsable" value={cotizacion.idEjecutivoResponsable} />
           {cotizacion.solicitudClienteId ? (
-            <Dato label="Solicitud de cliente" value={cotizacion.solicitudClienteId} mono />
+            <div className="grid gap-1">
+              <span className="text-xs font-medium uppercase text-muted-foreground">
+                Solicitud de cliente
+              </span>
+              <Button asChild variant="outline" size="sm" className="w-fit">
+                <Link href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}>
+                  Ver SC de origen
+                </Link>
+              </Button>
+            </div>
           ) : null}
           {cotizacion.estado === "PERDIDA" && cotizacion.motivoPerdida ? (
             <>
