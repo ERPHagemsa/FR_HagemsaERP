@@ -34,6 +34,6 @@ function refrescarSesion(): Promise<boolean> {
 // instancia propia con crearClienteHttp({ baseURL: ... }).
 export const clienteHttp = crearClienteHttp({
   baseURL: "",
-  timeoutMs: 8000,
+  timeoutMs: 5000,
   alRecibir401: refrescarSesion,
 })

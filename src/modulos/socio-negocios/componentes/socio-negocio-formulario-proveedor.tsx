@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, type ReactNode, useRef, useState } from "react"
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -23,6 +23,7 @@ import {
   FieldSet,
 } from "@/compartido/componentes/ui/field"
 import { Input } from "@/compartido/componentes/ui/input"
+import { Spinner } from "@/compartido/componentes/ui/spinner"
 import { ApiError } from "@/compartido/api/axios"
 import {
   Select,
@@ -69,6 +70,26 @@ function buscarMaestro(
   id?: string,
 ) {
   return id ? datos.find((dato) => dato.id === id) : undefined
+}
+
+function normalizarTexto(valor?: string | null) {
+  return valor?.trim().toLocaleLowerCase("es-PE") ?? ""
+}
+
+function buscarMaestroPorReferencia(
+  datos: MaestroConfiguracionGeneralIntegracion[],
+  id?: string,
+  nombre?: string,
+) {
+  if (id) {
+    const porId = datos.find((dato) => dato.id === id)
+    if (porId) return porId
+  }
+
+  const nombreNormalizado = normalizarTexto(nombre)
+  return nombreNormalizado
+    ? datos.find((dato) => normalizarTexto(dato.nombre) === nombreNormalizado)
+    : undefined
 }
 
 function obtenerErrorDialogo(error: unknown): ErrorDialogo {
@@ -161,6 +182,9 @@ export function SocioNegocioFormularioProveedor({
     useState<SapBusinessPartnerResumenResponse | null>(null)
   const [sapMensaje, setSapMensaje] = useState<string | null>(null)
   const [buscandoSap, setBuscandoSap] = useState(false)
+  const [areaSeleccionada, setAreaSeleccionada] = useState<string | undefined>()
+  const [cargoSeleccionado, setCargoSeleccionado] = useState<string | undefined>()
+  const [cuentaSeleccionada, setCuentaSeleccionada] = useState<string | undefined>()
   const cuentasQuery = useMaestrosConfiguracionGeneralQuery({
     tipoDatoMaestro: "CUENTA",
   })
@@ -178,10 +202,39 @@ export function SocioNegocioFormularioProveedor({
   const catalogosCargando =
     cuentasQuery.isLoading || areasQuery.isLoading || cargosQuery.isLoading
 
+  useEffect(() => {
+    if (!sapEncontrado) return
+
+    setAreaSeleccionada(
+      buscarMaestroPorReferencia(
+        areas,
+        sapEncontrado.areaId,
+        sapEncontrado.areaNombre,
+      )?.id,
+    )
+    setCargoSeleccionado(
+      buscarMaestroPorReferencia(
+        cargos,
+        sapEncontrado.cargoId,
+        sapEncontrado.cargoNombre,
+      )?.id,
+    )
+    setCuentaSeleccionada(
+      buscarMaestroPorReferencia(
+        cuentas,
+        sapEncontrado.cuentaId,
+        sapEncontrado.cuentaNombre,
+      )?.id,
+    )
+  }, [areas, cargos, cuentas, sapEncontrado])
+
   async function buscarEnSap() {
     setErrorDialogo(null)
     setSapMensaje(null)
     setSapEncontrado(null)
+    setAreaSeleccionada(undefined)
+    setCargoSeleccionado(undefined)
+    setCuentaSeleccionada(undefined)
 
     const formData = new FormData(formRef.current ?? undefined)
     const numeroDocumento = texto(formData, "numeroDocumento")
@@ -297,7 +350,14 @@ export function SocioNegocioFormularioProveedor({
                       onClick={() => void buscarEnSap()}
                       disabled={buscandoSap}
                     >
-                      {buscandoSap ? "Buscando..." : "Buscar en SAP"}
+                      {buscandoSap ? (
+                        <>
+                          <Spinner data-icon="inline-start" />
+                          Buscando...
+                        </>
+                      ) : (
+                        "Buscar en SAP"
+                      )}
                     </Button>
 
                     {sapEncontrado ? (
@@ -400,6 +460,8 @@ export function SocioNegocioFormularioProveedor({
                         disabled={cuentasQuery.isLoading}
                         id="cuenta"
                         name="cuenta"
+                        value={cuentaSeleccionada}
+                        onValueChange={setCuentaSeleccionada}
                         placeholder={
                           cuentasQuery.isLoading ? "Cargando cuentas..." : "Selecciona una cuenta"
                         }
@@ -422,6 +484,8 @@ export function SocioNegocioFormularioProveedor({
                       disabled={areasQuery.isLoading}
                       id="area"
                       name="area"
+                      value={areaSeleccionada}
+                      onValueChange={setAreaSeleccionada}
                       placeholder={
                         areasQuery.isLoading
                           ? "Cargando departamentos..."
@@ -437,6 +501,8 @@ export function SocioNegocioFormularioProveedor({
                       disabled={cargosQuery.isLoading}
                       id="cargo"
                       name="cargo"
+                      value={cargoSeleccionado}
+                      onValueChange={setCargoSeleccionado}
                       placeholder={
                         cargosQuery.isLoading ? "Cargando cargos..." : "Selecciona un cargo"
                       }
@@ -447,7 +513,14 @@ export function SocioNegocioFormularioProveedor({
               </FieldSet>
 
               <p className="text-sm text-muted-foreground">
-                La operacion guardara el registro con fecha y usuario responsable.
+                {catalogosCargando ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner />
+                    Cargando catalogos activos...
+                  </span>
+                ) : (
+                  "La operacion guardara el registro con fecha y usuario responsable."
+                )}
               </p>
 
               {sapMensaje ? (
@@ -474,7 +547,14 @@ export function SocioNegocioFormularioProveedor({
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={registrarMutation.isPending || catalogosCargando}>
-                  {registrarMutation.isPending ? "Registrando..." : "Registrar proveedor"}
+                  {registrarMutation.isPending ? (
+                    <>
+                      <Spinner data-icon="inline-start" />
+                      Registrando...
+                    </>
+                  ) : (
+                    "Registrar proveedor"
+                  )}
                 </Button>
               </div>
             </FieldGroup>

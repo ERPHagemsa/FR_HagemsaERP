@@ -516,9 +516,9 @@ export function SocioNegocioDashboardVista() {
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
-                    <Link href="/socio-negocios/reportes">
+                    <Link href="/socio-negocios/listar">
                       <HugeiconsIcon data-icon="inline-start" icon={FileExportIcon} strokeWidth={2} />
-                      Ver reportes
+                      Descargar reportes
                     </Link>
                   </Button>
                   <Button asChild variant="outline">

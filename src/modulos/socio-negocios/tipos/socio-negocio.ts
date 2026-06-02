@@ -323,6 +323,12 @@ export interface SapBusinessPartnerResumenResponse {
   contacto: string
   correo: string
   numeroCelular: string
+  cargoId?: string
+  cargoNombre?: string
+  areaId?: string
+  areaNombre?: string
+  cuentaId?: string
+  cuentaNombre?: string
 }
 
 export type SapBusinessPartnerResponse = SapBusinessPartnerResumenResponse & {

@@ -49,7 +49,6 @@ const data = {
         { title: "Listar socios", url: "/socio-negocios/listar" },
         { title: "Registrar socio", url: "/socio-negocios/nuevo" },
         { title: "Historial", url: "/socio-negocios/historial" },
-        { title: "Reportes", url: "/socio-negocios/reportes" },
       ],
     },
     {

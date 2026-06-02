@@ -66,13 +66,18 @@ import { ApiError } from "@/compartido/api/axios"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Add01Icon,
+  ArchiveArrowDownIcon,
+  ArchiveRestoreIcon,
+  CancelCircleIcon,
   ChartUpIcon,
   CheckmarkCircle01Icon,
   Download01Icon,
+  Edit02Icon,
   Loading03Icon,
   MoreVerticalCircle01Icon,
   Search01Icon,
   UserGroupIcon,
+  ViewIcon,
 } from "@hugeicons/core-free-icons"
 
 import {
@@ -85,8 +90,8 @@ import {
 import { PaginationControls } from "../componentes/pagination-controls"
 import type {
   ConsultarSociosDeNegocioQuery,
-  FormatoExportacionSocios,
   ModificarSocioDeNegocioRequest,
+  ReporteSociosDeNegocioResponse,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 
@@ -96,8 +101,6 @@ type SocioNegocioVistaProps = {
   accionPrincipal?: string
   crearHref?: string
   filtros?: ConsultarSociosDeNegocioQuery
-  formatoExportacion?: FormatoExportacionSocios
-  mostrarFiltrosReporte?: boolean
 }
 
 const estadoVariant = {
@@ -215,6 +218,27 @@ function obtenerVisualMetrica(etiqueta: string, index: number) {
 
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
+}
+
+function tipoMimeReporte(formato: ReporteSociosDeNegocioResponse["formato"]) {
+  return formato === "PDF"
+    ? "application/pdf"
+    : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+}
+
+function descargarReporte(reporte: ReporteSociosDeNegocioResponse) {
+  const enlace = document.createElement("a")
+  const contenido = reporte.contenido
+  const url = contenido.startsWith("data:")
+    ? contenido
+    : `data:${tipoMimeReporte(reporte.formato)};base64,${contenido}`
+
+  enlace.href = url
+  enlace.download = reporte.nombreArchivo
+  enlace.style.display = "none"
+  document.body.appendChild(enlace)
+  enlace.click()
+  enlace.remove()
 }
 
 type ErrorOperacion = {
@@ -440,11 +464,15 @@ function AccionesSocio({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
-            <DropdownMenuItem disabled>Ver ficha</DropdownMenuItem>
+            <DropdownMenuItem disabled>
+              <HugeiconsIcon data-icon="inline-start" icon={ViewIcon} strokeWidth={2} />
+              Ver ficha
+            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
               onSelect={() => setModificarAbierto(true)}
             >
+              <HugeiconsIcon data-icon="inline-start" icon={Edit02Icon} strokeWidth={2} />
               Modificar
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -452,18 +480,29 @@ function AccionesSocio({
               disabled={!puedeDarBaja || procesando}
               onSelect={() => abrirAccion("baja")}
             >
+              <HugeiconsIcon
+                data-icon="inline-start"
+                icon={ArchiveArrowDownIcon}
+                strokeWidth={2}
+              />
               Dar de baja
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
               onSelect={() => abrirAccion("anular")}
             >
+              <HugeiconsIcon data-icon="inline-start" icon={CancelCircleIcon} strokeWidth={2} />
               Anular por error
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!puedeReactivar || procesando}
               onSelect={() => abrirAccion("reactivar")}
             >
+              <HugeiconsIcon
+                data-icon="inline-start"
+                icon={ArchiveRestoreIcon}
+                strokeWidth={2}
+              />
               Reactivar
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -650,8 +689,6 @@ export function SocioNegocioVista({
   accionPrincipal = "Nuevo registro",
   crearHref,
   filtros,
-  formatoExportacion = "EXCEL",
-  mostrarFiltrosReporte = false,
 }: SocioNegocioVistaProps) {
   const [reporteGenerado, setReporteGenerado] = useState<string | null>(null)
   const [mensajeOperacion, setMensajeOperacion] = useState<string | null>(null)
@@ -661,14 +698,6 @@ export function SocioNegocioVista({
   const [filtrosFormulario, setFiltrosFormulario] =
     useState<ConsultarSociosDeNegocioQuery>(() =>
       limpiarFiltros({
-        ...(mostrarFiltrosReporte
-          ? {
-              estado: "ACTIVO",
-              estadoRegistro: "ACTIVO",
-              sortBy: "razonSocial",
-              sortOrder: "asc",
-            }
-          : {}),
         ...filtros,
       }),
     )
@@ -682,10 +711,17 @@ export function SocioNegocioVista({
   }), [filtrosAplicados, paginaActual, registrosPorPagina])
   
   const sociosQuery = useSociosDeNegocioQuery(filtrosConPaginacion)
-  const exportacionQuery = useExportarSociosDeNegocioQuery(
+  const exportacionExcelQuery = useExportarSociosDeNegocioQuery(
     {
       ...filtrosAplicados,
-      formato: formatoExportacion,
+      formato: "EXCEL",
+    },
+    false
+  )
+  const exportacionPdfQuery = useExportarSociosDeNegocioQuery(
+    {
+      ...filtrosAplicados,
+      formato: "PDF",
     },
     false
   )
@@ -729,14 +765,18 @@ export function SocioNegocioVista({
     ]
   }, [socios])
 
-  async function exportar() {
+  async function exportar(formato: ReporteSociosDeNegocioResponse["formato"]) {
     setReporteGenerado(null)
-    const resultado = await exportacionQuery.refetch()
+    const resultado =
+      formato === "PDF"
+        ? await exportacionPdfQuery.refetch()
+        : await exportacionExcelQuery.refetch()
     const reporte = resultado.data?.datos[0]
 
     if (reporte) {
+      descargarReporte(reporte)
       setReporteGenerado(
-        `${reporte.nombreArchivo} generado en formato ${reporte.formato}.`
+        `${reporte.nombreArchivo} descargado en formato ${reporte.formato}.`
       )
     }
   }
@@ -773,14 +813,6 @@ export function SocioNegocioVista({
 
   function limpiarBusqueda() {
     const filtrosBase = limpiarFiltros({
-      ...(mostrarFiltrosReporte
-        ? {
-            estado: "ACTIVO",
-            estadoRegistro: "ACTIVO",
-            sortBy: "razonSocial",
-            sortOrder: "asc",
-          }
-        : {}),
       ...filtros,
     })
     setPaginaActual(1)
@@ -1022,15 +1054,28 @@ export function SocioNegocioVista({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={exportacionQuery.isFetching}
-                    onClick={() => void exportar()}
+                    disabled={exportacionExcelQuery.isFetching}
+                    onClick={() => void exportar("EXCEL")}
                   >
                     <HugeiconsIcon
                       data-icon="inline-start"
                       icon={Download01Icon}
                       strokeWidth={2}
                     />
-                    {exportacionQuery.isFetching ? "Exportando..." : "Exportar"}
+                    {exportacionExcelQuery.isFetching ? "Descargando..." : "Excel"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={exportacionPdfQuery.isFetching}
+                    onClick={() => void exportar("PDF")}
+                  >
+                    <HugeiconsIcon
+                      data-icon="inline-start"
+                      icon={Download01Icon}
+                      strokeWidth={2}
+                    />
+                    {exportacionPdfQuery.isFetching ? "Descargando..." : "PDF"}
                   </Button>
               </div>
             </div>
@@ -1054,6 +1099,7 @@ export function SocioNegocioVista({
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/70 hover:bg-muted/70">
+                      <TableHead className="w-10">Acciones</TableHead>
                       <TableHead className="w-10">
                         <Checkbox
                           aria-label="Seleccionar todos"
@@ -1075,12 +1121,25 @@ export function SocioNegocioVista({
                       <TableHead>Cuenta</TableHead>
                       <TableHead>Creacion</TableHead>
                       <TableHead>Baja</TableHead>
-                      <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {socios.map((socio) => (
                       <TableRow key={socio.id} className="border-border/80">
+                        <TableCell>
+                          <AccionesSocio
+                            socio={socio}
+                            onActualizado={() => void sociosQuery.refetch()}
+                            onMensaje={(mensaje) => {
+                              setErrorOperacion(null)
+                              setMensajeOperacion(mensaje)
+                            }}
+                            onError={(error) => {
+                              setMensajeOperacion(null)
+                              setErrorOperacion(error)
+                            }}
+                          />
+                        </TableCell>
                         <TableCell>
                           <Checkbox
                             aria-label={`Seleccionar ${socio.razonSocial}`}
@@ -1143,20 +1202,6 @@ export function SocioNegocioVista({
                               {socio.motivoBaja || "Sin baja registrada"}
                             </span>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <AccionesSocio
-                            socio={socio}
-                            onActualizado={() => void sociosQuery.refetch()}
-                            onMensaje={(mensaje) => {
-                              setErrorOperacion(null)
-                              setMensajeOperacion(mensaje)
-                            }}
-                            onError={(error) => {
-                              setMensajeOperacion(null)
-                              setErrorOperacion(error)
-                            }}
-                          />
                         </TableCell>
                       </TableRow>
                     ))}
