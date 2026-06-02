@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { type FormEvent, useMemo, useState } from "react"
 import Link from "next/link"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -78,6 +78,7 @@ import {
 import {
   useDarDeBajaSocioDeNegocioMutation,
   useExportarSociosDeNegocioQuery,
+  useModificarSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
   useSociosDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
@@ -85,6 +86,7 @@ import { PaginationControls } from "../componentes/pagination-controls"
 import type {
   ConsultarSociosDeNegocioQuery,
   FormatoExportacionSocios,
+  ModificarSocioDeNegocioRequest,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 
@@ -334,6 +336,10 @@ function obtenerValorFiltro(
   return typeof value === "string" ? value : ""
 }
 
+function obtenerTextoFormulario(formData: FormData, name: string) {
+  return String(formData.get(name) ?? "").trim()
+}
+
 function AccionesSocio({
   socio,
   onActualizado,
@@ -343,12 +349,17 @@ function AccionesSocio({
   const bajaMutation = useDarDeBajaSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
+  const modificarMutation = useModificarSocioDeNegocioMutation(socio.id, {
+    onSuccess: onActualizado,
+  })
   const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
   const [accion, setAccion] = useState<"baja" | "anular" | "reactivar" | null>(null)
+  const [modificarAbierto, setModificarAbierto] = useState(false)
   const [motivo, setMotivo] = useState("")
-  const procesando = bajaMutation.isPending || reactivarMutation.isPending
+  const procesando =
+    bajaMutation.isPending || modificarMutation.isPending || reactivarMutation.isPending
   const puedeDarBaja = socio.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
   const puedeReactivar = socio.estado === "INACTIVO" || socio.estadoRegistro === "ANULADO"
   const requiereMotivo = accion === "baja" || accion === "anular"
@@ -393,6 +404,29 @@ function AccionesSocio({
     }
   }
 
+  async function modificarSocio(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const formData = new FormData(event.currentTarget)
+    const payload: ModificarSocioDeNegocioRequest = {
+      razonSocial: obtenerTextoFormulario(formData, "razonSocial"),
+      nombreComercial: obtenerTextoFormulario(formData, "nombreComercial"),
+      direccion: obtenerTextoFormulario(formData, "direccion"),
+      contacto: obtenerTextoFormulario(formData, "contacto"),
+      correo: obtenerTextoFormulario(formData, "correo"),
+      numeroCelular: obtenerTextoFormulario(formData, "numeroCelular"),
+      usuarioId: "admin",
+    }
+
+    try {
+      await modificarMutation.mutateAsync(payload)
+      setModificarAbierto(false)
+      onMensaje(`${socio.razonSocial} fue modificado.`)
+    } catch (error) {
+      onError(obtenerErrorOperacion(error))
+    }
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -407,7 +441,12 @@ function AccionesSocio({
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
             <DropdownMenuItem disabled>Ver ficha</DropdownMenuItem>
-            <DropdownMenuItem disabled>Modificar</DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={socio.estadoRegistro === "ANULADO" || procesando}
+              onSelect={() => setModificarAbierto(true)}
+            >
+              Modificar
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               disabled={!puedeDarBaja || procesando}
@@ -492,6 +531,115 @@ function AccionesSocio({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={modificarAbierto}
+        onOpenChange={(open) => !open && setModificarAbierto(false)}
+      >
+        <AlertDialogContent className="max-w-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Modificar socio de negocio</AlertDialogTitle>
+            <AlertDialogDescription>
+              El tipo, documento y codigo SAP no se modifican. Si el documento esta mal,
+              anula el registro por error y crea uno nuevo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <form id={`modificar-${socio.id}`} onSubmit={(event) => void modificarSocio(event)}>
+            <div className="grid gap-4">
+              <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3 md:grid-cols-3">
+                <Field>
+                  <FieldLabel>Tipo</FieldLabel>
+                  <Input value={socio.tipo} readOnly />
+                </Field>
+                <Field>
+                  <FieldLabel>Documento</FieldLabel>
+                  <Input value={socio.numeroDocumento} readOnly />
+                </Field>
+                <Field>
+                  <FieldLabel>Codigo SAP</FieldLabel>
+                  <Input value={socio.codigoInternoSap || "-"} readOnly />
+                </Field>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor={`razonSocial-${socio.id}`}>Razon social</FieldLabel>
+                  <Input
+                    id={`razonSocial-${socio.id}`}
+                    name="razonSocial"
+                    defaultValue={socio.razonSocial}
+                    required
+                  />
+                </Field>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor={`nombreComercial-${socio.id}`}>
+                    Nombre comercial
+                  </FieldLabel>
+                  <Input
+                    id={`nombreComercial-${socio.id}`}
+                    name="nombreComercial"
+                    defaultValue={socio.nombreComercial}
+                    required
+                  />
+                </Field>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor={`direccion-${socio.id}`}>Direccion</FieldLabel>
+                  <Input
+                    id={`direccion-${socio.id}`}
+                    name="direccion"
+                    defaultValue={socio.direccion}
+                    required
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor={`contacto-${socio.id}`}>Contacto</FieldLabel>
+                  <Input
+                    id={`contacto-${socio.id}`}
+                    name="contacto"
+                    defaultValue={socio.contacto}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor={`correo-${socio.id}`}>Correo</FieldLabel>
+                  <Input
+                    id={`correo-${socio.id}`}
+                    name="correo"
+                    type="email"
+                    defaultValue={socio.correo}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor={`numeroCelular-${socio.id}`}>Celular</FieldLabel>
+                  <Input
+                    id={`numeroCelular-${socio.id}`}
+                    name="numeroCelular"
+                    defaultValue={socio.numeroCelular}
+                  />
+                </Field>
+              </div>
+            </div>
+          </form>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={modificarMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={modificarMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault()
+                const form = document.getElementById(
+                  `modificar-${socio.id}`,
+                ) as HTMLFormElement | null
+                form?.requestSubmit()
+              }}
+            >
+              {modificarMutation.isPending ? "Guardando..." : "Guardar cambios"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
@@ -537,8 +685,6 @@ export function SocioNegocioVista({
   const exportacionQuery = useExportarSociosDeNegocioQuery(
     {
       ...filtrosAplicados,
-      page: 1,
-      pageSize: registrosPorPagina,
       formato: formatoExportacion,
     },
     false

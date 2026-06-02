@@ -36,7 +36,7 @@ export const serviciosApi = {
       API_GATEWAY_URL ??
       "https://api-bc01-socio-negocio.hagemsa.com/api",
     nombre: "socio de negocio",
-    timeoutMs: 8000,
+    timeoutMs: 10000,
   },
   configuracionGeneral: {
     baseUrl:
