@@ -9,7 +9,6 @@ import type {
   PayloadEnviar,
   PayloadNuevaVersion,
   PayloadPerdida,
-  PayloadRegistrarSC,
 } from "../tipos/cotizaciones.tipos";
 import {
   actualizarBorrador,
@@ -22,7 +21,6 @@ import {
   nuevaVersion,
 } from "./cotizaciones-api";
 import { listarModalidades } from "./modalidades-api";
-import { registrarSolicitudCliente } from "./solicitudes-cliente-api";
 
 // ---------------------------------------------------------------------------
 // Consultas (reads)
@@ -44,15 +42,6 @@ export function useConsultarCotizacion(id: string) {
 // ---------------------------------------------------------------------------
 // Mutaciones (writes)
 // ---------------------------------------------------------------------------
-
-export function useRegistrarSCMutation() {
-  return useMutar<
-    PayloadRegistrarSC,
-    Awaited<ReturnType<typeof registrarSolicitudCliente>>
-  >({
-    fn: registrarSolicitudCliente,
-  });
-}
 
 export function useActualizarBorradorMutation(id: string) {
   return useMutar<

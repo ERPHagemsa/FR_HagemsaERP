@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
-import { useRegistrarSCMutation } from "../servicios/cotizaciones-queries";
+import { useRegistrarSCMutation } from "../../solicitudes-cliente/servicios/solicitudes-cliente-queries";
 import type { CanalEntrada, OrigenTipo } from "../tipos/cotizaciones.tipos";
 import {
   issuesAErroresCampo,
@@ -209,6 +209,8 @@ export function SolicitudClienteFormulario() {
                 opciones={[
                   { valor: "CORREO", etiqueta: "Correo electronico" },
                   { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
+                  { valor: "TELEFONO", etiqueta: "Telefono" },
+                  { valor: "EMAIL", etiqueta: "Email" },
                   { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
                   { valor: "OTRO", etiqueta: "Otro" },
                 ]}
