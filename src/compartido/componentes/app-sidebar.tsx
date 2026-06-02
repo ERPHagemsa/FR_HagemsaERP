@@ -88,6 +88,7 @@ const data = {
       items: [
         { title: "Prospectos", url: "/comercial/prospectos" },
         { title: "Cotizaciones", url: "/comercial/cotizaciones" },
+        { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
         { title: "Nueva solicitud", url: "/comercial/cotizaciones/nueva-solicitud" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
