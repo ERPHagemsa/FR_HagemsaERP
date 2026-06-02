@@ -89,7 +89,7 @@ const data = {
         { title: "Prospectos", url: "/comercial/prospectos" },
         { title: "Cotizaciones", url: "/comercial/cotizaciones" },
         { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
-        { title: "Nueva solicitud", url: "/comercial/cotizaciones/nueva-solicitud" },
+        { title: "Nueva solicitud", url: "/comercial/solicitudes-cliente/nueva" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
       ],

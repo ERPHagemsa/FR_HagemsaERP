@@ -11,12 +11,12 @@ export function SolicitudClienteNuevaVista() {
         <section className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4">
           <div>
             <p className="text-sm font-medium text-muted-foreground">
-              Comercial / Cotizaciones
+              Comercial / Solicitudes de cliente
             </p>
             <h1 className="text-2xl font-semibold">Nueva solicitud de cliente</h1>
           </div>
           <Button asChild variant="outline">
-            <Link href="/comercial/cotizaciones">Volver al listado</Link>
+            <Link href="/comercial/solicitudes-cliente">Volver al listado</Link>
           </Button>
         </section>
 

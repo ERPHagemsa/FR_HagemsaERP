@@ -145,7 +145,7 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
             </CardDescription>
           </div>
           <Button asChild>
-            <Link href="/comercial/cotizaciones/nueva-solicitud">
+            <Link href="/comercial/solicitudes-cliente/nueva">
               <Plus data-icon="inline-start" />
               Nueva solicitud
             </Link>

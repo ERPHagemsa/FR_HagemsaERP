@@ -30,13 +30,13 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
-import { useRegistrarSCMutation } from "../../solicitudes-cliente/servicios/solicitudes-cliente-queries";
-import { ResolverIdentidadPanel } from "../../solicitudes-cliente/componentes/resolver-identidad-panel";
-import type { CanalEntrada, OrigenTipo } from "../tipos/cotizaciones.tipos";
+import { useRegistrarSCMutation } from "../servicios/solicitudes-cliente-queries";
+import { ResolverIdentidadPanel } from "./resolver-identidad-panel";
+import type { CanalEntrada, OrigenTipo } from "../../cotizaciones/tipos/cotizaciones.tipos";
 import {
   issuesAErroresCampo,
   schemaRegistrarSC,
-} from "../tipos/cotizaciones.schemas";
+} from "../../cotizaciones/tipos/cotizaciones.schemas";
 
 // ---------------------------------------------------------------------------
 // Helper para leer el valor de un campo del formulario
