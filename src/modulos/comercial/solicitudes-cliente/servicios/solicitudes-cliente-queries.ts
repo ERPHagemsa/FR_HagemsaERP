@@ -6,11 +6,8 @@ import type { PayloadRegistrarSC } from "../../cotizaciones/tipos/cotizaciones.t
 import type {
   FiltrosSolicitudesCliente,
   PayloadDescartarSC,
-  RespuestaPaginadaSolicitudes,
-  SolicitudCliente,
 } from "../tipos/solicitud-cliente.tipos";
 import type { TipoDocumento } from "../../prospectos/tipos/prospecto.tipos";
-import type { RespuestaResolverIdentidad } from "../tipos/solicitud-cliente.tipos";
 
 import {
   agregarCotizacion,

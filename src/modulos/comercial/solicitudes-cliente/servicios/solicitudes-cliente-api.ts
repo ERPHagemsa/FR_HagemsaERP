@@ -1,14 +1,14 @@
 import { clienteComercial } from "@/compartido/api/clientes-backend";
 
+import type { PayloadRegistrarSC } from "../../cotizaciones/tipos/cotizaciones.tipos";
+import type { TipoDocumento } from "../../prospectos/tipos/prospecto.tipos";
 import type {
   FiltrosSolicitudesCliente,
   PayloadDescartarSC,
   RespuestaPaginadaSolicitudes,
+  RespuestaResolverIdentidad,
   SolicitudCliente,
 } from "../tipos/solicitud-cliente.tipos";
-
-// Importado desde cotizaciones.tipos hasta que el tipo se mueva definitivamente
-import type { PayloadRegistrarSC } from "../../cotizaciones/tipos/cotizaciones.tipos";
 
 // ---------------------------------------------------------------------------
 // Registro (migrado desde cotizaciones/servicios/solicitudes-cliente-api.ts)
@@ -48,11 +48,8 @@ export async function consultarSolicitudCliente(id: string): Promise<SolicitudCl
   return data;
 }
 
-// GET /solicitudes-cliente/resolver-identidad — ruta ESTATICA (nunca UUID)
+// GET /solicitudes-cliente/resolver-identidad — ruta ESTATICA (nunca tratar como UUID)
 // Query params: tipoDocumento, numeroDocumento
-import type { TipoDocumento } from "../../prospectos/tipos/prospecto.tipos";
-import type { RespuestaResolverIdentidad } from "../tipos/solicitud-cliente.tipos";
-
 export async function resolverIdentidad(
   tipoDocumento: TipoDocumento,
   numeroDocumento: string
