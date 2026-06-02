@@ -3,6 +3,7 @@
 import * as React from "react";
 import { IconPhotoPlus, IconTrash } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -49,7 +50,6 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [selectedFileName, setSelectedFileName] = React.useState<string | null>(
     null
@@ -68,7 +68,7 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
     }
 
     if (!file.type.startsWith("image/")) {
-      setError("Selecciona un archivo de imagen valido.");
+      toast.error("Selecciona un archivo de imagen valido.");
       event.target.value = "";
       setSelectedFileName(null);
       setLocalImageUrl(null);
@@ -79,10 +79,9 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
     reader.onload = () => {
       setSelectedFileName(file.name);
       setLocalImageUrl(String(reader.result));
-      setError(null);
     };
     reader.onerror = () => {
-      setError("No se pudo leer la imagen seleccionada.");
+      toast.error("No se pudo leer la imagen seleccionada.");
       setSelectedFileName(null);
       setLocalImageUrl(null);
     };
@@ -91,7 +90,6 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
     setIsSaving(true);
 
     const form = event.currentTarget;
@@ -114,9 +112,10 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
       form.reset();
       setSelectedFileName(null);
       setLocalImageUrl(null);
+      toast.success("Imagen registrada correctamente.");
       router.refresh();
     } catch (err) {
-      setError(extraerMensajeError(err, "No se pudo registrar la imagen"));
+      toast.error(extraerMensajeError(err, "No se pudo registrar la imagen"));
     } finally {
       setIsSaving(false);
     }
@@ -129,14 +128,14 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
 
     if (!confirmado) return;
 
-    setError(null);
     setDeletingId(imagen.id);
 
     try {
       await eliminarImagenMutation.mutateAsync(imagen.id);
+      toast.success("Imagen eliminada correctamente.");
       router.refresh();
     } catch (err) {
-      setError(extraerMensajeError(err, "No se pudo eliminar la imagen"));
+      toast.error(extraerMensajeError(err, "No se pudo eliminar la imagen"));
     } finally {
       setDeletingId(null);
     }
@@ -234,12 +233,6 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
             </div>
           ) : null}
         </form>
-        ) : null}
-
-        {editable && error ? (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-            {error}
-          </div>
         ) : null}
 
         {imagenes.length ? (

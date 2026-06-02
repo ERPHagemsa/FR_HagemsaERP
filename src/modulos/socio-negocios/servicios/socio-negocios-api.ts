@@ -4,6 +4,7 @@ import {
 } from "@/compartido/api/clientes-backend"
 
 import type {
+  ConsultarSapPorDocumentoQuery,
   ConsultarHistorialSocioDeNegocioQuery,
   ConsultarMaestrosConfiguracionGeneralQuery,
   ConsultarSociosDeNegocioQuery,
@@ -20,6 +21,8 @@ import type {
   ReporteSociosDeNegocioResponse,
   RespuestaDto,
   ResumenSociosDeNegocioResponse,
+  SapBusinessPartnerResponse,
+  SapBusinessPartnerResumenResponse,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 
@@ -30,7 +33,8 @@ function crearQueryString(
     | ConsultarSociosDeNegocioQuery
     | ExportarSociosDeNegocioQuery
     | ConsultarHistorialSocioDeNegocioQuery
-    | ConsultarMaestrosConfiguracionGeneralQuery,
+    | ConsultarMaestrosConfiguracionGeneralQuery
+    | ConsultarSapPorDocumentoQuery,
 ): string {
   const params = new URLSearchParams()
 
@@ -132,6 +136,33 @@ export async function consultarSociosDeNegocio(
     PaginatedResponse<SocioDeNegocioResponse>
   >(`${BASE_ENDPOINT}${crearQueryString(query)}`)
   return data
+}
+
+export async function consultarSapBusinessPartnerPorDocumento(
+  numeroDocumento: string,
+  query: ConsultarSapPorDocumentoQuery,
+): Promise<SapBusinessPartnerResumenResponse | null> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<SapBusinessPartnerResumenResponse | null>
+  >(
+    `${BASE_ENDPOINT}/sap/business-partners/documento/${encodeURIComponent(
+      numeroDocumento,
+    )}${crearQueryString(query)}`,
+  )
+  return data.datos
+}
+
+export async function consultarSapBusinessPartnerPorCodigo(
+  codigoInternoSap: string,
+): Promise<SapBusinessPartnerResponse | null> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<SapBusinessPartnerResponse | null>
+  >(
+    `${BASE_ENDPOINT}/sap/business-partners/${encodeURIComponent(
+      codigoInternoSap,
+    )}`,
+  )
+  return data.datos
 }
 
 export async function consultarHistorialSociosDeNegocio(

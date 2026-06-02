@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 
 import { extraerMensajeError } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -28,18 +29,16 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
   const router = useRouter();
   const [motivo, setMotivo] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const [mostrarConfirmacionBorrado, setMostrarConfirmacionBorrado] =
     React.useState(false);
   const cambiarEstadoMutation = useCambiarEstadoActivoMutation();
   const cambiarEstadoRegistroMutation = useCambiarEstadoRegistroMutation();
   const siniestrarMutation = useSiniestrarActivoMutation();
   const estaCerrado =
-    activo.estadoActivo === "SINIESTRADO" || activo.estadoRegistro === "ANULADO";
+    activo.estadoActivo === "SINIESTRADO" || activo.estadoRegistro === false;
 
   async function onSiniestrar() {
     if (!confirm("Se marcara el activo como SINIESTRADO. Deseas continuar?")) return;
-    setError(null);
     setIsSaving(true);
 
     try {
@@ -52,7 +51,7 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
       router.push(`/activos/${saved.codigo}?siniestrado=1`);
       router.refresh();
     } catch (err) {
-      setError(extraerMensajeError(err, "No se pudo siniestrar el activo"));
+      toast.error(extraerMensajeError(err, "No se pudo siniestrar el activo"));
     } finally {
       setIsSaving(false);
     }
@@ -60,7 +59,6 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
 
   async function onInactivar() {
     if (!confirm("Se marcara el activo como INACTIVO. Deseas continuar?")) return;
-    setError(null);
     setIsSaving(true);
 
     try {
@@ -75,21 +73,20 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
       router.push(`/activos/${saved.codigo}?inactive=1`);
       router.refresh();
     } catch (err) {
-      setError(extraerMensajeError(err, "No se pudo inactivar el activo"));
+      toast.error(extraerMensajeError(err, "No se pudo inactivar el activo"));
     } finally {
       setIsSaving(false);
     }
   }
 
   async function onEliminar() {
-    setError(null);
     setIsSaving(true);
 
     try {
       const saved = await cambiarEstadoRegistroMutation.mutateAsync({
         id: activo.id,
         payload: {
-          estadoRegistro: "ANULADO",
+          estadoRegistro: false,
           motivo: motivo.trim() || "Borrado logico desde Activos",
           usuario: "activos.web",
         },
@@ -98,7 +95,7 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
       router.refresh();
       setMostrarConfirmacionBorrado(false);
     } catch (err) {
-      setError(extraerMensajeError(err, "No se pudo borrar el activo"));
+      toast.error(extraerMensajeError(err, "No se pudo borrar el activo"));
     } finally {
       setIsSaving(false);
     }
@@ -120,12 +117,6 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
             disabled={estaCerrado || isSaving}
           />
         </div>
-
-        {error ? (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
 
         <div className="flex flex-wrap justify-end gap-2">
           <Button

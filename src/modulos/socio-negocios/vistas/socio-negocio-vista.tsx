@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { type FormEvent, useMemo, useState } from "react"
 import Link from "next/link"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -66,25 +66,32 @@ import { ApiError } from "@/compartido/api/axios"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Add01Icon,
+  ArchiveArrowDownIcon,
+  ArchiveRestoreIcon,
+  CancelCircleIcon,
   ChartUpIcon,
   CheckmarkCircle01Icon,
   Download01Icon,
+  Edit02Icon,
   Loading03Icon,
   MoreVerticalCircle01Icon,
   Search01Icon,
   UserGroupIcon,
+  ViewIcon,
 } from "@hugeicons/core-free-icons"
 
 import {
   useDarDeBajaSocioDeNegocioMutation,
   useExportarSociosDeNegocioQuery,
+  useModificarSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
   useSociosDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
 import { PaginationControls } from "../componentes/pagination-controls"
 import type {
   ConsultarSociosDeNegocioQuery,
-  FormatoExportacionSocios,
+  ModificarSocioDeNegocioRequest,
+  ReporteSociosDeNegocioResponse,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 
@@ -94,8 +101,6 @@ type SocioNegocioVistaProps = {
   accionPrincipal?: string
   crearHref?: string
   filtros?: ConsultarSociosDeNegocioQuery
-  formatoExportacion?: FormatoExportacionSocios
-  mostrarFiltrosReporte?: boolean
 }
 
 const estadoVariant = {
@@ -213,6 +218,27 @@ function obtenerVisualMetrica(etiqueta: string, index: number) {
 
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
+}
+
+function tipoMimeReporte(formato: ReporteSociosDeNegocioResponse["formato"]) {
+  return formato === "PDF"
+    ? "application/pdf"
+    : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+}
+
+function descargarReporte(reporte: ReporteSociosDeNegocioResponse) {
+  const enlace = document.createElement("a")
+  const contenido = reporte.contenido
+  const url = contenido.startsWith("data:")
+    ? contenido
+    : `data:${tipoMimeReporte(reporte.formato)};base64,${contenido}`
+
+  enlace.href = url
+  enlace.download = reporte.nombreArchivo
+  enlace.style.display = "none"
+  document.body.appendChild(enlace)
+  enlace.click()
+  enlace.remove()
 }
 
 type ErrorOperacion = {
@@ -334,6 +360,10 @@ function obtenerValorFiltro(
   return typeof value === "string" ? value : ""
 }
 
+function obtenerTextoFormulario(formData: FormData, name: string) {
+  return String(formData.get(name) ?? "").trim()
+}
+
 function AccionesSocio({
   socio,
   onActualizado,
@@ -343,12 +373,17 @@ function AccionesSocio({
   const bajaMutation = useDarDeBajaSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
+  const modificarMutation = useModificarSocioDeNegocioMutation(socio.id, {
+    onSuccess: onActualizado,
+  })
   const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
   const [accion, setAccion] = useState<"baja" | "anular" | "reactivar" | null>(null)
+  const [modificarAbierto, setModificarAbierto] = useState(false)
   const [motivo, setMotivo] = useState("")
-  const procesando = bajaMutation.isPending || reactivarMutation.isPending
+  const procesando =
+    bajaMutation.isPending || modificarMutation.isPending || reactivarMutation.isPending
   const puedeDarBaja = socio.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
   const puedeReactivar = socio.estado === "INACTIVO" || socio.estadoRegistro === "ANULADO"
   const requiereMotivo = accion === "baja" || accion === "anular"
@@ -393,6 +428,29 @@ function AccionesSocio({
     }
   }
 
+  async function modificarSocio(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const formData = new FormData(event.currentTarget)
+    const payload: ModificarSocioDeNegocioRequest = {
+      razonSocial: obtenerTextoFormulario(formData, "razonSocial"),
+      nombreComercial: obtenerTextoFormulario(formData, "nombreComercial"),
+      direccion: obtenerTextoFormulario(formData, "direccion"),
+      contacto: obtenerTextoFormulario(formData, "contacto"),
+      correo: obtenerTextoFormulario(formData, "correo"),
+      numeroCelular: obtenerTextoFormulario(formData, "numeroCelular"),
+      usuarioId: "admin",
+    }
+
+    try {
+      await modificarMutation.mutateAsync(payload)
+      setModificarAbierto(false)
+      onMensaje(`${socio.razonSocial} fue modificado.`)
+    } catch (error) {
+      onError(obtenerErrorOperacion(error))
+    }
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -406,25 +464,45 @@ function AccionesSocio({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
-            <DropdownMenuItem disabled>Ver ficha</DropdownMenuItem>
-            <DropdownMenuItem disabled>Modificar</DropdownMenuItem>
+            <DropdownMenuItem disabled>
+              <HugeiconsIcon data-icon="inline-start" icon={ViewIcon} strokeWidth={2} />
+              Ver ficha
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={socio.estadoRegistro === "ANULADO" || procesando}
+              onSelect={() => setModificarAbierto(true)}
+            >
+              <HugeiconsIcon data-icon="inline-start" icon={Edit02Icon} strokeWidth={2} />
+              Modificar
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               disabled={!puedeDarBaja || procesando}
               onSelect={() => abrirAccion("baja")}
             >
+              <HugeiconsIcon
+                data-icon="inline-start"
+                icon={ArchiveArrowDownIcon}
+                strokeWidth={2}
+              />
               Dar de baja
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
               onSelect={() => abrirAccion("anular")}
             >
+              <HugeiconsIcon data-icon="inline-start" icon={CancelCircleIcon} strokeWidth={2} />
               Anular por error
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!puedeReactivar || procesando}
               onSelect={() => abrirAccion("reactivar")}
             >
+              <HugeiconsIcon
+                data-icon="inline-start"
+                icon={ArchiveRestoreIcon}
+                strokeWidth={2}
+              />
               Reactivar
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -492,6 +570,115 @@ function AccionesSocio({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={modificarAbierto}
+        onOpenChange={(open) => !open && setModificarAbierto(false)}
+      >
+        <AlertDialogContent className="max-w-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Modificar socio de negocio</AlertDialogTitle>
+            <AlertDialogDescription>
+              El tipo, documento y codigo SAP no se modifican. Si el documento esta mal,
+              anula el registro por error y crea uno nuevo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <form id={`modificar-${socio.id}`} onSubmit={(event) => void modificarSocio(event)}>
+            <div className="grid gap-4">
+              <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3 md:grid-cols-3">
+                <Field>
+                  <FieldLabel>Tipo</FieldLabel>
+                  <Input value={socio.tipo} readOnly />
+                </Field>
+                <Field>
+                  <FieldLabel>Documento</FieldLabel>
+                  <Input value={socio.numeroDocumento} readOnly />
+                </Field>
+                <Field>
+                  <FieldLabel>Codigo SAP</FieldLabel>
+                  <Input value={socio.codigoInternoSap || "-"} readOnly />
+                </Field>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor={`razonSocial-${socio.id}`}>Razon social</FieldLabel>
+                  <Input
+                    id={`razonSocial-${socio.id}`}
+                    name="razonSocial"
+                    defaultValue={socio.razonSocial}
+                    required
+                  />
+                </Field>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor={`nombreComercial-${socio.id}`}>
+                    Nombre comercial
+                  </FieldLabel>
+                  <Input
+                    id={`nombreComercial-${socio.id}`}
+                    name="nombreComercial"
+                    defaultValue={socio.nombreComercial}
+                    required
+                  />
+                </Field>
+                <Field className="md:col-span-2">
+                  <FieldLabel htmlFor={`direccion-${socio.id}`}>Direccion</FieldLabel>
+                  <Input
+                    id={`direccion-${socio.id}`}
+                    name="direccion"
+                    defaultValue={socio.direccion}
+                    required
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor={`contacto-${socio.id}`}>Contacto</FieldLabel>
+                  <Input
+                    id={`contacto-${socio.id}`}
+                    name="contacto"
+                    defaultValue={socio.contacto}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor={`correo-${socio.id}`}>Correo</FieldLabel>
+                  <Input
+                    id={`correo-${socio.id}`}
+                    name="correo"
+                    type="email"
+                    defaultValue={socio.correo}
+                  />
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor={`numeroCelular-${socio.id}`}>Celular</FieldLabel>
+                  <Input
+                    id={`numeroCelular-${socio.id}`}
+                    name="numeroCelular"
+                    defaultValue={socio.numeroCelular}
+                  />
+                </Field>
+              </div>
+            </div>
+          </form>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={modificarMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={modificarMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault()
+                const form = document.getElementById(
+                  `modificar-${socio.id}`,
+                ) as HTMLFormElement | null
+                form?.requestSubmit()
+              }}
+            >
+              {modificarMutation.isPending ? "Guardando..." : "Guardar cambios"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
@@ -502,8 +689,6 @@ export function SocioNegocioVista({
   accionPrincipal = "Nuevo registro",
   crearHref,
   filtros,
-  formatoExportacion = "EXCEL",
-  mostrarFiltrosReporte = false,
 }: SocioNegocioVistaProps) {
   const [reporteGenerado, setReporteGenerado] = useState<string | null>(null)
   const [mensajeOperacion, setMensajeOperacion] = useState<string | null>(null)
@@ -513,14 +698,6 @@ export function SocioNegocioVista({
   const [filtrosFormulario, setFiltrosFormulario] =
     useState<ConsultarSociosDeNegocioQuery>(() =>
       limpiarFiltros({
-        ...(mostrarFiltrosReporte
-          ? {
-              estado: "ACTIVO",
-              estadoRegistro: "ACTIVO",
-              sortBy: "razonSocial",
-              sortOrder: "asc",
-            }
-          : {}),
         ...filtros,
       }),
     )
@@ -534,12 +711,17 @@ export function SocioNegocioVista({
   }), [filtrosAplicados, paginaActual, registrosPorPagina])
   
   const sociosQuery = useSociosDeNegocioQuery(filtrosConPaginacion)
-  const exportacionQuery = useExportarSociosDeNegocioQuery(
+  const exportacionExcelQuery = useExportarSociosDeNegocioQuery(
     {
       ...filtrosAplicados,
-      page: 1,
-      pageSize: registrosPorPagina,
-      formato: formatoExportacion,
+      formato: "EXCEL",
+    },
+    false
+  )
+  const exportacionPdfQuery = useExportarSociosDeNegocioQuery(
+    {
+      ...filtrosAplicados,
+      formato: "PDF",
     },
     false
   )
@@ -583,14 +765,18 @@ export function SocioNegocioVista({
     ]
   }, [socios])
 
-  async function exportar() {
+  async function exportar(formato: ReporteSociosDeNegocioResponse["formato"]) {
     setReporteGenerado(null)
-    const resultado = await exportacionQuery.refetch()
+    const resultado =
+      formato === "PDF"
+        ? await exportacionPdfQuery.refetch()
+        : await exportacionExcelQuery.refetch()
     const reporte = resultado.data?.datos[0]
 
     if (reporte) {
+      descargarReporte(reporte)
       setReporteGenerado(
-        `${reporte.nombreArchivo} generado en formato ${reporte.formato}.`
+        `${reporte.nombreArchivo} descargado en formato ${reporte.formato}.`
       )
     }
   }
@@ -627,14 +813,6 @@ export function SocioNegocioVista({
 
   function limpiarBusqueda() {
     const filtrosBase = limpiarFiltros({
-      ...(mostrarFiltrosReporte
-        ? {
-            estado: "ACTIVO",
-            estadoRegistro: "ACTIVO",
-            sortBy: "razonSocial",
-            sortOrder: "asc",
-          }
-        : {}),
       ...filtros,
     })
     setPaginaActual(1)
@@ -876,15 +1054,28 @@ export function SocioNegocioVista({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={exportacionQuery.isFetching}
-                    onClick={() => void exportar()}
+                    disabled={exportacionExcelQuery.isFetching}
+                    onClick={() => void exportar("EXCEL")}
                   >
                     <HugeiconsIcon
                       data-icon="inline-start"
                       icon={Download01Icon}
                       strokeWidth={2}
                     />
-                    {exportacionQuery.isFetching ? "Exportando..." : "Exportar"}
+                    {exportacionExcelQuery.isFetching ? "Descargando..." : "Excel"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={exportacionPdfQuery.isFetching}
+                    onClick={() => void exportar("PDF")}
+                  >
+                    <HugeiconsIcon
+                      data-icon="inline-start"
+                      icon={Download01Icon}
+                      strokeWidth={2}
+                    />
+                    {exportacionPdfQuery.isFetching ? "Descargando..." : "PDF"}
                   </Button>
               </div>
             </div>
@@ -908,6 +1099,7 @@ export function SocioNegocioVista({
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/70 hover:bg-muted/70">
+                      <TableHead className="w-10">Acciones</TableHead>
                       <TableHead className="w-10">
                         <Checkbox
                           aria-label="Seleccionar todos"
@@ -929,12 +1121,25 @@ export function SocioNegocioVista({
                       <TableHead>Cuenta</TableHead>
                       <TableHead>Creacion</TableHead>
                       <TableHead>Baja</TableHead>
-                      <TableHead className="w-10" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {socios.map((socio) => (
                       <TableRow key={socio.id} className="border-border/80">
+                        <TableCell>
+                          <AccionesSocio
+                            socio={socio}
+                            onActualizado={() => void sociosQuery.refetch()}
+                            onMensaje={(mensaje) => {
+                              setErrorOperacion(null)
+                              setMensajeOperacion(mensaje)
+                            }}
+                            onError={(error) => {
+                              setMensajeOperacion(null)
+                              setErrorOperacion(error)
+                            }}
+                          />
+                        </TableCell>
                         <TableCell>
                           <Checkbox
                             aria-label={`Seleccionar ${socio.razonSocial}`}
@@ -997,20 +1202,6 @@ export function SocioNegocioVista({
                               {socio.motivoBaja || "Sin baja registrada"}
                             </span>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <AccionesSocio
-                            socio={socio}
-                            onActualizado={() => void sociosQuery.refetch()}
-                            onMensaje={(mensaje) => {
-                              setErrorOperacion(null)
-                              setMensajeOperacion(mensaje)
-                            }}
-                            onError={(error) => {
-                              setMensajeOperacion(null)
-                              setErrorOperacion(error)
-                            }}
-                          />
                         </TableCell>
                       </TableRow>
                     ))}

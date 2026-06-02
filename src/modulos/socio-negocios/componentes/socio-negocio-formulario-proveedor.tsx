@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, type ReactNode, useState } from "react"
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -23,6 +23,7 @@ import {
   FieldSet,
 } from "@/compartido/componentes/ui/field"
 import { Input } from "@/compartido/componentes/ui/input"
+import { Spinner } from "@/compartido/componentes/ui/spinner"
 import { ApiError } from "@/compartido/api/axios"
 import {
   Select,
@@ -37,9 +38,11 @@ import {
   useMaestrosConfiguracionGeneralQuery,
   useRegistrarSocioDeNegocioMutation,
 } from "../servicios/socio-negocios-queries"
+import { consultarSapBusinessPartnerPorDocumento } from "../servicios/socio-negocios-api"
 import type {
   MaestroConfiguracionGeneralIntegracion,
   RegistrarProveedorRequest,
+  SapBusinessPartnerResumenResponse,
 } from "../tipos/socio-negocio"
 
 const USUARIO_RESPONSABLE_ID = "admin"
@@ -67,6 +70,26 @@ function buscarMaestro(
   id?: string,
 ) {
   return id ? datos.find((dato) => dato.id === id) : undefined
+}
+
+function normalizarTexto(valor?: string | null) {
+  return valor?.trim().toLocaleLowerCase("es-PE") ?? ""
+}
+
+function buscarMaestroPorReferencia(
+  datos: MaestroConfiguracionGeneralIntegracion[],
+  id?: string,
+  nombre?: string,
+) {
+  if (id) {
+    const porId = datos.find((dato) => dato.id === id)
+    if (porId) return porId
+  }
+
+  const nombreNormalizado = normalizarTexto(nombre)
+  return nombreNormalizado
+    ? datos.find((dato) => normalizarTexto(dato.nombre) === nombreNormalizado)
+    : undefined
 }
 
 function obtenerErrorDialogo(error: unknown): ErrorDialogo {
@@ -152,8 +175,16 @@ export function SocioNegocioFormularioProveedor({
   selectorTipo,
 }: SocioNegocioFormularioProveedorProps) {
   const router = useRouter()
+  const formRef = useRef<HTMLFormElement>(null)
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
   const [errorDialogo, setErrorDialogo] = useState<ErrorDialogo | null>(null)
+  const [sapEncontrado, setSapEncontrado] =
+    useState<SapBusinessPartnerResumenResponse | null>(null)
+  const [sapMensaje, setSapMensaje] = useState<string | null>(null)
+  const [buscandoSap, setBuscandoSap] = useState(false)
+  const [areaSeleccionada, setAreaSeleccionada] = useState<string | undefined>()
+  const [cargoSeleccionado, setCargoSeleccionado] = useState<string | undefined>()
+  const [cuentaSeleccionada, setCuentaSeleccionada] = useState<string | undefined>()
   const cuentasQuery = useMaestrosConfiguracionGeneralQuery({
     tipoDatoMaestro: "CUENTA",
   })
@@ -171,6 +202,71 @@ export function SocioNegocioFormularioProveedor({
   const catalogosCargando =
     cuentasQuery.isLoading || areasQuery.isLoading || cargosQuery.isLoading
 
+  useEffect(() => {
+    if (!sapEncontrado) return
+
+    setAreaSeleccionada(
+      buscarMaestroPorReferencia(
+        areas,
+        sapEncontrado.areaId,
+        sapEncontrado.areaNombre,
+      )?.id,
+    )
+    setCargoSeleccionado(
+      buscarMaestroPorReferencia(
+        cargos,
+        sapEncontrado.cargoId,
+        sapEncontrado.cargoNombre,
+      )?.id,
+    )
+    setCuentaSeleccionada(
+      buscarMaestroPorReferencia(
+        cuentas,
+        sapEncontrado.cuentaId,
+        sapEncontrado.cuentaNombre,
+      )?.id,
+    )
+  }, [areas, cargos, cuentas, sapEncontrado])
+
+  async function buscarEnSap() {
+    setErrorDialogo(null)
+    setSapMensaje(null)
+    setSapEncontrado(null)
+    setAreaSeleccionada(undefined)
+    setCargoSeleccionado(undefined)
+    setCuentaSeleccionada(undefined)
+
+    const formData = new FormData(formRef.current ?? undefined)
+    const numeroDocumento = texto(formData, "numeroDocumento")
+
+    if (!numeroDocumento) {
+      setSapMensaje("Ingresa el RUC para buscar en SAP.")
+      return
+    }
+
+    try {
+      setBuscandoSap(true)
+      const datos = await consultarSapBusinessPartnerPorDocumento(
+        numeroDocumento,
+        { tipo: "PROVEEDOR" },
+      )
+
+      if (!datos) {
+        setSapMensaje(
+          "No se encontro este proveedor en SAP. Puedes completar el formulario y el backend generara el codigo.",
+        )
+        return
+      }
+
+      setSapEncontrado(datos)
+      setSapMensaje("Datos encontrados en SAP como proveedor. Revisa y confirma el registro.")
+    } catch (err: unknown) {
+      setErrorDialogo(obtenerErrorDialogo(err))
+    } finally {
+      setBuscandoSap(false)
+    }
+  }
+
   async function registrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErrorDialogo(null)
@@ -187,12 +283,11 @@ export function SocioNegocioFormularioProveedor({
     try {
       const payload: RegistrarProveedorRequest = {
         tipo: "PROVEEDOR",
-        codigoInternoSap: texto(formData, "codigoInternoSap"),
         numeroDocumento: texto(formData, "numeroDocumento"),
         razonSocial: texto(formData, "razonSocial"),
         nombreComercial: texto(formData, "nombreComercial"),
         direccion: texto(formData, "direccion"),
-        contacto: texto(formData, "nombreContacto"),
+        contacto: texto(formData, "contacto"),
         correo: texto(formData, "correo"),
         numeroCelular: texto(formData, "numeroCelular"),
         areaId: areaMaestro?.id,
@@ -228,73 +323,136 @@ export function SocioNegocioFormularioProveedor({
           </div>
         </div>
         <div className="px-5 py-5">
-          <form onSubmit={(event) => void registrar(event)}>
+          <form ref={formRef} onSubmit={(event) => void registrar(event)}>
             <FieldGroup>
               <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
                 <FieldSet className="rounded-lg border border-border p-4">
                   <FieldLegend>Identificacion</FieldLegend>
                   <FieldDescription>
-                    Datos que diferencian el registro en el maestro.
+                    Ingresa el RUC. El backend consultara SAP y registrara el proveedor localmente.
                   </FieldDescription>
                   <div className="grid gap-4 md:grid-cols-1">
                     <Field>
-                      <FieldLabel htmlFor="codigoInternoSap">Codigo SAP</FieldLabel>
+                      <FieldLabel htmlFor="numeroDocumento">RUC</FieldLabel>
                       <Input
-                        id="codigoInternoSap"
-                        name="codigoInternoSap"
-                        placeholder="SAP-PRO-001"
+                        key={`doc-${sapEncontrado?.numeroDocumento ?? "manual"}`}
+                        id="numeroDocumento"
+                        name="numeroDocumento"
+                        placeholder="20123456789"
+                        defaultValue={sapEncontrado?.numeroDocumento}
                         required
                       />
                     </Field>
 
-                    <Field>
-                      <FieldLabel htmlFor="numeroDocumento">RUC</FieldLabel>
-                      <Input
-                        id="numeroDocumento"
-                        name="numeroDocumento"
-                        placeholder="20123456789"
-                        required
-                      />
-                    </Field>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void buscarEnSap()}
+                      disabled={buscandoSap}
+                    >
+                      {buscandoSap ? (
+                        <>
+                          <Spinner data-icon="inline-start" />
+                          Buscando...
+                        </>
+                      ) : (
+                        "Buscar en SAP"
+                      )}
+                    </Button>
+
+                    {sapEncontrado ? (
+                      <Field>
+                        <FieldLabel htmlFor="codigoInternoSapVista">Codigo SAP encontrado</FieldLabel>
+                        <Input
+                          id="codigoInternoSapVista"
+                          value={sapEncontrado.codigoInternoSap}
+                          readOnly
+                        />
+                      </Field>
+                    ) : null}
                   </div>
                 </FieldSet>
 
                 <FieldSet className="rounded-lg border border-border p-4">
-                  <FieldLegend>Informacion comercial</FieldLegend>
+                  <FieldLegend>Datos comerciales</FieldLegend>
                   <FieldDescription>
-                    Datos principales para busqueda, comunicacion y ficha del proveedor.
+                    Completa la razon social. SAP puede precargar los datos si encuentra el RUC.
                   </FieldDescription>
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <Field className="md:col-span-2 xl:col-span-2">
+                    <Field className="md:col-span-2">
                       <FieldLabel htmlFor="razonSocial">Razon social</FieldLabel>
                       <Input
+                        key={`razon-${sapEncontrado?.razonSocial ?? "manual"}`}
                         id="razonSocial"
                         name="razonSocial"
-                        placeholder="Proveedor Demo SAC"
+                        defaultValue={sapEncontrado?.razonSocial}
+                        placeholder="Razon social o nombres"
                         required
                       />
                     </Field>
-
-                    <Field className="md:col-span-2 xl:col-span-3">
+                    <Field className="md:col-span-2">
                       <FieldLabel htmlFor="nombreComercial">Nombre comercial</FieldLabel>
                       <Input
+                        key={`nombre-${sapEncontrado?.razonSocial ?? "manual"}`}
                         id="nombreComercial"
                         name="nombreComercial"
-                        placeholder="Proveedor Demo"
+                        defaultValue={sapEncontrado?.razonSocial}
+                        placeholder="Nombre comercial"
                         required
                       />
                     </Field>
-
                     <Field className="md:col-span-2 xl:col-span-3">
-                      <FieldLabel htmlFor="direccion">Direccion principal</FieldLabel>
+                      <FieldLabel htmlFor="direccion">Direccion</FieldLabel>
                       <Input
+                        key={`direccion-${sapEncontrado?.direccion ?? "manual"}`}
                         id="direccion"
                         name="direccion"
-                        placeholder="Av. Principal 123"
+                        defaultValue={sapEncontrado?.direccion}
+                        placeholder="Direccion principal"
                         required
                       />
                     </Field>
-
+                    <Field>
+                      <FieldLabel htmlFor="contacto">Contacto</FieldLabel>
+                      <Input
+                        key={`contacto-${sapEncontrado?.contacto ?? "manual"}`}
+                        id="contacto"
+                        name="contacto"
+                        defaultValue={sapEncontrado?.contacto}
+                        placeholder="Nombre del contacto"
+                        required
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="correo">Correo</FieldLabel>
+                      <Input
+                        key={`correo-${sapEncontrado?.correo ?? "manual"}`}
+                        id="correo"
+                        name="correo"
+                        type="email"
+                        defaultValue={sapEncontrado?.correo}
+                        placeholder="contacto@empresa.com"
+                        required
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="numeroCelular">Celular</FieldLabel>
+                      <Input
+                        key={`celular-${sapEncontrado?.numeroCelular ?? "manual"}`}
+                        id="numeroCelular"
+                        name="numeroCelular"
+                        defaultValue={sapEncontrado?.numeroCelular}
+                        placeholder="999999999"
+                        required
+                      />
+                    </Field>
+                    {sapEncontrado ? (
+                      null
+                    ) : (
+                      <p className="text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
+                        Puedes usar "Buscar en SAP" para previsualizar los datos antes de registrar.
+                      </p>
+                    )}
                     <Field className="md:col-span-2 xl:col-span-3">
                       <FieldLabel htmlFor="cuenta">Cuenta</FieldLabel>
                       <CatalogoSelect
@@ -302,6 +460,8 @@ export function SocioNegocioFormularioProveedor({
                         disabled={cuentasQuery.isLoading}
                         id="cuenta"
                         name="cuenta"
+                        value={cuentaSeleccionada}
+                        onValueChange={setCuentaSeleccionada}
                         placeholder={
                           cuentasQuery.isLoading ? "Cargando cuentas..." : "Selecciona una cuenta"
                         }
@@ -312,21 +472,11 @@ export function SocioNegocioFormularioProveedor({
               </div>
 
               <FieldSet className="rounded-lg border border-border p-4">
-                <FieldLegend>Datos de contacto</FieldLegend>
+                <FieldLegend>Clasificacion interna</FieldLegend>
                 <FieldDescription>
-                  Persona con la que se coordina por parte del proveedor.
+                  Datos locales opcionales para clasificar al proveedor en BC-01.
                 </FieldDescription>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                  <Field>
-                    <FieldLabel htmlFor="nombreContacto">Nombre del contacto</FieldLabel>
-                    <Input
-                      id="nombreContacto"
-                      name="nombreContacto"
-                      placeholder="Juan Ramirez"
-                      required
-                    />
-                  </Field>
-
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <Field>
                     <FieldLabel htmlFor="area">Departamento</FieldLabel>
                     <CatalogoSelect
@@ -334,6 +484,8 @@ export function SocioNegocioFormularioProveedor({
                       disabled={areasQuery.isLoading}
                       id="area"
                       name="area"
+                      value={areaSeleccionada}
+                      onValueChange={setAreaSeleccionada}
                       placeholder={
                         areasQuery.isLoading
                           ? "Cargando departamentos..."
@@ -349,38 +501,34 @@ export function SocioNegocioFormularioProveedor({
                       disabled={cargosQuery.isLoading}
                       id="cargo"
                       name="cargo"
+                      value={cargoSeleccionado}
+                      onValueChange={setCargoSeleccionado}
                       placeholder={
                         cargosQuery.isLoading ? "Cargando cargos..." : "Selecciona un cargo"
                       }
                     />
                   </Field>
 
-                  <Field>
-                    <FieldLabel htmlFor="correo">Correo</FieldLabel>
-                    <Input
-                      id="correo"
-                      name="correo"
-                      type="email"
-                      placeholder="contacto@demo.pe"
-                      required
-                    />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="numeroCelular">Celular</FieldLabel>
-                    <Input
-                      id="numeroCelular"
-                      name="numeroCelular"
-                      placeholder="999999999"
-                      required
-                    />
-                  </Field>
                 </div>
               </FieldSet>
 
               <p className="text-sm text-muted-foreground">
-                La operacion guardara el registro con fecha y usuario responsable.
+                {catalogosCargando ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Spinner />
+                    Cargando catalogos activos...
+                  </span>
+                ) : (
+                  "La operacion guardara el registro con fecha y usuario responsable."
+                )}
               </p>
+
+              {sapMensaje ? (
+                <Alert>
+                  <AlertTitle>Consulta SAP</AlertTitle>
+                  <AlertDescription>{sapMensaje}</AlertDescription>
+                </Alert>
+              ) : null}
 
               {registrarMutation.isSuccess ? (
                 <Alert>
@@ -399,7 +547,14 @@ export function SocioNegocioFormularioProveedor({
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={registrarMutation.isPending || catalogosCargando}>
-                  {registrarMutation.isPending ? "Registrando..." : "Registrar proveedor"}
+                  {registrarMutation.isPending ? (
+                    <>
+                      <Spinner data-icon="inline-start" />
+                      Registrando...
+                    </>
+                  ) : (
+                    "Registrar proveedor"
+                  )}
                 </Button>
               </div>
             </FieldGroup>

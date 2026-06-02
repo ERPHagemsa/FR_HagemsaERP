@@ -57,6 +57,7 @@ export function mapearPayloadAUsuario(
   return {
     id: payload.sub,
     email: payload.email,
+    nombreUsuario: payload.username ?? "",
     nombre: payload.name,
     tipo: payload.type,
     roles: payload.roles.map((rol: RolPayload) => rol.role),

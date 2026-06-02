@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 import { IconGasStation, IconPlus, IconTrash } from "@tabler/icons-react";
 
 import { extraerMensajeError } from "@/compartido/api";
@@ -17,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
-import { cn } from "@/compartido/utilidades";
 import {
   useCrearTanqueActivoMutation,
   useEliminarTanqueActivoMutation,
@@ -38,10 +38,6 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
   const [tipoTanque, setTipoTanque] = React.useState<TipoTanqueActivo>("DIESEL");
   const [isSaving, setIsSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
-  const [message, setMessage] = React.useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
   const crearTanqueMutation = useCrearTanqueActivoMutation(codigo);
   const eliminarTanqueMutation = useEliminarTanqueActivoMutation(codigo);
 
@@ -58,7 +54,6 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
     const orden = Number(formData.get("orden") || 1);
     const observacion = String(formData.get("observacion") ?? "").trim();
 
-    setMessage(null);
     setIsSaving(true);
 
     try {
@@ -72,16 +67,10 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
       form.reset();
       setTipoTanque("DIESEL");
       setMostrarFormulario(false);
-      setMessage({
-        type: "success",
-        text: "Tanque registrado correctamente.",
-      });
+      toast.success("Tanque registrado correctamente.");
       router.refresh();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text: extraerMensajeError(error, "No se pudo registrar el tanque."),
-      });
+      toast.error(extraerMensajeError(error, "No se pudo registrar el tanque."));
     } finally {
       setIsSaving(false);
     }
@@ -94,21 +83,14 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
 
     if (!confirmado) return;
 
-    setMessage(null);
     setDeletingId(tanque.id);
 
     try {
       await eliminarTanqueMutation.mutateAsync(tanque.id);
-      setMessage({
-        type: "success",
-        text: "Tanque eliminado correctamente.",
-      });
+      toast.success("Tanque eliminado correctamente.");
       router.refresh();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text: extraerMensajeError(error, "No se pudo eliminar el tanque."),
-      });
+      toast.error(extraerMensajeError(error, "No se pudo eliminar el tanque."));
     } finally {
       setDeletingId(null);
     }
@@ -144,19 +126,6 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
         />
         <ResumenTanque label="Urea" total={totalUrea} unidad="litros" tipo="UREA" />
       </div>
-
-      {editable && message ? (
-        <div
-          className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
-            message.type === "success"
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
-              : "border-destructive/40 bg-destructive/10 text-destructive"
-          )}
-        >
-          {message.text}
-        </div>
-      ) : null}
 
       {editable && mostrarFormulario ? (
         <form

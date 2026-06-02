@@ -7,6 +7,10 @@ export default function ListarSociosNegocioPage() {
       etiqueta="Vista general del maestro de socios de negocio."
       accionPrincipal="Nuevo socio"
       crearHref="/socio-negocios/nuevo"
+      filtros={{
+        sortBy: "fechaCreacion",
+        sortOrder: "desc",
+      }}
     />
   )
 }

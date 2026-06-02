@@ -5,7 +5,7 @@ import axios, {
 
 import type { ErrorCampo, RespuestaError } from "./contrato"
 
-const TIMEOUT_DEFAULT_MS = 8000
+const TIMEOUT_DEFAULT_MS = 5000
 const MENSAJE_ERROR_DEFAULT = "No se pudo completar la operacion."
 
 // Error normalizado para cualquier llamada HTTP del frontend. Guarda intacto

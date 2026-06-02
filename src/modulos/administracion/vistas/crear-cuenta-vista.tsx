@@ -38,6 +38,7 @@ import type { TipoCuenta } from "../tipos/administracion.tipos"
 export function CrearCuentaVista() {
   const router = useRouter()
   const [email, setEmail] = useState("")
+  const [nombreUsuario, setNombreUsuario] = useState("")
   const [nombreCompleto, setNombreCompleto] = useState("")
   const [tipoCuenta, setTipoCuenta] = useState<TipoCuenta>("interno")
   const [documentoIdentidad, setDocumentoIdentidad] = useState("")
@@ -52,6 +53,7 @@ export function CrearCuentaVista() {
     try {
       const respuesta = await crearMutation.mutateAsync({
         email: email.trim(),
+        nombreUsuario: nombreUsuario.trim(),
         nombreCompleto: nombreCompleto.trim(),
         tipoCuenta,
         documentoIdentidad: documentoIdentidad.trim() || undefined,
@@ -96,6 +98,21 @@ export function CrearCuentaVista() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   maxLength={255}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="nombreUsuario">Nombre de usuario</FieldLabel>
+                <Input
+                  id="nombreUsuario"
+                  type="text"
+                  autoComplete="off"
+                  value={nombreUsuario}
+                  onChange={(e) => setNombreUsuario(e.target.value)}
+                  required
+                  minLength={3}
+                  maxLength={30}
+                  pattern="[A-Za-z][A-Za-z0-9._\-]{2,29}"
+                  title="3 a 30 caracteres, empieza con letra y solo letras, digitos, punto, guion o guion bajo"
                 />
               </Field>
               <Field>

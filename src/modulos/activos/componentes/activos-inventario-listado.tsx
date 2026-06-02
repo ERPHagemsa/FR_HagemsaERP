@@ -30,7 +30,7 @@ export function ActivosInventarioListado({ activos }: Props) {
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
 
   const activosVisibles = activos.filter(
-    (activo) => activo.estadoRegistro !== "ANULADO"
+    (activo) => activo.estadoRegistro !== false
   );
   const normalizedQuery = query.trim().toUpperCase();
 

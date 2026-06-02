@@ -281,7 +281,6 @@ export function SocioNegocioFormularioPersonal({
     try {
       const payload: RegistrarPersonalRequest = {
         tipo: "PERSONAL",
-        codigoInternoSap: texto(formData, "codigoInternoSap"),
         numeroDocumento: texto(formData, "numeroDocumento"),
         razonSocial: texto(formData, "nombresApellidos"),
         nombreComercial: texto(formData, "nombresApellidos"),
@@ -289,8 +288,6 @@ export function SocioNegocioFormularioPersonal({
         contacto: `${texto(formData, "nombresApellidos")} - ${cargoMaestro.nombre}`,
         correo: texto(formData, "correo"),
         numeroCelular: texto(formData, "numeroCelular"),
-        ubicacionId: ubicacionMaestro.id,
-        ubicacionNombre: ubicacionMaestro.nombre,
         sedeId: sedeMaestro.id,
         sedeNombre: sedeMaestro.nombre,
         areaId: areaMaestro.id,
@@ -343,18 +340,8 @@ export function SocioNegocioFormularioPersonal({
               <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
                 <FieldSet className="rounded-lg border border-border p-4">
                   <FieldLegend>Identificacion</FieldLegend>
-                  <FieldDescription>Documento y codigo del empleado.</FieldDescription>
+                  <FieldDescription>Documento del empleado.</FieldDescription>
                   <div className="grid gap-4 md:grid-cols-1">
-                    <Field>
-                      <FieldLabel htmlFor="codigoInternoSap">Codigo SAP</FieldLabel>
-                      <Input
-                        id="codigoInternoSap"
-                        name="codigoInternoSap"
-                        placeholder="SAP-PER-001"
-                        required
-                      />
-                    </Field>
-
                     <Field>
                       <FieldLabel htmlFor="numeroDocumento">DNI</FieldLabel>
                       <Input

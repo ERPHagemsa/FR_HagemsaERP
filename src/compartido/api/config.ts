@@ -12,15 +12,16 @@ type ConfiguracionServicioApi = {
 }
 
 const API_GATEWAY_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL
+const REQUEST_TIMEOUT_MS = 5000
 
 export const serviciosApi = {
   activos: {
     baseUrl:
       process.env.NEXT_PUBLIC_ACTIVOS_API_URL ??
       API_GATEWAY_URL ??
-      "https://api-activos-dev.hagemsa.com/api",
+      "https://api-activos-dev.hagemsa.com",
     nombre: "activos",
-    timeoutMs: 8000,
+    timeoutMs: REQUEST_TIMEOUT_MS,
   },
   combustible: {
     baseUrl:
@@ -28,7 +29,7 @@ export const serviciosApi = {
       API_GATEWAY_URL ??
       "https://api-combustible-dev.hagemsa.com/api",
     nombre: "combustible",
-    timeoutMs: 6000,
+    timeoutMs: REQUEST_TIMEOUT_MS,
   },
   socioNegocios: {
     baseUrl:
@@ -36,7 +37,7 @@ export const serviciosApi = {
       API_GATEWAY_URL ??
       "https://api-bc01-socio-negocio.hagemsa.com/api",
     nombre: "socio de negocio",
-    timeoutMs: 8000,
+    timeoutMs: REQUEST_TIMEOUT_MS,
   },
   configuracionGeneral: {
     baseUrl:
@@ -44,7 +45,7 @@ export const serviciosApi = {
       API_GATEWAY_URL ??
       "https://api-bc14-configuracion-general.hagemsa.com",
     nombre: "configuracion general",
-    timeoutMs: 8000,
+    timeoutMs: REQUEST_TIMEOUT_MS,
   },
   comercial: {
     baseUrl:
@@ -52,7 +53,7 @@ export const serviciosApi = {
       API_GATEWAY_URL ??
       "https://api-bc03-comercial.hagemsa.com/api/v1",
     nombre: "comercial",
-    timeoutMs: 8000,
+    timeoutMs: REQUEST_TIMEOUT_MS,
   },
 } satisfies Record<ServicioApi, ConfiguracionServicioApi>
 

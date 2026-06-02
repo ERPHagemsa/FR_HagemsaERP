@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 import {
   IconArrowDown,
   IconArrowUp,
@@ -64,11 +65,10 @@ export function ActivosTabla({ activos }: Props) {
     null
   );
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const [deleteError, setDeleteError] = React.useState<string | null>(null);
   const cambiarEstadoRegistroMutation = useCambiarEstadoRegistroMutation();
 
   const activosVisibles = activos.filter(
-    (activo) => activo.estadoRegistro !== "ANULADO"
+    (activo) => activo.estadoRegistro !== false
   );
   const normalizedQuery = query.trim().toUpperCase();
   const filtrados = activosVisibles.filter((activo) => {
@@ -145,22 +145,24 @@ export function ActivosTabla({ activos }: Props) {
   async function confirmarBorrado() {
     if (!activoParaBorrar) return;
 
-    setDeleteError(null);
     setIsDeleting(true);
 
     try {
       await cambiarEstadoRegistroMutation.mutateAsync({
         id: activoParaBorrar.id,
         payload: {
-          estadoRegistro: "ANULADO",
+          estadoRegistro: false,
           motivo: "Borrado desde maestro de activos",
           usuario: "activos.web",
         },
       });
       setActivoParaBorrar(null);
+      toast.success("Activo borrado", {
+        description: `${activoParaBorrar.codigo} fue retirado del maestro visible.`,
+      });
       router.refresh();
     } catch (error) {
-      setDeleteError(extraerMensajeError(error, "No se pudo borrar el activo"));
+      toast.error(extraerMensajeError(error, "No se pudo borrar el activo"));
     } finally {
       setIsDeleting(false);
     }
@@ -377,10 +379,9 @@ export function ActivosTabla({ activos }: Props) {
                         variant="destructive"
                         title="Borrar activo"
                         onClick={() => {
-                          setDeleteError(null);
                           setActivoParaBorrar(activo);
                         }}
-                        disabled={activo.estadoRegistro === "ANULADO"}
+                        disabled={activo.estadoRegistro === false}
                       >
                         <IconTrash />
                         <span className="sr-only">Borrar</span>
@@ -456,11 +457,6 @@ export function ActivosTabla({ activos }: Props) {
                 visible y no podra usarse en procesos operativos. Deseas
                 continuar?
               </p>
-              {deleteError ? (
-                <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-                  {deleteError}
-                </div>
-              ) : null}
               <div className="mt-5 flex justify-end gap-2">
                 <Button
                   type="button"

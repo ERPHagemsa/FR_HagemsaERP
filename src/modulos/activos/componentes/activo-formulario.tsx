@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 import {
   IconClipboardText,
   IconFileDescription,
@@ -85,7 +86,6 @@ export function ActivoFormulario({
 }: Props) {
   const router = useRouter();
   const [isSaving, setIsSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = React.useState("base");
   const [documentosPendientes, setDocumentosPendientes] = React.useState<
     CrearDocumentoActivoPayload[]
@@ -300,7 +300,6 @@ export function ActivoFormulario({
     const root = formularioRef.current;
     if (!root) return;
 
-    setError(null);
     setIsSaving(true);
 
     const getValue = (name: string) =>
@@ -459,7 +458,7 @@ export function ActivoFormulario({
       router.push(`/activos/${saved.codigo}?${isEdit ? "updated" : "created"}=1`);
       router.refresh();
     } catch (err) {
-      setError(extraerMensajeError(err, "No se pudo guardar el activo"));
+      toast.error(extraerMensajeError(err, "No se pudo guardar el activo"));
     } finally {
       setIsSaving(false);
     }
@@ -485,7 +484,7 @@ export function ActivoFormulario({
 
     if (!numeroDocumento || !fechaEmision || !archivoUrl) {
       setActiveTab("documentos");
-      setError(
+      toast.error(
         "Completa numero, fecha de emision y archivo o URL antes de agregar el documento."
       );
       return;
@@ -493,7 +492,7 @@ export function ActivoFormulario({
 
     if (!isHttpUrl(archivoUrl)) {
       setActiveTab("documentos");
-      setError("Ingresa una URL valida para el documento, por ejemplo https://...");
+      toast.error("Ingresa una URL valida para el documento, por ejemplo https://...");
       return;
     }
 
@@ -510,7 +509,9 @@ export function ActivoFormulario({
       },
     ]);
 
-    setError(null);
+    toast.success("Documento agregado", {
+      description: "Se guardara junto al activo.",
+    });
     root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea").forEach((input) => {
       input.value = "";
     });
@@ -531,7 +532,7 @@ export function ActivoFormulario({
     const capacidad = Number(getValue("capacidadTanque"));
 
     if (!capacidad || capacidad <= 0) {
-      setError("Ingresa una capacidad de tanque mayor a cero antes de agregarlo.");
+      toast.error("Ingresa una capacidad de tanque mayor a cero antes de agregarlo.");
       return;
     }
 
@@ -555,6 +556,9 @@ export function ActivoFormulario({
       tipoSelect.value = "DIESEL";
     }
     setTipoTanque("DIESEL");
+    toast.success("Tanque agregado", {
+      description: "Se guardara junto al activo.",
+    });
     actualizarResumen();
   }
 
@@ -568,7 +572,7 @@ export function ActivoFormulario({
     }
 
     if (!file.type.startsWith("image/")) {
-      setError("Selecciona un archivo de imagen valido.");
+      toast.error("Selecciona un archivo de imagen valido.");
       event.target.value = "";
       setSelectedImageFileName("");
       setLocalImageUrl("");
@@ -579,10 +583,9 @@ export function ActivoFormulario({
     reader.onload = () => {
       setSelectedImageFileName(file.name);
       setLocalImageUrl(String(reader.result));
-      setError(null);
     };
     reader.onerror = () => {
-      setError("No se pudo leer la imagen seleccionada.");
+      toast.error("No se pudo leer la imagen seleccionada.");
       setSelectedImageFileName("");
       setLocalImageUrl("");
     };
@@ -604,7 +607,7 @@ export function ActivoFormulario({
     const url = localImageUrl || getValue("urlImagen");
 
     if (!url) {
-      setError("Selecciona una imagen o ingresa una URL.");
+      toast.error("Selecciona una imagen o ingresa una URL.");
       return;
     }
 
@@ -626,6 +629,9 @@ export function ActivoFormulario({
     });
     setSelectedImageFileName("");
     setLocalImageUrl("");
+    toast.success("Imagen agregada", {
+      description: "Se guardara junto al activo.",
+    });
     actualizarResumen();
   }
 
@@ -1274,12 +1280,6 @@ export function ActivoFormulario({
               resumen={resumen}
             />
           </div>
-
-          {error ? (
-            <div className="mt-5 rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-              {error}
-            </div>
-          ) : null}
 
           <div className="-mx-5 mt-5 flex items-center justify-end gap-2 border-t border-border bg-muted/40 px-5 py-4">
             <Button type="button" variant="outline" onClick={() => router.push("/activos")}>

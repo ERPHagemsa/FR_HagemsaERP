@@ -76,12 +76,14 @@ export function NavUser({ user }: NavUserProps = {}) {
   const usuarioActual = usuario
     ? {
         nombre: usuario.nombre || usuario.email,
+        nombreUsuario: usuario.nombreUsuario,
         email: usuario.email,
         tipo: usuario.tipo,
       }
     : user
       ? {
           nombre: user.name,
+          nombreUsuario: "",
           email: user.email,
           tipo: "operacion",
         }
@@ -133,6 +135,11 @@ export function NavUser({ user }: NavUserProps = {}) {
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{usuarioActual.nombre}</span>
+                  {usuarioActual.nombreUsuario ? (
+                    <span className="truncate text-xs text-muted-foreground">
+                      @{usuarioActual.nombreUsuario}
+                    </span>
+                  ) : null}
                   <span className="truncate text-xs text-muted-foreground">
                     {usuarioActual.email}
                   </span>
