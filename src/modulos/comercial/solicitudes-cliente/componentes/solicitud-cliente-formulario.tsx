@@ -11,6 +11,7 @@ import {
   esErrorValidacion,
   extraerMensajeError,
   obtenerErroresPorCampo,
+  useConsulta,
 } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -30,6 +31,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
+import { consultarProspecto } from "../../prospectos/servicios/prospectos-api";
 import { useRegistrarSCMutation } from "../servicios/solicitudes-cliente-queries";
 import { ResolverIdentidadPanel } from "./resolver-identidad-panel";
 import type { CanalEntrada, OrigenTipo } from "../../cotizaciones/tipos/cotizaciones.tipos";
@@ -54,6 +56,13 @@ function getValue(root: HTMLElement, name: string): string {
   );
 }
 
+const REGEX_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function esUuid(valor: string): boolean {
+  return REGEX_UUID.test(valor.trim());
+}
+
 // ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
@@ -69,8 +78,29 @@ export function SolicitudClienteFormulario() {
   // Para flujo CLIENTE — pre-rellenados por el panel o ingresados manualmente
   const [tipoDocumentoValue, setTipoDocumentoValue] = React.useState("");
   const [numeroDocumentoValue, setNumeroDocumentoValue] = React.useState("");
+  // PROSPECTO: contacto elegido a mano (null = usar el principal por defecto)
+  const [contactoElegido, setContactoElegido] = React.useState<string | null>(null);
 
   const registrarMutation = useRegistrarSCMutation();
+
+  // Flujo PROSPECTO: trae los contactos del prospecto para no pedir el UUID a mano.
+  const origenEsProspectoValido =
+    origenTipoValue === "PROSPECTO" && esUuid(origenIdValue);
+  const {
+    data: prospecto,
+    isLoading: cargandoContactos,
+    error: errorContactos,
+  } = useConsulta(
+    () => consultarProspecto(origenIdValue.trim()),
+    [origenIdValue],
+    { enabled: origenEsProspectoValido }
+  );
+  const contactos = origenEsProspectoValido ? prospecto?.contactos ?? [] : [];
+  // Por defecto el contacto principal (o el único); el usuario puede cambiarlo.
+  const contactoPorDefecto =
+    contactos.find((c) => c.esPrincipal)?.id ??
+    (contactos.length === 1 ? contactos[0].id : "");
+  const contactoOrigenIdValue = contactoElegido ?? contactoPorDefecto;
 
   function limpiarErrorCampo(name: string) {
     setErroresCampo((prev) => {
@@ -99,7 +129,7 @@ export function SolicitudClienteFormulario() {
           ? {
               origenTipo: "PROSPECTO" as const,
               origenId: origenIdValue,
-              contactoOrigenId: getValue(root, "contactoOrigenId"),
+              contactoOrigenId: contactoOrigenIdValue,
               canalEntrada,
               descripcionServicio,
               fechaRequerida,
@@ -204,6 +234,7 @@ export function SolicitudClienteFormulario() {
                 onIdentidadResuelta={({ origenTipo, origenId, tipoDocumento, numeroDocumento }) => {
                   setOrigenTipoValue(origenTipo);
                   setOrigenIdValue(origenId);
+                  setContactoElegido(null);
                   if (tipoDocumento) setTipoDocumentoValue(tipoDocumento);
                   if (numeroDocumento) setNumeroDocumentoValue(numeroDocumento);
                   limpiarErrorCampo("origenTipo");
@@ -227,6 +258,7 @@ export function SolicitudClienteFormulario() {
                   setTipoDocumentoValue("");
                   setNumeroDocumentoValue("");
                   setOrigenIdValue("");
+                  setContactoElegido(null);
                   limpiarErrorCampo("contactoOrigenId");
                   limpiarErrorCampo("tipoDocumento");
                   limpiarErrorCampo("numeroDocumento");
@@ -244,19 +276,62 @@ export function SolicitudClienteFormulario() {
                 disabled={isSaving}
                 onChange={(e) => {
                   setOrigenIdValue(e.target.value);
+                  setContactoElegido(null);
                   limpiarErrorCampo("origenId");
                 }}
               />
               {origenTipoValue === "PROSPECTO" ? (
-                <CampoTexto
-                  label="ID del contacto (UUID)"
-                  name="contactoOrigenId"
-                  requerido
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  error={erroresCampo["contactoOrigenId"]}
-                  disabled={isSaving}
-                  onChange={() => limpiarErrorCampo("contactoOrigenId")}
-                />
+                <div className="grid gap-2">
+                  <Label htmlFor="contactoOrigenId">
+                    Contacto del prospecto
+                    <span className="ml-1 text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={contactoOrigenIdValue || undefined}
+                    onValueChange={(v) => {
+                      setContactoElegido(v);
+                      limpiarErrorCampo("contactoOrigenId");
+                    }}
+                    disabled={isSaving || cargandoContactos || contactos.length === 0}
+                  >
+                    <SelectTrigger
+                      id="contactoOrigenId"
+                      aria-invalid={Boolean(erroresCampo["contactoOrigenId"])}
+                      className="w-full"
+                    >
+                      <SelectValue
+                        placeholder={
+                          !esUuid(origenIdValue)
+                            ? "Primero indica el prospecto de origen"
+                            : cargandoContactos
+                              ? "Cargando contactos..."
+                              : contactos.length === 0
+                                ? "El prospecto no tiene contactos activos"
+                                : "Selecciona un contacto"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contactos.map((contacto) => (
+                        <SelectItem key={contacto.id} value={contacto.id}>
+                          {contacto.nombre}
+                          {contacto.esPrincipal ? " (principal)" : ""}
+                          {contacto.cargo ? ` — ${contacto.cargo}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errorContactos ? (
+                    <p className="text-xs text-destructive">
+                      No se pudieron cargar los contactos del prospecto.
+                    </p>
+                  ) : null}
+                  {erroresCampo["contactoOrigenId"] ? (
+                    <p className="text-xs text-destructive">
+                      {erroresCampo["contactoOrigenId"]}
+                    </p>
+                  ) : null}
+                </div>
               ) : (
                 <>
                   <CampoSelect
