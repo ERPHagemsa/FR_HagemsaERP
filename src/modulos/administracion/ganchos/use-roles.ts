@@ -26,10 +26,11 @@ import type {
   CrearPermisoResponse,
   CrearRolPayload,
   CrearRolResponse,
+  ListarRolesQuery,
 } from "../tipos/administracion.tipos"
 
-export function useRoles() {
-  return useConsulta(obtenerRoles, [])
+export function useRoles(query: ListarRolesQuery = {}) {
+  return useConsulta(() => obtenerRoles(query), [query.pagina, query.limite])
 }
 
 export function useRol(id: string) {

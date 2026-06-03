@@ -14,14 +14,26 @@ import type {
   CrearRolResponse,
   ListaPermisosResponse,
   ListaRolesResponse,
+  ListarRolesQuery,
   PermisoResponse,
   RolResponse,
 } from "../tipos/administracion.tipos"
 
-// Catalogo de roles — backend lo devuelve en una sola pagina (lista chica).
-export async function obtenerRoles(): Promise<ListaRolesResponse> {
+function construirQueryRoles(query: ListarRolesQuery): string {
+  const params = new URLSearchParams()
+  if (query.pagina !== undefined) params.set("pagina", String(query.pagina))
+  if (query.limite !== undefined) params.set("limite", String(query.limite))
+  const qs = params.toString()
+  return qs ? `?${qs}` : ""
+}
+
+// El backend pagina la lista (envoltura estandar { datos, paginacion }); el
+// servicio la pasa tal cual a la UI.
+export async function obtenerRoles(
+  query: ListarRolesQuery = {},
+): Promise<ListaRolesResponse> {
   const { data } = await clienteHttp.get<RespuestaPaginada<RolResponse>>(
-    "/api/admin/roles",
+    `/api/admin/roles${construirQueryRoles(query)}`,
   )
   return { datos: data.datos, paginacion: data.paginacion }
 }
