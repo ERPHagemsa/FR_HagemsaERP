@@ -226,8 +226,6 @@ export function SolicitudClienteFormulario() {
                 opciones={[
                   { valor: "CORREO", etiqueta: "Correo electronico" },
                   { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
-                  { valor: "TELEFONO", etiqueta: "Telefono" },
-                  { valor: "EMAIL", etiqueta: "Email" },
                   { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
                   { valor: "OTRO", etiqueta: "Otro" },
                 ]}

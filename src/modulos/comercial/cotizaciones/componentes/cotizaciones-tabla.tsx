@@ -358,8 +358,6 @@ function formatearCanal(canal: string) {
     CORREO: "Correo",
     LLAMADA: "Llamada",
     PRESENCIAL: "Presencial",
-    TELEFONO: "Telefono",
-    EMAIL: "Email",
     OTRO: "Otro",
   };
   return mapa[canal] ?? canal;

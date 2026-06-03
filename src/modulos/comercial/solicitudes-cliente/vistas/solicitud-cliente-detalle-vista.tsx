@@ -207,8 +207,6 @@ function formatearCanal(canal: string): string {
   const mapa: Record<string, string> = {
     CORREO: "Correo",
     LLAMADA: "Llamada",
-    TELEFONO: "Telefono",
-    EMAIL: "Email",
     PRESENCIAL: "Presencial",
     OTRO: "Otro",
   };
