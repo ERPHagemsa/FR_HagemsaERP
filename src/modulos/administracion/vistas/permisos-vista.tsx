@@ -53,18 +53,6 @@ import {
 } from "../ganchos/use-roles"
 import type { PermisoResponse } from "../tipos/administracion.tipos"
 
-function agruparPorModulo(
-  permisos: ReadonlyArray<PermisoResponse>,
-): Record<string, PermisoResponse[]> {
-  const grupos: Record<string, PermisoResponse[]> = {}
-  for (const permiso of permisos) {
-    const modulo = permiso.modulo || "otros"
-    if (!grupos[modulo]) grupos[modulo] = []
-    grupos[modulo].push(permiso)
-  }
-  return grupos
-}
-
 // Debe coincidir con PermissionCode VO en el backend. Si el VO cambia, este
 // regex tambien. Validacion client-side para feedback temprano — el server
 // re-valida igual.
@@ -403,17 +391,26 @@ export function PermisosVista() {
   const catalogoFiltrado = useMemo(() => {
     if (!data) return []
     const q = busqueda.trim().toLowerCase()
-    if (!q) return data.datos
-    return data.datos.filter(
-      (p) =>
-        p.codigo.toLowerCase().includes(q) ||
-        p.descripcion.toLowerCase().includes(q) ||
-        p.modulo.toLowerCase().includes(q),
+    const lista = !q
+      ? data.datos
+      : data.datos.filter(
+          (p) =>
+            p.codigo.toLowerCase().includes(q) ||
+            p.descripcion.toLowerCase().includes(q) ||
+            p.modulo.toLowerCase().includes(q),
+        )
+    // Orden estable: por modulo y luego por codigo, asi las filas del mismo
+    // modulo quedan juntas.
+    return [...lista].sort(
+      (a, b) =>
+        (a.modulo || "otros").localeCompare(b.modulo || "otros") ||
+        a.codigo.localeCompare(b.codigo),
     )
   }, [data, busqueda])
 
-  const grupos = useMemo(
-    () => agruparPorModulo(catalogoFiltrado),
+  const totalPermisos = catalogoFiltrado.length
+  const totalModulos = useMemo(
+    () => new Set(catalogoFiltrado.map((p) => p.modulo || "otros")).size,
     [catalogoFiltrado],
   )
 
@@ -425,89 +422,100 @@ export function PermisosVista() {
             <div>
               <CardTitle>Catalogo de permisos</CardTitle>
               <CardDescription>
-                Permisos disponibles en el sistema, agrupados por modulo. Estos
-                son los permisos que se asignan a los roles.
+                Permisos disponibles en el sistema. Estos son los permisos que
+                se asignan a los roles.
               </CardDescription>
             </div>
             <DialogCrearPermiso onActualizado={refetch} />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Input
-            placeholder="Buscar por codigo, descripcion o modulo..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className="md:max-w-sm"
-          />
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <Input
+              placeholder="Buscar por codigo, descripcion o modulo..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="md:max-w-sm"
+            />
+            {!isLoading && !isError && totalPermisos > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {totalPermisos} permiso{totalPermisos === 1 ? "" : "s"} en{" "}
+                {totalModulos} modulo{totalModulos === 1 ? "" : "s"}
+              </p>
+            ) : null}
+          </div>
 
-          {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </div>
-          ) : isError ? (
-            <p className="py-6 text-center text-sm text-destructive">
-              {extraerMensajeError(error, "No se pudo cargar el catalogo.")}
-            </p>
-          ) : Object.keys(grupos).length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              {busqueda
-                ? "Ningun permiso coincide con la busqueda."
-                : "El catalogo esta vacio. Crea el primero para comenzar."}
-            </p>
-          ) : (
-            <div className="space-y-6">
-              {Object.entries(grupos).map(([modulo, permisos]) => (
-                <div key={modulo} className="space-y-2">
-                  <div className="flex items-baseline justify-between">
-                    <h3 className="text-sm font-semibold uppercase tracking-wide">
-                      {modulo}
-                    </h3>
-                    <Badge variant="secondary">
-                      {permisos.length} permiso{permisos.length === 1 ? "" : "s"}
-                    </Badge>
-                  </div>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[40%]">Codigo</TableHead>
-                          <TableHead>Descripcion</TableHead>
-                          <TableHead className="w-[100px] text-right">
-                            Acciones
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {permisos.map((permiso) => (
-                          <TableRow key={permiso.id}>
-                            <TableCell className="font-mono text-xs">
-                              {permiso.codigo}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {permiso.descripcion}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <DialogEditarPermiso
-                                  permiso={permiso}
-                                  onActualizado={refetch}
-                                />
-                                <DialogEliminarPermiso
-                                  permiso={permiso}
-                                  onEliminado={refetch}
-                                />
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Codigo</TableHead>
+                <TableHead>Modulo</TableHead>
+                <TableHead>Descripcion</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={4}>
+                      <Skeleton className="h-6 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : isError ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="py-8 text-center text-destructive"
+                  >
+                    {extraerMensajeError(error, "No se pudo cargar el catalogo.")}
+                  </TableCell>
+                </TableRow>
+              ) : totalPermisos > 0 ? (
+                catalogoFiltrado.map((permiso) => (
+                  <TableRow key={permiso.id}>
+                    <TableCell>
+                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                        {permiso.codigo}
+                      </code>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">
+                        {permiso.modulo || "otros"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {permiso.descripcion}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <DialogEditarPermiso
+                          permiso={permiso}
+                          onActualizado={refetch}
+                        />
+                        <DialogEliminarPermiso
+                          permiso={permiso}
+                          onEliminado={refetch}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="py-8 text-center text-sm text-muted-foreground"
+                  >
+                    {busqueda
+                      ? "Ningun permiso coincide con la busqueda."
+                      : "El catalogo esta vacio. Crea el primero para comenzar."}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
