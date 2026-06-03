@@ -355,6 +355,7 @@ export interface ReporteSociosDeNegocioResponse {
 export interface HistorialSocioDeNegocioResponse {
   id: string
   idRegistro: string
+  count: number
   accion: AccionHistorialSocioDeNegocio
   fechaAccion: string
   usuarioAccion: string

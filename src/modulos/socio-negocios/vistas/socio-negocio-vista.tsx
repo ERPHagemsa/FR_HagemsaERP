@@ -16,7 +16,6 @@ import {
 } from "@/compartido/componentes/ui/alert-dialog"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
-import { Checkbox } from "@/compartido/componentes/ui/checkbox"
 import {
   Card,
   CardContent,
@@ -63,6 +62,7 @@ import {
 } from "@/compartido/componentes/ui/table"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
 import { ApiError } from "@/compartido/api/axios"
+import { cn } from "@/compartido/utilidades/utils"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Add01Icon,
@@ -364,6 +364,41 @@ function obtenerTextoFormulario(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim()
 }
 
+function obtenerClaseFilaSocio(socio: SocioDeNegocioResponse) {
+  const inactivo = socio.estado === "INACTIVO"
+  const anulado = socio.estadoRegistro === "ANULADO"
+
+  return cn(
+    "border-border/80",
+    inactivo && !anulado && "bg-muted/45 hover:bg-muted/65",
+    anulado &&
+      "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/10",
+  )
+}
+
+function obtenerClaseContenidoSocio(socio: SocioDeNegocioResponse) {
+  return socio.estadoRegistro === "ANULADO"
+    ? "line-through decoration-destructive/70 decoration-2"
+    : undefined
+}
+
+function DatoFicha({
+  label,
+  value,
+}: {
+  label: string
+  value?: string | number | null
+}) {
+  return (
+    <div className="min-w-0 rounded-md border border-border bg-background p-3">
+      <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 truncate text-sm font-medium">{value || "-"}</p>
+    </div>
+  )
+}
+
 function AccionesSocio({
   socio,
   onActualizado,
@@ -381,6 +416,7 @@ function AccionesSocio({
   })
   const [accion, setAccion] = useState<"baja" | "anular" | "reactivar" | null>(null)
   const [modificarAbierto, setModificarAbierto] = useState(false)
+  const [fichaAbierta, setFichaAbierta] = useState(false)
   const [motivo, setMotivo] = useState("")
   const procesando =
     bajaMutation.isPending || modificarMutation.isPending || reactivarMutation.isPending
@@ -464,9 +500,15 @@ function AccionesSocio({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
-            <DropdownMenuItem disabled>
+            <DropdownMenuItem onSelect={() => setFichaAbierta(true)}>
               <HugeiconsIcon data-icon="inline-start" icon={ViewIcon} strokeWidth={2} />
               Ver ficha
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href={`/socio-negocios/historial/${socio.id}`}>
+                <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
+                Auditar
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
@@ -508,6 +550,55 @@ function AccionesSocio({
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AlertDialog
+        open={fichaAbierta}
+        onOpenChange={(open) => !open && setFichaAbierta(false)}
+      >
+        <AlertDialogContent className="max-w-4xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ficha del socio de negocio</AlertDialogTitle>
+            <AlertDialogDescription>
+              Datos vigentes del registro #{socio.count}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="grid gap-4">
+            <div className="grid gap-3 md:grid-cols-4">
+              <DatoFicha label="Count" value={socio.count} />
+              <DatoFicha label="Tipo" value={socio.tipo} />
+              <DatoFicha label="Estado" value={socio.estado} />
+              <DatoFicha label="Registro" value={socio.estadoRegistro} />
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <DatoFicha label="Razon social" value={socio.razonSocial} />
+              <DatoFicha label="Nombre comercial" value={socio.nombreComercial} />
+              <DatoFicha label="Codigo SAP" value={socio.codigoInternoSap} />
+              <DatoFicha label="Documento" value={socio.numeroDocumento} />
+              <DatoFicha label="Direccion" value={socio.direccion} />
+              <DatoFicha label="Contacto" value={socio.contacto} />
+              <DatoFicha label="Correo" value={socio.correo} />
+              <DatoFicha label="Celular" value={socio.numeroCelular} />
+              <DatoFicha label="Departamento" value={socio.areaNombre || socio.area} />
+              <DatoFicha label="Cargo" value={socio.cargoNombre || socio.cargo} />
+              <DatoFicha label="Cuenta" value={socio.cuentaNombre || socio.cuenta} />
+              <DatoFicha label="Creacion" value={formatearFecha(socio.fechaCreacion)} />
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <Button asChild variant="outline">
+              <Link href={`/socio-negocios/historial/${socio.id}`}>
+                <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
+                Auditar
+              </Link>
+            </Button>
+            <AlertDialogAction onClick={() => setFichaAbierta(false)}>
+              Cerrar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={accion !== null} onOpenChange={(open) => !open && setAccion(null)}>
         <AlertDialogContent>
@@ -730,14 +821,6 @@ export function SocioNegocioVista({
   const cargando = sociosQuery.isLoading
   const error = sociosQuery.error ? obtenerMensajeError(sociosQuery.error) : null
   const tipoBloqueado = Boolean(filtros?.tipo)
-  const [sociosSeleccionados, setSociosSeleccionados] = useState<Set<string>>(
-    () => new Set(),
-  )
-  const idsPagina = useMemo(() => socios.map((socio) => socio.id), [socios])
-  const todosSeleccionados =
-    idsPagina.length > 0 && idsPagina.every((id) => sociosSeleccionados.has(id))
-  const algunosSeleccionados =
-    !todosSeleccionados && idsPagina.some((id) => sociosSeleccionados.has(id))
 
   const metricasVista = useMemo(() => {
     const activosRegistrados = socios.filter(
@@ -818,39 +901,6 @@ export function SocioNegocioVista({
     setPaginaActual(1)
     setFiltrosFormulario(filtrosBase)
     setFiltrosAplicados(filtrosBase)
-  }
-
-  function alternarSeleccionTodos(checked: boolean | "indeterminate") {
-    setSociosSeleccionados((actual) => {
-      const siguiente = new Set(actual)
-
-      idsPagina.forEach((id) => {
-        if (checked === true) {
-          siguiente.add(id)
-        } else {
-          siguiente.delete(id)
-        }
-      })
-
-      return siguiente
-    })
-  }
-
-  function alternarSeleccionSocio(
-    id: string,
-    checked: boolean | "indeterminate",
-  ) {
-    setSociosSeleccionados((actual) => {
-      const siguiente = new Set(actual)
-
-      if (checked === true) {
-        siguiente.add(id)
-      } else {
-        siguiente.delete(id)
-      }
-
-      return siguiente
-    })
   }
 
   return (
@@ -1100,16 +1150,7 @@ export function SocioNegocioVista({
                   <TableHeader>
                     <TableRow className="bg-muted/70 hover:bg-muted/70">
                       <TableHead className="w-10">Acciones</TableHead>
-                      <TableHead className="w-10">
-                        <Checkbox
-                          aria-label="Seleccionar todos"
-                          checked={
-                            todosSeleccionados ||
-                            (algunosSeleccionados ? "indeterminate" : false)
-                          }
-                          onCheckedChange={alternarSeleccionTodos}
-                        />
-                      </TableHead>
+                      <TableHead className="text-right">#</TableHead>
                       <TableHead>Codigo SAP</TableHead>
                       <TableHead>Socio</TableHead>
                       <TableHead>Tipo</TableHead>
@@ -1124,37 +1165,36 @@ export function SocioNegocioVista({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {socios.map((socio) => (
-                      <TableRow key={socio.id} className="border-border/80">
-                        <TableCell>
-                          <AccionesSocio
-                            socio={socio}
-                            onActualizado={() => void sociosQuery.refetch()}
-                            onMensaje={(mensaje) => {
-                              setErrorOperacion(null)
-                              setMensajeOperacion(mensaje)
-                            }}
-                            onError={(error) => {
-                              setMensajeOperacion(null)
-                              setErrorOperacion(error)
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Checkbox
-                            aria-label={`Seleccionar ${socio.razonSocial}`}
-                            checked={sociosSeleccionados.has(socio.id)}
-                            onCheckedChange={(checked) =>
-                              alternarSeleccionSocio(socio.id, checked)
-                            }
-                          />
+                    {socios.map((socio) => {
+                      const claseContenido = obtenerClaseContenidoSocio(socio)
+
+                      return (
+                        <TableRow key={socio.id} className={obtenerClaseFilaSocio(socio)}>
+                          <TableCell>
+                            <AccionesSocio
+                              socio={socio}
+                              onActualizado={() => void sociosQuery.refetch()}
+                              onMensaje={(mensaje) => {
+                                setErrorOperacion(null)
+                                setMensajeOperacion(mensaje)
+                              }}
+                              onError={(error) => {
+                                setMensajeOperacion(null)
+                                setErrorOperacion(error)
+                              }}
+                            />
+                          </TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          <span className={claseContenido}>{socio.count}</span>
                         </TableCell>
                         <TableCell className="font-mono text-xs">
-                          {socio.codigoInternoSap}
+                          <span className={claseContenido}>{socio.codigoInternoSap}</span>
                         </TableCell>
                         <TableCell>
                           <div className="flex min-w-48 flex-col">
-                            <span className="font-medium">{socio.razonSocial}</span>
+                            <span className={cn("font-medium", claseContenido)}>
+                              {socio.razonSocial}
+                            </span>
                             <span className="text-xs text-muted-foreground">
                               {socio.nombreComercial || "Sin nombre comercial"}
                             </span>
@@ -1169,25 +1209,41 @@ export function SocioNegocioVista({
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <EstadoSocioBadge estado={socio.estado} />
+                          <span className={claseContenido}>
+                            <EstadoSocioBadge estado={socio.estado} />
+                          </span>
                         </TableCell>
                         <TableCell>
-                          <EstadoRegistroBadge estadoRegistro={socio.estadoRegistro} />
+                          <span className={claseContenido}>
+                            <EstadoRegistroBadge estadoRegistro={socio.estadoRegistro} />
+                          </span>
                         </TableCell>
-                        <TableCell>{socio.numeroDocumento}</TableCell>
+                        <TableCell>
+                          <span className={claseContenido}>{socio.numeroDocumento}</span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex min-w-44 flex-col">
-                            <span>{socio.contacto || "Sin contacto"}</span>
+                            <span className={claseContenido}>
+                              {socio.contacto || "Sin contacto"}
+                            </span>
                             <span className="text-xs text-muted-foreground">
                               {socio.correo || "Sin correo"}
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>{socio.numeroCelular || "-"}</TableCell>
-                        <TableCell>{socio.cuenta || "-"}</TableCell>
+                        <TableCell>
+                          <span className={claseContenido}>{socio.numeroCelular || "-"}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className={claseContenido}>
+                            {socio.cuentaNombre || socio.cuenta || "-"}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex min-w-40 flex-col">
-                            <span>{formatearFecha(socio.fechaCreacion)}</span>
+                            <span className={claseContenido}>
+                              {formatearFecha(socio.fechaCreacion)}
+                            </span>
                             <span className="text-xs text-muted-foreground">
                               {socio.usuarioCreacion || "Sin usuario"}
                             </span>
@@ -1195,7 +1251,7 @@ export function SocioNegocioVista({
                         </TableCell>
                         <TableCell>
                           <div className="flex min-w-44 flex-col">
-                            <span>
+                            <span className={claseContenido}>
                               {socio.fechaBaja ? formatearFecha(socio.fechaBaja) : "-"}
                             </span>
                             <span className="text-xs text-muted-foreground">
@@ -1203,8 +1259,9 @@ export function SocioNegocioVista({
                             </span>
                           </div>
                         </TableCell>
-                      </TableRow>
-                    ))}
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
