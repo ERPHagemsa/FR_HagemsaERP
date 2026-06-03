@@ -8,22 +8,17 @@ import { issuesAErroresCampo } from "../../prospectos/tipos/prospecto.schemas";
 export { issuesAErroresCampo };
 
 // ---------------------------------------------------------------------------
-// Schema de Solicitud de Cliente (SC)
+// Schema de Solicitud de Cliente (SC) — union discriminada por origenTipo
+// PROSPECTO: contactoOrigenId requerido
+// CLIENTE: tipoDocumento + numeroDocumento requeridos, sin contactoOrigenId
 // ---------------------------------------------------------------------------
 
-export const schemaRegistrarSC = z.object({
-  origenTipo: z.enum(["PROSPECTO", "CLIENTE"], {
-    message: "Selecciona un tipo de origen valido",
-  }),
+const camposComunes = {
   origenId: z
     .string()
     .uuid("El ID del origen debe ser un UUID valido")
     .min(1, "El ID del origen es requerido"),
-  contactoOrigenId: z
-    .string()
-    .uuid("El ID del contacto debe ser un UUID valido")
-    .min(1, "El ID del contacto es requerido"),
-  canalEntrada: z.enum(["CORREO", "PRESENCIAL", "LLAMADA", "OTRO"], {
+  canalEntrada: z.enum(["CORREO", "PRESENCIAL", "LLAMADA", "OTRO"] as const, {
     message: "Selecciona un canal de entrada valido",
   }),
   descripcionServicio: z
@@ -31,7 +26,28 @@ export const schemaRegistrarSC = z.object({
     .min(1, "La descripcion del servicio es requerida"),
   fechaRequerida: z.string().optional(),
   observaciones: z.string().optional(),
-});
+};
+
+export const schemaRegistrarSC = z.discriminatedUnion("origenTipo", [
+  z.object({
+    origenTipo: z.literal("PROSPECTO"),
+    ...camposComunes,
+    contactoOrigenId: z
+      .string()
+      .uuid("El ID del contacto debe ser un UUID valido")
+      .min(1, "El ID del contacto es requerido"),
+  }),
+  z.object({
+    origenTipo: z.literal("CLIENTE"),
+    ...camposComunes,
+    tipoDocumento: z.enum(["RUC", "DNI", "CE"] as const, {
+      message: "Selecciona un tipo de documento valido",
+    }),
+    numeroDocumento: z
+      .string()
+      .min(1, "El numero de documento es requerido"),
+  }),
+]);
 
 export type DatosRegistrarSC = z.infer<typeof schemaRegistrarSC>;
 

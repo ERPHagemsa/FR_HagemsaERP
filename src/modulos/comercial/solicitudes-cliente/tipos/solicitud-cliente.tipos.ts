@@ -26,6 +26,14 @@ export type VeredictoIdentidad =
 // Entidades de lectura (read model)
 // ---------------------------------------------------------------------------
 
+// Snapshot del contacto — presente en GET detalle y GET listado (null solo si
+// origen CLIENTE sin contacto en BC-01; para PROSPECTO siempre viene).
+export type ContactoSolicitante = {
+  nombre: string;
+  correo: string | null;
+  telefono: string | null;
+};
+
 // Ref ligera de cotizacion (NO confundir con Cotizacion completa — ADR-SC-4)
 export type RefCotizacion = {
   id: string;
@@ -46,6 +54,10 @@ export type SolicitudCliente = {
   fechaRequerida: string | null;
   observaciones: string | null;
   motivoDescarte: string | null;
+  // Campos snapshot server-derived (disponibles desde backend v2)
+  nombreSolicitante: string;
+  totalCotizaciones: number;
+  contactoSolicitante: ContactoSolicitante | null;
   cotizaciones: RefCotizacion[];
   fechaCreacion: string;
   usuarioCreacion: string;
@@ -59,6 +71,10 @@ export type SolicitudClienteResumen = {
   origenId: string;
   estado: EstadoSolicitudCliente;
   descripcionServicio: string;
+  // Campos snapshot server-derived (disponibles desde backend v2)
+  nombreSolicitante: string;
+  totalCotizaciones: number;
+  contactoSolicitante: ContactoSolicitante | null;
   fechaCreacion: string;
 };
 

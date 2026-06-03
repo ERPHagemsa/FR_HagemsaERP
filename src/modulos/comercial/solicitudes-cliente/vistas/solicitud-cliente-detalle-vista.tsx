@@ -80,8 +80,9 @@ export async function SolicitudClienteDetalleVista({ id }: Props) {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <Dato label="Solicitante" value={sc.nombreSolicitante} />
               <Dato label="Tipo de origen" value={sc.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"} />
-              <Dato label="ID de origen" value={sc.origenId} mono />
+              <Dato label="Cotizaciones" value={String(sc.totalCotizaciones)} />
               <Dato label="Canal de entrada" value={formatearCanal(sc.canalEntrada)} />
               <Dato label="Fecha de creacion" value={formatearFecha(sc.fechaCreacion)} />
               {sc.fechaModificacion ? (
@@ -90,6 +91,7 @@ export async function SolicitudClienteDetalleVista({ id }: Props) {
               {sc.fechaRequerida ? (
                 <Dato label="Fecha requerida" value={sc.fechaRequerida} />
               ) : null}
+              <Dato label="ID de origen" value={sc.origenId} mono />
             </div>
             <div className="mt-4">
               <Dato label="Descripcion del servicio" value={sc.descripcionServicio} />
@@ -99,6 +101,24 @@ export async function SolicitudClienteDetalleVista({ id }: Props) {
                 <Dato label="Observaciones" value={sc.observaciones} />
               </div>
             ) : null}
+          </CardContent>
+        </Card>
+
+        {/* Contacto del solicitante */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Contacto del solicitante</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sc.contactoSolicitante ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <Dato label="Nombre" value={sc.contactoSolicitante.nombre} />
+                <Dato label="Correo" value={sc.contactoSolicitante.correo} />
+                <Dato label="Telefono" value={sc.contactoSolicitante.telefono} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin contacto registrado</p>
+            )}
           </CardContent>
         </Card>
 

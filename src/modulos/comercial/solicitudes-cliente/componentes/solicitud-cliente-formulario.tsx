@@ -66,6 +66,9 @@ export function SolicitudClienteFormulario() {
   // Estado controlado para campos que el panel resolver-identidad puede pre-rellenar
   const [origenIdValue, setOrigenIdValue] = React.useState("");
   const [origenTipoValue, setOrigenTipoValue] = React.useState<OrigenTipo>("PROSPECTO");
+  // Para flujo CLIENTE — pre-rellenados por el panel o ingresados manualmente
+  const [tipoDocumentoValue, setTipoDocumentoValue] = React.useState("");
+  const [numeroDocumentoValue, setNumeroDocumentoValue] = React.useState("");
 
   const registrarMutation = useRegistrarSCMutation();
 
@@ -86,15 +89,32 @@ export function SolicitudClienteFormulario() {
     setIsSaving(true);
 
     try {
-      const datos = {
-        origenTipo: origenTipoValue,
-        origenId: origenIdValue,
-        contactoOrigenId: getValue(root, "contactoOrigenId"),
-        canalEntrada: getValue(root, "canalEntrada") as CanalEntrada,
-        descripcionServicio: getValue(root, "descripcionServicio"),
-        fechaRequerida: getValue(root, "fechaRequerida") || undefined,
-        observaciones: getValue(root, "observaciones") || undefined,
-      };
+      const canalEntrada = getValue(root, "canalEntrada") as CanalEntrada;
+      const descripcionServicio = getValue(root, "descripcionServicio");
+      const fechaRequerida = getValue(root, "fechaRequerida") || undefined;
+      const observaciones = getValue(root, "observaciones") || undefined;
+
+      const datos =
+        origenTipoValue === "PROSPECTO"
+          ? {
+              origenTipo: "PROSPECTO" as const,
+              origenId: origenIdValue,
+              contactoOrigenId: getValue(root, "contactoOrigenId"),
+              canalEntrada,
+              descripcionServicio,
+              fechaRequerida,
+              observaciones,
+            }
+          : {
+              origenTipo: "CLIENTE" as const,
+              origenId: origenIdValue,
+              tipoDocumento: tipoDocumentoValue as "RUC" | "DNI" | "CE",
+              numeroDocumento: numeroDocumentoValue,
+              canalEntrada,
+              descripcionServicio,
+              fechaRequerida,
+              observaciones,
+            };
 
       const resultado = schemaRegistrarSC.safeParse(datos);
       if (!resultado.success) {
@@ -118,13 +138,17 @@ export function SolicitudClienteFormulario() {
   }
 
   function aplicarErrorApi(err: unknown) {
-    // 409: el contacto no pertenece al origen (RN-03-022) → inline en contactoOrigenId
+    // 409: PROSPECTO → contacto invalido; CLIENTE → cliente inactivo
     if (esError409(err)) {
-      setErroresCampo((prev) => ({
-        ...prev,
-        contactoOrigenId: "El contacto seleccionado no pertenece al origen indicado.",
-      }));
-      toast.error("El contacto seleccionado no pertenece al origen indicado.");
+      if (origenTipoValue === "PROSPECTO") {
+        setErroresCampo((prev) => ({
+          ...prev,
+          contactoOrigenId: "El contacto seleccionado no pertenece al origen indicado.",
+        }));
+        toast.error("El contacto seleccionado no pertenece al origen indicado.");
+      } else {
+        toast.error("El cliente indicado esta inactivo y no puede usarse como origen.");
+      }
       return;
     }
 
@@ -177,11 +201,15 @@ export function SolicitudClienteFormulario() {
                 descripcion="Prospecto o cliente que origina la solicitud."
               />
               <ResolverIdentidadPanel
-                onIdentidadResuelta={({ origenTipo, origenId }) => {
+                onIdentidadResuelta={({ origenTipo, origenId, tipoDocumento, numeroDocumento }) => {
                   setOrigenTipoValue(origenTipo);
                   setOrigenIdValue(origenId);
+                  if (tipoDocumento) setTipoDocumentoValue(tipoDocumento);
+                  if (numeroDocumento) setNumeroDocumentoValue(numeroDocumento);
                   limpiarErrorCampo("origenTipo");
                   limpiarErrorCampo("origenId");
+                  limpiarErrorCampo("tipoDocumento");
+                  limpiarErrorCampo("numeroDocumento");
                 }}
               />
               <CampoSelect
@@ -193,7 +221,16 @@ export function SolicitudClienteFormulario() {
                   { valor: "CLIENTE", etiqueta: "Cliente" },
                 ]}
                 value={origenTipoValue}
-                onValueChange={(v) => setOrigenTipoValue(v as OrigenTipo)}
+                onValueChange={(v) => {
+                  setOrigenTipoValue(v as OrigenTipo);
+                  // Al cambiar tipo limpiar campos cruzados
+                  setTipoDocumentoValue("");
+                  setNumeroDocumentoValue("");
+                  setOrigenIdValue("");
+                  limpiarErrorCampo("contactoOrigenId");
+                  limpiarErrorCampo("tipoDocumento");
+                  limpiarErrorCampo("numeroDocumento");
+                }}
                 error={erroresCampo["origenTipo"]}
                 disabled={isSaving}
               />
@@ -210,15 +247,50 @@ export function SolicitudClienteFormulario() {
                   limpiarErrorCampo("origenId");
                 }}
               />
-              <CampoTexto
-                label="ID del contacto (UUID)"
-                name="contactoOrigenId"
-                requerido
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                error={erroresCampo["contactoOrigenId"]}
-                disabled={isSaving}
-                onChange={() => limpiarErrorCampo("contactoOrigenId")}
-              />
+              {origenTipoValue === "PROSPECTO" ? (
+                <CampoTexto
+                  label="ID del contacto (UUID)"
+                  name="contactoOrigenId"
+                  requerido
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  error={erroresCampo["contactoOrigenId"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("contactoOrigenId")}
+                />
+              ) : (
+                <>
+                  <CampoSelect
+                    label="Tipo de documento"
+                    name="tipoDocumentoCliente"
+                    requerido
+                    opciones={[
+                      { valor: "RUC", etiqueta: "RUC" },
+                      { valor: "DNI", etiqueta: "DNI" },
+                      { valor: "CE", etiqueta: "CE" },
+                    ]}
+                    value={tipoDocumentoValue}
+                    onValueChange={(v) => {
+                      setTipoDocumentoValue(v);
+                      limpiarErrorCampo("tipoDocumento");
+                    }}
+                    error={erroresCampo["tipoDocumento"]}
+                    disabled={isSaving}
+                  />
+                  <CampoTexto
+                    label="Numero de documento"
+                    name="numeroDocumentoCliente"
+                    requerido
+                    placeholder="Ej. 20123456789"
+                    value={numeroDocumentoValue}
+                    error={erroresCampo["numeroDocumento"]}
+                    disabled={isSaving}
+                    onChange={(e) => {
+                      setNumeroDocumentoValue(e.target.value);
+                      limpiarErrorCampo("numeroDocumento");
+                    }}
+                  />
+                </>
+              )}
               <CampoSelect
                 label="Canal de entrada"
                 name="canalEntrada"

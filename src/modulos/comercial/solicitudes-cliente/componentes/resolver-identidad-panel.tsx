@@ -21,8 +21,15 @@ import { resolverIdentidad } from "../servicios/solicitudes-cliente-api";
 import type { RespuestaResolverIdentidad, TipoOrigen } from "../tipos/solicitud-cliente.tipos";
 import { schemaResolverIdentidad } from "../tipos/solicitud-cliente.schemas";
 
+type DatosIdentidadResuelta = {
+  origenTipo: TipoOrigen;
+  origenId: string;
+  tipoDocumento?: string;
+  numeroDocumento?: string;
+};
+
 type Props = {
-  onIdentidadResuelta: (datos: { origenTipo: TipoOrigen; origenId: string }) => void;
+  onIdentidadResuelta: (datos: DatosIdentidadResuelta) => void;
 };
 
 export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
@@ -68,8 +75,17 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
     }
   }
 
-  function onUsarOrigen(origenId: string) {
+  function onUsarOrigenProspecto(origenId: string) {
     onIdentidadResuelta({ origenTipo: "PROSPECTO", origenId });
+  }
+
+  function onUsarOrigenCliente(clienteId: string) {
+    onIdentidadResuelta({
+      origenTipo: "CLIENTE",
+      origenId: clienteId,
+      tipoDocumento,
+      numeroDocumento,
+    });
   }
 
   return (
@@ -147,11 +163,39 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
           <Button
             type="button"
             size="sm"
-            onClick={() => onUsarOrigen(resultado.prospecto!.prospectoId)}
+            onClick={() => onUsarOrigenProspecto(resultado.prospecto!.prospectoId)}
           >
             Usar este origen
           </Button>
         </div>
+      ) : null}
+
+      {/* Resultado: CLIENTE (activo) */}
+      {resultado?.veredicto === "CLIENTE" && resultado.cliente ? (
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3">
+          <p className="text-sm font-medium text-foreground">
+            Cliente encontrado
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {resultado.cliente.razonSocial ?? resultado.cliente.nombreComercial ?? "Sin nombre registrado"}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => onUsarOrigenCliente(resultado.cliente!.clienteId)}
+          >
+            Usar este origen
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Resultado: CLIENTE_INACTIVO — deshabilitado, no se puede usar */}
+      {resultado?.veredicto === "CLIENTE_INACTIVO" ? (
+        <Alert variant="destructive">
+          <AlertDescription>
+            El cliente encontrado esta inactivo y no puede usarse como origen de una solicitud.
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       {/* Resultado: NUEVO */}
@@ -166,15 +210,6 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
                 Registrar nuevo prospecto
               </Link>
             </Button>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      {/* Resultado: CLIENTE / CLIENTE_INACTIVO (V1 — deshabilitado) */}
-      {resultado?.veredicto === "CLIENTE" || resultado?.veredicto === "CLIENTE_INACTIVO" ? (
-        <Alert>
-          <AlertDescription>
-            Resolucion de clientes no disponible en esta version. Ingresa el origen manualmente.
           </AlertDescription>
         </Alert>
       ) : null}

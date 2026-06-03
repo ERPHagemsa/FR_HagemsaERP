@@ -316,9 +316,11 @@ export type PayloadBorrador = {
   standbyTarifas?: PayloadStandby[];
 };
 
-// SC y transiciones
-export type PayloadRegistrarSC = {
-  origenTipo: OrigenTipo;
+// SC y transiciones — union discriminada por origenTipo
+// PROSPECTO requiere contactoOrigenId; CLIENTE requiere tipoDocumento + numeroDocumento
+// (backend resuelve el contacto y el nombre via BC-01).
+export type PayloadRegistrarSCProspecto = {
+  origenTipo: "PROSPECTO";
   origenId: string;
   contactoOrigenId: string;
   canalEntrada: CanalEntrada;
@@ -326,6 +328,21 @@ export type PayloadRegistrarSC = {
   fechaRequerida?: string;
   observaciones?: string;
 };
+
+export type TipoDocumento = "RUC" | "DNI" | "CE";
+
+export type PayloadRegistrarSCCliente = {
+  origenTipo: "CLIENTE";
+  origenId: string;
+  tipoDocumento: TipoDocumento;
+  numeroDocumento: string;
+  canalEntrada: CanalEntrada;
+  descripcionServicio: string;
+  fechaRequerida?: string;
+  observaciones?: string;
+};
+
+export type PayloadRegistrarSC = PayloadRegistrarSCProspecto | PayloadRegistrarSCCliente;
 
 export type PayloadEnviar = {
   validezDias?: number; // default 10 (DELTA 3)
