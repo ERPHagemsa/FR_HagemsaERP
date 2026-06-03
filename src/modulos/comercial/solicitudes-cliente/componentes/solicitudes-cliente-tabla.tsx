@@ -196,10 +196,10 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[14%]">Estado</TableHead>
-                <TableHead className="w-[12%]">Origen</TableHead>
                 <TableHead className="w-[26%]">Solicitante</TableHead>
                 <TableHead className="w-[26%]">Descripcion del servicio</TableHead>
+                <TableHead className="w-[12%]">Origen</TableHead>
+                <TableHead className="w-[14%]">Estado</TableHead>
                 <TableHead className="w-[10%] text-center">Cotizaciones</TableHead>
                 <TableHead className="w-[12%] text-right">Accion</TableHead>
               </TableRow>
@@ -263,12 +263,6 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
 function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
   return (
     <TableRow>
-      <TableCell>
-        <EstadoSolicitudBadge estado={item.estado} />
-      </TableCell>
-      <TableCell className="text-sm">
-        {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
-      </TableCell>
       <TableCell className="text-sm">
         <span className="block truncate font-medium">{item.nombreSolicitante}</span>
         {item.contactoSolicitante ? (
@@ -279,6 +273,12 @@ function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
       </TableCell>
       <TableCell className="truncate text-sm text-muted-foreground">
         {item.descripcionServicio}
+      </TableCell>
+      <TableCell className="text-sm">
+        {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
+      </TableCell>
+      <TableCell>
+        <EstadoSolicitudBadge estado={item.estado} />
       </TableCell>
       <TableCell className="text-center">
         <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
