@@ -24,6 +24,7 @@ import { schemaResolverIdentidad } from "../tipos/solicitud-cliente.schemas";
 type DatosIdentidadResuelta = {
   origenTipo: TipoOrigen;
   origenId: string;
+  nombre?: string;
   tipoDocumento?: string;
   numeroDocumento?: string;
 };
@@ -75,14 +76,19 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
     }
   }
 
-  function onUsarOrigenProspecto(origenId: string) {
-    onIdentidadResuelta({ origenTipo: "PROSPECTO", origenId });
+  function onUsarOrigenProspecto(origenId: string, nombre: string | null) {
+    onIdentidadResuelta({
+      origenTipo: "PROSPECTO",
+      origenId,
+      nombre: nombre ?? undefined,
+    });
   }
 
-  function onUsarOrigenCliente(clienteId: string) {
+  function onUsarOrigenCliente(clienteId: string, nombre: string | null) {
     onIdentidadResuelta({
       origenTipo: "CLIENTE",
       origenId: clienteId,
+      nombre: nombre ?? undefined,
       tipoDocumento,
       numeroDocumento,
     });
@@ -92,7 +98,7 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4">
       <p className="text-sm font-semibold">Buscar por documento</p>
       <p className="text-xs text-muted-foreground">
-        Opcional: busca el prospecto por documento para pre-rellenar los datos de origen.
+        Busca el prospecto o cliente por su documento (DNI / RUC / CE) para seleccionar el origen de la solicitud.
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -163,7 +169,12 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
           <Button
             type="button"
             size="sm"
-            onClick={() => onUsarOrigenProspecto(resultado.prospecto!.prospectoId)}
+            onClick={() =>
+              onUsarOrigenProspecto(
+                resultado.prospecto!.prospectoId,
+                resultado.prospecto!.razonSocial
+              )
+            }
           >
             Usar este origen
           </Button>
@@ -182,7 +193,12 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
           <Button
             type="button"
             size="sm"
-            onClick={() => onUsarOrigenCliente(resultado.cliente!.clienteId)}
+            onClick={() =>
+              onUsarOrigenCliente(
+                resultado.cliente!.clienteId,
+                resultado.cliente!.razonSocial ?? resultado.cliente!.nombreComercial
+              )
+            }
           >
             Usar este origen
           </Button>

@@ -75,6 +75,8 @@ export function SolicitudClienteFormulario() {
   // Estado controlado para campos que el panel resolver-identidad puede pre-rellenar
   const [origenIdValue, setOrigenIdValue] = React.useState("");
   const [origenTipoValue, setOrigenTipoValue] = React.useState<OrigenTipo>("PROSPECTO");
+  // Nombre del origen resuelto (solo para mostrar la confirmacion en pantalla)
+  const [origenNombreValue, setOrigenNombreValue] = React.useState("");
   // Para flujo CLIENTE — pre-rellenados por el panel o ingresados manualmente
   const [tipoDocumentoValue, setTipoDocumentoValue] = React.useState("");
   const [numeroDocumentoValue, setNumeroDocumentoValue] = React.useState("");
@@ -231,56 +233,40 @@ export function SolicitudClienteFormulario() {
                 descripcion="Prospecto o cliente que origina la solicitud."
               />
               <ResolverIdentidadPanel
-                onIdentidadResuelta={({ origenTipo, origenId, tipoDocumento, numeroDocumento }) => {
+                onIdentidadResuelta={({ origenTipo, origenId, nombre, tipoDocumento, numeroDocumento }) => {
                   setOrigenTipoValue(origenTipo);
                   setOrigenIdValue(origenId);
+                  setOrigenNombreValue(nombre ?? "");
                   setContactoElegido(null);
                   if (tipoDocumento) setTipoDocumentoValue(tipoDocumento);
                   if (numeroDocumento) setNumeroDocumentoValue(numeroDocumento);
-                  limpiarErrorCampo("origenTipo");
                   limpiarErrorCampo("origenId");
-                  limpiarErrorCampo("tipoDocumento");
-                  limpiarErrorCampo("numeroDocumento");
-                }}
-              />
-              <CampoSelect
-                label="Tipo de origen"
-                name="origenTipo"
-                requerido
-                opciones={[
-                  { valor: "PROSPECTO", etiqueta: "Prospecto" },
-                  { valor: "CLIENTE", etiqueta: "Cliente" },
-                ]}
-                value={origenTipoValue}
-                onValueChange={(v) => {
-                  setOrigenTipoValue(v as OrigenTipo);
-                  // Al cambiar tipo limpiar campos cruzados
-                  setTipoDocumentoValue("");
-                  setNumeroDocumentoValue("");
-                  setOrigenIdValue("");
-                  setContactoElegido(null);
                   limpiarErrorCampo("contactoOrigenId");
-                  limpiarErrorCampo("tipoDocumento");
-                  limpiarErrorCampo("numeroDocumento");
-                }}
-                error={erroresCampo["origenTipo"]}
-                disabled={isSaving}
-              />
-              <CampoTexto
-                label="ID del origen (UUID)"
-                name="origenId"
-                requerido
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                value={origenIdValue}
-                error={erroresCampo["origenId"]}
-                disabled={isSaving}
-                onChange={(e) => {
-                  setOrigenIdValue(e.target.value);
-                  setContactoElegido(null);
-                  limpiarErrorCampo("origenId");
                 }}
               />
-              {origenTipoValue === "PROSPECTO" ? (
+
+              {/* Origen seleccionado (derivado de la busqueda por documento) */}
+              {origenIdValue ? (
+                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Origen: </span>
+                  <span className="font-medium">
+                    {origenTipoValue === "PROSPECTO" ? "Prospecto" : "Cliente"}
+                  </span>
+                  {origenNombreValue ? (
+                    <span className="text-muted-foreground"> — {origenNombreValue}</span>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Aun no seleccionaste un origen. Busca por documento arriba.
+                </p>
+              )}
+              {erroresCampo["origenId"] ? (
+                <p className="text-xs text-destructive">
+                  Selecciona un origen valido buscando por documento.
+                </p>
+              ) : null}
+              {origenTipoValue === "PROSPECTO" && origenIdValue ? (
                 <div className="grid gap-2">
                   <Label htmlFor="contactoOrigenId">
                     Contacto del prospecto
@@ -301,13 +287,11 @@ export function SolicitudClienteFormulario() {
                     >
                       <SelectValue
                         placeholder={
-                          !esUuid(origenIdValue)
-                            ? "Primero indica el prospecto de origen"
-                            : cargandoContactos
-                              ? "Cargando contactos..."
-                              : contactos.length === 0
-                                ? "El prospecto no tiene contactos activos"
-                                : "Selecciona un contacto"
+                          cargandoContactos
+                            ? "Cargando contactos..."
+                            : contactos.length === 0
+                              ? "El prospecto no tiene contactos activos"
+                              : "Selecciona un contacto"
                         }
                       />
                     </SelectTrigger>
@@ -332,40 +316,7 @@ export function SolicitudClienteFormulario() {
                     </p>
                   ) : null}
                 </div>
-              ) : (
-                <>
-                  <CampoSelect
-                    label="Tipo de documento"
-                    name="tipoDocumentoCliente"
-                    requerido
-                    opciones={[
-                      { valor: "RUC", etiqueta: "RUC" },
-                      { valor: "DNI", etiqueta: "DNI" },
-                      { valor: "CE", etiqueta: "CE" },
-                    ]}
-                    value={tipoDocumentoValue}
-                    onValueChange={(v) => {
-                      setTipoDocumentoValue(v);
-                      limpiarErrorCampo("tipoDocumento");
-                    }}
-                    error={erroresCampo["tipoDocumento"]}
-                    disabled={isSaving}
-                  />
-                  <CampoTexto
-                    label="Numero de documento"
-                    name="numeroDocumentoCliente"
-                    requerido
-                    placeholder="Ej. 20123456789"
-                    value={numeroDocumentoValue}
-                    error={erroresCampo["numeroDocumento"]}
-                    disabled={isSaving}
-                    onChange={(e) => {
-                      setNumeroDocumentoValue(e.target.value);
-                      limpiarErrorCampo("numeroDocumento");
-                    }}
-                  />
-                </>
-              )}
+              ) : null}
               <CampoSelect
                 label="Canal de entrada"
                 name="canalEntrada"
