@@ -82,6 +82,11 @@ export interface ListaRolesResponse {
   readonly paginacion: Paginacion
 }
 
+export interface ListarRolesQuery {
+  pagina?: number
+  limite?: number
+}
+
 export interface CrearRolPayload {
   nombre: string
   descripcion: string
