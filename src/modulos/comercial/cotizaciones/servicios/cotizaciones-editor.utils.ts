@@ -49,7 +49,8 @@ export type DraftCargaHijo = {
   pesoTn: string;
   tipoCarga: string;
   nUnidades: string;
-  ruta: string;
+  origen: string;
+  destino: string;
   tipoVehiculo: string;
   clasificacionImo: string;
   maxUnidadesConvoy: string;
@@ -124,7 +125,8 @@ function cargaVacia(): DraftCargaHijo {
     pesoTn: "",
     tipoCarga: "",
     nUnidades: "",
-    ruta: "",
+    origen: "",
+    destino: "",
     tipoVehiculo: "",
     clasificacionImo: "",
     maxUnidadesConvoy: "",
@@ -222,7 +224,8 @@ function cargaReadADraft(c: CargaHijo): DraftCargaHijo {
     pesoTn: c.pesoTn !== null ? String(c.pesoTn) : "",
     tipoCarga: c.tipoCarga ?? "",
     nUnidades: c.nUnidades !== null ? String(c.nUnidades) : "",
-    ruta: c.ruta ?? "",
+    origen: c.origen ?? "",
+    destino: c.destino ?? "",
     tipoVehiculo: c.tipoVehiculo ?? "",
     clasificacionImo: c.clasificacionImo ?? "",
     maxUnidadesConvoy: c.maxUnidadesConvoy !== null ? String(c.maxUnidadesConvoy) : "",
@@ -358,7 +361,8 @@ function cargaAPayload(c: DraftCargaHijo): PayloadCargaHijo {
   if (c.pesoTn !== "") payload.pesoTn = parseNumero(c.pesoTn);
   if (c.tipoCarga !== "") payload.tipoCarga = c.tipoCarga;
   if (c.nUnidades !== "") payload.nUnidades = parseNumero(c.nUnidades);
-  if (c.ruta !== "") payload.ruta = c.ruta;
+  if (c.origen !== "") payload.origen = c.origen;
+  if (c.destino !== "") payload.destino = c.destino;
   if (c.tipoVehiculo !== "") payload.tipoVehiculo = c.tipoVehiculo;
   if (c.clasificacionImo !== "") payload.clasificacionImo = c.clasificacionImo;
   if (c.maxUnidadesConvoy !== "") payload.maxUnidadesConvoy = parseNumero(c.maxUnidadesConvoy);

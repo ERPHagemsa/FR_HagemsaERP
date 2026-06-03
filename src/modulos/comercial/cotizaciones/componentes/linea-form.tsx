@@ -290,7 +290,8 @@ function SubformCarga({
       <div className="grid gap-3 md:grid-cols-3">
         <CampoTextoSubform label="Tipo de carga" value={carga.tipoCarga} disabled={disabled} onChange={(v) => onChange({ tipoCarga: v })} />
         <CampoTextoSubform label="Vehiculo" value={carga.tipoVehiculo} disabled={disabled} onChange={(v) => onChange({ tipoVehiculo: v })} />
-        <CampoTextoSubform label="Ruta" value={carga.ruta} disabled={disabled} onChange={(v) => onChange({ ruta: v })} />
+        <CampoTextoSubform label="Origen" value={carga.origen} disabled={disabled} onChange={(v) => onChange({ origen: v })} />
+        <CampoTextoSubform label="Destino" value={carga.destino} disabled={disabled} onChange={(v) => onChange({ destino: v })} />
         <CampoNumeroSubform label="Peso (Tn)" value={carga.pesoTn} disabled={disabled} onChange={(v) => onChange({ pesoTn: v })} />
         <CampoNumeroSubform label="N° unidades" value={carga.nUnidades} disabled={disabled} onChange={(v) => onChange({ nUnidades: v })} />
         <CampoTextoSubform label="Clasif. IMO" value={carga.clasificacionImo} disabled={disabled} onChange={(v) => onChange({ clasificacionImo: v })} />

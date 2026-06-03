@@ -313,7 +313,8 @@ function CargaDetalle({ carga }: { carga: CargaHijo }) {
     <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg bg-muted/30 px-3 py-2 text-xs md:grid-cols-3">
       <MiniDato label="Tipo de carga" value={carga.tipoCarga} />
       <MiniDato label="Vehiculo" value={carga.tipoVehiculo} />
-      <MiniDato label="Ruta" value={carga.ruta} />
+      <MiniDato label="Origen" value={carga.origen} />
+      <MiniDato label="Destino" value={carga.destino} />
       <MiniDato label="Peso (Tn)" value={carga.pesoTn !== null ? String(carga.pesoTn) : null} />
       <MiniDato label="Unidades" value={carga.nUnidades !== null ? String(carga.nUnidades) : null} />
       <MiniDato
