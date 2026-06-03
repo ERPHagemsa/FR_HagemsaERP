@@ -23,6 +23,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/compartido/componentes/ui/field"
+import { Checkbox } from "@/compartido/componentes/ui/checkbox"
 import { Input } from "@/compartido/componentes/ui/input"
 
 import { useCrearRol } from "../ganchos/use-roles"
@@ -31,6 +32,7 @@ export function CrearRolVista() {
   const router = useRouter()
   const [nombre, setNombre] = useState("")
   const [descripcion, setDescripcion] = useState("")
+  const [esSistema, setEsSistema] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const crearMutation = useCrearRol()
 
@@ -42,6 +44,7 @@ export function CrearRolVista() {
       const respuesta = await crearMutation.mutateAsync({
         nombre: nombre.trim(),
         descripcion: descripcion.trim(),
+        esSistema,
       })
       toast.success("Rol creado correctamente")
       router.push(`/admin/roles/${respuesta.id}`)
@@ -67,7 +70,7 @@ export function CrearRolVista() {
         <CardHeader>
           <CardTitle>Nuevo rol</CardTitle>
           <CardDescription>
-            Crea un nuevo rol custom. Despues podras asignarle permisos del catalogo.
+            Crea un nuevo rol. Despues podras asignarle permisos del catalogo.
           </CardDescription>
         </CardHeader>
         <form onSubmit={(event) => void manejarSubmit(event)}>
@@ -94,6 +97,25 @@ export function CrearRolVista() {
                   required
                   maxLength={500}
                 />
+              </Field>
+              <Field>
+                <label className="flex cursor-pointer items-start gap-2">
+                  <Checkbox
+                    checked={esSistema}
+                    onCheckedChange={(v) => setEsSistema(v === true)}
+                    className="mt-0.5"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">
+                      Rol de sistema (protegido)
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      Un rol de sistema no se puede renombrar ni eliminar despues
+                      de crearlo; solo se ajustan sus permisos. Dejalo sin marcar
+                      para un rol normal.
+                    </span>
+                  </span>
+                </label>
               </Field>
               {error ? (
                 <Field data-invalid>
