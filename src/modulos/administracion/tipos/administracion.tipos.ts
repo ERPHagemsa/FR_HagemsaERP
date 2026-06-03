@@ -161,6 +161,10 @@ export interface RevocarAsignacionPayload {
   razon: string
 }
 
+export interface CambiarScopeAsignacionPayload {
+  scope: Record<string, unknown>
+}
+
 export interface SesionResponse {
   readonly id: string
   readonly jti: string
