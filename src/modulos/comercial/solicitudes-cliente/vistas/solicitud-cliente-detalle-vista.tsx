@@ -56,7 +56,7 @@ export async function SolicitudClienteDetalleVista({ id }: Props) {
         <section className="flex flex-col gap-4 rounded-xl border border-border bg-card px-5 py-4 md:flex-row md:items-start md:justify-between">
           <div className="flex flex-col gap-1">
             <p className="text-sm font-medium text-muted-foreground">
-              BC-03 / Solicitudes de cliente
+              Solicitudes de cliente
             </p>
             <p className="font-mono text-xs text-muted-foreground">{sc.id}</p>
             <div className="mt-1">

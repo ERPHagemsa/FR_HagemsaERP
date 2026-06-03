@@ -16,8 +16,9 @@ export default async function Page({ params }: Props) {
       <SiteHeader
         title="Detalle de cotizacion"
         breadcrumbs={[
+          { title: "Gestión Comercial", href: "/comercial" },
           { title: "Cotizaciones", href: "/comercial/cotizaciones" },
-          { title: "Detalle" },
+          { title: "Detalle de cotizacion" },
         ]}
       />
       <CotizacionDetalleVista id={id} />

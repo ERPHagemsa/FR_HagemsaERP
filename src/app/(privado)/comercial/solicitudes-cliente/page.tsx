@@ -55,7 +55,13 @@ export default async function Page({ searchParams }: Props) {
 
   return (
     <>
-      <SiteHeader title="Solicitudes de cliente" />
+      <SiteHeader
+        title="Solicitudes de cliente"
+        breadcrumbs={[
+          { title: "Gestión Comercial", href: "/comercial" },
+          { title: "Solicitudes de cliente" },
+        ]}
+      />
       <SolicitudesClienteVista filtros={filtros} />
     </>
   );

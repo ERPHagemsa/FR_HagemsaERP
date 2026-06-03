@@ -16,8 +16,9 @@ export default async function Page({ params }: Props) {
       <SiteHeader
         title="Detalle de solicitud"
         breadcrumbs={[
+          { title: "Gestión Comercial", href: "/comercial" },
           { title: "Solicitudes de cliente", href: "/comercial/solicitudes-cliente" },
-          { title: "Detalle" },
+          { title: "Detalle de solicitud" },
         ]}
       />
       <SolicitudClienteDetalleVista id={id} />

@@ -16,9 +16,10 @@ export default async function Page({ params }: Props) {
       <SiteHeader
         title="Editor de borrador"
         breadcrumbs={[
+          { title: "Gestión Comercial", href: "/comercial" },
           { title: "Cotizaciones", href: "/comercial/cotizaciones" },
           { title: "Detalle", href: `/comercial/cotizaciones/${id}` },
-          { title: "Editar" },
+          { title: "Editor de borrador" },
         ]}
       />
       <CotizacionEditarVista id={id} />

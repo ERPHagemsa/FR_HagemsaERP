@@ -38,7 +38,7 @@ export async function CotizacionEditarVista({ id }: Props) {
         {/* Encabezado */}
         <section className="flex flex-col gap-4 rounded-xl border border-border bg-card px-5 py-4 md:flex-row md:items-start md:justify-between">
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-muted-foreground">BC-03 / Cotizaciones / Editor de borrador</p>
+            <p className="text-sm font-medium text-muted-foreground">Cotizaciones / Editor de borrador</p>
             <div className="flex items-center gap-2">
               <p className="font-mono text-xs text-muted-foreground">{cotizacion.id}</p>
               <EstadoCotizacionBadge estado={cotizacion.estado} />
