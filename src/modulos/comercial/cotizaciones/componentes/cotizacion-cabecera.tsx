@@ -37,7 +37,6 @@ export function CotizacionCabecera({ cotizacion }: Props) {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <Dato label="Origen" value={formatearOrigenTipo(cotizacion.origenTipo)} />
           <Dato label="ID origen" value={cotizacion.origenId} mono />
-          <Dato label="Canal de entrada" value={formatearCanal(cotizacion.canalEntrada)} />
           <Dato label="Ejecutivo responsable" value={cotizacion.idEjecutivoResponsable} />
           {cotizacion.solicitudClienteId ? (
             <div className="grid gap-1">
@@ -104,16 +103,6 @@ function Dato({
 
 function formatearOrigenTipo(tipo: string) {
   return tipo === "PROSPECTO" ? "Prospecto" : tipo === "CLIENTE" ? "Cliente" : tipo;
-}
-
-function formatearCanal(canal: string) {
-  const mapa: Record<string, string> = {
-    CORREO: "Correo",
-    LLAMADA: "Llamada",
-    PRESENCIAL: "Presencial",
-    OTRO: "Otro",
-  };
-  return mapa[canal] ?? canal;
 }
 
 function formatearFechaHora(value: string) {

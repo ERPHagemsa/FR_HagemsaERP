@@ -162,7 +162,6 @@ export type Cotizacion = {
   origenTipo: OrigenTipo;
   origenId: string;
   contactoOrigenId: string;
-  canalEntrada: CanalEntrada;
   estado: EstadoCotizacion;
   motivoPerdida: string | null;
   idEjecutivoResponsable: string;
