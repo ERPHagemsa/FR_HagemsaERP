@@ -24,14 +24,7 @@ import {
 } from "@/compartido/componentes/ui/sidebar"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
-import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  MoreVerticalCircle01Icon,
-  UserCircle02Icon,
-  CreditCardIcon,
-  Notification03Icon,
-  Logout01Icon,
-} from "@hugeicons/core-free-icons"
+import { Bell, CreditCard, CircleUser, EllipsisVertical, LogOut } from "lucide-react"
 
 function calcularIniciales(nombre: string): string {
   const partes = nombre.trim().split(/\s+/).filter(Boolean)
@@ -102,24 +95,20 @@ export function NavUser({ user }: NavUserProps = {}) {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="h-14 rounded-xl border border-sidebar-border/70 bg-background/70 px-2.5 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <Avatar className="size-9 rounded-lg">
+              <Avatar className="size-8 rounded-lg">
                 <AvatarFallback className="rounded-lg bg-red-100 text-red-700">
                   {iniciales}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
+              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate font-medium">{usuarioActual.nombre}</span>
-                <span className="truncate text-xs text-sidebar-foreground/55 capitalize">
+                <span className="truncate text-xs text-muted-foreground capitalize">
                   {usuarioActual.tipo}
                 </span>
               </div>
-              <HugeiconsIcon
-                icon={MoreVerticalCircle01Icon}
-                strokeWidth={2}
-                className="ml-auto size-4 text-sidebar-foreground/45"
-              />
+              <EllipsisVertical className="ml-auto size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -149,21 +138,21 @@ export function NavUser({ user }: NavUserProps = {}) {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <HugeiconsIcon icon={UserCircle02Icon} strokeWidth={2} />
+                <CircleUser />
                 Perfil
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} />
+                <CreditCard />
                 Administracion
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <HugeiconsIcon icon={Notification03Icon} strokeWidth={2} />
+                <Bell />
                 Notificaciones
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => void cerrarSesion()}>
-              <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} />
+              <LogOut />
               Salir
             </DropdownMenuItem>
           </DropdownMenuContent>
