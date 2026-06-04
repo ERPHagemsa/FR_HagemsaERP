@@ -97,6 +97,10 @@ const etiquetasCampos: Record<string, string> = {
   numeroDocumento: "Documento",
   razonSocial: "Razon social",
   nombreComercial: "Nombre comercial",
+  primerNombre: "Primer nombre",
+  segundoNombre: "Segundo nombre",
+  apellidoPaterno: "Apellido paterno",
+  apellidoMaterno: "Apellido materno",
   direccion: "Direccion",
   contacto: "Contacto",
   correo: "Correo",
@@ -157,14 +161,32 @@ function obtenerCamposAuditoria(item: HistorialSocioDeNegocioResponse) {
 
 function obtenerEstiloAccion(accion: AccionHistorialSocioDeNegocio) {
   if (accion === "REGISTRO") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700"
+    return "border-emerald-300 bg-emerald-50 text-emerald-700"
   }
 
   if (accion === "ELIMINACION") {
     return "border-destructive/30 bg-destructive/10 text-destructive"
   }
 
-  return "border-border bg-background text-foreground"
+  return "border-sky-300 bg-sky-50 text-sky-700"
+}
+
+function obtenerEstiloCabeceraAccion(accion: AccionHistorialSocioDeNegocio) {
+  if (accion === "REGISTRO") {
+    return "border-l-emerald-500 bg-emerald-50/70 hover:bg-emerald-50"
+  }
+
+  if (accion === "ELIMINACION") {
+    return "border-l-destructive bg-destructive/10 hover:bg-destructive/15"
+  }
+
+  return "border-l-sky-500 bg-sky-50/70 hover:bg-sky-50"
+}
+
+function etiquetaAccion(accion: AccionHistorialSocioDeNegocio) {
+  if (accion === "REGISTRO") return "Registro"
+  if (accion === "MODIFICACION") return "Modificacion"
+  return "Eliminacion"
 }
 
 function ValorDiff({
@@ -181,7 +203,7 @@ function ValorDiff({
   return (
     <div
       className={cn(
-        "min-h-10 rounded-md border px-3 py-2 text-sm",
+        "min-h-10 min-w-0 overflow-hidden rounded-md border px-3 py-2 text-sm",
         tipo === "anterior" &&
           (cambio
             ? "border-destructive/25 bg-destructive/10 text-destructive"
@@ -192,7 +214,7 @@ function ValorDiff({
             : "border-border bg-background text-foreground"),
       )}
     >
-      <span className={cn("whitespace-pre-wrap break-words", cambio && "font-medium")}>
+      <span className={cn("block whitespace-pre-wrap break-all", cambio && "font-medium")}>
         {cambio ? (tipo === "anterior" ? "- " : "+ ") : ""}
         {contenido}
       </span>
@@ -459,7 +481,7 @@ export function SocioNegocioHistorialDetalleVista({ id }: { id: string }) {
             </Alert>
           ) : null}
 
-          <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+          <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
             <div className="flex flex-col gap-3 border-b border-border px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -503,27 +525,23 @@ export function SocioNegocioHistorialDetalleVista({ id }: { id: string }) {
                 </EmptyHeader>
               </Empty>
             ) : (
-              <Accordion
-                type="multiple"
-                defaultValue={registros[0] ? [registros[0].id] : []}
-                className="m-4"
-              >
+              <Accordion type="multiple" className="mx-4 my-4 w-auto space-y-3 border-0">
                 {registros.map((item) => {
                   const campos = obtenerCamposAuditoria(item)
 
                   return (
-                    <AccordionItem key={item.id} value={item.id}>
+                    <AccordionItem
+                      key={item.id}
+                      value={item.id}
+                      className="min-w-0 max-w-full overflow-hidden rounded-lg border border-border bg-background shadow-xs"
+                    >
                       <AccordionTrigger
                         className={cn(
-                          "no-underline hover:no-underline",
-                          item.accion === "ELIMINACION"
-                            ? "bg-destructive/5"
-                            : item.accion === "REGISTRO"
-                              ? "bg-muted/50"
-                              : "bg-muted/30",
+                          "min-w-0 max-w-full overflow-hidden border-l-4 px-4 py-3 text-left no-underline hover:no-underline",
+                          obtenerEstiloCabeceraAccion(item.accion),
                         )}
                       >
-                        <div className="flex w-full flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="flex min-w-0 max-w-full flex-1 flex-col gap-3 pr-3 md:flex-row md:items-start md:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge variant="outline">#{item.count}</Badge>
@@ -534,39 +552,42 @@ export function SocioNegocioHistorialDetalleVista({ id }: { id: string }) {
                                   obtenerEstiloAccion(item.accion),
                                 )}
                               >
-                                {item.accion}
+                                {etiquetaAccion(item.accion)}
                               </Badge>
+                              <span className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                                Click para abrir detalle
+                              </span>
                             </div>
                             <p className="mt-2 text-sm font-medium">
                               {formatearFecha(item.fechaAccion)}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="truncate text-xs text-muted-foreground">
                               Movimiento {item.id}
                             </p>
                           </div>
-                          <div className="rounded-md border border-border bg-background px-3 py-2 text-sm">
+                          <div className="min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm md:max-w-xs">
                             <span className="text-muted-foreground">Usuario</span>
-                            <p className="font-medium">{item.usuarioAccion || "-"}</p>
+                            <p className="truncate font-medium">{item.usuarioAccion || "-"}</p>
                           </div>
                         </div>
                       </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid gap-3">
-                          <div className="grid gap-3 rounded-md bg-muted/30 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:grid-cols-[220px_1fr_1fr]">
-                            <span>Campo</span>
-                            <span>Anterior</span>
-                            <span>Nuevo</span>
+                      <AccordionContent className="min-w-0 max-w-full overflow-hidden">
+                        <div className="grid min-w-0 max-w-full gap-3 overflow-hidden px-4 pb-4 pt-3">
+                          <div className="grid min-w-0 gap-3 overflow-hidden rounded-md bg-muted/30 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:grid-cols-[minmax(120px,200px)_minmax(0,1fr)_minmax(0,1fr)]">
+                            <span className="min-w-0 break-words">Campo</span>
+                            <span className="min-w-0 break-words">Anterior</span>
+                            <span className="min-w-0 break-words">Nuevo</span>
                           </div>
                           {campos.map((campo) => (
                             <div
                               key={`${item.id}-${campo.campo}`}
                               className={cn(
-                                "grid gap-3 rounded-md border border-border p-3 md:grid-cols-[220px_1fr_1fr] md:items-start",
-                                campo.cambio && "border-primary/20",
+                                "grid min-w-0 max-w-full gap-3 overflow-hidden rounded-md border border-border p-3 md:grid-cols-[minmax(120px,200px)_minmax(0,1fr)_minmax(0,1fr)] md:items-start",
+                                campo.cambio && "border-primary/30 bg-primary/5",
                               )}
                             >
-                              <div className="flex min-h-10 items-center">
-                                <span className="text-sm font-medium">
+                              <div className="flex min-h-10 min-w-0 items-center">
+                                <span className="break-words text-sm font-medium">
                                   {etiquetaCampo(campo.campo)}
                                 </span>
                               </div>
