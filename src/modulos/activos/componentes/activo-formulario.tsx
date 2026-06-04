@@ -41,6 +41,7 @@ import {
   crearImagenPorCodigo,
   crearTanquePorCodigo,
   obtenerCarroceriasReferencia,
+  registrarConfiguracionHistoricaPorCodigo,
 } from "../servicios/activos-api";
 import {
   useActualizarActivoMutation,
@@ -60,6 +61,7 @@ import type {
   TipoImagenActivo,
   TipoTanqueActivo,
   TipoActivo,
+  TipoCambioConfiguracionHistorica,
   TipoTransmision,
   DocumentoActivo,
   ImagenActivo,
@@ -453,6 +455,21 @@ export function ActivoFormulario({
             crearImagenPorCodigo(saved.codigo, imagen)
           ),
         ]);
+
+        if (activo?.activoOrigenId) {
+          await registrarConfiguracionHistoricaPorCodigo(saved.codigo, {
+            codigoNuevo: saved.codigo,
+            codigoAnterior: activo.codigo,
+            placaAnterior: activo.vehiculo?.placaRodaje ?? null,
+            carroceriaAnterior: activo.vehiculo?.carroceria ?? null,
+            placaNueva: payload.vehiculo.placaRodaje ?? null,
+            carroceriaNueva: payload.vehiculo.carroceria ?? null,
+            tipoCambio: inferirTipoCambioConfiguracion(activo, payload),
+            motivo: construirMotivoConfiguracionHistorica(activo, payload),
+            fechaCambio: new Date().toISOString(),
+            usuarioRegistro: "activos.web",
+          });
+        }
       }
 
       router.push(`/activos/${saved.codigo}?${isEdit ? "updated" : "created"}=1`);
@@ -635,22 +652,159 @@ export function ActivoFormulario({
     actualizarResumen();
   }
 
-  return (
-    <div>
-      <Card>
+  function renderImagenesSection() {
+    return (
+      <Card className="mt-5">
         <CardHeader className="border-b border-border">
+          <SectionIntro
+            icon={IconPhotoPlus}
+            title="Imagenes del activo"
+            description={
+              isEdit
+                ? "Fotografias y evidencias visuales registradas para el activo."
+                : "Fotografias y evidencias visuales que se guardaran junto al activo."
+            }
+          />
+        </CardHeader>
+        <CardContent className="p-5">
+          {isEdit ? (
+            <ImagenesActivo codigo={activo!.codigo} imagenes={imagenes} />
+          ) : (
+            <div className="grid gap-4">
+              <div
+                ref={imagenDraftRef}
+                className="grid gap-4 rounded-xl border border-border bg-background/40 p-4"
+              >
+                <div className="grid gap-4 xl:grid-cols-[160px_220px_minmax(260px,1fr)_120px] xl:items-end">
+                  <SelectField
+                    name="tipoImagen"
+                    label="Tipo"
+                    defaultValue="FRONTAL"
+                    values={[
+                      "FRONTAL",
+                      "LATERAL",
+                      "POSTERIOR",
+                      "INTERIOR",
+                      "DOCUMENTO",
+                      "OTRO",
+                    ]}
+                    required
+                  />
+                  <div className="grid gap-2">
+                    <Label htmlFor="imagen-pendiente-archivo">
+                      Imagen desde equipo
+                    </Label>
+                    <input
+                      ref={imageFileInputRef}
+                      id="imagen-pendiente-archivo"
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={onImageFileChange}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      title={selectedImageFileName || "Seleccionar imagen"}
+                      onClick={() => imageFileInputRef.current?.click()}
+                    >
+                      <span className="truncate">
+                        {selectedImageFileName || "Seleccionar imagen"}
+                      </span>
+                    </Button>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="urlImagen" className="flex flex-wrap gap-x-1">
+                      URL de imagen
+                      <span className="text-xs font-normal text-muted-foreground">
+                        opcional si hay archivo
+                      </span>
+                    </Label>
+                    <Input
+                      id="urlImagen"
+                      name="urlImagen"
+                      placeholder="https://servidor/imagen.jpg"
+                    />
+                  </div>
+                  <Field
+                    label="Orden"
+                    min="0"
+                    name="ordenImagen"
+                    type="number"
+                  />
+                </div>
+                <TextAreaField
+                  label="Descripcion"
+                  name="descripcionImagen"
+                  placeholder="Detalle de la imagen, angulo, condicion visible o comentario de evidencia."
+                />
+                {localImageUrl ? (
+                  <div className="grid gap-2 rounded-xl border border-border bg-background/50 p-3 sm:max-w-sm">
+                    <span className="text-sm font-medium">Vista previa</span>
+                    <img
+                      src={localImageUrl}
+                      alt={selectedImageFileName || "Imagen seleccionada"}
+                      className="aspect-[4/3] w-full rounded-lg border border-border object-cover"
+                    />
+                  </div>
+                ) : null}
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" onClick={agregarImagen}>
+                    Agregar imagen
+                  </Button>
+                </div>
+              </div>
+              <PendingList
+                empty="No hay imagenes agregadas para guardar."
+                items={imagenesPendientes.map((imagen, index) => ({
+                  id: `${imagen.tipoImagen}-${index}`,
+                  title: `${formatLabel(imagen.tipoImagen)} - ${
+                    imagen.descripcion || "Sin descripcion"
+                  }`,
+                  detail: imagen.url.startsWith("data:image/")
+                    ? "Archivo seleccionado desde equipo"
+                    : imagen.url,
+                }))}
+                onRemove={(index) =>
+                  setImagenesPendientes((items) =>
+                    items.filter((_, itemIndex) => itemIndex !== index)
+                  )
+                }
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div
+      ref={formularioRef}
+      className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]"
+      onChange={actualizarResumen}
+      onInput={actualizarResumen}
+    >
+      <div className="min-w-0">
+      <Card>
+        <CardHeader className="flex flex-col gap-3 border-b border-border md:flex-row md:items-center md:justify-between">
           <CardTitle>
             {isEdit ? "Modificar activo" : "Registrar activo"}
           </CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => router.push("/activos")}>
+              Cancelar
+            </Button>
+            <Button type="button" disabled={isSaving} onClick={onSubmit}>
+              {isSaving
+                ? "Guardando..."
+                : isEdit
+                  ? "Actualizar activo"
+                  : "Guardar activo"}
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent
-          ref={formularioRef}
-          className="px-5 pb-0 pt-5"
-          onChange={actualizarResumen}
-          onInput={actualizarResumen}
-        >
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="min-w-0">
+        <CardContent className="p-5">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-5 flex h-auto w-full flex-wrap justify-start gap-1 overflow-visible rounded-2xl">
               <TabsTrigger value="base" className="flex-none">
@@ -1158,143 +1312,15 @@ export function ActivoFormulario({
             </TabsContent>
 
           </Tabs>
-          <section className="mt-6 grid gap-4 rounded-xl border border-border bg-muted/10 p-4">
-              <SectionIntro
-                icon={IconPhotoPlus}
-                title="Imagenes del activo"
-                description={
-                  isEdit
-                    ? "Fotografias y evidencias visuales registradas para el activo."
-                    : "Fotografias y evidencias visuales que se guardaran junto al activo."
-                }
-              />
-              {isEdit ? (
-                <ImagenesActivo codigo={activo!.codigo} imagenes={imagenes} />
-              ) : (
-                <>
-              <div
-                ref={imagenDraftRef}
-                className="grid gap-4 rounded-xl border border-border bg-background/40 p-4"
-              >
-                <div className="grid gap-4 xl:grid-cols-[140px_200px_minmax(220px,1fr)_90px] xl:items-end">
-                  <SelectField
-                    name="tipoImagen"
-                    label="Tipo"
-                    defaultValue="FRONTAL"
-                    values={[
-                      "FRONTAL",
-                      "LATERAL",
-                      "POSTERIOR",
-                      "INTERIOR",
-                      "DOCUMENTO",
-                      "OTRO",
-                    ]}
-                    required
-                  />
-                  <div className="grid gap-2">
-                    <Label htmlFor="imagen-pendiente-archivo">
-                      Imagen desde equipo
-                    </Label>
-                    <input
-                      ref={imageFileInputRef}
-                      id="imagen-pendiente-archivo"
-                      type="file"
-                      accept="image/*"
-                      className="sr-only"
-                      onChange={onImageFileChange}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      title={selectedImageFileName || "Seleccionar imagen"}
-                      onClick={() => imageFileInputRef.current?.click()}
-                    >
-                      <span className="truncate">
-                        {selectedImageFileName || "Seleccionar imagen"}
-                      </span>
-                    </Button>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="urlImagen" className="flex flex-wrap gap-x-1">
-                      URL de imagen
-                      <span className="text-xs font-normal text-muted-foreground">
-                        opcional si hay archivo
-                      </span>
-                    </Label>
-                    <Input
-                      id="urlImagen"
-                      name="urlImagen"
-                      placeholder="https://servidor/imagen.jpg"
-                    />
-                  </div>
-                  <Field
-                    label="Orden"
-                    min="0"
-                    name="ordenImagen"
-                    type="number"
-                  />
-                </div>
-                <TextAreaField
-                  label="Descripcion"
-                  name="descripcionImagen"
-                  placeholder="Detalle de la imagen, angulo, condicion visible o comentario de evidencia."
-                />
-                {localImageUrl ? (
-                  <div className="grid gap-2 rounded-xl border border-border bg-background/50 p-3 sm:max-w-sm">
-                    <span className="text-sm font-medium">Vista previa</span>
-                    <img
-                      src={localImageUrl}
-                      alt={selectedImageFileName || "Imagen seleccionada"}
-                      className="aspect-[4/3] w-full rounded-lg border border-border object-cover"
-                    />
-                  </div>
-                ) : null}
-                <div className="flex justify-end">
-                  <Button type="button" variant="outline" onClick={agregarImagen}>
-                    Agregar imagen
-                  </Button>
-                </div>
-              </div>
-              <PendingList
-                empty="No hay imagenes agregadas para guardar."
-                items={imagenesPendientes.map((imagen, index) => ({
-                  id: `${imagen.tipoImagen}-${index}`,
-                  title: `${formatLabel(imagen.tipoImagen)} - ${imagen.descripcion || "Sin descripcion"}`,
-                  detail: imagen.url.startsWith("data:image/")
-                    ? "Archivo seleccionado desde equipo"
-                    : imagen.url,
-                }))}
-                onRemove={(index) =>
-                  setImagenesPendientes((items) =>
-                    items.filter((_, itemIndex) => itemIndex !== index)
-                  )
-                }
-              />
-                </>
-              )}
-            </section>
-          </div>
-            <ResumenRegistro
-              activeTab={activeTab}
-              onSelectTab={setActiveTab}
-              resumen={resumen}
-            />
-          </div>
-
-          <div className="-mx-5 mt-5 flex items-center justify-end gap-2 border-t border-border bg-muted/40 px-5 py-4">
-            <Button type="button" variant="outline" onClick={() => router.push("/activos")}>
-              Cancelar
-            </Button>
-            <Button type="button" disabled={isSaving} onClick={onSubmit}>
-              {isSaving
-                ? "Guardando..."
-                : isEdit
-                  ? "Actualizar activo"
-                  : "Guardar activo"}
-            </Button>
-          </div>
         </CardContent>
       </Card>
+      {renderImagenesSection()}
+      </div>
+      <ResumenRegistro
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        resumen={resumen}
+      />
     </div>
   );
 }
@@ -1563,6 +1589,72 @@ function SelectField({
       </select>
     </label>
   );
+}
+
+type DatosConfiguracionActual = {
+  vehiculo?: {
+    placaRodaje?: string | null;
+    carroceria?: string | null;
+  };
+};
+
+function inferirTipoCambioConfiguracion(
+  origen: Activo,
+  nuevo: DatosConfiguracionActual
+): TipoCambioConfiguracionHistorica {
+  const placaAnterior = normalizarValorHistorico(origen.vehiculo?.placaRodaje);
+  const placaNueva = normalizarValorHistorico(nuevo.vehiculo?.placaRodaje);
+  const carroceriaAnterior = normalizarValorHistorico(
+    origen.vehiculo?.carroceria
+  );
+  const carroceriaNueva = normalizarValorHistorico(nuevo.vehiculo?.carroceria);
+
+  if (placaAnterior !== placaNueva && (placaAnterior || placaNueva)) {
+    return "CAMBIO_PLACA";
+  }
+
+  if (
+    carroceriaAnterior !== carroceriaNueva &&
+    (carroceriaAnterior || carroceriaNueva)
+  ) {
+    return "CAMBIO_CARROCERIA";
+  }
+
+  return "RENOVACION";
+}
+
+function construirMotivoConfiguracionHistorica(
+  origen: Activo,
+  nuevo: DatosConfiguracionActual
+) {
+  const tipoCambio = inferirTipoCambioConfiguracion(origen, nuevo);
+  const placaAnterior = etiquetaValorHistorico(origen.vehiculo?.placaRodaje);
+  const placaNueva = etiquetaValorHistorico(nuevo.vehiculo?.placaRodaje);
+  const carroceriaAnterior = etiquetaValorHistorico(
+    origen.vehiculo?.carroceria
+  );
+  const carroceriaNueva = etiquetaValorHistorico(nuevo.vehiculo?.carroceria);
+
+  if (tipoCambio === "CAMBIO_PLACA") {
+    return `Replaqueo registrado desde nuevo acople: ${placaAnterior} -> ${placaNueva}.`;
+  }
+
+  if (tipoCambio === "CAMBIO_CARROCERIA") {
+    return `Cambio de carroceria registrado desde nuevo acople: ${carroceriaAnterior} -> ${carroceriaNueva}.`;
+  }
+
+  return "Nuevo acople registrado desde activo anulado.";
+}
+
+function normalizarValorHistorico(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase();
+}
+
+function etiquetaValorHistorico(value: unknown) {
+  const texto = String(value ?? "").trim();
+  return texto || "sin dato";
 }
 
 function formatLabel(value: string) {

@@ -2,16 +2,23 @@ import { clienteActivos } from "@/compartido/api/clientes-backend";
 
 import type {
   Activo,
+  ActivoConfiguracionHistorica,
+  ActivoHistorial,
+  ActualizarDetalleInventarioFisicoPayload,
   ActualizarActivoPayload,
   CarroceriaReferencia,
+  CerrarInventarioFisicoPayload,
+  CrearConfiguracionHistoricaPayload,
   CrearActivoPayload,
   CrearDocumentoActivoPayload,
   CrearImagenActivoPayload,
+  CrearInventarioFisicoPayload,
   CrearTanqueActivoPayload,
   DocumentoActivo,
   EstadoActivo,
   EstadoRegistro,
   ImagenActivo,
+  InventarioFisico,
   PlantillaInventario,
   TanqueActivo,
 } from "../tipos/activo.tipos";
@@ -127,8 +134,29 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   },
 ];
 
-export async function obtenerActivos(): Promise<Activo[]> {
-  const { data } = await clienteActivos.get<unknown>("/activos");
+type ObtenerActivosParams = {
+  estadoRegistro?: EstadoRegistro | "TODOS";
+};
+
+export async function obtenerActivos(
+  params?: ObtenerActivosParams
+): Promise<Activo[]> {
+  if (params?.estadoRegistro === "TODOS") {
+    const [activos, anulados] = await Promise.all([
+      obtenerActivos({ estadoRegistro: true }),
+      obtenerActivos({ estadoRegistro: false }),
+    ]);
+
+    return [...activos, ...anulados];
+  }
+
+  const queryParams =
+    params?.estadoRegistro === undefined
+      ? undefined
+      : { estadoRegistro: params.estadoRegistro };
+  const { data } = await clienteActivos.get<unknown>("/activos", {
+    params: queryParams,
+  });
 
   if (Array.isArray(data)) {
     return data as Activo[];
@@ -150,6 +178,40 @@ export async function obtenerActivos(): Promise<Activo[]> {
 export async function obtenerActivoPorCodigo(codigo: string): Promise<Activo> {
   const { data } = await clienteActivos.get<Activo>(
     `/activos/codigo/${codigo}`
+  );
+  return data;
+}
+
+export async function obtenerActivoPorId(id: number): Promise<Activo> {
+  const { data } = await clienteActivos.get<Activo>(`/activos/${id}`);
+  return data;
+}
+
+export async function obtenerHistorialPorCodigo(
+  codigo: string
+): Promise<ActivoHistorial[]> {
+  const { data } = await clienteActivos.get<ActivoHistorial[]>(
+    `/activos/codigo/${codigo}/historial`
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+export async function obtenerConfiguracionHistoricaPorCodigo(
+  codigo: string
+): Promise<ActivoConfiguracionHistorica[]> {
+  const { data } = await clienteActivos.get<ActivoConfiguracionHistorica[]>(
+    `/activos/codigo/${codigo}/configuracion-historica`
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+export async function registrarConfiguracionHistoricaPorCodigo(
+  codigo: string,
+  payload: CrearConfiguracionHistoricaPayload
+): Promise<ActivoConfiguracionHistorica> {
+  const { data } = await clienteActivos.post<ActivoConfiguracionHistorica>(
+    `/activos/codigo/${codigo}/configuracion-historica`,
+    payload
   );
   return data;
 }
@@ -282,6 +344,15 @@ export async function obtenerDocumentosPorCodigo(
   return data;
 }
 
+export async function obtenerDocumentosPorActivoId(
+  id: number
+): Promise<DocumentoActivo[]> {
+  const { data } = await clienteActivos.get<DocumentoActivo[]>(
+    `/activos/${id}/documentos`
+  );
+  return Array.isArray(data) ? data : [];
+}
+
 export async function crearDocumentoPorCodigo(
   codigo: string,
   payload: CrearDocumentoActivoPayload
@@ -327,4 +398,66 @@ export async function eliminarTanquePorCodigo(
   tanqueId: number
 ): Promise<void> {
   await clienteActivos.delete(`/activos/codigo/${codigo}/tanques/${tanqueId}`);
+}
+
+export async function obtenerInventariosFisicos(): Promise<InventarioFisico[]> {
+  const { data } = await clienteActivos.get<unknown>(
+    "/activos/inventarios-fisicos"
+  );
+
+  if (Array.isArray(data)) {
+    return data as InventarioFisico[];
+  }
+
+  if (
+    data &&
+    typeof data === "object" &&
+    Array.isArray((data as { inventarios?: unknown }).inventarios)
+  ) {
+    return (data as { inventarios: InventarioFisico[] }).inventarios;
+  }
+
+  throw new Error("La API de inventario fisico no devolvio una lista.");
+}
+
+export async function obtenerInventarioFisicoPorId(
+  id: number
+): Promise<InventarioFisico> {
+  const { data } = await clienteActivos.get<InventarioFisico>(
+    `/activos/inventarios-fisicos/${id}`
+  );
+  return data;
+}
+
+export async function aperturarInventarioFisico(
+  payload: CrearInventarioFisicoPayload
+): Promise<InventarioFisico> {
+  const { data } = await clienteActivos.post<InventarioFisico>(
+    "/activos/inventarios-fisicos",
+    payload
+  );
+  return data;
+}
+
+export async function actualizarDetalleInventarioFisico(
+  inventarioId: number,
+  detalleId: number,
+  payload: ActualizarDetalleInventarioFisicoPayload
+): Promise<InventarioFisico> {
+  const { data } = await clienteActivos.patch<InventarioFisico>(
+    `/activos/inventarios-fisicos/${inventarioId}/detalles/${detalleId}`,
+    payload
+  );
+  return data;
+}
+
+export async function cerrarInventarioFisico(
+  id: number,
+  payload: CerrarInventarioFisicoPayload
+): Promise<InventarioFisico> {
+  const { data } = await clienteActivos.patch<InventarioFisico>(
+    `/activos/inventarios-fisicos/${id}/cerrar`,
+    payload
+  );
+  return data;
 }
