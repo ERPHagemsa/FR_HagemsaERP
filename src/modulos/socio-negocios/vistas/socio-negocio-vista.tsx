@@ -1172,6 +1172,28 @@ export function SocioNegocioVista({
                       </SelectContent>
                     </Select>
                   </Field>
+                  <Field className="lg:w-44">
+                    <Select
+                      value={filtrosFormulario.estadoRegistro ?? "TODOS"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "estadoRegistro",
+                          value as ConsultarSociosDeNegocioQuery["estadoRegistro"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Registro" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Registro: todos</SelectItem>
+                          <SelectItem value="ACTIVO">Vigentes</SelectItem>
+                          <SelectItem value="ANULADO">Anulados</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
                   <div className="flex gap-2">
                     <Button type="submit" size="sm" disabled={sociosQuery.isFetching}>
                       <HugeiconsIcon

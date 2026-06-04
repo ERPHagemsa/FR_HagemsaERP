@@ -8,6 +8,8 @@ export default function ListarSociosNegocioPage() {
       accionPrincipal="Nuevo socio"
       crearHref="/socio-negocios/nuevo"
       filtros={{
+        estado: "ACTIVO",
+        estadoRegistro: "ACTIVO",
         sortBy: "fechaCreacion",
         sortOrder: "desc",
       }}
