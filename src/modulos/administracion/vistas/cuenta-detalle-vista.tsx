@@ -4,27 +4,22 @@ import { useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
 import {
-  ArrowLeft01Icon,
-  Copy01Icon,
-  Delete02Icon,
-  Edit02Icon,
-  Key01Icon,
-  PlayIcon,
-  StopCircleIcon,
-  UserBlock01Icon,
-} from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
+  ArrowLeft,
+  Ban,
+  Copy,
+  Key,
+  Pencil,
+  Play,
+  RefreshCw,
+  Trash2,
+} from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api"
-import { Badge } from "@/compartido/componentes/ui/badge"
-import { Button } from "@/compartido/componentes/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
+  Avatar,
+  AvatarFallback,
+} from "@/compartido/componentes/ui/avatar"
+import { Button } from "@/compartido/componentes/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -42,6 +37,7 @@ import {
 } from "@/compartido/componentes/ui/field"
 import { Input } from "@/compartido/componentes/ui/input"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
+import { cn } from "@/compartido/utilidades/utils"
 
 import { RolesAsignadosSeccion } from "../componentes/roles-asignados-seccion"
 import { SesionesActivasSeccion } from "../componentes/sesiones-activas-seccion"
@@ -56,19 +52,40 @@ import {
 } from "../ganchos/use-mutaciones-cuenta"
 import type { CuentaResponse, EstadoCuenta } from "../tipos/administracion.tipos"
 
-function variantePorEstado(
-  estado: EstadoCuenta,
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (estado) {
-    case "activo":
-      return "default"
-    case "suspendido":
-      return "destructive"
-    case "inactivo":
-      return "secondary"
-    default:
-      return "outline"
-  }
+const PUNTO_ESTADO: Record<EstadoCuenta, string> = {
+  activo: "bg-emerald-500",
+  suspendido: "bg-red-500",
+  inactivo: "bg-zinc-400",
+}
+
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/).filter(Boolean)
+  if (partes.length === 0) return "?"
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase()
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+}
+
+function EstadoBadge({ estado }: { estado: EstadoCuenta }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-sm capitalize text-muted-foreground">
+      <span
+        className={cn(
+          "size-1.5 rounded-none",
+          PUNTO_ESTADO[estado] ?? "bg-zinc-400",
+        )}
+      />
+      {estado}
+    </span>
+  )
+}
+
+function Dato({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{etiqueta}</dt>
+      <dd className="mt-0.5">{children}</dd>
+    </div>
+  )
 }
 
 interface PropsAccion {
@@ -103,12 +120,12 @@ function DialogSuspender({ cuenta, onActualizado }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button variant="destructive">
-          <HugeiconsIcon icon={UserBlock01Icon} strokeWidth={2} />
+        <Button variant="outline" size="sm" className="rounded-none">
+          <Ban />
           Suspender
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Suspender cuenta</DialogTitle>
           <DialogDescription>
@@ -120,6 +137,7 @@ function DialogSuspender({ cuenta, onActualizado }: PropsAccion) {
             <FieldLabel htmlFor="razon">Razon</FieldLabel>
             <Input
               id="razon"
+              className="rounded-none"
               value={razon}
               onChange={(e) => setRazon(e.target.value)}
               placeholder="Por que se suspende esta cuenta"
@@ -135,6 +153,7 @@ function DialogSuspender({ cuenta, onActualizado }: PropsAccion) {
         <DialogFooter>
           <Button
             variant="ghost"
+            className="rounded-none"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
@@ -142,6 +161,7 @@ function DialogSuspender({ cuenta, onActualizado }: PropsAccion) {
           </Button>
           <Button
             variant="destructive"
+            className="rounded-none"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -166,8 +186,8 @@ function BotonReactivar({ cuenta, onActualizado }: PropsAccion) {
   }
 
   return (
-    <Button onClick={() => void confirmar()} disabled={mutation.isPending}>
-      <HugeiconsIcon icon={PlayIcon} strokeWidth={2} />
+    <Button size="sm" className="rounded-none" onClick={() => void confirmar()} disabled={mutation.isPending}>
+      <Play />
       {mutation.isPending ? "Reactivando..." : "Reactivar"}
     </Button>
   )
@@ -200,12 +220,12 @@ function DialogSetPassword({ cuenta }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <HugeiconsIcon icon={Key01Icon} strokeWidth={2} />
+        <Button variant="outline" size="sm" className="rounded-none">
+          <Key />
           Cambiar password
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Cambiar password</DialogTitle>
           <DialogDescription>
@@ -217,6 +237,7 @@ function DialogSetPassword({ cuenta }: PropsAccion) {
             <FieldLabel htmlFor="password">Nueva password</FieldLabel>
             <Input
               id="password"
+              className="rounded-none"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -234,12 +255,14 @@ function DialogSetPassword({ cuenta }: PropsAccion) {
         <DialogFooter>
           <Button
             variant="ghost"
+            className="rounded-none"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
             Cancelar
           </Button>
           <Button
+            className="rounded-none"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -280,12 +303,12 @@ function DialogResetPassword({ cuenta }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={cerrar}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <HugeiconsIcon icon={StopCircleIcon} strokeWidth={2} />
+        <Button variant="outline" size="sm" className="rounded-none">
+          <RefreshCw />
           Reset password
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Reset de password</DialogTitle>
           <DialogDescription>
@@ -299,9 +322,9 @@ function DialogResetPassword({ cuenta }: PropsAccion) {
             <Field>
               <FieldLabel>Password temporal</FieldLabel>
               <div className="flex gap-2">
-                <Input value={passwordTemporal} readOnly className="font-mono" />
-                <Button variant="outline" size="icon" onClick={() => void copiar()}>
-                  <HugeiconsIcon icon={Copy01Icon} strokeWidth={2} />
+                <Input value={passwordTemporal} readOnly className="rounded-none font-mono" />
+                <Button variant="outline" size="icon" className="rounded-none" onClick={() => void copiar()}>
+                  <Copy />
                 </Button>
               </div>
             </Field>
@@ -309,17 +332,19 @@ function DialogResetPassword({ cuenta }: PropsAccion) {
         ) : null}
         <DialogFooter>
           {passwordTemporal ? (
-            <Button onClick={() => cerrar(false)}>Cerrar</Button>
+            <Button className="rounded-none" onClick={() => cerrar(false)}>Cerrar</Button>
           ) : (
             <>
               <Button
                 variant="ghost"
+                className="rounded-none"
                 onClick={() => cerrar(false)}
                 disabled={mutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
+                className="rounded-none"
                 onClick={() => void generar()}
                 disabled={mutation.isPending}
               >
@@ -388,12 +413,12 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <HugeiconsIcon icon={Edit02Icon} strokeWidth={2} />
+        <Button variant="outline" size="sm" className="rounded-none">
+          <Pencil />
           Editar
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Editar cuenta</DialogTitle>
           <DialogDescription>
@@ -406,6 +431,7 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
             <FieldLabel htmlFor="nombre-editar">Nombre completo</FieldLabel>
             <Input
               id="nombre-editar"
+              className="rounded-none"
               value={nombreCompleto}
               onChange={(e) => setNombreCompleto(e.target.value)}
               maxLength={200}
@@ -417,6 +443,7 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
             </FieldLabel>
             <Input
               id="documento-editar"
+              className="rounded-none"
               value={documentoIdentidad}
               onChange={(e) => setDocumentoIdentidad(e.target.value)}
               placeholder="Dejar vacio para quitar"
@@ -432,12 +459,14 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
         <DialogFooter>
           <Button
             variant="ghost"
+            className="rounded-none"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
             Cancelar
           </Button>
           <Button
+            className="rounded-none"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -476,12 +505,12 @@ function DialogDesactivar({ cuenta, onActualizado }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button variant="destructive">
-          <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+        <Button variant="outline" size="sm" className="rounded-none text-destructive hover:text-destructive">
+          <Trash2 />
           Desactivar
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Desactivar cuenta</DialogTitle>
           <DialogDescription>
@@ -495,6 +524,7 @@ function DialogDesactivar({ cuenta, onActualizado }: PropsAccion) {
             <FieldLabel htmlFor="razon-desactivar">Razon</FieldLabel>
             <Input
               id="razon-desactivar"
+              className="rounded-none"
               value={razon}
               onChange={(e) => setRazon(e.target.value)}
               placeholder="Por que se desactiva esta cuenta"
@@ -510,6 +540,7 @@ function DialogDesactivar({ cuenta, onActualizado }: PropsAccion) {
         <DialogFooter>
           <Button
             variant="ghost"
+            className="rounded-none"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
@@ -517,6 +548,7 @@ function DialogDesactivar({ cuenta, onActualizado }: PropsAccion) {
           </Button>
           <Button
             variant="destructive"
+            className="rounded-none"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -534,92 +566,68 @@ interface PropsCuentaDetalleVista {
 
 export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
   const { data, isLoading, isError, error, refetch } = useCuenta(cuentaId)
+  const inactiva = data?.estado === "inactivo"
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <div>
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/admin/cuentas">
-            <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
-            Volver a cuentas
-          </Link>
-        </Button>
-      </div>
+    <div className="flex flex-col gap-6 p-6">
+      <Button asChild variant="ghost" size="sm" className="rounded-none -ml-2 w-fit text-muted-foreground">
+        <Link href="/admin/cuentas">
+          <ArrowLeft />
+          Volver a cuentas
+        </Link>
+      </Button>
 
       {isLoading ? (
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Skeleton className="size-10 rounded-none" />
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+          </div>
+          <div className="space-y-3 border p-5">
             <Skeleton className="h-5 w-full" />
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-5 w-1/2" />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ) : isError ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Error</CardTitle>
-            <CardDescription>
-              {extraerMensajeError(error, "No se pudo cargar la cuenta.")}
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <div className="border border-destructive/30 p-5 text-sm text-destructive">
+          {extraerMensajeError(error, "No se pudo cargar la cuenta.")}
+        </div>
       ) : data ? (
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>{data.nombreCompleto}</CardTitle>
-                <CardDescription>{data.email}</CardDescription>
+        <>
+          {/* Cabecera de identidad */}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Avatar size="lg" className="rounded-none after:rounded-none">
+                <AvatarFallback className="rounded-none bg-primary/10 font-medium text-primary">
+                  {iniciales(data.nombreCompleto)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h1
+                    className={cn(
+                      "text-2xl font-semibold tracking-tight",
+                      inactiva && "text-muted-foreground line-through",
+                    )}
+                  >
+                    {data.nombreCompleto}
+                  </h1>
+                  <EstadoBadge estado={data.estado} />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {data.nombreUsuario ? `@${data.nombreUsuario}` : "sin usuario"}
+                  {" · "}
+                  {data.email}
+                </p>
               </div>
-              <Badge variant={variantePorEstado(data.estado)}>
-                {data.estado}
-              </Badge>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm md:grid-cols-2">
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  Nombre de usuario
-                </dt>
-                <dd>{data.nombreUsuario ? `@${data.nombreUsuario}` : "—"}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">ID</dt>
-                <dd className="font-mono text-xs">{data.id}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  Tipo de cuenta
-                </dt>
-                <dd className="capitalize">{data.tipoCuenta}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  Documento de identidad
-                </dt>
-                <dd>{data.documentoIdentidad ?? "—"}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  Creada el
-                </dt>
-                <dd>{new Date(data.createdAt).toLocaleString("es-PE")}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  Ultima actualizacion
-                </dt>
-                <dd>{new Date(data.updatedAt).toLocaleString("es-PE")}</dd>
-              </div>
-            </dl>
 
-            {data.estado !== "inactivo" ? (
-              <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+            {!inactiva ? (
+              <div className="flex flex-wrap items-center gap-2">
                 <DialogEditarCuenta cuenta={data} onActualizado={refetch} />
                 {data.estado === "activo" ? (
                   <DialogSuspender cuenta={data} onActualizado={refetch} />
@@ -632,12 +640,34 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
                 <DialogDesactivar cuenta={data} onActualizado={refetch} />
               </div>
             ) : null}
+          </div>
 
-            <RolesAsignadosSeccion cuentaId={data.id} />
+          {/* Datos de la cuenta */}
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-4 border p-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <Dato etiqueta="Nombre de usuario">
+              {data.nombreUsuario ? `@${data.nombreUsuario}` : "—"}
+            </Dato>
+            <Dato etiqueta="Tipo de cuenta">
+              <span className="capitalize">{data.tipoCuenta}</span>
+            </Dato>
+            <Dato etiqueta="Documento de identidad">
+              {data.documentoIdentidad ?? "—"}
+            </Dato>
+            <Dato etiqueta="Creada el">
+              {new Date(data.createdAt).toLocaleString("es-PE")}
+            </Dato>
+            <Dato etiqueta="Ultima actualizacion">
+              {new Date(data.updatedAt).toLocaleString("es-PE")}
+            </Dato>
+            <Dato etiqueta="ID">
+              <span className="font-mono text-xs">{data.id}</span>
+            </Dato>
+          </dl>
 
-            <SesionesActivasSeccion cuentaId={data.id} />
-          </CardContent>
-        </Card>
+          <RolesAsignadosSeccion cuentaId={data.id} />
+
+          <SesionesActivasSeccion cuentaId={data.id} />
+        </>
       ) : null}
     </div>
   )

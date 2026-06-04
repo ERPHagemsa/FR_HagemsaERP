@@ -132,6 +132,12 @@ export interface ListaPermisosResponse {
   readonly paginacion: Paginacion
 }
 
+export interface ListarPermisosQuery {
+  pagina?: number
+  limite?: number
+  busqueda?: string
+}
+
 export interface AsignacionResponse {
   readonly id: string
   readonly rolId: string

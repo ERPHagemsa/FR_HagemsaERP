@@ -1,18 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Search01Icon } from "@hugeicons/core-free-icons"
+import { Eye } from "lucide-react"
 
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -39,7 +31,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table"
+import { cn } from "@/compartido/utilidades/utils"
 
+import { PiePaginacion } from "../componentes/paginacion-tabla"
 import { useEventosAuditoria } from "../ganchos/use-eventos-auditoria"
 import {
   TIPOS_EVENTO_AUTH,
@@ -48,11 +42,11 @@ import {
 } from "../tipos/administracion.tipos"
 
 const LIMIT_PAGINA = 20
+const COLUMNAS = 5
 
-// Cuales eventos son "alarmantes" o "neutrales", para colorear el badge.
-function variantePorTipo(
-  tipo: string,
-): "default" | "secondary" | "destructive" | "outline" {
+// Tinte del badge por severidad del evento. Tintes suaves con variantes dark:
+// explicitas para que el tono cambie de verdad entre tema claro y oscuro.
+function clasePorTipo(tipo: string): string {
   if (
     tipo === "login_fallido" ||
     tipo === "credencial_bloqueada" ||
@@ -61,12 +55,12 @@ function variantePorTipo(
     tipo === "sesion_revocada_admin" ||
     tipo === "asignacion_revocada"
   ) {
-    return "destructive"
+    return "bg-red-500/10 text-red-600 dark:bg-red-500/15 dark:text-red-400"
   }
   if (tipo === "login_exitoso" || tipo === "cuenta_creada") {
-    return "default"
+    return "bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
   }
-  return "secondary"
+  return "bg-muted text-muted-foreground"
 }
 
 interface PropsDialogMetadata {
@@ -83,12 +77,12 @@ function DialogMetadata({ evento }: PropsDialogMetadata) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" disabled={sinMetadata}>
-          <HugeiconsIcon icon={Search01Icon} strokeWidth={2} />
+        <Button variant="ghost" size="sm" disabled={sinMetadata} className="rounded-none">
+          <Eye />
           Detalle
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="rounded-none max-w-2xl">
         <DialogHeader>
           <DialogTitle>Detalle del evento</DialogTitle>
           <DialogDescription>
@@ -96,7 +90,7 @@ function DialogMetadata({ evento }: PropsDialogMetadata) {
             {new Date(evento.ocurridoEn).toLocaleString("es-PE")}
           </DialogDescription>
         </DialogHeader>
-        <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
+        <pre className="max-h-[60vh] overflow-auto rounded-none bg-muted p-3 font-mono text-xs">
           {metadataTexto}
         </pre>
       </DialogContent>
@@ -111,6 +105,7 @@ export function AuditoriaVista() {
   const [hasta, setHasta] = useState("")
   // `pagina` es 1-based — coincide con el paginador del backend.
   const [pagina, setPagina] = useState(1)
+  const [limite, setLimite] = useState(LIMIT_PAGINA)
 
   const query = useMemo<ListarEventosAuditoriaQuery>(
     () => ({
@@ -119,112 +114,138 @@ export function AuditoriaVista() {
       desde: desde ? new Date(desde).toISOString() : undefined,
       hasta: hasta ? new Date(hasta).toISOString() : undefined,
       pagina,
-      limite: LIMIT_PAGINA,
+      limite,
     }),
-    [tipo, cuentaId, desde, hasta, pagina],
+    [tipo, cuentaId, desde, hasta, pagina, limite],
   )
 
   const { data, isLoading, isError, error } = useEventosAuditoria(query)
 
-  function aplicarFiltros<T>(setter: (v: T) => void) {
+  function aplicarFiltro<T>(setter: (v: T) => void) {
     return (valor: T) => {
       setter(valor)
       setPagina(1)
     }
   }
 
+  const total = data?.paginacion.total ?? 0
+
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Auditoria</CardTitle>
-          <CardDescription>
-            Eventos de seguridad y administracion registrados por el sistema
-            (append-only). Util para investigar incidentes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <Select
-              value={tipo}
-              onValueChange={(v) => aplicarFiltros<string>(setTipo)(v)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Tipo de evento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los tipos</SelectItem>
-                {TIPOS_EVENTO_AUTH.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div className="flex flex-col gap-6 p-6">
+      {/* Cabecera */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-2xl font-semibold tracking-tight">Auditoría</h1>
+          {data ? (
+            <Badge variant="secondary" className="rounded-none tabular-nums">
+              {total}
+            </Badge>
+          ) : null}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Eventos de seguridad y administración registrados por el sistema
+          (append-only). Útil para investigar incidentes.
+        </p>
+      </div>
 
-            <Input
-              placeholder="ID de cuenta (UUID)"
-              value={cuentaId}
-              onChange={(e) =>
-                aplicarFiltros<string>(setCuentaId)(e.target.value)
-              }
-            />
+      {/* Filtros */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Select
+          value={tipo}
+          onValueChange={(v) => aplicarFiltro<string>(setTipo)(v)}
+        >
+          <SelectTrigger className="rounded-none w-full">
+            <SelectValue placeholder="Tipo de evento" />
+          </SelectTrigger>
+          <SelectContent className="rounded-none">
+            <SelectItem value="todos">Todos los tipos</SelectItem>
+            {TIPOS_EVENTO_AUTH.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-            <Input
-              type="datetime-local"
-              value={desde}
-              onChange={(e) => aplicarFiltros<string>(setDesde)(e.target.value)}
-              aria-label="Desde"
-            />
+        <Input
+          className="rounded-none"
+          placeholder="ID de cuenta (UUID)"
+          value={cuentaId}
+          onChange={(e) => aplicarFiltro<string>(setCuentaId)(e.target.value)}
+        />
 
-            <Input
-              type="datetime-local"
-              value={hasta}
-              onChange={(e) => aplicarFiltros<string>(setHasta)(e.target.value)}
-              aria-label="Hasta"
-            />
-          </div>
+        <Input
+          className="rounded-none"
+          type="datetime-local"
+          value={desde}
+          onChange={(e) => aplicarFiltro<string>(setDesde)(e.target.value)}
+          aria-label="Desde"
+        />
 
+        <Input
+          className="rounded-none"
+          type="datetime-local"
+          value={hasta}
+          onChange={(e) => aplicarFiltro<string>(setHasta)(e.target.value)}
+          aria-label="Hasta"
+        />
+      </div>
+
+      {/* Tabla */}
+      <div className="overflow-hidden border">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableHead>Fecha</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Cuenta</TableHead>
                 <TableHead>IP</TableHead>
-                <TableHead className="text-right">Detalle</TableHead>
+                <TableHead className="w-24 text-right">Detalle</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={5}>
-                      <Skeleton className="h-6 w-full" />
+                Array.from({ length: 8 }).map((_, i) => (
+                  <TableRow key={i} className="hover:bg-transparent [&>td]:py-1.5">
+                    <TableCell>
+                      <Skeleton className="rounded-none h-4 w-36" />
                     </TableCell>
+                    <TableCell>
+                      <Skeleton className="rounded-none h-4 w-28" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="rounded-none h-4 w-16" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="rounded-none h-4 w-20" />
+                    </TableCell>
+                    <TableCell />
                   </TableRow>
                 ))
               ) : isError ? (
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   <TableCell
-                    colSpan={5}
-                    className="py-8 text-center text-destructive"
+                    colSpan={COLUMNAS}
+                    className="py-12 text-center text-sm text-destructive"
                   >
                     {error instanceof Error
                       ? error.message
                       : "No se pudieron cargar los eventos."}
                   </TableCell>
                 </TableRow>
-              ) : data?.datos && data.datos.length > 0 ? (
+              ) : data && data.datos.length > 0 ? (
                 data.datos.map((evento) => (
-                  <TableRow key={evento.id}>
-                    <TableCell className="text-muted-foreground">
+                  <TableRow key={evento.id} className="[&>td]:py-1.5">
+                    <TableCell className="text-muted-foreground tabular-nums">
                       {new Date(evento.ocurridoEn).toLocaleString("es-PE")}
                     </TableCell>
                     <TableCell>
                       <Badge
-                        variant={variantePorTipo(evento.tipo)}
-                        className="font-mono"
+                        className={cn(
+                          "rounded-none font-mono font-normal",
+                          clasePorTipo(evento.tipo),
+                        )}
                       >
                         {evento.tipo}
                       </Badge>
@@ -243,45 +264,35 @@ export function AuditoriaVista() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
-                  <TableCell colSpan={5}>
-                    <Empty>
-                      No hay eventos que coincidan con los filtros.
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={COLUMNAS} className="py-12">
+                    <Empty className="gap-2">
+                      <Eye className="size-8 text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">
+                        No hay eventos que coincidan con los filtros.
+                      </p>
                     </Empty>
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+        </div>
 
-          {data && data.paginacion.totalPaginas > 1 ? (
-            <div className="flex items-center justify-between gap-2 pt-2">
-              <p className="text-sm text-muted-foreground">
-                Pagina {data.paginacion.pagina} de{" "}
-                {data.paginacion.totalPaginas} ({data.paginacion.total} eventos)
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagina((p) => Math.max(1, p - 1))}
-                  disabled={!data.paginacion.tieneAnterior}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagina((p) => p + 1)}
-                  disabled={!data.paginacion.tieneSiguiente}
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+        {/* Pie: rango + paginacion */}
+        {data && total > 0 ? (
+          <PiePaginacion
+            pagina={pagina}
+            limite={limite}
+            total={total}
+            onPagina={setPagina}
+            onLimite={(l) => {
+              setLimite(l)
+              setPagina(1)
+            }}
+          />
+        ) : null}
+      </div>
     </div>
   )
 }

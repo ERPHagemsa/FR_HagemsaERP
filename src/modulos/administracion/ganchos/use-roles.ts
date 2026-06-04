@@ -26,6 +26,7 @@ import type {
   CrearPermisoResponse,
   CrearRolPayload,
   CrearRolResponse,
+  ListarPermisosQuery,
   ListarRolesQuery,
 } from "../tipos/administracion.tipos"
 
@@ -101,8 +102,12 @@ export function useEliminarPermiso(opciones: OpcionesMutarPermiso = {}) {
   })
 }
 
-export function usePermisos(modulo?: string) {
-  return useConsulta(() => obtenerPermisos(modulo), [modulo])
+export function usePermisos(query: ListarPermisosQuery = {}) {
+  return useConsulta(() => obtenerPermisos(query), [
+    query.pagina,
+    query.limite,
+    query.busqueda,
+  ])
 }
 
 export interface OpcionesEditarPermisosRol {

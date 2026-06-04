@@ -2,23 +2,11 @@
 
 import { useMemo, useState } from "react"
 import { toast } from "sonner"
-import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  Add01Icon,
-  Delete02Icon,
-  Edit02Icon,
-} from "@hugeicons/core-free-icons"
+import { Pencil, Plus, Search, Trash2 } from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -45,13 +33,17 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table"
 
+import { PiePaginacion } from "../componentes/paginacion-tabla"
 import {
   useActualizarPermiso,
   useCrearPermiso,
   useEliminarPermiso,
   usePermisos,
 } from "../ganchos/use-roles"
-import type { PermisoResponse } from "../tipos/administracion.tipos"
+import type {
+  ListarPermisosQuery,
+  PermisoResponse,
+} from "../tipos/administracion.tipos"
 
 // Debe coincidir con PermissionCode VO en el backend. Si el VO cambia, este
 // regex tambien. Validacion client-side para feedback temprano — el server
@@ -112,12 +104,12 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button>
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
+        <Button className="rounded-none">
+          <Plus />
           Nuevo permiso
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Crear permiso</DialogTitle>
           <DialogDescription>
@@ -135,7 +127,7 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
               onChange={(e) => setCodigo(e.target.value.toLowerCase())}
               placeholder="wms:inventario:read"
               maxLength={100}
-              className="font-mono"
+              className="rounded-none font-mono"
             />
           </Field>
           <Field>
@@ -146,6 +138,7 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
               onChange={(e) => setDescripcion(e.target.value)}
               placeholder="Permite leer el inventario del WMS"
               maxLength={500}
+              className="rounded-none"
             />
           </Field>
           <Field>
@@ -158,6 +151,7 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
               onChange={(e) => setModulo(e.target.value)}
               placeholder="wms"
               maxLength={50}
+              className="rounded-none"
             />
           </Field>
           {error ? (
@@ -171,12 +165,14 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
+            className="rounded-none"
           >
             Cancelar
           </Button>
           <Button
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
+            className="rounded-none"
           >
             {mutation.isPending ? "Creando..." : "Crear"}
           </Button>
@@ -232,11 +228,11 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" title="Editar descripcion">
-          <HugeiconsIcon icon={Edit02Icon} strokeWidth={2} />
+        <Button variant="ghost" size="icon-sm" title="Editar descripción" className="rounded-none">
+          <Pencil />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Editar permiso</DialogTitle>
           <DialogDescription>
@@ -247,7 +243,7 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
         <FieldGroup>
           <Field>
             <FieldLabel>Codigo</FieldLabel>
-            <Input value={permiso.codigo} readOnly className="font-mono" />
+            <Input value={permiso.codigo} readOnly className="rounded-none font-mono" />
           </Field>
           <Field>
             <FieldLabel htmlFor="editar-descripcion-permiso">
@@ -258,6 +254,7 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
               maxLength={500}
+              className="rounded-none"
             />
           </Field>
           {error ? (
@@ -271,12 +268,14 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
+            className="rounded-none"
           >
             Cancelar
           </Button>
           <Button
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
+            className="rounded-none"
           >
             {mutation.isPending ? "Guardando..." : "Guardar"}
           </Button>
@@ -329,11 +328,16 @@ function DialogEliminarPermiso({
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" title="Eliminar permiso">
-          <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          title="Eliminar permiso"
+          className="rounded-none text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Eliminar permiso</DialogTitle>
           <DialogDescription>
@@ -354,7 +358,7 @@ function DialogEliminarPermiso({
               value={confirmacion}
               onChange={(e) => setConfirmacion(e.target.value)}
               autoComplete="off"
-              className="font-mono"
+              className="rounded-none font-mono"
             />
           </Field>
           {error ? (
@@ -368,6 +372,7 @@ function DialogEliminarPermiso({
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
+            className="rounded-none"
           >
             Cancelar
           </Button>
@@ -375,6 +380,7 @@ function DialogEliminarPermiso({
             variant="destructive"
             onClick={() => void confirmar()}
             disabled={mutation.isPending || confirmacion !== permiso.codigo}
+            className="rounded-none"
           >
             {mutation.isPending ? "Eliminando..." : "Eliminar"}
           </Button>
@@ -386,102 +392,101 @@ function DialogEliminarPermiso({
 
 export function PermisosVista() {
   const [busqueda, setBusqueda] = useState("")
-  const { data, isLoading, isError, error, refetch } = usePermisos()
+  // `pagina` es 1-based — coincide con el paginador del backend.
+  const [pagina, setPagina] = useState(1)
+  const [limite, setLimite] = useState(20)
 
-  const catalogoFiltrado = useMemo(() => {
-    if (!data) return []
-    const q = busqueda.trim().toLowerCase()
-    const lista = !q
-      ? data.datos
-      : data.datos.filter(
-          (p) =>
-            p.codigo.toLowerCase().includes(q) ||
-            p.descripcion.toLowerCase().includes(q) ||
-            p.modulo.toLowerCase().includes(q),
-        )
-    // Orden estable: por modulo y luego por codigo, asi las filas del mismo
-    // modulo quedan juntas.
-    return [...lista].sort(
-      (a, b) =>
-        (a.modulo || "otros").localeCompare(b.modulo || "otros") ||
-        a.codigo.localeCompare(b.codigo),
-    )
-  }, [data, busqueda])
-
-  const totalPermisos = catalogoFiltrado.length
-  const totalModulos = useMemo(
-    () => new Set(catalogoFiltrado.map((p) => p.modulo || "otros")).size,
-    [catalogoFiltrado],
+  const query = useMemo<ListarPermisosQuery>(
+    () => ({ pagina, limite, busqueda: busqueda.trim() || undefined }),
+    [pagina, limite, busqueda],
   )
 
+  const { data, isLoading, isError, error, refetch } = usePermisos(query)
+  const total = data?.paginacion.total ?? 0
+
+  function cambiarBusqueda(valor: string) {
+    setBusqueda(valor)
+    setPagina(1)
+  }
+
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle>Catalogo de permisos</CardTitle>
-              <CardDescription>
-                Permisos disponibles en el sistema. Estos son los permisos que
-                se asignan a los roles.
-              </CardDescription>
-            </div>
-            <DialogCrearPermiso onActualizado={refetch} />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <Input
-              placeholder="Buscar por codigo, descripcion o modulo..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              className="md:max-w-sm"
-            />
-            {!isLoading && !isError && totalPermisos > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                {totalPermisos} permiso{totalPermisos === 1 ? "" : "s"} en{" "}
-                {totalModulos} modulo{totalModulos === 1 ? "" : "s"}
-              </p>
+    <div className="flex flex-col gap-6 p-6">
+      {/* Cabecera */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-tight">Permisos</h1>
+            {data ? (
+              <Badge variant="secondary" className="rounded-none tabular-nums">
+                {total}
+              </Badge>
             ) : null}
           </div>
+          <p className="text-sm text-muted-foreground">
+            Catálogo de permisos que se asignan a los roles.
+          </p>
+        </div>
+        <DialogCrearPermiso onActualizado={refetch} />
+      </div>
 
+      {/* Busqueda */}
+      <div className="relative w-full sm:max-w-xs">
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por código, descripción o módulo…"
+          value={busqueda}
+          onChange={(e) => cambiarBusqueda(e.target.value)}
+          className="rounded-none pl-9"
+        />
+      </div>
+
+      {/* Tabla */}
+      <div className="overflow-hidden border">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Codigo</TableHead>
-                <TableHead>Modulo</TableHead>
-                <TableHead>Descripcion</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Código</TableHead>
+                <TableHead>Módulo</TableHead>
+                <TableHead>Descripción</TableHead>
+                <TableHead className="w-20 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={4}>
-                      <Skeleton className="h-6 w-full" />
+                Array.from({ length: 8 }).map((_, i) => (
+                  <TableRow key={i} className="hover:bg-transparent [&>td]:py-1.5">
+                    <TableCell>
+                      <Skeleton className="h-4 w-40 rounded-none" />
                     </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-16 rounded-none" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-4 w-56 rounded-none" />
+                    </TableCell>
+                    <TableCell />
                   </TableRow>
                 ))
               ) : isError ? (
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   <TableCell
                     colSpan={4}
-                    className="py-8 text-center text-destructive"
+                    className="py-12 text-center text-sm text-destructive"
                   >
-                    {extraerMensajeError(error, "No se pudo cargar el catalogo.")}
+                    {extraerMensajeError(error, "No se pudo cargar el catálogo.")}
                   </TableCell>
                 </TableRow>
-              ) : totalPermisos > 0 ? (
-                catalogoFiltrado.map((permiso) => (
-                  <TableRow key={permiso.id}>
+              ) : data && data.datos.length > 0 ? (
+                data.datos.map((permiso) => (
+                  <TableRow key={permiso.id} className="[&>td]:py-1.5">
                     <TableCell>
-                      <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+                      <code className="rounded-none bg-muted px-1.5 py-0.5 font-mono text-xs">
                         {permiso.codigo}
                       </code>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">
+                      <Badge variant="outline" className="rounded-none font-normal">
                         {permiso.modulo || "otros"}
                       </Badge>
                     </TableCell>
@@ -503,21 +508,34 @@ export function PermisosVista() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow>
+                <TableRow className="hover:bg-transparent">
                   <TableCell
                     colSpan={4}
-                    className="py-8 text-center text-sm text-muted-foreground"
+                    className="py-12 text-center text-sm text-muted-foreground"
                   >
                     {busqueda
-                      ? "Ningun permiso coincide con la busqueda."
-                      : "El catalogo esta vacio. Crea el primero para comenzar."}
+                      ? "Ningún permiso coincide con la búsqueda."
+                      : "El catálogo está vacío. Crea el primero para comenzar."}
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+
+        {data && total > 0 ? (
+          <PiePaginacion
+            pagina={pagina}
+            limite={limite}
+            total={total}
+            onPagina={setPagina}
+            onLimite={(l) => {
+              setLimite(l)
+              setPagina(1)
+            }}
+          />
+        ) : null}
+      </div>
     </div>
   )
 }

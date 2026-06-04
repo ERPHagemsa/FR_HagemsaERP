@@ -2,18 +2,11 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { Add01Icon } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { useRouter } from "next/navigation"
+import { ChevronRight, Plus, ShieldCheck } from "lucide-react"
 
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
 import { Empty } from "@/compartido/componentes/ui/empty"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import {
@@ -25,129 +18,178 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table"
 
+import { PiePaginacion } from "../componentes/paginacion-tabla"
 import { useRoles } from "../ganchos/use-roles"
-import type { ListarRolesQuery } from "../tipos/administracion.tipos"
+import type {
+  ListarRolesQuery,
+  RolResponse,
+} from "../tipos/administracion.tipos"
 
 const LIMIT_PAGINA = 20
+const COLUMNAS = 5
+
+function FilaRol({ rol }: { rol: RolResponse }) {
+  const router = useRouter()
+  const href = `/admin/roles/${rol.id}`
+
+  return (
+    <TableRow
+      tabIndex={0}
+      onClick={() => router.push(href)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          router.push(href)
+        }
+      }}
+      className="cursor-pointer focus-visible:bg-muted/60 focus-visible:outline-none [&>td]:py-1.5"
+    >
+      <TableCell>
+        <div className="flex items-center gap-3">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-none bg-primary/10 text-primary">
+            <ShieldCheck className="size-4" />
+          </span>
+          <span className="font-medium">{rol.nombre}</span>
+        </div>
+      </TableCell>
+      <TableCell className="max-w-sm truncate text-muted-foreground">
+        {rol.descripcion}
+      </TableCell>
+      <TableCell className="text-muted-foreground tabular-nums">
+        {rol.permisos.length}
+      </TableCell>
+      <TableCell>
+        <Badge
+          variant={rol.esSistema ? "secondary" : "outline"}
+          className="rounded-none font-normal"
+        >
+          {rol.esSistema ? "Sistema" : "Custom"}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        <ChevronRight className="ml-auto size-4 text-muted-foreground/60" />
+      </TableCell>
+    </TableRow>
+  )
+}
 
 export function RolesVista() {
   // `pagina` es 1-based — coincide con el paginador del backend.
   const [pagina, setPagina] = useState(1)
+  const [limite, setLimite] = useState(LIMIT_PAGINA)
 
   const query = useMemo<ListarRolesQuery>(
-    () => ({ pagina, limite: LIMIT_PAGINA }),
-    [pagina],
+    () => ({ pagina, limite }),
+    [pagina, limite],
   )
 
   const { data, isLoading, isError, error } = useRoles(query)
 
+  const total = data?.paginacion.total ?? 0
+
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle>Roles</CardTitle>
-              <CardDescription>
-                Catalogo de roles disponibles para asignar a las cuentas.
-              </CardDescription>
-            </div>
-            <Button asChild>
-              <Link href="/admin/roles/nuevo">
-                <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
-                Nuevo rol
-              </Link>
-            </Button>
+    <div className="flex flex-col gap-6 p-6">
+      {/* Cabecera */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-tight">Roles</h1>
+            {data ? (
+              <Badge variant="secondary" className="rounded-none tabular-nums">
+                {total}
+              </Badge>
+            ) : null}
           </div>
-        </CardHeader>
-        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Catálogo de roles disponibles para asignar a las cuentas.
+          </p>
+        </div>
+        <Button asChild className="rounded-none">
+          <Link href="/admin/roles/nuevo">
+            <Plus />
+            Nuevo rol
+          </Link>
+        </Button>
+      </div>
+
+      {/* Tabla */}
+      <div className="overflow-hidden border">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Descripcion</TableHead>
-                <TableHead className="text-center">Permisos</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Rol</TableHead>
+                <TableHead>Descripción</TableHead>
+                <TableHead>Permisos</TableHead>
                 <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={5}>
-                      <Skeleton className="h-6 w-full" />
+                Array.from({ length: 8 }).map((_, i) => (
+                  <TableRow key={i} className="hover:bg-transparent [&>td]:py-1.5">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-7 rounded-none" />
+                        <Skeleton className="rounded-none h-4 w-32" />
+                      </div>
                     </TableCell>
+                    <TableCell>
+                      <Skeleton className="rounded-none h-4 w-48" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="rounded-none h-4 w-8" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="rounded-none h-4 w-16" />
+                    </TableCell>
+                    <TableCell />
                   </TableRow>
                 ))
               ) : isError ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-destructive">
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={COLUMNAS}
+                    className="py-12 text-center text-sm text-destructive"
+                  >
                     {error instanceof Error
                       ? error.message
                       : "No se pudieron cargar los roles."}
                   </TableCell>
                 </TableRow>
-              ) : data?.datos && data.datos.length > 0 ? (
-                data.datos.map((rol) => (
-                  <TableRow key={rol.id}>
-                    <TableCell className="font-medium">{rol.nombre}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {rol.descripcion}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {rol.permisos.length}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={rol.esSistema ? "secondary" : "outline"}>
-                        {rol.esSistema ? "Sistema" : "Custom"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/admin/roles/${rol.id}`}>Ver</Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+              ) : data && data.datos.length > 0 ? (
+                data.datos.map((rol) => <FilaRol key={rol.id} rol={rol} />)
               ) : (
-                <TableRow>
-                  <TableCell colSpan={5}>
-                    <Empty>Aun no hay roles. Crea el primero para comenzar.</Empty>
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={COLUMNAS} className="py-12">
+                    <Empty className="gap-2">
+                      <ShieldCheck className="size-8 text-muted-foreground/50" />
+                      <p className="text-sm text-muted-foreground">
+                        Aún no hay roles. Crea el primero para comenzar.
+                      </p>
+                    </Empty>
                   </TableCell>
                 </TableRow>
               )}
             </TableBody>
           </Table>
+        </div>
 
-          {data && data.paginacion.totalPaginas > 1 ? (
-            <div className="flex items-center justify-between gap-2 pt-4">
-              <p className="text-sm text-muted-foreground">
-                Pagina {data.paginacion.pagina} de{" "}
-                {data.paginacion.totalPaginas} ({data.paginacion.total} roles)
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagina((p) => Math.max(1, p - 1))}
-                  disabled={!data.paginacion.tieneAnterior}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagina((p) => p + 1)}
-                  disabled={!data.paginacion.tieneSiguiente}
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+        {/* Pie: rango + paginacion */}
+        {data && total > 0 ? (
+          <PiePaginacion
+            pagina={pagina}
+            limite={limite}
+            total={total}
+            onPagina={setPagina}
+            onLimite={(l) => {
+              setLimite(l)
+              setPagina(1)
+            }}
+          />
+        ) : null}
+      </div>
     </div>
   )
 }

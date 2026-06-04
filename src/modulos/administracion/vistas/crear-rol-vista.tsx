@@ -4,19 +4,10 @@ import { FormEvent, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowLeft } from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api"
 import { Button } from "@/compartido/componentes/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
 import {
   Field,
   FieldError,
@@ -56,30 +47,35 @@ export function CrearRolVista() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <div>
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/admin/roles">
-            <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
-            Volver a roles
-          </Link>
-        </Button>
-      </div>
+    <div className="flex flex-col gap-6 p-6">
+      <Button
+        asChild
+        variant="ghost"
+        size="sm"
+        className="rounded-none -ml-2 w-fit text-muted-foreground"
+      >
+        <Link href="/admin/roles">
+          <ArrowLeft />
+          Volver a roles
+        </Link>
+      </Button>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nuevo rol</CardTitle>
-          <CardDescription>
-            Crea un nuevo rol. Despues podras asignarle permisos del catalogo.
-          </CardDescription>
-        </CardHeader>
+      <div className="max-w-2xl space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Nuevo rol</h1>
+          <p className="text-sm text-muted-foreground">
+            Crea un nuevo rol. Después podrás asignarle permisos del catálogo.
+          </p>
+        </div>
+
         <form onSubmit={(event) => void manejarSubmit(event)}>
-          <CardContent>
+          <div className="border p-6">
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="nombre">Nombre</FieldLabel>
                 <Input
                   id="nombre"
+                  className="rounded-none"
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
                   placeholder="ALMACENERO_LIMA"
@@ -88,12 +84,13 @@ export function CrearRolVista() {
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="descripcion">Descripcion</FieldLabel>
+                <FieldLabel htmlFor="descripcion">Descripción</FieldLabel>
                 <Input
                   id="descripcion"
+                  className="rounded-none"
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
-                  placeholder="Quien hace que con este rol"
+                  placeholder="Quién hace qué con este rol"
                   required
                   maxLength={500}
                 />
@@ -110,8 +107,8 @@ export function CrearRolVista() {
                       Rol de sistema (protegido)
                     </span>
                     <span className="block text-xs text-muted-foreground">
-                      Un rol de sistema no se puede renombrar ni eliminar despues
-                      de crearlo; solo se ajustan sus permisos. Dejalo sin marcar
+                      Un rol de sistema no se puede renombrar ni eliminar después
+                      de crearlo; solo se ajustan sus permisos. Déjalo sin marcar
                       para un rol normal.
                     </span>
                   </span>
@@ -123,17 +120,18 @@ export function CrearRolVista() {
                 </Field>
               ) : null}
             </FieldGroup>
-          </CardContent>
-          <CardFooter className="justify-end gap-2">
-            <Button asChild variant="ghost" type="button">
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button asChild variant="ghost" type="button" className="rounded-none">
               <Link href="/admin/roles">Cancelar</Link>
             </Button>
-            <Button type="submit" disabled={crearMutation.isPending}>
+            <Button type="submit" className="rounded-none" disabled={crearMutation.isPending}>
               {crearMutation.isPending ? "Creando..." : "Crear rol"}
             </Button>
-          </CardFooter>
+          </div>
         </form>
-      </Card>
+      </div>
     </div>
   )
 }

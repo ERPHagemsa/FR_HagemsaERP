@@ -4,24 +4,11 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import {
-  ArrowLeft01Icon,
-  Cancel01Icon,
-  Delete02Icon,
-  Edit02Icon,
-} from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowLeft, Pencil, ShieldCheck, Trash2, X } from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
 import { Checkbox } from "@/compartido/componentes/ui/checkbox"
 import {
   Dialog,
@@ -192,12 +179,12 @@ function DialogEditarPermisosRol({
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <HugeiconsIcon icon={Edit02Icon} strokeWidth={2} />
+        <Button size="sm" className="rounded-none">
+          <Pencil />
           Editar permisos
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="rounded-none max-w-2xl">
         <DialogHeader>
           <DialogTitle>Editar permisos del rol</DialogTitle>
           <DialogDescription>
@@ -210,6 +197,7 @@ function DialogEditarPermisosRol({
           placeholder="Buscar por codigo, descripcion o modulo..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
+          className="rounded-none"
         />
 
         <div className="max-h-[50vh] space-y-4 overflow-y-auto pr-1">
@@ -236,7 +224,7 @@ function DialogEditarPermisosRol({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-6 text-xs"
+                      className="rounded-none h-6 text-xs"
                       onClick={() => alternarModulo(modulo, codigosDelModulo)}
                     >
                       {todosSeleccionados
@@ -246,13 +234,13 @@ function DialogEditarPermisosRol({
                           : "Marcar todos"}
                     </Button>
                   </div>
-                  <div className="space-y-1.5 rounded-md border p-2">
+                  <div className="space-y-1.5 rounded-none border p-2">
                     {permisos.map((permiso) => {
                       const checked = seleccionados.has(permiso.codigo)
                       return (
                         <label
                           key={permiso.id}
-                          className="flex cursor-pointer items-start gap-2 rounded px-1 py-1 hover:bg-muted/60"
+                          className="flex cursor-pointer items-start gap-2 rounded-none px-1 py-1 hover:bg-muted/60"
                         >
                           <Checkbox
                             checked={checked}
@@ -288,12 +276,14 @@ function DialogEditarPermisosRol({
               variant="ghost"
               onClick={() => setAbierto(false)}
               disabled={mutation.isPending}
+              className="rounded-none"
             >
               Cancelar
             </Button>
             <Button
               onClick={() => void guardar()}
               disabled={mutation.isPending || sinCambios}
+              className="rounded-none"
             >
               {mutation.isPending ? "Guardando..." : "Guardar cambios"}
             </Button>
@@ -329,16 +319,16 @@ function BadgePermisoRevocable({
   }
 
   return (
-    <Badge variant="outline" className="gap-1 pr-1 font-mono">
+    <Badge variant="outline" className="rounded-none gap-1 pr-1 font-mono">
       {codigo}
       <button
         type="button"
         onClick={() => void revocar()}
         disabled={mutation.isPending}
-        className="ml-1 inline-flex size-4 items-center justify-center rounded-sm text-muted-foreground hover:bg-destructive/15 hover:text-destructive disabled:opacity-50"
+        className="ml-1 inline-flex size-4 items-center justify-center rounded-none text-muted-foreground hover:bg-destructive/15 hover:text-destructive disabled:opacity-50"
         aria-label={`Revocar ${codigo}`}
       >
-        <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3" />
+        <X className="size-3" />
       </button>
     </Badge>
   )
@@ -398,12 +388,12 @@ function DialogEditarRol({ rol, onActualizado }: PropsDialogEditarRol) {
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button variant="outline">
-          <HugeiconsIcon icon={Edit02Icon} strokeWidth={2} />
+        <Button variant="outline" size="sm" className="rounded-none">
+          <Pencil />
           Editar
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Editar rol</DialogTitle>
           <DialogDescription>
@@ -419,7 +409,7 @@ function DialogEditarRol({ rol, onActualizado }: PropsDialogEditarRol) {
               value={nombre}
               onChange={(e) => setNombre(e.target.value.toUpperCase())}
               maxLength={50}
-              className="font-mono"
+              className="rounded-none font-mono"
             />
           </Field>
           <Field>
@@ -429,6 +419,7 @@ function DialogEditarRol({ rol, onActualizado }: PropsDialogEditarRol) {
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
               maxLength={500}
+              className="rounded-none"
             />
           </Field>
           {error ? (
@@ -442,12 +433,14 @@ function DialogEditarRol({ rol, onActualizado }: PropsDialogEditarRol) {
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
+            className="rounded-none"
           >
             Cancelar
           </Button>
           <Button
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
+            className="rounded-none"
           >
             {mutation.isPending ? "Guardando..." : "Guardar"}
           </Button>
@@ -498,12 +491,16 @@ function DialogEliminarRol({ rol, onEliminado }: PropsDialogEliminarRol) {
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="destructive">
-          <HugeiconsIcon icon={Delete02Icon} strokeWidth={2} />
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-none text-destructive hover:text-destructive"
+        >
+          <Trash2 />
           Eliminar
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="rounded-none">
         <DialogHeader>
           <DialogTitle>Eliminar rol</DialogTitle>
           <DialogDescription>
@@ -522,6 +519,7 @@ function DialogEliminarRol({ rol, onEliminado }: PropsDialogEliminarRol) {
               value={confirmacion}
               onChange={(e) => setConfirmacion(e.target.value)}
               autoComplete="off"
+              className="rounded-none"
             />
           </Field>
           {error ? (
@@ -535,6 +533,7 @@ function DialogEliminarRol({ rol, onEliminado }: PropsDialogEliminarRol) {
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
+            className="rounded-none"
           >
             Cancelar
           </Button>
@@ -542,6 +541,7 @@ function DialogEliminarRol({ rol, onEliminado }: PropsDialogEliminarRol) {
             variant="destructive"
             onClick={() => void confirmar()}
             disabled={mutation.isPending || confirmacion !== rol.nombre}
+            className="rounded-none"
           >
             {mutation.isPending ? "Eliminando..." : "Eliminar"}
           </Button>
@@ -566,126 +566,144 @@ export function RolDetalleVista({ rolId }: PropsRolDetalleVista) {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <div>
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/admin/roles">
-            <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
-            Volver a roles
-          </Link>
-        </Button>
-      </div>
+    <div className="flex flex-col gap-6 p-6">
+      <Button
+        asChild
+        variant="ghost"
+        size="sm"
+        className="rounded-none -ml-2 w-fit text-muted-foreground"
+      >
+        <Link href="/admin/roles">
+          <ArrowLeft />
+          Volver a roles
+        </Link>
+      </Button>
 
       {isLoading ? (
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Skeleton className="h-5 w-full" />
-            <Skeleton className="h-5 w-3/4" />
-          </CardContent>
-        </Card>
-      ) : isError ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Error</CardTitle>
-            <CardDescription>
-              {extraerMensajeError(error, "No se pudo cargar el rol.")}
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      ) : data ? (
-        <Card>
-          <CardHeader>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>{data.nombre}</CardTitle>
-                <CardDescription>{data.descripcion}</CardDescription>
-              </div>
-              <Badge variant={data.esSistema ? "secondary" : "outline"}>
-                {data.esSistema ? "Sistema" : "Custom"}
-              </Badge>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Skeleton className="size-10 rounded-none" />
+            <div className="space-y-2">
+              <Skeleton className="rounded-none h-6 w-48" />
+              <Skeleton className="rounded-none h-4 w-64" />
             </div>
+          </div>
+          <div className="space-y-3 border p-5">
+            <Skeleton className="rounded-none h-5 w-full" />
+            <Skeleton className="rounded-none h-5 w-3/4" />
+          </div>
+        </div>
+      ) : isError ? (
+        <div className="border border-destructive/30 p-5 text-sm text-destructive">
+          {extraerMensajeError(error, "No se pudo cargar el rol.")}
+        </div>
+      ) : data ? (
+        <>
+          {/* Cabecera de identidad */}
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-none bg-primary/10 text-primary">
+                <ShieldCheck className="size-5" />
+              </span>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <h1 className="font-mono text-2xl font-semibold tracking-tight">
+                    {data.nombre}
+                  </h1>
+                  <Badge
+                    variant={data.esSistema ? "secondary" : "outline"}
+                    className="rounded-none font-normal"
+                  >
+                    {data.esSistema ? "Sistema" : "Custom"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {data.descripcion}
+                </p>
+              </div>
+            </div>
+
             {!data.esSistema ? (
-              <div className="flex flex-wrap items-center gap-2 pt-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <DialogEditarRol rol={data} onActualizado={refetch} />
                 <DialogEliminarRol rol={data} onEliminado={volverAListado} />
               </div>
             ) : null}
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm md:grid-cols-2">
-              <div>
-                <dt className="font-medium text-muted-foreground">ID</dt>
-                <dd className="font-mono text-xs">{data.id}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  Cantidad de permisos
-                </dt>
-                <dd>{data.permisos.length}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">Creado</dt>
-                <dd>{new Date(data.createdAt).toLocaleString("es-PE")}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted-foreground">
-                  Ultima actualizacion
-                </dt>
-                <dd>{new Date(data.updatedAt).toLocaleString("es-PE")}</dd>
-              </div>
-            </dl>
+          </div>
 
-            <div className="space-y-3 border-t pt-6">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-sm font-semibold">Permisos asignados</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {data.esSistema
-                      ? "Rol de sistema — nombre y descripcion son inmutables, pero podes ajustar sus permisos."
-                      : "Editar masivamente o quitar uno a uno con la X."}
-                  </p>
-                </div>
-                {permisosCatalogo.data ? (
-                  <DialogEditarPermisosRol
-                    rol={data}
-                    catalogo={permisosCatalogo.data.datos}
-                    onActualizado={refetch}
-                  />
-                ) : null}
-              </div>
-
-              {data.permisos.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Este rol no tiene permisos asignados todavia.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {Object.entries(gruposPermisos).map(([modulo, permisos]) => (
-                    <div key={modulo}>
-                      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {modulo}
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {permisos.map((codigo) => (
-                          <BadgePermisoRevocable
-                            key={codigo}
-                            codigo={codigo}
-                            rolId={data.id}
-                            onActualizado={refetch}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          {/* Datos del rol */}
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-4 border p-5 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <dt className="text-xs text-muted-foreground">Permisos</dt>
+              <dd className="mt-0.5 tabular-nums">{data.permisos.length}</dd>
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <dt className="text-xs text-muted-foreground">Creado el</dt>
+              <dd className="mt-0.5">
+                {new Date(data.createdAt).toLocaleString("es-PE")}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">
+                Última actualización
+              </dt>
+              <dd className="mt-0.5">
+                {new Date(data.updatedAt).toLocaleString("es-PE")}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-muted-foreground">ID</dt>
+              <dd className="mt-0.5 font-mono text-xs">{data.id}</dd>
+            </div>
+          </dl>
+
+          {/* Permisos asignados */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-semibold">Permisos asignados</h2>
+                <p className="text-xs text-muted-foreground">
+                  {data.esSistema
+                    ? "Rol de sistema — nombre y descripción son inmutables, pero podés ajustar sus permisos."
+                    : "Editar masivamente o quitar uno a uno con la X."}
+                </p>
+              </div>
+              {permisosCatalogo.data ? (
+                <DialogEditarPermisosRol
+                  rol={data}
+                  catalogo={permisosCatalogo.data.datos}
+                  onActualizado={refetch}
+                />
+              ) : null}
+            </div>
+
+            {data.permisos.length === 0 ? (
+              <div className="border border-dashed p-8 text-center text-sm text-muted-foreground">
+                Este rol no tiene permisos asignados todavía.
+              </div>
+            ) : (
+              <div className="space-y-4 border p-5">
+                {Object.entries(gruposPermisos).map(([modulo, permisos]) => (
+                  <div key={modulo}>
+                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {modulo}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {permisos.map((codigo) => (
+                        <BadgePermisoRevocable
+                          key={codigo}
+                          codigo={codigo}
+                          rolId={data.id}
+                          onActualizado={refetch}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       ) : null}
     </div>
   )

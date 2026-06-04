@@ -4,19 +4,10 @@ import { FormEvent, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons"
+import { ArrowLeft } from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api"
 import { Button } from "@/compartido/componentes/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
 import {
   Field,
   FieldError,
@@ -68,30 +59,36 @@ export function CrearCuentaVista() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      <div>
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/admin/cuentas">
-            <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} />
-            Volver a cuentas
-          </Link>
-        </Button>
-      </div>
+    <div className="flex flex-col gap-6 p-6">
+      <Button
+        asChild
+        variant="ghost"
+        size="sm"
+        className="rounded-none -ml-2 w-fit text-muted-foreground"
+      >
+        <Link href="/admin/cuentas">
+          <ArrowLeft />
+          Volver a cuentas
+        </Link>
+      </Button>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nueva cuenta</CardTitle>
-          <CardDescription>
-            Crea una nueva cuenta. Despues podras asignarle roles desde el detalle.
-          </CardDescription>
-        </CardHeader>
+      <div className="max-w-2xl space-y-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Nueva cuenta</h1>
+          <p className="text-sm text-muted-foreground">
+            Crea una nueva cuenta. Después podrás asignarle roles desde el
+            detalle.
+          </p>
+        </div>
+
         <form onSubmit={(event) => void manejarSubmit(event)}>
-          <CardContent>
+          <div className="border p-6">
             <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="email">Correo</FieldLabel>
                 <Input
                   id="email"
+                  className="rounded-none"
                   type="email"
                   autoComplete="off"
                   value={email}
@@ -104,6 +101,7 @@ export function CrearCuentaVista() {
                 <FieldLabel htmlFor="nombreUsuario">Nombre de usuario</FieldLabel>
                 <Input
                   id="nombreUsuario"
+                  className="rounded-none"
                   type="text"
                   autoComplete="off"
                   value={nombreUsuario}
@@ -119,6 +117,7 @@ export function CrearCuentaVista() {
                 <FieldLabel htmlFor="nombreCompleto">Nombre completo</FieldLabel>
                 <Input
                   id="nombreCompleto"
+                  className="rounded-none"
                   type="text"
                   value={nombreCompleto}
                   onChange={(e) => setNombreCompleto(e.target.value)}
@@ -132,22 +131,23 @@ export function CrearCuentaVista() {
                   value={tipoCuenta}
                   onValueChange={(v) => setTipoCuenta(v as TipoCuenta)}
                 >
-                  <SelectTrigger id="tipoCuenta">
+                  <SelectTrigger id="tipoCuenta" className="rounded-none w-full">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="interno">Interno</SelectItem>
-                    <SelectItem value="cliente">Cliente</SelectItem>
-                    <SelectItem value="proveedor">Proveedor</SelectItem>
+                  <SelectContent className="rounded-none">
+                    <SelectItem value="interno" className="rounded-none">Interno</SelectItem>
+                    <SelectItem value="cliente" className="rounded-none">Cliente</SelectItem>
+                    <SelectItem value="proveedor" className="rounded-none">Proveedor</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
-              <Field>
+              <Field className="sm:col-span-2">
                 <FieldLabel htmlFor="documentoIdentidad">
                   Documento de identidad (opcional)
                 </FieldLabel>
                 <Input
                   id="documentoIdentidad"
+                  className="rounded-none"
                   type="text"
                   value={documentoIdentidad}
                   onChange={(e) => setDocumentoIdentidad(e.target.value)}
@@ -160,17 +160,18 @@ export function CrearCuentaVista() {
                 </Field>
               ) : null}
             </FieldGroup>
-          </CardContent>
-          <CardFooter className="justify-end gap-2">
-            <Button asChild variant="ghost" type="button">
+          </div>
+
+          <div className="mt-4 flex justify-end gap-2">
+            <Button asChild variant="ghost" type="button" className="rounded-none">
               <Link href="/admin/cuentas">Cancelar</Link>
             </Button>
-            <Button type="submit" disabled={crearMutation.isPending}>
+            <Button type="submit" className="rounded-none" disabled={crearMutation.isPending}>
               {crearMutation.isPending ? "Creando..." : "Crear cuenta"}
             </Button>
-          </CardFooter>
+          </div>
         </form>
-      </Card>
+      </div>
     </div>
   )
 }

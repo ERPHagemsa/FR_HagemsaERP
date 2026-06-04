@@ -14,6 +14,7 @@ import type {
   CrearRolResponse,
   ListaPermisosResponse,
   ListaRolesResponse,
+  ListarPermisosQuery,
   ListarRolesQuery,
   PermisoResponse,
   RolResponse,
@@ -66,12 +67,22 @@ export async function eliminarRol(rolId: string): Promise<void> {
   await clienteHttp.delete(`/api/admin/roles/${rolId}`)
 }
 
+function construirQueryPermisos(query: ListarPermisosQuery): string {
+  const params = new URLSearchParams()
+  if (query.pagina !== undefined) params.set("pagina", String(query.pagina))
+  if (query.limite !== undefined) params.set("limite", String(query.limite))
+  if (query.busqueda) params.set("busqueda", query.busqueda)
+  const qs = params.toString()
+  return qs ? `?${qs}` : ""
+}
+
+// El backend pagina si se pasan pagina/limite; sin params devuelve el catalogo
+// completo (lo usa el editor masivo de permisos del rol).
 export async function obtenerPermisos(
-  modulo?: string,
+  query: ListarPermisosQuery = {},
 ): Promise<ListaPermisosResponse> {
-  const query = modulo ? `?modulo=${encodeURIComponent(modulo)}` : ""
   const { data } = await clienteHttp.get<RespuestaPaginada<PermisoResponse>>(
-    `/api/admin/permisos${query}`,
+    `/api/admin/permisos${construirQueryPermisos(query)}`,
   )
   return { datos: data.datos, paginacion: data.paginacion }
 }
