@@ -106,7 +106,7 @@ export function CuentasVista() {
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
             <Input
-              placeholder="Buscar por email o nombre..."
+              placeholder="Buscar por email, usuario o nombre..."
               value={busqueda}
               onChange={(e) =>
                 aplicarFiltros<string>(setBusqueda)(e.target.value)
@@ -157,6 +157,7 @@ export function CuentasVista() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
+                <TableHead>Usuario</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead>Estado</TableHead>
@@ -168,14 +169,14 @@ export function CuentasVista() {
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={7}>
                       <Skeleton className="h-6 w-full" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-destructive">
+                  <TableCell colSpan={7} className="py-8 text-center text-destructive">
                     {error instanceof Error
                       ? error.message
                       : "No se pudieron cargar las cuentas."}
@@ -186,6 +187,9 @@ export function CuentasVista() {
                   <TableRow key={cuenta.id}>
                     <TableCell className="font-medium">
                       {cuenta.nombreCompleto}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {cuenta.nombreUsuario ? `@${cuenta.nombreUsuario}` : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {cuenta.email}
@@ -210,7 +214,7 @@ export function CuentasVista() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Empty>No hay cuentas que coincidan con los filtros.</Empty>
                   </TableCell>
                 </TableRow>

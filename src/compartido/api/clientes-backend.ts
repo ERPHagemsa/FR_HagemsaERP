@@ -62,8 +62,18 @@ function crearClientePorBC(servicio: ServicioApi) {
   })
 }
 
+function crearClienteBffPorBC(servicio: ServicioApi) {
+  const configuracion = obtenerConfiguracionApi(servicio)
+  return crearClienteHttp({
+    baseURL: "/api",
+    timeoutMs: configuracion.timeoutMs,
+    withCredentials: true,
+    mensajeErrorDefault: `No se pudo completar la operacion en ${configuracion.nombre}.`,
+  })
+}
+
 export const clienteActivos = crearClientePorBC("activos")
 export const clienteCombustible = crearClientePorBC("combustible")
 export const clienteSocioNegocios = crearClientePorBC("socioNegocios")
-export const clienteConfiguracionGeneral = crearClientePorBC("configuracionGeneral")
+export const clienteConfiguracionGeneral = crearClienteBffPorBC("configuracionGeneral")
 export const clienteComercial = crearClientePorBC("comercial")

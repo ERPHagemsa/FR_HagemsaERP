@@ -20,6 +20,20 @@ export type AccionHistorialSocioDeNegocio =
   | "MODIFICACION"
   | "ELIMINACION"
 
+export type SortOrder = "asc" | "desc"
+
+export type SortBySocioDeNegocio =
+  | "count"
+  | "codigoInternoSap"
+  | "tipo"
+  | "numeroDocumento"
+  | "razonSocial"
+  | "estado"
+  | "estadoRegistro"
+  | "fechaCreacion"
+
+export type ValorPaginacion = number | string
+
 export interface PaginationMeta {
   pagina: number
   limite: number
@@ -67,11 +81,16 @@ export interface ResumenSociosDeNegocioResponse {
 
 export interface SocioDeNegocioResponse {
   id: string
+  count: number
   codigoInternoSap: string
   tipo: TipoSocioDeNegocio
   numeroDocumento: string
   razonSocial: string
   nombreComercial: string
+  primerNombre?: string
+  segundoNombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
   direccion: string
   contacto: string
   correo: string
@@ -82,27 +101,27 @@ export interface SocioDeNegocioResponse {
   usuarioCreacion: string
   fechaModificacion: string
   usuarioModificacion: string
-  cargo: string
-  cargoId?: string | null
-  cargoNombre?: string | null
-  sede: string
-  sedeId?: string | null
-  sedeNombre?: string | null
-  area: string
-  areaId?: string | null
-  areaNombre?: string | null
-  contrato: string
-  contratoId?: string | null
-  contratoNombre?: string | null
-  cuenta: string
-  cuentaId?: string | null
-  cuentaNombre?: string | null
+  cargoId: string
+  cargoNombre: string
+  sedeId: string
+  sedeNombre: string
+  areaId: string
+  areaNombre: string
+  contratoId?: string
+  contratoNombre?: string
+  cuentaId: string
+  cuentaNombre: string
   motivoBaja: string
   fechaBaja: string
   usuarioBajaId: string
   motivoAnulacion: string
   fechaAnulacion: string
   usuarioAnulacionId: string
+  cargo?: string
+  sede?: string
+  area?: string
+  contrato?: string
+  cuenta?: string
 }
 
 export interface EstadoBcResponse {
@@ -112,6 +131,7 @@ export interface EstadoBcResponse {
 
 export interface MaestroConfiguracionGeneralIntegracion {
   id: string
+  count?: number
   idExterno?: string
   tipoDatoMaestro: TipoDatoMaestroIntegracion
   codigo: string
@@ -120,6 +140,11 @@ export interface MaestroConfiguracionGeneralIntegracion {
   areaId?: string | null
   sedeId?: string | null
   ubicacionId?: string | null
+  departamento?: string | null
+  provincia?: string | null
+  distrito?: string | null
+  nivelCuentaContrato?: number | null
+  contratoPadreId?: string | null
   fechaSincronizacion?: string | null
   ultimoEventoId?: string | null
   ultimoEvento?: string | null
@@ -142,7 +167,7 @@ export interface ConsultarMaestrosConfiguracionGeneralQuery {
 
 /** Base común para todos los tipos */
 interface RegistrarSocioDeNegocioBase {
-  codigoInternoSap: string
+  codigoInternoSap?: string
   numeroDocumento: string
   razonSocial: string
   nombreComercial: string
@@ -152,10 +177,12 @@ interface RegistrarSocioDeNegocioBase {
   numeroCelular: string
   cuentaId?: string
   cuentaNombre?: string
+  contratoId?: string
+  contratoNombre?: string
   usuarioId?: string
 }
 
-/** Cliente: contacto + área/cargo OPCIONAL (donde atiende en nuestras operaciones) */
+/** Cliente: el backend obtiene datos comerciales desde SAP por documento */
 export interface RegistrarClienteRequest extends RegistrarSocioDeNegocioBase {
   tipo: "CLIENTE"
   areaId?: string
@@ -164,7 +191,7 @@ export interface RegistrarClienteRequest extends RegistrarSocioDeNegocioBase {
   cargoNombre?: string
 }
 
-/** Proveedor: contacto + área/cargo OPCIONAL (donde atiende en nuestras operaciones) */
+/** Proveedor: el backend obtiene datos comerciales desde SAP por documento */
 export interface RegistrarProveedorRequest extends RegistrarSocioDeNegocioBase {
   tipo: "PROVEEDOR"
   areaId?: string
@@ -176,16 +203,24 @@ export interface RegistrarProveedorRequest extends RegistrarSocioDeNegocioBase {
 /** Personal: TODOS los datos laborales OBLIGATORIOS */
 export interface RegistrarPersonalRequest extends RegistrarSocioDeNegocioBase {
   tipo: "PERSONAL"
-  ubicacionId: string
-  ubicacionNombre: string
+  primerNombre: string
+  segundoNombre?: string
+  apellidoPaterno: string
+  apellidoMaterno: string
+  razonSocial: string
+  nombreComercial: string
+  direccion: string
+  contacto: string
+  correo: string
+  numeroCelular: string
   sedeId: string
   sedeNombre: string
   areaId: string
   areaNombre: string
   cargoId: string
   cargoNombre: string
-  contratoId: string
-  contratoNombre: string
+  contratoId?: string
+  contratoNombre?: string
 }
 
 /** Request unificado (compatible con el backend) */
@@ -197,6 +232,10 @@ export type RegistrarSocioDeNegocioRequest =
 export type RegistrarClienteDesdeComercialRequest = RegistrarClienteRequest
 
 export interface ModificarSocioDeNegocioRequest {
+  primerNombre?: string
+  segundoNombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
   razonSocial?: string
   nombreComercial?: string
   direccion?: string
@@ -230,30 +269,33 @@ export interface ConsultarSociosDeNegocioQuery {
   tipo?: TipoSocioDeNegocio
   estado?: EstadoSocioDeNegocio
   estadoRegistro?: EstadoRegistro
+  count?: ValorPaginacion
   numeroDocumento?: string
   codigoInternoSap?: string
+  primerNombre?: string
+  segundoNombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
   razonSocial?: string
   nombreComercial?: string
   direccion?: string
   contacto?: string
   correo?: string
   numeroCelular?: string
-  area?: string
-  cargo?: string
-  sede?: string
-  contrato?: string
-  cuenta?: string
-  page?: number
-  pageSize?: number
-  sortBy?:
-    | "codigoInternoSap"
-    | "tipo"
-    | "numeroDocumento"
-    | "razonSocial"
-    | "estado"
-    | "estadoRegistro"
-    | "fechaCreacion"
-  sortOrder?: "asc" | "desc"
+  cargoId?: string
+  cargoNombre?: string
+  sedeId?: string
+  sedeNombre?: string
+  areaId?: string
+  areaNombre?: string
+  contratoId?: string
+  contratoNombre?: string
+  cuentaId?: string
+  cuentaNombre?: string
+  page?: ValorPaginacion
+  pageSize?: ValorPaginacion
+  sortBy?: SortBySocioDeNegocio
+  sortOrder?: SortOrder
 }
 
 export interface ConsultarHistorialSocioDeNegocioQuery {
@@ -261,13 +303,76 @@ export interface ConsultarHistorialSocioDeNegocioQuery {
   usuarioAccion?: string
   fechaDesde?: string
   fechaHasta?: string
-  page?: number
-  pageSize?: number
+  page?: ValorPaginacion
+  pageSize?: ValorPaginacion
 }
 
-export interface ExportarSociosDeNegocioQuery
-  extends ConsultarSociosDeNegocioQuery {
+export interface ExportarSociosDeNegocioQuery {
   formato: FormatoExportacionSocios
+  tipo?: TipoSocioDeNegocio
+  estado?: EstadoSocioDeNegocio
+  estadoRegistro?: EstadoRegistro
+  count?: ValorPaginacion
+  numeroDocumento?: string
+  codigoInternoSap?: string
+  primerNombre?: string
+  segundoNombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
+  razonSocial?: string
+  nombreComercial?: string
+  direccion?: string
+  contacto?: string
+  correo?: string
+  numeroCelular?: string
+  cargoId?: string
+  cargoNombre?: string
+  sedeId?: string
+  sedeNombre?: string
+  areaId?: string
+  areaNombre?: string
+  contratoId?: string
+  contratoNombre?: string
+  cuentaId?: string
+  cuentaNombre?: string
+  sortBy?: string
+  sortOrder?: SortOrder
+}
+
+export interface ConsultarSapPorDocumentoQuery {
+  tipo: Exclude<TipoSocioDeNegocio, "PERSONAL">
+}
+
+export interface SapBusinessPartnerResumenResponse {
+  codigoInternoSap: string
+  tipo: Exclude<TipoSocioDeNegocio, "PERSONAL">
+  numeroDocumento: string
+  razonSocial: string
+  direccion: string
+  contacto: string
+  correo: string
+  numeroCelular: string
+  cargoId?: string
+  cargoNombre?: string
+  areaId?: string
+  areaNombre?: string
+  cuentaId?: string
+  cuentaNombre?: string
+}
+
+export type SapBusinessPartnerResponse = SapBusinessPartnerResumenResponse & {
+  nombreComercial?: string
+  cargoId?: string
+  cargoNombre?: string
+  sedeId?: string
+  sedeNombre?: string
+  areaId?: string
+  areaNombre?: string
+  contratoId?: string
+  contratoNombre?: string
+  cuentaId?: string
+  cuentaNombre?: string
+  [key: string]: unknown
 }
 
 export interface ReporteSociosDeNegocioResponse {
@@ -279,10 +384,10 @@ export interface ReporteSociosDeNegocioResponse {
 export interface HistorialSocioDeNegocioResponse {
   id: string
   idRegistro: string
+  count: number
   accion: AccionHistorialSocioDeNegocio
   fechaAccion: string
   usuarioAccion: string
-  datosAnteriores: Record<string, unknown>
-  datosNuevos: Record<string, unknown>
+  datosAnteriores: Record<string, unknown> | null
+  datosNuevos: Record<string, unknown> | null
 }
-

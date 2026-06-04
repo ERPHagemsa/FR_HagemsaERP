@@ -583,6 +583,12 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
           <CardContent className="space-y-6">
             <dl className="grid grid-cols-1 gap-x-6 gap-y-4 text-sm md:grid-cols-2">
               <div>
+                <dt className="font-medium text-muted-foreground">
+                  Nombre de usuario
+                </dt>
+                <dd>{data.nombreUsuario ? `@${data.nombreUsuario}` : "—"}</dd>
+              </div>
+              <div>
                 <dt className="font-medium text-muted-foreground">ID</dt>
                 <dd className="font-mono text-xs">{data.id}</dd>
               </div>

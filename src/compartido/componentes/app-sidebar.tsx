@@ -49,7 +49,6 @@ const data = {
         { title: "Listar socios", url: "/socio-negocios/listar" },
         { title: "Registrar socio", url: "/socio-negocios/nuevo" },
         { title: "Historial", url: "/socio-negocios/historial" },
-        { title: "Reportes", url: "/socio-negocios/reportes" },
       ],
     },
     {
@@ -90,7 +89,8 @@ const data = {
       icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
       items: [
         { title: "Prospectos", url: "/comercial/prospectos" },
-        { title: "Cotizaciones", url: "/comercial" },
+        { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
+        { title: "Cotizaciones", url: "/comercial/cotizaciones" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
       ],
@@ -176,7 +176,7 @@ const data = {
       icon: <HugeiconsIcon icon={Settings02Icon} strokeWidth={2} />,
       items: [
         { title: "Configuraciones", url: "/configuracion/listar" },
-        { title: "Nueva configuración", url: "/configuracion/nuevo" },
+        { title: "Nueva configuración", url: "/configuracion/nuevo/ubicacion" },
         { title: "Reportes", url: "/configuracion/reportes" },
       ],
     },

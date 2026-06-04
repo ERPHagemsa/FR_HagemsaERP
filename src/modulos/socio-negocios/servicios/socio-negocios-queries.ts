@@ -4,6 +4,8 @@ import { useConsulta } from "@/compartido/api/use-consulta"
 import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
+  consultarSapBusinessPartnerPorCodigo,
+  consultarSapBusinessPartnerPorDocumento,
   consultarHistorialSocioDeNegocio,
   consultarHistorialSociosDeNegocio,
   consultarMaestrosConfiguracionGeneral,
@@ -19,6 +21,7 @@ import {
   reactivarSocioDeNegocio,
 } from "./socio-negocios-api"
 import type {
+  ConsultarSapPorDocumentoQuery,
   ConsultarHistorialSocioDeNegocioQuery,
   ConsultarMaestrosConfiguracionGeneralQuery,
   ConsultarSociosDeNegocioQuery,
@@ -131,6 +134,36 @@ export function useReactivarSocioDeNegocioMutation(
     fn: (payload) => reactivarSocioDeNegocio(id, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
+}
+
+export function useSapBusinessPartnerPorDocumentoQuery(
+  numeroDocumento: string,
+  query: ConsultarSapPorDocumentoQuery,
+  enabled = Boolean(numeroDocumento),
+) {
+  return useConsulta(
+    () =>
+      consultarSapBusinessPartnerPorDocumento(
+        numeroDocumento,
+        query,
+      ),
+    [numeroDocumento, JSON.stringify(query)],
+    { enabled },
+  )
+}
+
+export function useSapBusinessPartnerPorCodigoQuery(
+  codigoInternoSap: string,
+  enabled = Boolean(codigoInternoSap),
+) {
+  return useConsulta(
+    () =>
+      consultarSapBusinessPartnerPorCodigo(
+        codigoInternoSap,
+      ),
+    [codigoInternoSap],
+    { enabled },
+  )
 }
 
 export function useHistorialSociosDeNegocioQuery(

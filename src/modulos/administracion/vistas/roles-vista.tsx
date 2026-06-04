@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Add01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -25,9 +26,20 @@ import {
 } from "@/compartido/componentes/ui/table"
 
 import { useRoles } from "../ganchos/use-roles"
+import type { ListarRolesQuery } from "../tipos/administracion.tipos"
+
+const LIMIT_PAGINA = 20
 
 export function RolesVista() {
-  const { data, isLoading, isError, error } = useRoles()
+  // `pagina` es 1-based — coincide con el paginador del backend.
+  const [pagina, setPagina] = useState(1)
+
+  const query = useMemo<ListarRolesQuery>(
+    () => ({ pagina, limite: LIMIT_PAGINA }),
+    [pagina],
+  )
+
+  const { data, isLoading, isError, error } = useRoles(query)
 
   return (
     <div className="flex flex-col gap-4 p-6">
@@ -107,6 +119,33 @@ export function RolesVista() {
               )}
             </TableBody>
           </Table>
+
+          {data && data.paginacion.totalPaginas > 1 ? (
+            <div className="flex items-center justify-between gap-2 pt-4">
+              <p className="text-sm text-muted-foreground">
+                Pagina {data.paginacion.pagina} de{" "}
+                {data.paginacion.totalPaginas} ({data.paginacion.total} roles)
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                  disabled={!data.paginacion.tieneAnterior}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPagina((p) => p + 1)}
+                  disabled={!data.paginacion.tieneSiguiente}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
     </div>

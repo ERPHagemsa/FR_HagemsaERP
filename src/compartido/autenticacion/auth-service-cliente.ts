@@ -18,7 +18,7 @@ export interface RespuestaTokensAuth {
 
 const cliente = crearClienteHttp({
   baseURL: URLS_SERVIDOR.authService,
-  timeoutMs: 8000,
+  timeoutMs: 5000,
   withCredentials: false,
   mensajeErrorDefault: "No se pudo contactar al servicio de autenticacion.",
 })

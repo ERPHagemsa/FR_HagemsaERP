@@ -43,6 +43,7 @@ import {
 } from "@/compartido/componentes/ui/dialog";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
+import { Textarea } from "@/compartido/componentes/ui/textarea";
 import {
   Table,
   TableBody,
@@ -401,13 +402,13 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
           {/* Observaciones — campo opcional (spec 5.7) */}
           <div className="grid gap-1.5">
             <Label htmlFor="contacto-observaciones">Observaciones</Label>
-            <textarea
+            <Textarea
               id="contacto-observaciones"
               name="observaciones"
               rows={3}
               placeholder="Notas adicionales sobre el contacto"
               disabled={isPending}
-              className="min-h-20 w-full resize-y rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+              className="min-h-20"
             />
           </div>
 

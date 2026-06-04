@@ -29,7 +29,6 @@ import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -59,7 +58,6 @@ import type {
   EstadoSocioDeNegocio,
   ResumenSociosDeNegocioResponse,
   SocioDeNegocioResponse,
-  TipoSocioDeNegocio,
 } from "../tipos/socio-negocio"
 
 const chartConfig = {
@@ -378,9 +376,9 @@ export function SocioNegocioDashboardVista() {
             />
           </section>
 
-          <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
             <section className="flex flex-col gap-5">
-              <section className="grid gap-3 md:grid-cols-4">
+              <section className="grid gap-3 md:grid-cols-3">
                 <ActionCard
                   title="Clientes"
                   description="Registra y consulta clientes para operaciones comerciales."
@@ -398,12 +396,6 @@ export function SocioNegocioDashboardVista() {
                   description="Usa cargo, sede, area y contrato desde el catalogo."
                   href="/socio-negocios/nuevo?tipo=PERSONAL"
                   label="Nuevo personal"
-                />
-                <ActionCard
-                  title="CS Configuracion"
-                  description="Catalogos activos: cargo, sede, area, cuenta y contrato."
-                  href="/configuracion"
-                  label="Ver resumen CS"
                 />
               </section>
 
@@ -502,7 +494,40 @@ export function SocioNegocioDashboardVista() {
               </section>
             </section>
 
-            <aside className="flex flex-col gap-3">
+            <aside className="flex flex-col gap-4">
+              <Card className="border-border shadow-sm">
+                <CardHeader>
+                  <CardTitle>Accesos rapidos</CardTitle>
+                  <CardDescription>Operaciones frecuentes.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2">
+                  <Button asChild>
+                    <Link href="/socio-negocios/nuevo?tipo=CLIENTE">
+                      <HugeiconsIcon data-icon="inline-start" icon={Add01Icon} strokeWidth={2} />
+                      Registrar socio
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/socio-negocios/listar">
+                      <HugeiconsIcon data-icon="inline-start" icon={UserGroupIcon} strokeWidth={2} />
+                      Ver listado
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/socio-negocios/listar">
+                      <HugeiconsIcon data-icon="inline-start" icon={FileExportIcon} strokeWidth={2} />
+                      Descargar reportes
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <Link href="/socio-negocios/historial">
+                      <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
+                      Historial
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+
               <Card className="border-border shadow-sm">
                 <CardHeader>
                   <CardTitle>Estado operativo</CardTitle>
@@ -546,31 +571,6 @@ export function SocioNegocioDashboardVista() {
 
               <Card className="border-border shadow-sm">
                 <CardHeader>
-                  <CardTitle>Dependencia de catalogos</CardTitle>
-                  <CardDescription>Socio de Negocio no gobierna maestros.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-                  <p>
-                    Los selects de cargo, sede, area, cuenta y contrato consumen solo
-                    registros activos desde CS Configuracion General.
-                  </p>
-                  <p>
-                    Al guardar un socio se conserva el id y el nombre seleccionado como
-                    copia de referencia.
-                  </p>
-                </CardContent>
-                <CardFooter>
-                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link href="/configuracion/listar">
-                      Revisar catalogos
-                      <HugeiconsIcon data-icon="inline-end" icon={ArrowRight01Icon} strokeWidth={2} />
-                    </Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              <Card className="border-border shadow-sm">
-                <CardHeader>
                   <CardTitle>Bajas recientes</CardTitle>
                   <CardDescription>Registros enviados a inactivo.</CardDescription>
                 </CardHeader>
@@ -587,33 +587,6 @@ export function SocioNegocioDashboardVista() {
                       </div>
                     ))
                   )}
-                </CardContent>
-              </Card>
-
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle>Accesos rapidos</CardTitle>
-                  <CardDescription>Operaciones frecuentes.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-2">
-                  <Button asChild>
-                    <Link href="/socio-negocios/nuevo?tipo=CLIENTE">
-                      <HugeiconsIcon data-icon="inline-start" icon={Add01Icon} strokeWidth={2} />
-                      Registrar socio
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/socio-negocios/reportes">
-                      <HugeiconsIcon data-icon="inline-start" icon={FileExportIcon} strokeWidth={2} />
-                      Ver reportes
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/socio-negocios/historial">
-                      <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
-                      Historial
-                    </Link>
-                  </Button>
                 </CardContent>
               </Card>
             </aside>

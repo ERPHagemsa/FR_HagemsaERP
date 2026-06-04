@@ -8,6 +8,7 @@ import type {
   AsignacionResponse,
   AsignarRolPayload,
   AsignarRolResponse,
+  CambiarScopeAsignacionPayload,
   ListaAsignacionesResponse,
   RevocarAsignacionPayload,
 } from "../tipos/administracion.tipos"
@@ -35,6 +36,17 @@ export async function asignarRol(
     payload,
   )
   return data.datos
+}
+
+export async function cambiarScopeAsignacion(
+  cuentaId: string,
+  asignacionId: string,
+  payload: CambiarScopeAsignacionPayload,
+): Promise<void> {
+  await clienteHttp.patch(
+    `/api/admin/cuentas/${cuentaId}/roles/${asignacionId}/scope`,
+    payload,
+  )
 }
 
 export async function revocarAsignacion(

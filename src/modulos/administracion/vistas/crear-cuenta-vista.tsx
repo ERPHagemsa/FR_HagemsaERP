@@ -87,7 +87,7 @@ export function CrearCuentaVista() {
         </CardHeader>
         <form onSubmit={(event) => void manejarSubmit(event)}>
           <CardContent>
-            <FieldGroup>
+            <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="email">Correo</FieldLabel>
                 <Input
@@ -155,7 +155,7 @@ export function CrearCuentaVista() {
                 />
               </Field>
               {error ? (
-                <Field data-invalid>
+                <Field data-invalid className="sm:col-span-2">
                   <FieldError>{error}</FieldError>
                 </Field>
               ) : null}
