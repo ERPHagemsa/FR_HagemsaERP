@@ -279,6 +279,11 @@ function LineaRow({
         </div>
         <div className="flex flex-col items-end gap-0.5 text-sm">
           <span className="font-medium">{formatearMonto(linea.precio)} {linea.moneda}</span>
+          {linea.precioUnitario !== null ? (
+            <span className="text-xs text-muted-foreground">
+              {linea.cantidad} × {formatearMonto(linea.precioUnitario)} {linea.moneda}
+            </span>
+          ) : null}
           <span className="text-xs text-muted-foreground">
             Costo: {formatearMonto(linea.costo)} · Margen: {formatearMonto(linea.margen)}
           </span>
@@ -316,7 +321,6 @@ function CargaDetalle({ carga }: { carga: CargaHijo }) {
       <MiniDato label="Origen" value={carga.origen} />
       <MiniDato label="Destino" value={carga.destino} />
       <MiniDato label="Peso (Tn)" value={carga.pesoTn !== null ? String(carga.pesoTn) : null} />
-      <MiniDato label="Unidades" value={carga.nUnidades !== null ? String(carga.nUnidades) : null} />
       <MiniDato
         label="Dimensiones (m)"
         value={

@@ -146,8 +146,8 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
             ) : null}
           </div>
 
-          {/* Fila 3: moneda + costo + precio + esAlternativa */}
-          <div className="grid gap-4 md:grid-cols-4">
+          {/* Fila 3: moneda + cantidad + precio unitario + costo + precio + esAlternativa */}
+          <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">Moneda</Label>
               <Select
@@ -166,6 +166,39 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">Cantidad</Label>
+              <Input
+                type="number"
+                min={1}
+                step="1"
+                value={linea.cantidad}
+                disabled={disabled}
+                aria-invalid={Boolean(erroresCampo["cantidad"])}
+                onChange={(e) => onChange({ cantidad: e.target.value })}
+              />
+              {erroresCampo["cantidad"] ? (
+                <p className="text-xs text-destructive">{erroresCampo["cantidad"]}</p>
+              ) : null}
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">Precio unitario</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={linea.precioUnitario}
+                disabled={disabled}
+                placeholder="Informativo (N × P/u)"
+                aria-invalid={Boolean(erroresCampo["precioUnitario"])}
+                onChange={(e) => onChange({ precioUnitario: e.target.value })}
+              />
+              {erroresCampo["precioUnitario"] ? (
+                <p className="text-xs text-destructive">{erroresCampo["precioUnitario"]}</p>
+              ) : null}
             </div>
 
             <div className="grid gap-1.5">
@@ -293,7 +326,6 @@ function SubformCarga({
         <CampoTextoSubform label="Origen" value={carga.origen} disabled={disabled} onChange={(v) => onChange({ origen: v })} />
         <CampoTextoSubform label="Destino" value={carga.destino} disabled={disabled} onChange={(v) => onChange({ destino: v })} />
         <CampoNumeroSubform label="Peso (Tn)" value={carga.pesoTn} disabled={disabled} onChange={(v) => onChange({ pesoTn: v })} />
-        <CampoNumeroSubform label="N° unidades" value={carga.nUnidades} disabled={disabled} onChange={(v) => onChange({ nUnidades: v })} />
         <CampoNumeroSubform label="Largo (m)" value={carga.largoM} disabled={disabled} onChange={(v) => onChange({ largoM: v })} />
         <CampoNumeroSubform label="Ancho (m)" value={carga.anchoM} disabled={disabled} onChange={(v) => onChange({ anchoM: v })} />
         <CampoNumeroSubform label="Alto (m)" value={carga.altoM} disabled={disabled} onChange={(v) => onChange({ altoM: v })} />

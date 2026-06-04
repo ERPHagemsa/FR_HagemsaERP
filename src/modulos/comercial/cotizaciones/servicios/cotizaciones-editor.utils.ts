@@ -48,7 +48,6 @@ export type DraftCargaHijo = {
   altoM: string;
   pesoTn: string;
   tipoCarga: string;
-  nUnidades: string;
   origen: string;
   destino: string;
   tipoVehiculo: string;
@@ -78,6 +77,8 @@ export type DraftLinea = {
   tipoLinea: TipoLinea;
   concepto: string;
   moneda: Moneda;
+  cantidad: string; // entero >=1; nº de unidades de la linea
+  precioUnitario: string; // informativo (N x P/u); "" = sin valor
   costo: string; // string para el input
   precio: string;
   esAlternativa: boolean;
@@ -122,7 +123,6 @@ function cargaVacia(): DraftCargaHijo {
     altoM: "",
     pesoTn: "",
     tipoCarga: "",
-    nUnidades: "",
     origen: "",
     destino: "",
     tipoVehiculo: "",
@@ -155,6 +155,8 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
     tipoLinea,
     concepto: "",
     moneda: "PEN",
+    cantidad: "1",
+    precioUnitario: "",
     costo: "0",
     precio: "0",
     esAlternativa: false,
@@ -219,7 +221,6 @@ function cargaReadADraft(c: CargaHijo): DraftCargaHijo {
     altoM: c.altoM !== null ? String(c.altoM) : "",
     pesoTn: c.pesoTn !== null ? String(c.pesoTn) : "",
     tipoCarga: c.tipoCarga ?? "",
-    nUnidades: c.nUnidades !== null ? String(c.nUnidades) : "",
     origen: c.origen ?? "",
     destino: c.destino ?? "",
     tipoVehiculo: c.tipoVehiculo ?? "",
@@ -255,6 +256,8 @@ function lineaReadADraft(l: Linea): DraftLinea {
     tipoLinea: l.tipoLinea,
     concepto: l.concepto,
     moneda: l.moneda,
+    cantidad: String(l.cantidad),
+    precioUnitario: l.precioUnitario !== null ? String(l.precioUnitario) : "",
     costo: String(l.costo),
     precio: String(l.precio),
     esAlternativa: l.esAlternativa,
@@ -354,7 +357,6 @@ function cargaAPayload(c: DraftCargaHijo): PayloadCargaHijo {
   if (c.altoM !== "") payload.altoM = parseNumero(c.altoM);
   if (c.pesoTn !== "") payload.pesoTn = parseNumero(c.pesoTn);
   if (c.tipoCarga !== "") payload.tipoCarga = c.tipoCarga;
-  if (c.nUnidades !== "") payload.nUnidades = parseNumero(c.nUnidades);
   if (c.origen !== "") payload.origen = c.origen;
   if (c.destino !== "") payload.destino = c.destino;
   if (c.tipoVehiculo !== "") payload.tipoVehiculo = c.tipoVehiculo;
@@ -387,7 +389,8 @@ function personalAPayload(p: DraftPersonalHijo): PayloadPersonalHijo {
  * Emite el hijo polimorfico correcto segun tipoLinea.
  * TRANSPORTE → carga; ALQUILER_EQUIPO → equipo; ALMACENAJE → almacenaje; PERSONAL → personal.
  * AGENCIAMIENTO / SERVICIO_AUXILIAR → sin hijo.
- * NUNCA emitir idSeccion, margen, precioUnitario, cantidad, subtotal ni totales.
+ * Emite cantidad (entero >=1) y precioUnitario (solo si tiene valor); NUNCA
+ * emitir idSeccion, margen, subtotal ni totales (los calcula el backend).
  */
 function lineaAPayload(l: DraftLinea): PayloadLinea {
   const base: PayloadLinea = {
@@ -395,10 +398,15 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
     tipoLinea: l.tipoLinea,
     concepto: l.concepto,
     moneda: l.moneda,
+    cantidad: l.cantidad !== "" ? parseNumero(l.cantidad) : 1,
     costo: parseNumero(l.costo),
     precio: parseNumero(l.precio),
     esAlternativa: l.esAlternativa,
   };
+
+  if (l.precioUnitario !== "") {
+    base.precioUnitario = parseNumero(l.precioUnitario);
+  }
 
   if (l.cargos.length > 0) {
     base.cargos = l.cargos.map(cargoAPayload);
