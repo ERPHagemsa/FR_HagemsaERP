@@ -30,12 +30,13 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
-import { useRegistrarSCMutation } from "../servicios/cotizaciones-queries";
-import type { CanalEntrada, OrigenTipo } from "../tipos/cotizaciones.tipos";
+import { useRegistrarSCMutation } from "../servicios/solicitudes-cliente-queries";
+import { ResolverIdentidadPanel } from "./resolver-identidad-panel";
+import type { CanalEntrada, OrigenTipo } from "../../cotizaciones/tipos/cotizaciones.tipos";
 import {
   issuesAErroresCampo,
   schemaRegistrarSC,
-} from "../tipos/cotizaciones.schemas";
+} from "../../cotizaciones/tipos/cotizaciones.schemas";
 
 // ---------------------------------------------------------------------------
 // Helper para leer el valor de un campo del formulario
@@ -62,6 +63,9 @@ export function SolicitudClienteFormulario() {
   const formularioRef = React.useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [erroresCampo, setErroresCampo] = React.useState<Record<string, string>>({});
+  // Estado controlado para campos que el panel resolver-identidad puede pre-rellenar
+  const [origenIdValue, setOrigenIdValue] = React.useState("");
+  const [origenTipoValue, setOrigenTipoValue] = React.useState<OrigenTipo>("PROSPECTO");
 
   const registrarMutation = useRegistrarSCMutation();
 
@@ -83,8 +87,8 @@ export function SolicitudClienteFormulario() {
 
     try {
       const datos = {
-        origenTipo: getValue(root, "origenTipo") as OrigenTipo,
-        origenId: getValue(root, "origenId"),
+        origenTipo: origenTipoValue,
+        origenId: origenIdValue,
         contactoOrigenId: getValue(root, "contactoOrigenId"),
         canalEntrada: getValue(root, "canalEntrada") as CanalEntrada,
         descripcionServicio: getValue(root, "descripcionServicio"),
@@ -172,6 +176,14 @@ export function SolicitudClienteFormulario() {
                 titulo="Datos del origen"
                 descripcion="Prospecto o cliente que origina la solicitud."
               />
+              <ResolverIdentidadPanel
+                onIdentidadResuelta={({ origenTipo, origenId }) => {
+                  setOrigenTipoValue(origenTipo);
+                  setOrigenIdValue(origenId);
+                  limpiarErrorCampo("origenTipo");
+                  limpiarErrorCampo("origenId");
+                }}
+              />
               <CampoSelect
                 label="Tipo de origen"
                 name="origenTipo"
@@ -180,7 +192,8 @@ export function SolicitudClienteFormulario() {
                   { valor: "PROSPECTO", etiqueta: "Prospecto" },
                   { valor: "CLIENTE", etiqueta: "Cliente" },
                 ]}
-                defaultValue="PROSPECTO"
+                value={origenTipoValue}
+                onValueChange={(v) => setOrigenTipoValue(v as OrigenTipo)}
                 error={erroresCampo["origenTipo"]}
                 disabled={isSaving}
               />
@@ -189,9 +202,13 @@ export function SolicitudClienteFormulario() {
                 name="origenId"
                 requerido
                 placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                value={origenIdValue}
                 error={erroresCampo["origenId"]}
                 disabled={isSaving}
-                onChange={() => limpiarErrorCampo("origenId")}
+                onChange={(e) => {
+                  setOrigenIdValue(e.target.value);
+                  limpiarErrorCampo("origenId");
+                }}
               />
               <CampoTexto
                 label="ID del contacto (UUID)"
@@ -209,6 +226,8 @@ export function SolicitudClienteFormulario() {
                 opciones={[
                   { valor: "CORREO", etiqueta: "Correo electronico" },
                   { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
+                  { valor: "TELEFONO", etiqueta: "Telefono" },
+                  { valor: "EMAIL", etiqueta: "Email" },
                   { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
                   { valor: "OTRO", etiqueta: "Otro" },
                 ]}
@@ -324,6 +343,8 @@ function CampoSelect({
   requerido = false,
   opciones,
   defaultValue,
+  value,
+  onValueChange,
   error,
   disabled,
 }: {
@@ -332,6 +353,8 @@ function CampoSelect({
   requerido?: boolean;
   opciones: { valor: string; etiqueta: string }[];
   defaultValue?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
   error?: string;
   disabled?: boolean;
 }) {
@@ -341,7 +364,13 @@ function CampoSelect({
         {label}
         {requerido ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      <Select name={name} defaultValue={defaultValue} disabled={disabled}>
+      <Select
+        name={name}
+        defaultValue={value === undefined ? defaultValue : undefined}
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+      >
         <SelectTrigger id={name} aria-invalid={Boolean(error)} className="w-full">
           <SelectValue placeholder="Selecciona una opcion" />
         </SelectTrigger>

@@ -23,7 +23,7 @@ export const schemaRegistrarSC = z.object({
     .string()
     .uuid("El ID del contacto debe ser un UUID valido")
     .min(1, "El ID del contacto es requerido"),
-  canalEntrada: z.enum(["CORREO", "PRESENCIAL", "LLAMADA", "OTRO"], {
+  canalEntrada: z.enum(["CORREO", "PRESENCIAL", "LLAMADA", "TELEFONO", "EMAIL", "OTRO"], {
     message: "Selecciona un canal de entrada valido",
   }),
   descripcionServicio: z

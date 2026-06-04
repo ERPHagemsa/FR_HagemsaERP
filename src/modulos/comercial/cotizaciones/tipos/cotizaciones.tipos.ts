@@ -7,7 +7,7 @@
 
 export type OrigenTipo = "PROSPECTO" | "CLIENTE";
 
-export type CanalEntrada = "CORREO" | "PRESENCIAL" | "LLAMADA" | "OTRO";
+export type CanalEntrada = "CORREO" | "PRESENCIAL" | "LLAMADA" | "TELEFONO" | "EMAIL" | "OTRO";
 
 export type TipoLinea =
   | "TRANSPORTE"

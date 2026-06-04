@@ -82,6 +82,11 @@ export interface ListaRolesResponse {
   readonly paginacion: Paginacion
 }
 
+export interface ListarRolesQuery {
+  pagina?: number
+  limite?: number
+}
+
 export interface CrearRolPayload {
   nombre: string
   descripcion: string
@@ -154,6 +159,10 @@ export interface AsignarRolResponse {
 
 export interface RevocarAsignacionPayload {
   razon: string
+}
+
+export interface CambiarScopeAsignacionPayload {
+  scope: Record<string, unknown>
 }
 
 export interface SesionResponse {

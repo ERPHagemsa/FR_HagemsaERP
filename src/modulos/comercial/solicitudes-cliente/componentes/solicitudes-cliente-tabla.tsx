@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
-import { Eye, RefreshCw, Search } from "lucide-react";
+import { Eye, Plus, RefreshCw, Search } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -32,56 +32,44 @@ import {
 import { cn } from "@/compartido/utilidades";
 
 import type {
-  Cotizacion,
-  EstadoCotizacion,
-  OrigenTipo,
-  RespuestaPaginadaCotizaciones,
-} from "../tipos/cotizaciones.tipos";
-import { EstadoCotizacionBadge } from "./estado-cotizacion-badge";
+  EstadoSolicitudCliente,
+  FiltrosSolicitudesCliente,
+  SolicitudClienteResumen,
+  TipoOrigen,
+} from "../tipos/solicitud-cliente.tipos";
+import { EstadoSolicitudBadge } from "./estado-solicitud-badge";
 
 type Props = {
-  respuesta: RespuestaPaginadaCotizaciones;
-  filtrosActivos: {
-    estado?: string;
-    origenTipo?: string;
-    busqueda?: string;
-    pagina?: number;
-    porPagina?: number;
-  };
+  items: SolicitudClienteResumen[];
+  filtros: FiltrosSolicitudesCliente;
+  total: number;
 };
 
-const ESTADOS_COTIZACION: Array<{ valor: EstadoCotizacion | "TODOS"; etiqueta: string }> = [
+const ESTADOS_SC: Array<{ valor: EstadoSolicitudCliente | "TODOS"; etiqueta: string }> = [
   { valor: "TODOS", etiqueta: "Todos" },
-  { valor: "BORRADOR", etiqueta: "Borrador" },
-  { valor: "ENVIADA", etiqueta: "Enviada" },
-  { valor: "EN_REVISION", etiqueta: "En revision" },
-  { valor: "GANADA", etiqueta: "Ganada" },
-  { valor: "PERDIDA", etiqueta: "Perdida" },
-  { valor: "CANCELADA", etiqueta: "Cancelada" },
-  { valor: "VENCIDA", etiqueta: "Vencida" },
+  { valor: "PENDIENTE", etiqueta: "Pendiente" },
+  { valor: "EN_COTIZACION", etiqueta: "En cotizacion" },
+  { valor: "COTIZADA", etiqueta: "Cotizada" },
+  { valor: "CERRADA", etiqueta: "Cerrada" },
+  { valor: "DESCARTADA", etiqueta: "Descartada" },
 ];
 
-const ORIGENES: Array<{ valor: OrigenTipo | "TODOS"; etiqueta: string }> = [
+const ORIGENES: Array<{ valor: TipoOrigen | "TODOS"; etiqueta: string }> = [
   { valor: "TODOS", etiqueta: "Todos" },
   { valor: "PROSPECTO", etiqueta: "Prospecto" },
   { valor: "CLIENTE", etiqueta: "Cliente" },
 ];
 
-export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
+export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { data: cotizaciones, total, pagina, porPagina } = respuesta;
+  const pagina = filtros.pagina ?? 1;
+  const porPagina = filtros.porPagina ?? 10;
 
-  const [busquedaLocal, setBusquedaLocal] = React.useState(
-    filtrosActivos.busqueda ?? ""
-  );
-  const [estadoLocal, setEstadoLocal] = React.useState(
-    filtrosActivos.estado ?? "TODOS"
-  );
-  const [origenLocal, setOrigenLocal] = React.useState(
-    filtrosActivos.origenTipo ?? "TODOS"
-  );
+  const [busquedaLocal, setBusquedaLocal] = React.useState(filtros.busqueda ?? "");
+  const [estadoLocal, setEstadoLocal] = React.useState(filtros.estado ?? "TODOS");
+  const [origenLocal, setOrigenLocal] = React.useState(filtros.origenTipo ?? "TODOS");
 
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
   const desdeVisible = total ? (pagina - 1) * porPagina + 1 : 0;
@@ -105,7 +93,7 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
         origenTipo: origenLocal,
         busqueda: busquedaLocal,
         pagina: 1,
-        porPagina: filtrosActivos.porPagina,
+        porPagina: filtros.porPagina,
       })
     );
   }
@@ -120,28 +108,34 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
   function irAPagina(nuevaPagina: number) {
     router.push(
       construirUrl({
-        estado: filtrosActivos.estado,
-        origenTipo: filtrosActivos.origenTipo,
-        busqueda: filtrosActivos.busqueda,
+        estado: filtros.estado,
+        origenTipo: filtros.origenTipo,
+        busqueda: filtros.busqueda,
         pagina: nuevaPagina,
-        porPagina: filtrosActivos.porPagina,
+        porPagina: filtros.porPagina,
       })
     );
   }
 
   const hayFiltros =
-    !!filtrosActivos.estado ||
-    !!filtrosActivos.origenTipo ||
-    !!filtrosActivos.busqueda;
+    !!filtros.estado || !!filtros.origenTipo || !!filtros.busqueda;
 
   return (
     <Card>
       <CardHeader className="border-b border-border">
-        <div>
-          <CardTitle>Cotizaciones</CardTitle>
-          <CardDescription>
-            {total} {total === 1 ? "cotizacion" : "cotizaciones"} encontradas
-          </CardDescription>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <CardTitle>Solicitudes de cliente</CardTitle>
+            <CardDescription>
+              {total} {total === 1 ? "solicitud" : "solicitudes"} encontradas
+            </CardDescription>
+          </div>
+          <Button asChild>
+            <Link href="/comercial/solicitudes-cliente/nueva">
+              <Plus data-icon="inline-start" />
+              Nueva solicitud
+            </Link>
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-5">
@@ -155,7 +149,7 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
-                placeholder="Buscar cotizaciones..."
+                placeholder="Buscar solicitudes..."
                 value={busquedaLocal}
                 onChange={(e) => setBusquedaLocal(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
@@ -163,11 +157,11 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
             </div>
           </div>
           <FiltroSelect
-            className="min-w-36 flex-1"
+            className="min-w-40 flex-1"
             label="Estado"
             value={estadoLocal}
-            valores={ESTADOS_COTIZACION.map((e) => e.valor)}
-            etiquetas={ESTADOS_COTIZACION.map((e) => e.etiqueta)}
+            valores={ESTADOS_SC.map((e) => e.valor)}
+            etiquetas={ESTADOS_SC.map((e) => e.etiqueta)}
             onChange={setEstadoLocal}
           />
           <FiltroSelect
@@ -202,27 +196,27 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[14%]">Origen</TableHead>
-                <TableHead className="w-[12%]">Canal</TableHead>
-                <TableHead className="w-[10%]">Estado</TableHead>
-                <TableHead className="w-[8%] text-right">Version</TableHead>
-                <TableHead className="w-[14%]">Ejecutivo</TableHead>
+                <TableHead className="w-[12%]">ID</TableHead>
+                <TableHead className="w-[12%]">Estado</TableHead>
+                <TableHead className="w-[12%]">Origen</TableHead>
+                <TableHead className="w-[40%]">Descripcion del servicio</TableHead>
                 <TableHead className="w-[14%]">Creado</TableHead>
-                <TableHead className="w-[14%]">Actualizado</TableHead>
-                <TableHead className="w-[7%] text-center">Accion</TableHead>
+                <TableHead className="w-[10%] text-center">Accion</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {cotizaciones.map((cotizacion) => (
-                <FilaCotizacion key={cotizacion.id} cotizacion={cotizacion} />
+              {items.map((item) => (
+                <FilaSolicitud key={item.id} item={item} />
               ))}
-              {!cotizaciones.length ? (
+              {!items.length ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={6}
                     className="h-28 text-center text-muted-foreground"
                   >
-                    No se encontraron cotizaciones con los filtros aplicados.
+                    {hayFiltros
+                      ? "No se encontraron solicitudes con los filtros aplicados. Intenta ampliar la busqueda."
+                      : "No hay solicitudes de cliente registradas."}
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -234,7 +228,7 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
         <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
           <div>
             {total > 0
-              ? `Mostrando ${desdeVisible}-${hastaVisible} de ${total} cotizaciones`
+              ? `Mostrando ${desdeVisible}-${hastaVisible} de ${total} solicitudes`
               : "Sin resultados"}
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -266,42 +260,27 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
   );
 }
 
-function FilaCotizacion({ cotizacion }: { cotizacion: Cotizacion }) {
+function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
   return (
     <TableRow>
+      <TableCell className="font-mono text-xs text-muted-foreground">
+        {item.id.slice(0, 8)}…
+      </TableCell>
       <TableCell>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-xs font-medium text-muted-foreground">
-            {cotizacion.origenTipo}
-          </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {cotizacion.origenId.slice(0, 8)}…
-          </span>
-        </div>
+        <EstadoSolicitudBadge estado={item.estado} />
+      </TableCell>
+      <TableCell className="text-sm">
+        {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
       </TableCell>
       <TableCell className="truncate text-sm">
-        {formatearCanal(cotizacion.canalEntrada)}
-      </TableCell>
-      <TableCell>
-        <EstadoCotizacionBadge estado={cotizacion.estado} />
-      </TableCell>
-      <TableCell className="text-right text-sm">
-        {cotizacion.versionVigente ?? "—"}
+        {item.descripcionServicio}
       </TableCell>
       <TableCell className="truncate text-sm text-muted-foreground">
-        {cotizacion.idEjecutivoResponsable}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {formatearFecha(cotizacion.fechaCreacion)}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {cotizacion.fechaModificacion
-          ? formatearFecha(cotizacion.fechaModificacion)
-          : "—"}
+        {formatearFecha(item.fechaCreacion)}
       </TableCell>
       <TableCell className="text-center">
         <Button asChild size="icon-sm" variant="outline">
-          <Link href={`/comercial/cotizaciones/${cotizacion.id}`}>
+          <Link href={`/comercial/solicitudes-cliente/${item.id}`}>
             <Eye />
             <span className="sr-only">Ver</span>
           </Link>
@@ -351,16 +330,4 @@ function formatearFecha(value: string) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date(value));
-}
-
-function formatearCanal(canal: string) {
-  const mapa: Record<string, string> = {
-    CORREO: "Correo",
-    LLAMADA: "Llamada",
-    PRESENCIAL: "Presencial",
-    TELEFONO: "Telefono",
-    EMAIL: "Email",
-    OTRO: "Otro",
-  };
-  return mapa[canal] ?? canal;
 }

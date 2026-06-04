@@ -5,12 +5,14 @@ import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
   asignarRol,
+  cambiarScopeAsignacion,
   obtenerAsignacionesCuenta,
   revocarAsignacion,
 } from "../servicios/asignaciones-api"
 import type {
   AsignarRolPayload,
   AsignarRolResponse,
+  CambiarScopeAsignacionPayload,
   RevocarAsignacionPayload,
 } from "../tipos/administracion.tipos"
 
@@ -32,6 +34,20 @@ export function useAsignarRol(
 ) {
   return useMutar<AsignarRolPayload, AsignarRolResponse>({
     fn: (payload) => asignarRol(cuentaId, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useCambiarScopeAsignacion(
+  cuentaId: string,
+  opciones: OpcionesMutacionAsignaciones = {},
+) {
+  return useMutar<
+    { asignacionId: string; payload: CambiarScopeAsignacionPayload },
+    void
+  >({
+    fn: (vars) =>
+      cambiarScopeAsignacion(cuentaId, vars.asignacionId, vars.payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }
