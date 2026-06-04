@@ -14,11 +14,13 @@ import type {
 // Registro (migrado desde cotizaciones/servicios/solicitudes-cliente-api.ts)
 // ---------------------------------------------------------------------------
 
-// POST /solicitudes-cliente → 201 { id, idCotizacion }
+// POST /solicitudes-cliente → 201 { id }
+// La SC nace en PENDIENTE SIN cotizacion. Cotizar es un paso posterior y explicito
+// via POST /solicitudes-cliente/:id/cotizaciones (ver agregarCotizacion).
 export async function registrarSolicitudCliente(
   payload: PayloadRegistrarSC
-): Promise<{ id: string; idCotizacion: string }> {
-  const { data } = await clienteComercial.post<{ id: string; idCotizacion: string }>(
+): Promise<{ id: string }> {
+  const { data } = await clienteComercial.post<{ id: string }>(
     "/solicitudes-cliente",
     payload
   );

@@ -157,8 +157,9 @@ export function SolicitudClienteFormulario() {
 
       try {
         const respuesta = await registrarMutation.mutateAsync(resultado.data);
-        // DELTA 1: navegar directo al editor del borrador usando idCotizacion de la respuesta 201
-        router.push(`/comercial/cotizaciones/${respuesta.idCotizacion}/editar`);
+        // Registrar y cotizar son actos separados: la SC nace en PENDIENTE sin
+        // cotizacion. Llevamos al detalle de la SC, desde donde se agrega la cotizacion.
+        router.push(`/comercial/solicitudes-cliente/${respuesta.id}`);
       } catch (err) {
         aplicarErrorApi(err);
       }
