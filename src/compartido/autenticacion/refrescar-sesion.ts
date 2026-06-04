@@ -33,6 +33,61 @@ type RespuestaRefresh = {
   refreshExpiresIn: number
 }
 
+// Single-flight del refresh en el middleware. Una pagina dispara varias
+// navegaciones/prefetch (RSC) concurrentes; cada una pasa por aca y, sin esto,
+// todas presentarian el MISMO refresh token a la vez -> la primera lo rota y las
+// demas caen como "reuso" en el Auth Service -> logout espurio. Colapsamos las
+// concurrentes (mismo refresh token) a UNA sola llamada y todas comparten el
+// resultado, asi cada respuesta reescribe las cookies con el mismo par nuevo.
+// In-memory por instancia (mismo patron que cliente-http.ts); cubre el caso
+// comun de un burst que cae en la misma instancia.
+const refreshesEnCurso = new Map<string, Promise<RespuestaRefresh | null>>()
+
+function llamarRefreshUnaVez(
+  refreshToken: string,
+  headersFetch: Record<string, string>,
+): Promise<RespuestaRefresh | null> {
+  const enCurso = refreshesEnCurso.get(refreshToken)
+  if (enCurso) return enCurso
+
+  const promesa = (async (): Promise<RespuestaRefresh | null> => {
+    try {
+      const respuesta = await fetch(
+        `${URLS_SERVIDOR.authService}/api/auth/refresh`,
+        {
+          method: "POST",
+          headers: headersFetch,
+          body: JSON.stringify({ refreshToken }),
+        },
+      )
+      if (!respuesta.ok) {
+        // No loggeamos el refreshToken por seguridad; solo el status.
+        console.warn(
+          `[refrescar-sesion] Auth Service rechazo el refresh con status ${respuesta.status}`,
+        )
+        return null
+      }
+      return (await respuesta.json()) as RespuestaRefresh
+    } catch (err) {
+      console.warn(
+        "[refrescar-sesion] Network error contactando al Auth Service",
+        err instanceof Error ? err.message : String(err),
+      )
+      return null
+    }
+  })()
+
+  refreshesEnCurso.set(refreshToken, promesa)
+  // Liberamos la entrada al terminar para que el proximo ciclo (con el token ya
+  // rotado) arranque fresco. El guard evita borrar una promesa mas nueva.
+  void promesa.finally(() => {
+    if (refreshesEnCurso.get(refreshToken) === promesa) {
+      refreshesEnCurso.delete(refreshToken)
+    }
+  })
+  return promesa
+}
+
 export async function refrescarSiNecesario(
   request: NextRequest,
 ): Promise<ResultadoRefresh> {
@@ -64,28 +119,10 @@ export async function refrescarSiNecesario(
     headersFetch["X-Cliente-User-Agent"] = userAgenteCliente
   }
 
-  let datos: RespuestaRefresh
-  try {
-    const respuesta = await fetch(`${URLS_SERVIDOR.authService}/api/auth/refresh`, {
-      method: "POST",
-      headers: headersFetch,
-      body: JSON.stringify({ refreshToken }),
-    })
-
-    if (!respuesta.ok) {
-      // No loggeamos el refreshToken por seguridad; solo el status del Auth Service.
-      console.warn(
-        `[refrescar-sesion] Auth Service rechazo el refresh con status ${respuesta.status}`,
-      )
-      return { tipo: "falla" }
-    }
-
-    datos = (await respuesta.json()) as RespuestaRefresh
-  } catch (err) {
-    console.warn(
-      "[refrescar-sesion] Network error contactando al Auth Service",
-      err instanceof Error ? err.message : String(err),
-    )
+  // Single-flight: si varias navegaciones concurrentes necesitan refrescar el
+  // mismo token, comparten esta unica llamada (ver llamarRefreshUnaVez).
+  const datos = await llamarRefreshUnaVez(refreshToken, headersFetch)
+  if (!datos) {
     return { tipo: "falla" }
   }
 
