@@ -1,11 +1,38 @@
 "use client"
 
-import { useState } from "react"
-import { FileDown, Search } from "lucide-react"
+import { type FormEvent, useState } from "react"
+import {
+  ArchiveRestore,
+  Ban,
+  Eye,
+  FileDown,
+  MoreVertical,
+  Pencil,
+  Search,
+  Trash2,
+} from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/compartido/componentes/ui/alert-dialog"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/compartido/componentes/ui/dropdown-menu"
 import { Input } from "@/compartido/componentes/ui/input"
 import {
   Select,
@@ -23,10 +50,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table"
+import { Textarea } from "@/compartido/componentes/ui/textarea"
+import { cn } from "@/compartido/utilidades/utils"
+import { PaginationControls } from "@/modulos/socio-negocios/componentes/pagination-controls"
 
 import {
   useConfiguracionGeneralQuery,
+  useAnularConfiguracionGeneralMutation,
   useExportarConfiguracionGeneralQuery,
+  useInhabilitarConfiguracionGeneralMutation,
+  useModificarConfiguracionGeneralMutation,
+  useReactivarConfiguracionGeneralMutation,
 } from "../servicios/configuracion-general-queries"
 import type {
   ConfiguracionGeneralResponse,
@@ -93,6 +127,12 @@ function textoEstado(dato: ConfiguracionGeneralResponse) {
   return "Activo"
 }
 
+function varianteEstado(dato: ConfiguracionGeneralResponse) {
+  if (dato.estadoRegistro === "ANULADO") return "destructive"
+  if (dato.estado === "INACTIVO") return "secondary"
+  return "outline"
+}
+
 function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
   if (dato.tipoDatoMaestro === "UBICACION") return dato.direccion || dato.tipoUbicacion || "-"
   if (dato.tipoDatoMaestro === "SEDE") return dato.ubicacionId || "-"
@@ -101,6 +141,10 @@ function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
   if (dato.tipoDatoMaestro === "CUENTA") return `Nivel ${dato.nivelCuentaContrato ?? 1}`
   if (dato.tipoDatoMaestro === "CONTRATO") return `Nivel ${dato.nivelCuentaContrato ?? "-"}`
   return dato.cargoSuperiorId || "-"
+}
+
+function formatearCount(count?: number | null) {
+  return typeof count === "number" ? String(count) : "-"
 }
 
 function actualizarQuery(
@@ -119,14 +163,304 @@ function actualizarQuery(
   return siguiente
 }
 
+function limpiarQuery(query: ConsultarConfiguracionGeneralQuery) {
+  return Object.fromEntries(
+    Object.entries(query).filter(([, value]) => {
+      if (value === undefined || value === null) return false
+      if (typeof value === "string") return value.trim() !== ""
+      return true
+    }),
+  ) as ConsultarConfiguracionGeneralQuery
+}
+
+function obtenerClaseFila(dato: ConfiguracionGeneralResponse) {
+  const inactivo = dato.estado === "INACTIVO"
+  const anulado = dato.estadoRegistro === "ANULADO"
+
+  return cn(
+    "border-border/80",
+    inactivo && !anulado && "bg-muted/45 hover:bg-muted/65",
+    anulado &&
+      "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/10",
+  )
+}
+
+function obtenerClaseContenido(dato: ConfiguracionGeneralResponse) {
+  return dato.estadoRegistro === "ANULADO"
+    ? "line-through decoration-destructive/70 decoration-2"
+    : undefined
+}
+
+function DatoFicha({
+  label,
+  value,
+}: {
+  label: string
+  value?: string | number | boolean | null
+}) {
+  return (
+    <div className="min-w-0 rounded-md border border-border bg-background p-3">
+      <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 truncate text-sm font-medium">{String(value ?? "-")}</p>
+    </div>
+  )
+}
+
+type AccionMaestro = "inhabilitar" | "reactivar" | "anular" | null
+
+function AccionesConfiguracion({
+  dato,
+  onActualizado,
+  onError,
+  onMensaje,
+}: {
+  dato: ConfiguracionGeneralResponse
+  onActualizado: () => void
+  onError: (mensaje: string) => void
+  onMensaje: (mensaje: string) => void
+}) {
+  const modificarMutation = useModificarConfiguracionGeneralMutation(dato.id, {
+    onSuccess: onActualizado,
+  })
+  const inhabilitarMutation = useInhabilitarConfiguracionGeneralMutation(dato.id, {
+    onSuccess: onActualizado,
+  })
+  const reactivarMutation = useReactivarConfiguracionGeneralMutation(dato.id, {
+    onSuccess: onActualizado,
+  })
+  const anularMutation = useAnularConfiguracionGeneralMutation(dato.id, {
+    onSuccess: onActualizado,
+  })
+  const [fichaAbierta, setFichaAbierta] = useState(false)
+  const [modificarAbierto, setModificarAbierto] = useState(false)
+  const [accion, setAccion] = useState<AccionMaestro>(null)
+  const [motivo, setMotivo] = useState("")
+  const procesando =
+    modificarMutation.isPending ||
+    inhabilitarMutation.isPending ||
+    reactivarMutation.isPending ||
+    anularMutation.isPending
+  const anulado = dato.estadoRegistro === "ANULADO"
+  const puedeModificar = !anulado
+  const puedeInhabilitar = dato.estado === "ACTIVO" && !anulado
+  const puedeReactivar = dato.estado === "INACTIVO" && !anulado
+  const puedeAnular = !anulado
+
+  function abrirAccion(nuevaAccion: Exclude<AccionMaestro, null>) {
+    setMotivo(nuevaAccion === "anular" ? "Registro creado por error" : "")
+    setAccion(nuevaAccion)
+  }
+
+  async function confirmarAccion() {
+    try {
+      if (accion === "inhabilitar") {
+        await inhabilitarMutation.mutateAsync({
+          motivo: motivo.trim(),
+          usuarioModificacion: "admin",
+        })
+        onMensaje(`${dato.nombre} fue inhabilitado.`)
+      }
+
+      if (accion === "reactivar") {
+        await reactivarMutation.mutateAsync({ usuarioModificacion: "admin" })
+        onMensaje(`${dato.nombre} fue reactivado.`)
+      }
+
+      if (accion === "anular") {
+        await anularMutation.mutateAsync({
+          motivo: motivo.trim(),
+          usuarioModificacion: "admin",
+        })
+        onMensaje(`${dato.nombre} fue anulado.`)
+      }
+
+      setAccion(null)
+    } catch (error) {
+      onError(obtenerMensajeError(error))
+    }
+  }
+
+  async function modificarDato(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const nombre = String(formData.get("nombre") ?? "").trim()
+    const descripcion = String(formData.get("descripcion") ?? "").trim()
+
+    try {
+      await modificarMutation.mutateAsync({
+        nombre,
+        descripcion: descripcion || null,
+        usuarioModificacion: "admin",
+      })
+      setModificarAbierto(false)
+      onMensaje(`${dato.nombre} fue modificado.`)
+    } catch (error) {
+      onError(obtenerMensajeError(error))
+    }
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Acciones" disabled={procesando}>
+            <MoreVertical className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuGroup>
+            <DropdownMenuItem onSelect={() => setFichaAbierta(true)}>
+              <Eye className="size-4" />
+              Ver ficha
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!puedeModificar || procesando}
+              onSelect={() => setModificarAbierto(true)}
+            >
+              <Pencil className="size-4" />
+              Modificar
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={!puedeInhabilitar || procesando}
+              onSelect={() => abrirAccion("inhabilitar")}
+            >
+              <Ban className="size-4" />
+              Inhabilitar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!puedeReactivar || procesando}
+              onSelect={() => abrirAccion("reactivar")}
+            >
+              <ArchiveRestore className="size-4" />
+              Reactivar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={!puedeAnular || procesando}
+              onSelect={() => abrirAccion("anular")}
+            >
+              <Trash2 className="size-4" />
+              Anular
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={fichaAbierta} onOpenChange={(open) => !open && setFichaAbierta(false)}>
+        <AlertDialogContent className="max-w-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ficha del maestro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Datos vigentes del registro #{dato.count}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-3 md:grid-cols-3">
+            <DatoFicha label="Count" value={dato.count} />
+            <DatoFicha label="Tipo" value={dato.tipoDatoMaestro} />
+            <DatoFicha label="Codigo" value={dato.codigo} />
+            <DatoFicha label="Nombre" value={dato.nombre} />
+            <DatoFicha label="Estado" value={textoEstado(dato)} />
+            <DatoFicha label="Registro" value={dato.estadoRegistro} />
+            <DatoFicha label="Detalle" value={detalleEspecifico(dato)} />
+            <DatoFicha label="Creacion" value={formatearFecha(dato.fechaCreacion)} />
+            <DatoFicha label="Modificacion" value={formatearFecha(dato.fechaModificacion)} />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setFichaAbierta(false)}>
+              Cerrar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={modificarAbierto}
+        onOpenChange={(open) => !open && setModificarAbierto(false)}
+      >
+        <AlertDialogContent>
+          <form onSubmit={(event) => void modificarDato(event)}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Modificar maestro</AlertDialogTitle>
+              <AlertDialogDescription>
+                Actualiza nombre y descripcion del registro #{dato.count}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="grid gap-3 py-4">
+              <Input name="nombre" defaultValue={dato.nombre} required />
+              <Textarea
+                name="descripcion"
+                defaultValue={dato.descripcion ?? ""}
+                placeholder="Descripcion"
+              />
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={modificarMutation.isPending}>
+                Cancelar
+              </AlertDialogCancel>
+              <AlertDialogAction type="submit" disabled={modificarMutation.isPending}>
+                {modificarMutation.isPending ? "Guardando..." : "Guardar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={accion !== null} onOpenChange={(open) => !open && setAccion(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {accion === "inhabilitar"
+                ? "Inhabilitar maestro"
+                : accion === "anular"
+                  ? "Anular maestro"
+                  : "Reactivar maestro"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {accion === "reactivar"
+                ? "El registro volvera a estar disponible para consumo."
+                : "Ingresa el motivo para registrar la accion en auditoria."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {accion === "inhabilitar" || accion === "anular" ? (
+            <Textarea
+              value={motivo}
+              onChange={(event) => setMotivo(event.target.value)}
+              placeholder={accion === "anular" ? "Motivo de anulacion" : "Motivo de inhabilitacion"}
+              required
+            />
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={procesando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant={accion === "anular" ? "destructive" : "default"}
+              disabled={procesando || ((accion === "inhabilitar" || accion === "anular") && !motivo.trim())}
+              onClick={() => void confirmarAccion()}
+            >
+              {procesando ? "Procesando..." : "Confirmar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
 function TablaListadoConfiguracion({
   cargando,
   datos,
   mostrarTipo,
+  onActualizado,
+  onError,
+  onMensaje,
 }: {
   cargando?: boolean
   datos: ConfiguracionGeneralResponse[]
   mostrarTipo: boolean
+  onActualizado: () => void
+  onError: (mensaje: string) => void
+  onMensaje: (mensaje: string) => void
 }) {
   if (cargando) {
     return (
@@ -151,45 +485,72 @@ function TablaListadoConfiguracion({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-10">Acciones</TableHead>
             {mostrarTipo ? <TableHead>Tipo</TableHead> : null}
+            <TableHead className="w-16 text-right">#</TableHead>
             <TableHead>Codigo</TableHead>
             <TableHead>Nombre</TableHead>
             <TableHead>Detalle</TableHead>
             <TableHead>Estado</TableHead>
+            <TableHead>Registro</TableHead>
             <TableHead>Actualizacion</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {datos.map((dato) => (
-            <TableRow key={dato.id}>
-              {mostrarTipo ? (
+          {datos.map((dato) => {
+            const claseContenido = obtenerClaseContenido(dato)
+
+            return (
+              <TableRow key={dato.id} className={obtenerClaseFila(dato)}>
                 <TableCell>
-                  <Badge variant="secondary">{dato.tipoDatoMaestro}</Badge>
+                  <AccionesConfiguracion
+                    dato={dato}
+                    onActualizado={onActualizado}
+                    onError={onError}
+                    onMensaje={onMensaje}
+                  />
                 </TableCell>
-              ) : null}
-              <TableCell className="font-mono text-xs">{dato.codigo}</TableCell>
-              <TableCell>
-                <div className="flex min-w-56 flex-col">
-                  <span className="font-medium">{dato.nombre}</span>
-                  <span className="text-xs text-muted-foreground">{dato.descripcion || "Sin descripcion"}</span>
-                </div>
-              </TableCell>
-              <TableCell>{detalleEspecifico(dato)}</TableCell>
-              <TableCell>
-                <Badge variant={dato.estadoRegistro === "ANULADO" ? "destructive" : "outline"}>
-                  {textoEstado(dato)}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div className="flex min-w-40 flex-col">
-                  <span>{formatearFecha(dato.fechaModificacion || dato.fechaCreacion)}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {dato.usuarioModificacion || dato.usuarioCreacion}
-                  </span>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
+                {mostrarTipo ? (
+                  <TableCell>
+                    <Badge variant="secondary">{dato.tipoDatoMaestro}</Badge>
+                  </TableCell>
+                ) : null}
+                <TableCell className="text-right font-medium tabular-nums">
+                  <span className={claseContenido}>{formatearCount(dato.count)}</span>
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  <span className={claseContenido}>{dato.codigo}</span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex min-w-56 flex-col">
+                    <span className={cn("font-medium", claseContenido)}>{dato.nombre}</span>
+                    <span className="text-xs text-muted-foreground">{dato.descripcion || "Sin descripcion"}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className={claseContenido}>{detalleEspecifico(dato)}</span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={varianteEstado(dato)}>{textoEstado(dato)}</Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={dato.estadoRegistro === "ANULADO" ? "destructive" : "outline"}>
+                    {dato.estadoRegistro === "ANULADO" ? "Anulado" : "Vigente"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex min-w-40 flex-col">
+                    <span className={claseContenido}>
+                      {formatearFecha(dato.fechaModificacion || dato.fechaCreacion)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {dato.usuarioModificacion || dato.usuarioCreacion}
+                    </span>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )
+          })}
         </TableBody>
       </Table>
     </div>
@@ -198,16 +559,24 @@ function TablaListadoConfiguracion({
 
 export function ConfiguracionGeneralListadoPorTipoVista({ tipo }: { tipo: TipoListado }) {
   const detalle = detalleListado[tipo]
-  const [query, setQuery] = useState<ConsultarConfiguracionGeneralQuery>({
+  const filtrosBase = limpiarQuery({
     ...(tipo === "TODOS" ? {} : { tipoDatoMaestro: tipo }),
+    estado: "ACTIVO",
+    estadoRegistro: "ACTIVO",
+  })
+  const [query, setQuery] = useState<ConsultarConfiguracionGeneralQuery>({
+    ...filtrosBase,
     page: 1,
     pageSize: 20,
-    sortBy: "fechaCreacion",
+    sortBy: "count",
     sortOrder: "desc",
   })
+  const [mensajeOperacion, setMensajeOperacion] = useState<string | null>(null)
+  const [errorOperacion, setErrorOperacion] = useState<string | null>(null)
   const consulta = useConfiguracionGeneralQuery(query)
   const exportacion = useExportarConfiguracionGeneralQuery(query, false)
   const datos = consulta.data?.datos ?? []
+  const metaPaginacion = consulta.data?.paginacion
   const total = consulta.data?.paginacion?.total ?? datos.length
 
   return (
@@ -231,12 +600,30 @@ export function ConfiguracionGeneralListadoPorTipoVista({ tipo }: { tipo: TipoLi
         </div>
       ) : null}
 
+      {errorOperacion ? (
+        <div className="p-4 pb-0">
+          <Alert variant="destructive">
+            <AlertTitle>No se pudo completar la operacion</AlertTitle>
+            <AlertDescription>{errorOperacion}</AlertDescription>
+          </Alert>
+        </div>
+      ) : null}
+
+      {mensajeOperacion ? (
+        <div className="p-4 pb-0">
+          <Alert>
+            <AlertTitle>Operacion completada</AlertTitle>
+            <AlertDescription>{mensajeOperacion}</AlertDescription>
+          </Alert>
+        </div>
+      ) : null}
+
       {exportacion.data ? (
         <div className="p-4 pb-0">
           <Alert>
             <AlertTitle>Exportacion consultada</AlertTitle>
             <AlertDescription>
-              Se encontraron {exportacion.data.datos.length} registros para exportar.
+              Se encontraron {exportacion.data.paginacion?.total ?? exportacion.data.datos.length} registros para exportar.
             </AlertDescription>
           </Alert>
         </div>
@@ -250,6 +637,13 @@ export function ConfiguracionGeneralListadoPorTipoVista({ tipo }: { tipo: TipoLi
             onChange={(event) => setQuery((actual) => actualizarQuery(actual, "nombre", event.target.value))}
             placeholder="Buscar por codigo o nombre"
             className="pl-9"
+          />
+        </div>
+        <div className="relative lg:w-40">
+          <Input
+            value={query.codigo ?? ""}
+            onChange={(event) => setQuery((actual) => actualizarQuery(actual, "codigo", event.target.value))}
+            placeholder="Codigo"
           />
         </div>
         <Select
@@ -286,13 +680,49 @@ export function ConfiguracionGeneralListadoPorTipoVista({ tipo }: { tipo: TipoLi
           <FileDown className="size-4" />
           {exportacion.isFetching ? "Exportando..." : "Exportar"}
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            setQuery({
+              ...filtrosBase,
+              page: 1,
+              pageSize: query.pageSize ?? 20,
+              sortBy: "count",
+              sortOrder: "desc",
+            })
+          }
+        >
+          Limpiar
+        </Button>
       </div>
 
       <TablaListadoConfiguracion
         datos={datos}
         cargando={consulta.isLoading}
         mostrarTipo={tipo === "TODOS"}
+        onActualizado={() => void consulta.refetch()}
+        onMensaje={(mensaje) => {
+          setErrorOperacion(null)
+          setMensajeOperacion(mensaje)
+        }}
+        onError={(mensaje) => {
+          setMensajeOperacion(null)
+          setErrorOperacion(mensaje)
+        }}
       />
+      {datos.length > 0 && metaPaginacion ? (
+        <PaginationControls
+          meta={metaPaginacion}
+          registrosPorPagina={query.pageSize ?? 20}
+          onPageChange={(page) =>
+            setQuery((actual) => ({ ...actual, page }))
+          }
+          onPageSizeChange={(pageSize) =>
+            setQuery((actual) => ({ ...actual, page: 1, pageSize }))
+          }
+        />
+      ) : null}
     </section>
   )
 }

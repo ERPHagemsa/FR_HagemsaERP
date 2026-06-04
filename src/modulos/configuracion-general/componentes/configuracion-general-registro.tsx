@@ -411,7 +411,11 @@ function SelectorMaestroBuscable({
         id={`${name}-busqueda`}
         value={busqueda}
         onChange={(event) => setBusqueda(event.target.value)}
-        placeholder={seleccion ? `${seleccion.codigo} - ${seleccion.nombre}` : placeholder}
+        placeholder={
+          seleccion
+            ? `#${seleccion.count} - ${seleccion.codigo} - ${seleccion.nombre}`
+            : placeholder
+        }
       />
       <div className="max-h-48 overflow-auto rounded-md border border-border bg-background">
         {datosFiltrados.length > 0 ? (
@@ -426,7 +430,7 @@ function SelectorMaestroBuscable({
                 onClick={() => seleccionar(dato.id)}
               >
                 <span className="min-w-0 truncate">
-                  {dato.codigo} - {dato.nombre}
+                  #{dato.count} - {dato.codigo} - {dato.nombre}
                 </span>
                 {activo ? <Badge variant="secondary">Seleccionado</Badge> : null}
               </button>
@@ -1165,7 +1169,9 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
       })
       form.reset()
       limpiarFormulario()
-      setMensaje(`${creado.tipoDatoMaestro} ${creado.codigo} fue registrado.`)
+      setMensaje(
+        `${creado.tipoDatoMaestro} #${creado.count} - ${creado.codigo} fue registrado.`,
+      )
     } catch (err) {
       setError(obtenerMensajeError(err))
     }

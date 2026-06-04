@@ -131,6 +131,7 @@ export interface EstadoBcResponse {
 
 export interface MaestroConfiguracionGeneralIntegracion {
   id: string
+  count?: number
   idExterno?: string
   tipoDatoMaestro: TipoDatoMaestroIntegracion
   codigo: string

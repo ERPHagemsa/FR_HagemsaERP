@@ -36,12 +36,12 @@ export type AccionHistorial =
   | "ANULACION"
 
 export interface PaginationMeta {
-  pagina?: number
-  limite?: number
+  pagina: number
+  limite: number
   total: number
   totalPaginas: number
-  tieneSiguiente?: boolean
-  tieneAnterior?: boolean
+  tieneSiguiente: boolean
+  tieneAnterior: boolean
 }
 
 export interface PaginatedResponse<T> {
@@ -80,6 +80,7 @@ export interface ResumenConfiguracionGeneralResponse {
 
 export interface ConfiguracionGeneralResponse {
   id: string
+  count: number
   tipoDatoMaestro: TipoDatoMaestro
   codigo: string
   nombre: string
@@ -199,6 +200,7 @@ export interface ConsultarConfiguracionGeneralQuery {
   tipoDatoMaestro?: TipoDatoMaestro
   estado?: EstadoDatoMaestro
   estadoRegistro?: EstadoRegistro
+  count?: number
   codigo?: string
   nombre?: string
   departamento?: string
@@ -207,6 +209,7 @@ export interface ConsultarConfiguracionGeneralQuery {
   page?: number
   pageSize?: number
   sortBy?:
+    | "count"
     | "tipoDatoMaestro"
     | "codigo"
     | "nombre"
