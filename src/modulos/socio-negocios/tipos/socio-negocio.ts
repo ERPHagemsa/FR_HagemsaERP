@@ -87,6 +87,10 @@ export interface SocioDeNegocioResponse {
   numeroDocumento: string
   razonSocial: string
   nombreComercial: string
+  primerNombre?: string
+  segundoNombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
   direccion: string
   contacto: string
   correo: string
@@ -103,8 +107,8 @@ export interface SocioDeNegocioResponse {
   sedeNombre: string
   areaId: string
   areaNombre: string
-  contratoId: string
-  contratoNombre: string
+  contratoId?: string
+  contratoNombre?: string
   cuentaId: string
   cuentaNombre: string
   motivoBaja: string
@@ -135,6 +139,11 @@ export interface MaestroConfiguracionGeneralIntegracion {
   areaId?: string | null
   sedeId?: string | null
   ubicacionId?: string | null
+  departamento?: string | null
+  provincia?: string | null
+  distrito?: string | null
+  nivelCuentaContrato?: number | null
+  contratoPadreId?: string | null
   fechaSincronizacion?: string | null
   ultimoEventoId?: string | null
   ultimoEvento?: string | null
@@ -157,6 +166,7 @@ export interface ConsultarMaestrosConfiguracionGeneralQuery {
 
 /** Base común para todos los tipos */
 interface RegistrarSocioDeNegocioBase {
+  codigoInternoSap?: string
   numeroDocumento: string
   razonSocial: string
   nombreComercial: string
@@ -166,6 +176,8 @@ interface RegistrarSocioDeNegocioBase {
   numeroCelular: string
   cuentaId?: string
   cuentaNombre?: string
+  contratoId?: string
+  contratoNombre?: string
   usuarioId?: string
 }
 
@@ -190,6 +202,10 @@ export interface RegistrarProveedorRequest extends RegistrarSocioDeNegocioBase {
 /** Personal: TODOS los datos laborales OBLIGATORIOS */
 export interface RegistrarPersonalRequest extends RegistrarSocioDeNegocioBase {
   tipo: "PERSONAL"
+  primerNombre: string
+  segundoNombre?: string
+  apellidoPaterno: string
+  apellidoMaterno: string
   razonSocial: string
   nombreComercial: string
   direccion: string
@@ -202,8 +218,8 @@ export interface RegistrarPersonalRequest extends RegistrarSocioDeNegocioBase {
   areaNombre: string
   cargoId: string
   cargoNombre: string
-  contratoId: string
-  contratoNombre: string
+  contratoId?: string
+  contratoNombre?: string
 }
 
 /** Request unificado (compatible con el backend) */
@@ -215,6 +231,10 @@ export type RegistrarSocioDeNegocioRequest =
 export type RegistrarClienteDesdeComercialRequest = RegistrarClienteRequest
 
 export interface ModificarSocioDeNegocioRequest {
+  primerNombre?: string
+  segundoNombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
   razonSocial?: string
   nombreComercial?: string
   direccion?: string
@@ -251,6 +271,10 @@ export interface ConsultarSociosDeNegocioQuery {
   count?: ValorPaginacion
   numeroDocumento?: string
   codigoInternoSap?: string
+  primerNombre?: string
+  segundoNombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
   razonSocial?: string
   nombreComercial?: string
   direccion?: string
@@ -290,6 +314,10 @@ export interface ExportarSociosDeNegocioQuery {
   count?: ValorPaginacion
   numeroDocumento?: string
   codigoInternoSap?: string
+  primerNombre?: string
+  segundoNombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
   razonSocial?: string
   nombreComercial?: string
   direccion?: string

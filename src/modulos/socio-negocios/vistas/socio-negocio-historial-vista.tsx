@@ -4,6 +4,12 @@ import { FormEvent, useMemo, useState } from "react"
 import Link from "next/link"
 
 import { SiteHeader } from "@/compartido/componentes/site-header"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/compartido/componentes/ui/accordion"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
@@ -497,86 +503,91 @@ export function SocioNegocioHistorialDetalleVista({ id }: { id: string }) {
                 </EmptyHeader>
               </Empty>
             ) : (
-              <div className="flex flex-col gap-5 p-4">
+              <Accordion
+                type="multiple"
+                defaultValue={registros[0] ? [registros[0].id] : []}
+                className="m-4"
+              >
                 {registros.map((item) => {
                   const campos = obtenerCamposAuditoria(item)
 
                   return (
-                    <section
-                      key={item.id}
-                      className="overflow-hidden rounded-lg border border-border bg-background shadow-sm"
-                    >
-                      <div
+                    <AccordionItem key={item.id} value={item.id}>
+                      <AccordionTrigger
                         className={cn(
-                          "flex flex-col gap-3 border-b px-4 py-3 md:flex-row md:items-start md:justify-between",
+                          "no-underline hover:no-underline",
                           item.accion === "ELIMINACION"
-                            ? "border-destructive/20 bg-destructive/5"
+                            ? "bg-destructive/5"
                             : item.accion === "REGISTRO"
-                              ? "border-emerald-200 bg-emerald-50/60"
-                              : "border-border bg-muted/40",
+                              ? "bg-muted/50"
+                              : "bg-muted/30",
                         )}
                       >
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline">#{item.count}</Badge>
-                            <Badge
-                              variant="outline"
+                        <div className="flex w-full flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="outline">#{item.count}</Badge>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "rounded-full",
+                                  obtenerEstiloAccion(item.accion),
+                                )}
+                              >
+                                {item.accion}
+                              </Badge>
+                            </div>
+                            <p className="mt-2 text-sm font-medium">
+                              {formatearFecha(item.fechaAccion)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Movimiento {item.id}
+                            </p>
+                          </div>
+                          <div className="rounded-md border border-border bg-background px-3 py-2 text-sm">
+                            <span className="text-muted-foreground">Usuario</span>
+                            <p className="font-medium">{item.usuarioAccion || "-"}</p>
+                          </div>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid gap-3">
+                          <div className="grid gap-3 rounded-md bg-muted/30 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:grid-cols-[220px_1fr_1fr]">
+                            <span>Campo</span>
+                            <span>Anterior</span>
+                            <span>Nuevo</span>
+                          </div>
+                          {campos.map((campo) => (
+                            <div
+                              key={`${item.id}-${campo.campo}`}
                               className={cn(
-                                "rounded-full",
-                                obtenerEstiloAccion(item.accion),
+                                "grid gap-3 rounded-md border border-border p-3 md:grid-cols-[220px_1fr_1fr] md:items-start",
+                                campo.cambio && "border-primary/20",
                               )}
                             >
-                              {item.accion}
-                            </Badge>
-                          </div>
-                          <p className="mt-2 text-sm font-medium">
-                            {formatearFecha(item.fechaAccion)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Movimiento {item.id}
-                          </p>
-                        </div>
-                        <div className="rounded-md border border-border bg-background px-3 py-2 text-sm">
-                          <span className="text-muted-foreground">Usuario</span>
-                          <p className="font-medium">{item.usuarioAccion || "-"}</p>
-                        </div>
-                      </div>
-                      <div className="grid gap-3 p-4">
-                        <div className="grid gap-3 rounded-md bg-muted/30 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:grid-cols-[220px_1fr_1fr]">
-                          <span>Campo</span>
-                          <span>Anterior</span>
-                          <span>Nuevo</span>
-                        </div>
-                        {campos.map((campo) => (
-                          <div
-                            key={`${item.id}-${campo.campo}`}
-                            className={cn(
-                              "grid gap-3 rounded-md border border-border p-3 md:grid-cols-[220px_1fr_1fr] md:items-start",
-                              campo.cambio && "border-primary/20",
-                            )}
-                          >
-                            <div className="flex min-h-10 items-center">
-                              <span className="text-sm font-medium">
-                                {etiquetaCampo(campo.campo)}
-                              </span>
+                              <div className="flex min-h-10 items-center">
+                                <span className="text-sm font-medium">
+                                  {etiquetaCampo(campo.campo)}
+                                </span>
+                              </div>
+                              <ValorDiff
+                                tipo="anterior"
+                                valor={campo.anterior}
+                                cambio={campo.cambio}
+                              />
+                              <ValorDiff
+                                tipo="nuevo"
+                                valor={campo.nuevo}
+                                cambio={campo.cambio}
+                              />
                             </div>
-                            <ValorDiff
-                              tipo="anterior"
-                              valor={campo.anterior}
-                              cambio={campo.cambio}
-                            />
-                            <ValorDiff
-                              tipo="nuevo"
-                              valor={campo.nuevo}
-                              cambio={campo.cambio}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </section>
+                          ))}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
                   )
                 })}
-              </div>
+              </Accordion>
             )}
 
             {registros.length > 0 && metaPaginacion ? (
