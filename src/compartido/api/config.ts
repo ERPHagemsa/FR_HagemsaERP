@@ -1,4 +1,4 @@
-export type ServicioApi = "activos" | "combustible" | "socioNegocios"
+export type ServicioApi = "activos" | "combustible" | "socioNegocios" | "flota"
 
 type ConfiguracionServicioApi = {
   baseUrl: string
@@ -31,6 +31,14 @@ export const serviciosApi = {
       API_GATEWAY_URL ??
       "http://localhost:4000/api",
     nombre: "socio de negocio",
+    timeoutMs: 8000,
+  },
+  flota: {
+    baseUrl:
+      process.env.NEXT_PUBLIC_FLOTA_API_URL ??
+      API_GATEWAY_URL ??
+      "http://localhost:8084/api",
+    nombre: "flota",
     timeoutMs: 8000,
   },
 } satisfies Record<ServicioApi, ConfiguracionServicioApi>
