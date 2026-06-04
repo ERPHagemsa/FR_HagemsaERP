@@ -174,7 +174,7 @@ const data = {
       icon: <HugeiconsIcon icon={Settings02Icon} strokeWidth={2} />,
       items: [
         { title: "Configuraciones", url: "/configuracion/listar" },
-        { title: "Nueva configuración", url: "/configuracion/nuevo" },
+        { title: "Nueva configuración", url: "/configuracion/nuevo/ubicacion" },
         { title: "Reportes", url: "/configuracion/reportes" },
       ],
     },

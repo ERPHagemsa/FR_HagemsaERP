@@ -35,10 +35,14 @@ export function useConfiguracionGeneralQuery(query?: ConsultarConfiguracionGener
   )
 }
 
-export function useCatalogoConfiguracionGeneralQuery(query?: ConsultarConfiguracionGeneralQuery) {
+export function useCatalogoConfiguracionGeneralQuery(
+  query?: ConsultarConfiguracionGeneralQuery,
+  enabled = true,
+) {
   return useConsulta(
     () => consultarCatalogoConfiguracionGeneral(query),
     [JSON.stringify(query ?? {})],
+    { enabled },
   )
 }
 

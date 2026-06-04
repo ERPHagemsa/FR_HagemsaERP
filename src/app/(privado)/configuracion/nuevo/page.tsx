@@ -1,5 +1,5 @@
-import { ConfiguracionGeneralNuevoVista } from "@/modulos/configuracion-general/vistas/configuracion-general-vista"
+import { redirect } from "next/navigation"
 
 export default function NuevoDatoMaestroPage() {
-  return <ConfiguracionGeneralNuevoVista />
+  redirect("/configuracion/nuevo/ubicacion")
 }
