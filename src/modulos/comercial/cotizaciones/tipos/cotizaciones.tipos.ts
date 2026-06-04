@@ -66,8 +66,6 @@ export type CargaHijo = {
   origen: string | null;
   destino: string | null;
   tipoVehiculo: string | null;
-  clasificacionImo: string | null;
-  maxUnidadesConvoy: number | null;
 };
 
 export type EquipoHijo = {
@@ -255,8 +253,6 @@ export type PayloadCargaHijo = {
   origen?: string;
   destino?: string;
   tipoVehiculo?: string;
-  clasificacionImo?: string;
-  maxUnidadesConvoy?: number;
 };
 
 export type PayloadEquipoHijo = {

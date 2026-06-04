@@ -294,7 +294,6 @@ function SubformCarga({
         <CampoTextoSubform label="Destino" value={carga.destino} disabled={disabled} onChange={(v) => onChange({ destino: v })} />
         <CampoNumeroSubform label="Peso (Tn)" value={carga.pesoTn} disabled={disabled} onChange={(v) => onChange({ pesoTn: v })} />
         <CampoNumeroSubform label="N° unidades" value={carga.nUnidades} disabled={disabled} onChange={(v) => onChange({ nUnidades: v })} />
-        <CampoTextoSubform label="Clasif. IMO" value={carga.clasificacionImo} disabled={disabled} onChange={(v) => onChange({ clasificacionImo: v })} />
         <CampoNumeroSubform label="Largo (m)" value={carga.largoM} disabled={disabled} onChange={(v) => onChange({ largoM: v })} />
         <CampoNumeroSubform label="Ancho (m)" value={carga.anchoM} disabled={disabled} onChange={(v) => onChange({ anchoM: v })} />
         <CampoNumeroSubform label="Alto (m)" value={carga.altoM} disabled={disabled} onChange={(v) => onChange({ altoM: v })} />

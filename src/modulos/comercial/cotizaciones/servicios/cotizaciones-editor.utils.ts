@@ -52,8 +52,6 @@ export type DraftCargaHijo = {
   origen: string;
   destino: string;
   tipoVehiculo: string;
-  clasificacionImo: string;
-  maxUnidadesConvoy: string;
 };
 
 export type DraftEquipoHijo = {
@@ -128,8 +126,6 @@ function cargaVacia(): DraftCargaHijo {
     origen: "",
     destino: "",
     tipoVehiculo: "",
-    clasificacionImo: "",
-    maxUnidadesConvoy: "",
   };
 }
 
@@ -227,8 +223,6 @@ function cargaReadADraft(c: CargaHijo): DraftCargaHijo {
     origen: c.origen ?? "",
     destino: c.destino ?? "",
     tipoVehiculo: c.tipoVehiculo ?? "",
-    clasificacionImo: c.clasificacionImo ?? "",
-    maxUnidadesConvoy: c.maxUnidadesConvoy !== null ? String(c.maxUnidadesConvoy) : "",
   };
 }
 
@@ -364,8 +358,6 @@ function cargaAPayload(c: DraftCargaHijo): PayloadCargaHijo {
   if (c.origen !== "") payload.origen = c.origen;
   if (c.destino !== "") payload.destino = c.destino;
   if (c.tipoVehiculo !== "") payload.tipoVehiculo = c.tipoVehiculo;
-  if (c.clasificacionImo !== "") payload.clasificacionImo = c.clasificacionImo;
-  if (c.maxUnidadesConvoy !== "") payload.maxUnidadesConvoy = parseNumero(c.maxUnidadesConvoy);
   return payload;
 }
 
