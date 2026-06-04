@@ -44,6 +44,11 @@ import {
 } from "@/compartido/componentes/ui/field"
 import { Input } from "@/compartido/componentes/ui/input"
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/compartido/componentes/ui/input-group"
+import {
   Select,
   SelectContent,
   SelectGroup,
@@ -364,6 +369,30 @@ function obtenerTextoFormulario(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim()
 }
 
+function esTexto(valor: string | null | undefined): valor is string {
+  return Boolean(valor)
+}
+
+function formarNombreCompletoPersonal(formData: FormData) {
+  return [
+    obtenerTextoFormulario(formData, "primerNombre"),
+    obtenerTextoFormulario(formData, "segundoNombre"),
+    obtenerTextoFormulario(formData, "apellidoPaterno"),
+    obtenerTextoFormulario(formData, "apellidoMaterno"),
+  ]
+    .filter(esTexto)
+    .join(" ")
+}
+
+function formarNombreComercialPersonal(formData: FormData) {
+  return [
+    obtenerTextoFormulario(formData, "primerNombre"),
+    obtenerTextoFormulario(formData, "apellidoPaterno"),
+  ]
+    .filter(esTexto)
+    .join(" ")
+}
+
 function obtenerClaseFilaSocio(socio: SocioDeNegocioResponse) {
   const inactivo = socio.estado === "INACTIVO"
   const anulado = socio.estadoRegistro === "ANULADO"
@@ -423,6 +452,13 @@ function AccionesSocio({
   const puedeDarBaja = socio.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
   const puedeReactivar = socio.estado === "INACTIVO" || socio.estadoRegistro === "ANULADO"
   const requiereMotivo = accion === "baja" || accion === "anular"
+  const partesRazonSocial = socio.razonSocial.split(/\s+/).filter(Boolean)
+  const primerNombreInicial = socio.primerNombre || partesRazonSocial[0] || ""
+  const segundoNombreInicial = socio.segundoNombre || ""
+  const apellidoPaternoInicial =
+    socio.apellidoPaterno || partesRazonSocial.at(-2) || ""
+  const apellidoMaternoInicial =
+    socio.apellidoMaterno || partesRazonSocial.at(-1) || ""
 
   function abrirAccion(nuevaAccion: "baja" | "anular" | "reactivar") {
     setMotivo(
@@ -468,14 +504,28 @@ function AccionesSocio({
     event.preventDefault()
 
     const formData = new FormData(event.currentTarget)
+    const esPersonal = socio.tipo === "PERSONAL"
+    const razonSocial = esPersonal
+      ? formarNombreCompletoPersonal(formData)
+      : obtenerTextoFormulario(formData, "razonSocial")
+    const nombreComercial = esPersonal
+      ? formarNombreComercialPersonal(formData)
+      : obtenerTextoFormulario(formData, "nombreComercial")
     const payload: ModificarSocioDeNegocioRequest = {
-      razonSocial: obtenerTextoFormulario(formData, "razonSocial"),
-      nombreComercial: obtenerTextoFormulario(formData, "nombreComercial"),
+      razonSocial,
+      nombreComercial,
       direccion: obtenerTextoFormulario(formData, "direccion"),
-      contacto: obtenerTextoFormulario(formData, "contacto"),
+      contacto: esPersonal ? nombreComercial : obtenerTextoFormulario(formData, "contacto"),
       correo: obtenerTextoFormulario(formData, "correo"),
       numeroCelular: obtenerTextoFormulario(formData, "numeroCelular"),
       usuarioId: "admin",
+    }
+
+    if (esPersonal) {
+      payload.primerNombre = obtenerTextoFormulario(formData, "primerNombre")
+      payload.segundoNombre = obtenerTextoFormulario(formData, "segundoNombre") || undefined
+      payload.apellidoPaterno = obtenerTextoFormulario(formData, "apellidoPaterno")
+      payload.apellidoMaterno = obtenerTextoFormulario(formData, "apellidoMaterno")
     }
 
     try {
@@ -534,7 +584,7 @@ function AccionesSocio({
               onSelect={() => abrirAccion("anular")}
             >
               <HugeiconsIcon data-icon="inline-start" icon={CancelCircleIcon} strokeWidth={2} />
-              Anular por error
+              Anular
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!puedeReactivar || procesando}
@@ -693,26 +743,72 @@ function AccionesSocio({
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field className="md:col-span-2">
-                  <FieldLabel htmlFor={`razonSocial-${socio.id}`}>Razon social</FieldLabel>
-                  <Input
-                    id={`razonSocial-${socio.id}`}
-                    name="razonSocial"
-                    defaultValue={socio.razonSocial}
-                    required
-                  />
-                </Field>
-                <Field className="md:col-span-2">
-                  <FieldLabel htmlFor={`nombreComercial-${socio.id}`}>
-                    Nombre comercial
-                  </FieldLabel>
-                  <Input
-                    id={`nombreComercial-${socio.id}`}
-                    name="nombreComercial"
-                    defaultValue={socio.nombreComercial}
-                    required
-                  />
-                </Field>
+                {socio.tipo === "PERSONAL" ? (
+                  <>
+                    <Field>
+                      <FieldLabel htmlFor={`primerNombre-${socio.id}`}>Primer nombre</FieldLabel>
+                      <Input
+                        id={`primerNombre-${socio.id}`}
+                        name="primerNombre"
+                        defaultValue={primerNombreInicial}
+                        required
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`segundoNombre-${socio.id}`}>Segundo nombre</FieldLabel>
+                      <Input
+                        id={`segundoNombre-${socio.id}`}
+                        name="segundoNombre"
+                        defaultValue={segundoNombreInicial}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`apellidoPaterno-${socio.id}`}>
+                        Apellido paterno
+                      </FieldLabel>
+                      <Input
+                        id={`apellidoPaterno-${socio.id}`}
+                        name="apellidoPaterno"
+                        defaultValue={apellidoPaternoInicial}
+                        required
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`apellidoMaterno-${socio.id}`}>
+                        Apellido materno
+                      </FieldLabel>
+                      <Input
+                        id={`apellidoMaterno-${socio.id}`}
+                        name="apellidoMaterno"
+                        defaultValue={apellidoMaternoInicial}
+                        required
+                      />
+                    </Field>
+                  </>
+                ) : (
+                  <>
+                    <Field className="md:col-span-2">
+                      <FieldLabel htmlFor={`razonSocial-${socio.id}`}>Razon social</FieldLabel>
+                      <Input
+                        id={`razonSocial-${socio.id}`}
+                        name="razonSocial"
+                        defaultValue={socio.razonSocial}
+                        required
+                      />
+                    </Field>
+                    <Field className="md:col-span-2">
+                      <FieldLabel htmlFor={`nombreComercial-${socio.id}`}>
+                        Nombre comercial
+                      </FieldLabel>
+                      <Input
+                        id={`nombreComercial-${socio.id}`}
+                        name="nombreComercial"
+                        defaultValue={socio.nombreComercial}
+                        required
+                      />
+                    </Field>
+                  </>
+                )}
                 <Field className="md:col-span-2">
                   <FieldLabel htmlFor={`direccion-${socio.id}`}>Direccion</FieldLabel>
                   <Input
@@ -722,14 +818,16 @@ function AccionesSocio({
                     required
                   />
                 </Field>
-                <Field>
-                  <FieldLabel htmlFor={`contacto-${socio.id}`}>Contacto</FieldLabel>
-                  <Input
-                    id={`contacto-${socio.id}`}
-                    name="contacto"
-                    defaultValue={socio.contacto}
-                  />
-                </Field>
+                {socio.tipo !== "PERSONAL" ? (
+                  <Field>
+                    <FieldLabel htmlFor={`contacto-${socio.id}`}>Contacto</FieldLabel>
+                    <Input
+                      id={`contacto-${socio.id}`}
+                      name="contacto"
+                      defaultValue={socio.contacto}
+                    />
+                  </Field>
+                ) : null}
                 <Field>
                   <FieldLabel htmlFor={`correo-${socio.id}`}>Correo</FieldLabel>
                   <Input
@@ -1003,13 +1101,18 @@ export function SocioNegocioVista({
                   }}
                 >
                   <Field className="lg:w-56">
-                    <Input
-                      value={obtenerValorFiltro(filtrosFormulario, "razonSocial")}
-                      placeholder="Buscar socio"
-                      onChange={(event) =>
-                        actualizarFiltro("razonSocial", event.target.value)
-                      }
-                    />
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <HugeiconsIcon icon={Search01Icon} strokeWidth={2} />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        value={obtenerValorFiltro(filtrosFormulario, "razonSocial")}
+                        placeholder="Buscar socio"
+                        onChange={(event) =>
+                          actualizarFiltro("razonSocial", event.target.value)
+                        }
+                      />
+                    </InputGroup>
                   </Field>
                   <Field className="lg:w-40">
                     <Input
@@ -1065,6 +1168,28 @@ export function SocioNegocioVista({
                           <SelectItem value="TODOS">Estado: todos</SelectItem>
                           <SelectItem value="ACTIVO">Activo</SelectItem>
                           <SelectItem value="INACTIVO">Inactivo</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field className="lg:w-44">
+                    <Select
+                      value={filtrosFormulario.estadoRegistro ?? "TODOS"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "estadoRegistro",
+                          value as ConsultarSociosDeNegocioQuery["estadoRegistro"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Registro" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Registro: todos</SelectItem>
+                          <SelectItem value="ACTIVO">Vigentes</SelectItem>
+                          <SelectItem value="ANULADO">Anulados</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>

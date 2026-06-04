@@ -36,12 +36,12 @@ export type AccionHistorial =
   | "ANULACION"
 
 export interface PaginationMeta {
-  pagina?: number
-  limite?: number
+  pagina: number
+  limite: number
   total: number
   totalPaginas: number
-  tieneSiguiente?: boolean
-  tieneAnterior?: boolean
+  tieneSiguiente: boolean
+  tieneAnterior: boolean
 }
 
 export interface PaginatedResponse<T> {
@@ -80,6 +80,7 @@ export interface ResumenConfiguracionGeneralResponse {
 
 export interface ConfiguracionGeneralResponse {
   id: string
+  count: number
   tipoDatoMaestro: TipoDatoMaestro
   codigo: string
   nombre: string
@@ -102,9 +103,8 @@ export interface ConfiguracionGeneralResponse {
   esTemporal?: boolean | null
   fechaInicio?: string | null
   fechaFin?: string | null
-  tipoCuenta?: string | null
-  tipoContrato?: string | null
-  cuentaId?: string | null
+  nivelCuentaContrato?: number | null
+  contratoPadreId?: string | null
   estado: EstadoDatoMaestro
   estadoRegistro: EstadoRegistro
   motivoInhabilitacion?: string | null
@@ -134,7 +134,6 @@ export interface HistorialConfiguracionGeneralResponse {
 
 export interface RegistrarConfiguracionGeneralRequest {
   tipoDatoMaestro: TipoDatoMaestro
-  codigo: string
   nombre: string
   descripcion?: string | null
   cargoSuperiorId?: string | null
@@ -155,14 +154,11 @@ export interface RegistrarConfiguracionGeneralRequest {
   esTemporal?: boolean | null
   fechaInicio?: string | null
   fechaFin?: string | null
-  tipoCuenta?: string | null
-  tipoContrato?: string | null
-  cuentaId?: string | null
+  contratoPadreId?: string | null
   usuarioCreacion: string
 }
 
 export interface ModificarConfiguracionGeneralRequest {
-  codigo?: string
   nombre?: string
   descripcion?: string | null
   cargoSuperiorId?: string | null
@@ -183,9 +179,6 @@ export interface ModificarConfiguracionGeneralRequest {
   esTemporal?: boolean | null
   fechaInicio?: string | null
   fechaFin?: string | null
-  tipoCuenta?: string | null
-  tipoContrato?: string | null
-  cuentaId?: string | null
   usuarioModificacion: string
 }
 
@@ -207,11 +200,16 @@ export interface ConsultarConfiguracionGeneralQuery {
   tipoDatoMaestro?: TipoDatoMaestro
   estado?: EstadoDatoMaestro
   estadoRegistro?: EstadoRegistro
+  count?: number
   codigo?: string
   nombre?: string
+  departamento?: string
+  provincia?: string
+  distrito?: string
   page?: number
   pageSize?: number
   sortBy?:
+    | "count"
     | "tipoDatoMaestro"
     | "codigo"
     | "nombre"

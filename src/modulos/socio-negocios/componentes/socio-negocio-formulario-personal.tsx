@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select"
 
+import { CatalogoSelectBuscable } from "./catalogo-select-buscable"
 import {
   useMaestrosConfiguracionGeneralQuery,
   useRegistrarSocioDeNegocioMutation,
@@ -57,9 +58,8 @@ function texto(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim()
 }
 
-function textoOpcional(formData: FormData, name: string) {
-  const valor = texto(formData, name)
-  return valor || undefined
+function esTexto(valor: string | null | undefined): valor is string {
+  return Boolean(valor)
 }
 
 function buscarMaestro(
@@ -67,6 +67,46 @@ function buscarMaestro(
   id?: string,
 ) {
   return id ? datos.find((dato) => dato.id === id) : undefined
+}
+
+function clavesMaestro(maestro?: MaestroConfiguracionGeneralIntegracion) {
+  return [maestro?.id, maestro?.idExterno].filter(Boolean)
+}
+
+function etiquetaUbicacion(ubicacion: MaestroConfiguracionGeneralIntegracion) {
+  const partes = [ubicacion.distrito, ubicacion.provincia, ubicacion.departamento].filter(Boolean)
+
+  return partes.length > 0 ? `${ubicacion.nombre} - ${partes.join(", ")}` : ubicacion.nombre
+}
+
+function etiquetaContrato(contrato: MaestroConfiguracionGeneralIntegracion) {
+  return contrato.nombre
+}
+
+function formarNombreCompleto({
+  apellidoMaterno,
+  apellidoPaterno,
+  primerNombre,
+  segundoNombre,
+}: {
+  apellidoMaterno: string
+  apellidoPaterno: string
+  primerNombre: string
+  segundoNombre?: string
+}) {
+  return [primerNombre, segundoNombre, apellidoPaterno, apellidoMaterno]
+    .filter(esTexto)
+    .join(" ")
+}
+
+function formarNombreComercial({
+  apellidoPaterno,
+  primerNombre,
+}: {
+  apellidoPaterno: string
+  primerNombre: string
+}) {
+  return [primerNombre, apellidoPaterno].filter(esTexto).join(" ")
 }
 
 function obtenerErrorDialogo(error: unknown): ErrorDialogo {
@@ -102,60 +142,17 @@ function obtenerErrorDialogo(error: unknown): ErrorDialogo {
   }
 }
 
-function CatalogoSelect({
-  datos,
-  disabled,
-  id,
-  name,
-  onValueChange,
-  placeholder,
-  value,
-}: {
-  datos: MaestroConfiguracionGeneralIntegracion[]
-  disabled?: boolean
-  id: string
-  name: string
-  onValueChange?: (value: string) => void
-  placeholder: string
-  value?: string
-}) {
-  return (
-    <Select
-      name={name}
-      disabled={disabled}
-      value={value}
-      onValueChange={onValueChange}
-    >
-      <SelectTrigger id={id} className="w-full">
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {datos.length > 0 ? (
-            datos.map((dato) => (
-              <SelectItem key={dato.id} value={dato.id}>
-                {dato.nombre}
-              </SelectItem>
-            ))
-          ) : (
-            <SelectItem value="__sin_datos__" disabled>
-              Sin registros disponibles
-            </SelectItem>
-          )}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  )
-}
-
 export function SocioNegocioFormularioPersonal({
   selectorTipo,
 }: SocioNegocioFormularioPersonalProps) {
   const router = useRouter()
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
+  const [distritoSeleccionado, setDistritoSeleccionado] = useState<string | undefined>()
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState<string | undefined>()
   const [sedeSeleccionada, setSedeSeleccionada] = useState<string | undefined>()
   const [areaSeleccionada, setAreaSeleccionada] = useState<string | undefined>()
+  const [cuentaSeleccionada, setCuentaSeleccionada] = useState<string | undefined>()
+  const [contratosSeleccionados, setContratosSeleccionados] = useState<string[]>([])
   const [errorDialogo, setErrorDialogo] = useState<ErrorDialogo | null>(null)
 
   const ubicacionesQuery = useMaestrosConfiguracionGeneralQuery({
@@ -183,6 +180,15 @@ export function SocioNegocioFormularioPersonal({
   const cargos = (cargosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
   const contratos = (contratosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
   const cuentas = (cuentasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
+  const distritos = Array.from(
+    new Set(ubicaciones.map((ubicacion) => ubicacion.distrito).filter(esTexto)),
+  ).sort((a, b) => a.localeCompare(b))
+  const ubicacionesPorDistrito =
+    distritos.length > 0 && distritoSeleccionado
+      ? ubicaciones.filter((ubicacion) => ubicacion.distrito === distritoSeleccionado)
+      : distritos.length > 0
+        ? []
+        : ubicaciones
 
   const sedeSeleccionadaMaestro = sedesQuery.data?.find((sede) => sede.id === sedeSeleccionada)
   const sedeSeleccionadaId = sedeSeleccionadaMaestro?.id
@@ -190,18 +196,11 @@ export function SocioNegocioFormularioPersonal({
   const ubicacionSeleccionadaMaestro = ubicaciones.find(
     (ubicacion) => ubicacion.id === ubicacionSeleccionada,
   )
+  const cuentaSeleccionadaMaestro = buscarMaestro(cuentas, cuentaSeleccionada)
 
-  const ubicacionKeys = [
-    ubicacionSeleccionadaMaestro?.id,
-    ubicacionSeleccionadaMaestro?.idExterno,
-  ].filter(Boolean)
-
-  const sedeKeys = [sedeSeleccionadaMaestro?.id, sedeSeleccionadaMaestro?.idExterno].filter(
-    Boolean,
-  )
-  const areaKeys = [areaSeleccionadaMaestro?.id, areaSeleccionadaMaestro?.idExterno].filter(
-    Boolean,
-  )
+  const ubicacionKeys = clavesMaestro(ubicacionSeleccionadaMaestro)
+  const sedeKeys = clavesMaestro(sedeSeleccionadaMaestro)
+  const areaKeys = clavesMaestro(areaSeleccionadaMaestro)
 
   const sedesPorUbicacion =
     ubicacionKeys.length > 0
@@ -226,13 +225,53 @@ export function SocioNegocioFormularioPersonal({
           ? cargos.filter((cargo) => cargo.ubicacionId && ubicacionKeys.includes(cargo.ubicacionId))
           : cargos
 
+  const contratoPadreInicialKeys = clavesMaestro(cuentaSeleccionadaMaestro)
+  const contratosNivel2 =
+    contratoPadreInicialKeys.length > 0
+      ? contratos.filter(
+          (contrato) =>
+            contrato.contratoPadreId && contratoPadreInicialKeys.includes(contrato.contratoPadreId),
+        )
+      : []
+  const contratosPorNivel = contratosSeleccionados.reduce<
+    Array<{
+      contratos: MaestroConfiguracionGeneralIntegracion[]
+      nivel: number
+      seleccionado?: string
+    }>
+  >(
+    (niveles, contratoId, index) => {
+      const contratoPadre = buscarMaestro(contratos, contratoId)
+      const contratoPadreKeys = clavesMaestro(contratoPadre)
+      const contratosHijos =
+        contratoPadreKeys.length > 0
+          ? contratos.filter(
+              (contrato) =>
+                contrato.contratoPadreId && contratoPadreKeys.includes(contrato.contratoPadreId),
+            )
+          : []
+
+      if (contratosHijos.length > 0) {
+        niveles.push({
+          contratos: contratosHijos,
+          nivel: (contratoPadre?.nivelCuentaContrato ?? index + 2) + 1,
+          seleccionado: contratosSeleccionados[index + 1],
+        })
+      }
+
+      return niveles
+    },
+    contratosNivel2.length > 0
+      ? [{ contratos: contratosNivel2, nivel: 2, seleccionado: contratosSeleccionados[0] }]
+      : [],
+  )
+  const contratoFinalId = [...contratosSeleccionados].reverse().find(Boolean)
+
   const catalogosCargando =
     ubicacionesQuery.isLoading ||
     sedesQuery.isLoading ||
     areasQuery.isLoading ||
-    cargosQuery.isLoading ||
-    contratosQuery.isLoading ||
-    cuentasQuery.isLoading
+    cargosQuery.isLoading
 
   const maestrosConsultados =
     ubicacionesQuery.isSuccess &&
@@ -247,9 +286,7 @@ export function SocioNegocioFormularioPersonal({
     (ubicaciones.length === 0 ||
       cargos.length === 0 ||
       sedes.length === 0 ||
-      areas.length === 0 ||
-      contratos.length === 0 ||
-      cuentas.length === 0)
+      areas.length === 0)
 
   async function registrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -261,7 +298,21 @@ export function SocioNegocioFormularioPersonal({
     const areaId = texto(formData, "area")
     const cargoId = texto(formData, "cargo")
     const contratoId = texto(formData, "contrato")
-    const cuentaId = textoOpcional(formData, "cuenta")
+    const cuentaId = texto(formData, "cuenta")
+    const primerNombre = texto(formData, "primerNombre")
+    const segundoNombre = texto(formData, "segundoNombre")
+    const apellidoPaterno = texto(formData, "apellidoPaterno")
+    const apellidoMaterno = texto(formData, "apellidoMaterno")
+    const nombreCompleto = formarNombreCompleto({
+      apellidoMaterno,
+      apellidoPaterno,
+      primerNombre,
+      segundoNombre,
+    })
+    const nombreComercial = formarNombreComercial({
+      apellidoPaterno,
+      primerNombre,
+    })
 
     const ubicacionMaestro = buscarMaestro(ubicaciones, ubicacionId)
     const sedeMaestro = buscarMaestro(sedes, sedeId)
@@ -270,10 +321,15 @@ export function SocioNegocioFormularioPersonal({
     const contratoMaestro = buscarMaestro(contratos, contratoId)
     const cuentaMaestro = buscarMaestro(cuentas, cuentaId)
 
-    if (!ubicacionMaestro || !sedeMaestro || !areaMaestro || !cargoMaestro || !contratoMaestro) {
+    if (
+      !ubicacionMaestro ||
+      !sedeMaestro ||
+      !areaMaestro ||
+      !cargoMaestro
+    ) {
       setErrorDialogo({
         titulo: "Datos laborales incompletos",
-        descripcion: "Selecciona ubicacion, sede, area, cargo y contrato desde el catalogo.",
+        descripcion: "Selecciona ubicacion, sede, area y cargo desde el catalogo.",
       })
       return
     }
@@ -281,11 +337,16 @@ export function SocioNegocioFormularioPersonal({
     try {
       const payload: RegistrarPersonalRequest = {
         tipo: "PERSONAL",
+        codigoInternoSap: texto(formData, "numeroDocumento"),
         numeroDocumento: texto(formData, "numeroDocumento"),
-        razonSocial: texto(formData, "nombresApellidos"),
-        nombreComercial: texto(formData, "nombresApellidos"),
+        razonSocial: nombreCompleto,
+        nombreComercial,
+        primerNombre,
+        segundoNombre: segundoNombre || undefined,
+        apellidoPaterno,
+        apellidoMaterno,
         direccion: texto(formData, "direccion"),
-        contacto: `${texto(formData, "nombresApellidos")} - ${cargoMaestro.nombre}`,
+        contacto: nombreComercial,
         correo: texto(formData, "correo"),
         numeroCelular: texto(formData, "numeroCelular"),
         sedeId: sedeMaestro.id,
@@ -294,8 +355,8 @@ export function SocioNegocioFormularioPersonal({
         areaNombre: areaMaestro.nombre,
         cargoId: cargoMaestro.id,
         cargoNombre: cargoMaestro.nombre,
-        contratoId: contratoMaestro.id,
-        contratoNombre: contratoMaestro.nombre,
+        contratoId: contratoMaestro?.id,
+        contratoNombre: contratoMaestro?.nombre,
         cuentaId: cuentaMaestro?.id,
         cuentaNombre: cuentaMaestro?.nombre,
         usuarioId: USUARIO_RESPONSABLE_ID,
@@ -358,12 +419,41 @@ export function SocioNegocioFormularioPersonal({
                   <FieldLegend>Datos personales</FieldLegend>
                   <FieldDescription>Nombre y datos de contacto del empleado.</FieldDescription>
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <Field className="md:col-span-2 xl:col-span-2">
-                      <FieldLabel htmlFor="nombresApellidos">Nombres y apellidos</FieldLabel>
+                    <Field>
+                      <FieldLabel htmlFor="primerNombre">Primer nombre</FieldLabel>
                       <Input
-                        id="nombresApellidos"
-                        name="nombresApellidos"
-                        placeholder="Juan Perez Garcia"
+                        id="primerNombre"
+                        name="primerNombre"
+                        placeholder="Juan"
+                        required
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="segundoNombre">Segundo nombre</FieldLabel>
+                      <Input
+                        id="segundoNombre"
+                        name="segundoNombre"
+                        placeholder="Carlos"
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="apellidoPaterno">Apellido paterno</FieldLabel>
+                      <Input
+                        id="apellidoPaterno"
+                        name="apellidoPaterno"
+                        placeholder="Perez"
+                        required
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="apellidoMaterno">Apellido materno</FieldLabel>
+                      <Input
+                        id="apellidoMaterno"
+                        name="apellidoMaterno"
+                        placeholder="Gomez"
                         required
                       />
                     </Field>
@@ -399,18 +489,6 @@ export function SocioNegocioFormularioPersonal({
                       />
                     </Field>
 
-                    <Field>
-                      <FieldLabel htmlFor="cuenta">Cuenta (opcional)</FieldLabel>
-                      <CatalogoSelect
-                        datos={cuentas}
-                        disabled={cuentasQuery.isLoading}
-                        id="cuenta"
-                        name="cuenta"
-                        placeholder={
-                          cuentasQuery.isLoading ? "Cargando cuentas..." : "Selecciona una cuenta"
-                        }
-                      />
-                    </Field>
                   </div>
                 </FieldSet>
               </div>
@@ -419,11 +497,51 @@ export function SocioNegocioFormularioPersonal({
                 <FieldLegend>Datos laborales</FieldLegend>
                 <FieldDescription>Estructura organizacional donde labora el empleado.</FieldDescription>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                  {distritos.length > 0 ? (
+                    <Field>
+                      <FieldLabel htmlFor="distrito">Distrito *</FieldLabel>
+                      <Select
+                        name="distrito"
+                        value={distritoSeleccionado}
+                        onValueChange={(value) => {
+                          setDistritoSeleccionado(value)
+                          setUbicacionSeleccionada(undefined)
+                          setSedeSeleccionada(undefined)
+                          setAreaSeleccionada(undefined)
+                        }}
+                        disabled={ubicacionesQuery.isLoading}
+                      >
+                        <SelectTrigger id="distrito" className="w-full">
+                          <SelectValue
+                            placeholder={
+                              ubicacionesQuery.isLoading
+                                ? "Cargando distritos..."
+                                : "Selecciona un distrito"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {distritos.map((distrito) => (
+                              <SelectItem key={distrito} value={distrito}>
+                                {distrito}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  ) : null}
+
                   <Field>
                     <FieldLabel htmlFor="ubicacion">Ubicacion *</FieldLabel>
-                    <CatalogoSelect
-                      datos={ubicaciones}
-                      disabled={ubicacionesQuery.isLoading}
+                    <CatalogoSelectBuscable
+                      datos={ubicacionesPorDistrito}
+                      disabled={
+                        ubicacionesQuery.isLoading ||
+                        (distritos.length > 0 && !distritoSeleccionado)
+                      }
+                      getLabel={etiquetaUbicacion}
                       id="ubicacion"
                       name="ubicacion"
                       value={ubicacionSeleccionada}
@@ -435,14 +553,16 @@ export function SocioNegocioFormularioPersonal({
                       placeholder={
                         ubicacionesQuery.isLoading
                           ? "Cargando ubicaciones..."
-                          : "Selecciona una ubicacion"
+                          : distritos.length > 0 && !distritoSeleccionado
+                            ? "Selecciona primero el distrito"
+                            : "Selecciona una ubicacion"
                       }
                     />
                   </Field>
 
                   <Field>
                     <FieldLabel htmlFor="sede">Sede *</FieldLabel>
-                    <CatalogoSelect
+                    <CatalogoSelectBuscable
                       key={`sede-${ubicacionSeleccionada ?? "sin-ubicacion"}`}
                       datos={sedesPorUbicacion}
                       disabled={sedesQuery.isLoading || !ubicacionSeleccionada}
@@ -465,7 +585,7 @@ export function SocioNegocioFormularioPersonal({
 
                   <Field>
                     <FieldLabel htmlFor="area">Area *</FieldLabel>
-                    <CatalogoSelect
+                    <CatalogoSelectBuscable
                       key={`area-${sedeSeleccionadaId ?? "sin-sede"}`}
                       datos={areasPorSede}
                       disabled={areasQuery.isLoading || !sedeSeleccionada}
@@ -485,7 +605,7 @@ export function SocioNegocioFormularioPersonal({
 
                   <Field>
                     <FieldLabel htmlFor="cargo">Cargo *</FieldLabel>
-                    <CatalogoSelect
+                    <CatalogoSelectBuscable
                       key={`cargo-${areaSeleccionada ?? sedeSeleccionada ?? ubicacionSeleccionada ?? "sin-area"}`}
                       datos={cargosPorSeleccion}
                       disabled={cargosQuery.isLoading || !areaSeleccionada}
@@ -501,18 +621,62 @@ export function SocioNegocioFormularioPersonal({
                     />
                   </Field>
 
+                </div>
+              </FieldSet>
+
+              <FieldSet className="rounded-lg border border-border p-4">
+                <FieldLegend>Relacion contractual</FieldLegend>
+                <FieldDescription>
+                  Selecciona la cuenta y el ultimo contrato asociado que corresponda.
+                </FieldDescription>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   <Field>
-                    <FieldLabel htmlFor="contrato">Contrato *</FieldLabel>
-                    <CatalogoSelect
-                      datos={contratos}
-                      disabled={contratosQuery.isLoading}
-                      id="contrato"
-                      name="contrato"
+                    <FieldLabel htmlFor="cuenta">Cuenta (opcional)</FieldLabel>
+                    <CatalogoSelectBuscable
+                      datos={cuentas}
+                      disabled={cuentasQuery.isLoading}
+                      getLabel={etiquetaContrato}
+                      id="cuenta"
+                      name="cuenta"
+                      value={cuentaSeleccionada}
+                      onValueChange={(value) => {
+                        setCuentaSeleccionada(value)
+                        setContratosSeleccionados([])
+                      }}
                       placeholder={
-                        contratosQuery.isLoading ? "Cargando contratos..." : "Selecciona un contrato"
+                        cuentasQuery.isLoading ? "Cargando cuentas..." : "Selecciona una cuenta"
                       }
                     />
                   </Field>
+
+                  {contratosPorNivel.map((nivel, index) => (
+                    <Field key={`contrato-nivel-${nivel.nivel}`}>
+                      <FieldLabel htmlFor={`contratoNivel${nivel.nivel}`}>
+                        Contrato asociado (opcional)
+                      </FieldLabel>
+                      <CatalogoSelectBuscable
+                        datos={nivel.contratos}
+                        disabled={!cuentaSeleccionada || contratosQuery.isLoading}
+                        getLabel={etiquetaContrato}
+                        id={`contratoNivel${nivel.nivel}`}
+                        name={`contratoNivel${nivel.nivel}`}
+                        value={nivel.seleccionado}
+                        onValueChange={(value) => {
+                          setContratosSeleccionados((actuales) => [
+                            ...actuales.slice(0, index),
+                            value,
+                          ])
+                        }}
+                        placeholder={
+                          contratosQuery.isLoading
+                            ? "Cargando contratos..."
+                            : "Selecciona un contrato asociado"
+                        }
+                      />
+                    </Field>
+                  ))}
+
+                  <input name="contrato" value={contratoFinalId ?? ""} readOnly hidden />
                 </div>
               </FieldSet>
 
