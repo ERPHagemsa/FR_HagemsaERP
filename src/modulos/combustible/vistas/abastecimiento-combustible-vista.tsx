@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import {
   IconAlertCircle,
   IconArrowLeft,
@@ -69,8 +69,14 @@ export function AbastecimientoCombustibleVista() {
   const abastecimientosQuery = useAbastecimientosCombustibleQuery();
   const crearAbastecimientoMutation =
     useCrearAbastecimientoCombustibleMutation();
-  const solicitudes = solicitudesQuery.data ?? [];
+  const solicitudes = useMemo(
+    () => solicitudesQuery.data ?? [],
+    [solicitudesQuery.data],
+  );
   const abastecimientos = abastecimientosQuery.data ?? [];
+  const solicitudSeleccionadaId = solicitudId || solicitudes[0]?.id || "";
+  const errorConsulta = solicitudesQuery.error ?? abastecimientosQuery.error;
+  const mensajeError = error ?? (errorConsulta ? extraerMensajeError(errorConsulta) : null);
   const cargando = solicitudesQuery.isLoading || abastecimientosQuery.isLoading;
   const actualizando =
     solicitudesQuery.isFetching || abastecimientosQuery.isFetching;
@@ -82,18 +88,6 @@ export function AbastecimientoCombustibleVista() {
     void abastecimientosQuery.refetch();
   }
 
-  useEffect(() => {
-    setSolicitudId((actual) => actual || solicitudes[0]?.id || "");
-  }, [solicitudes]);
-
-  useEffect(() => {
-    const queryError = solicitudesQuery.error ?? abastecimientosQuery.error;
-
-    if (queryError) {
-      setError(extraerMensajeError(queryError));
-    }
-  }, [solicitudesQuery.error, abastecimientosQuery.error]);
-
   async function registrarAbastecimiento(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMensaje(null);
@@ -101,7 +95,7 @@ export function AbastecimientoCombustibleVista() {
 
     try {
       const abastecimiento = await crearAbastecimientoMutation.mutateAsync({
-        solicitudId,
+        solicitudId: solicitudSeleccionadaId,
         litrosDespachados: Number(litrosDespachados),
         nroTicket: nroTicket.trim().toUpperCase(),
       });
@@ -156,7 +150,7 @@ export function AbastecimientoCombustibleVista() {
                 <Field>
                   <FieldLabel htmlFor="solicitud">Solicitud</FieldLabel>
                   <Select
-                    value={solicitudId}
+                    value={solicitudSeleccionadaId}
                     onValueChange={setSolicitudId}
                     required
                   >
@@ -201,7 +195,7 @@ export function AbastecimientoCombustibleVista() {
                   />
                 </Field>
 
-                <Button type="submit" disabled={guardando || !solicitudId}>
+                <Button type="submit" disabled={guardando || !solicitudSeleccionadaId}>
                   <IconTicket data-icon="inline-start" />
                   {guardando ? "Registrando..." : "Registrar ticket"}
                 </Button>
@@ -213,9 +207,9 @@ export function AbastecimientoCombustibleVista() {
                   </Alert>
                 ) : null}
 
-                {error ? (
+                {mensajeError ? (
                   <Field data-invalid>
-                    <FieldError>{error}</FieldError>
+                    <FieldError>{mensajeError}</FieldError>
                   </Field>
                 ) : null}
               </FieldGroup>
@@ -276,11 +270,11 @@ export function AbastecimientoCombustibleVista() {
               </Table>
             )}
 
-            {error && !cargando ? (
+            {mensajeError && !cargando ? (
               <Alert variant="destructive" className="mt-4">
                 <IconAlertCircle />
                 <AlertTitle>Error de API</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{mensajeError}</AlertDescription>
               </Alert>
             ) : null}
           </CardContent>

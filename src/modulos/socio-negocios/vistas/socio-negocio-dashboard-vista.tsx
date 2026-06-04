@@ -29,7 +29,6 @@ import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -59,7 +58,6 @@ import type {
   EstadoSocioDeNegocio,
   ResumenSociosDeNegocioResponse,
   SocioDeNegocioResponse,
-  TipoSocioDeNegocio,
 } from "../tipos/socio-negocio"
 
 const chartConfig = {
