@@ -65,7 +65,13 @@ export default async function Page({ searchParams }: Props) {
 
   return (
     <>
-      <SiteHeader title="Cotizaciones" />
+      <SiteHeader
+        title="Cotizaciones"
+        breadcrumbs={[
+          { title: "Gestión Comercial", href: "/comercial" },
+          { title: "Cotizaciones" },
+        ]}
+      />
       <CotizacionesVista filtros={filtros} filtrosRaw={filtrosRaw} />
     </>
   );

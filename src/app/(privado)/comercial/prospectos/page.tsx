@@ -47,7 +47,13 @@ export default async function Page({ searchParams }: Props) {
 
   return (
     <>
-      <SiteHeader title="Prospectos" />
+      <SiteHeader
+        title="Prospectos"
+        breadcrumbs={[
+          { title: "Gestión Comercial", href: "/comercial" },
+          { title: "Prospectos" },
+        ]}
+      />
       <ProspectosVista filtros={filtros} filtrosRaw={filtrosRaw} />
     </>
   );

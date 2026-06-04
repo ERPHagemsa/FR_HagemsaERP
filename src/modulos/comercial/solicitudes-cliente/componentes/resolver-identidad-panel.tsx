@@ -21,8 +21,16 @@ import { resolverIdentidad } from "../servicios/solicitudes-cliente-api";
 import type { RespuestaResolverIdentidad, TipoOrigen } from "../tipos/solicitud-cliente.tipos";
 import { schemaResolverIdentidad } from "../tipos/solicitud-cliente.schemas";
 
+type DatosIdentidadResuelta = {
+  origenTipo: TipoOrigen;
+  origenId: string;
+  nombre?: string;
+  tipoDocumento?: string;
+  numeroDocumento?: string;
+};
+
 type Props = {
-  onIdentidadResuelta: (datos: { origenTipo: TipoOrigen; origenId: string }) => void;
+  onIdentidadResuelta: (datos: DatosIdentidadResuelta) => void;
 };
 
 export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
@@ -68,15 +76,29 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
     }
   }
 
-  function onUsarOrigen(origenId: string) {
-    onIdentidadResuelta({ origenTipo: "PROSPECTO", origenId });
+  function onUsarOrigenProspecto(origenId: string, nombre: string | null) {
+    onIdentidadResuelta({
+      origenTipo: "PROSPECTO",
+      origenId,
+      nombre: nombre ?? undefined,
+    });
+  }
+
+  function onUsarOrigenCliente(clienteId: string, nombre: string | null) {
+    onIdentidadResuelta({
+      origenTipo: "CLIENTE",
+      origenId: clienteId,
+      nombre: nombre ?? undefined,
+      tipoDocumento,
+      numeroDocumento,
+    });
   }
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4">
       <p className="text-sm font-semibold">Buscar por documento</p>
       <p className="text-xs text-muted-foreground">
-        Opcional: busca el prospecto por documento para pre-rellenar los datos de origen.
+        Busca el prospecto o cliente por su documento (DNI / RUC / CE) para seleccionar el origen de la solicitud.
       </p>
 
       <div className="flex flex-wrap items-end gap-3">
@@ -147,11 +169,49 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
           <Button
             type="button"
             size="sm"
-            onClick={() => onUsarOrigen(resultado.prospecto!.prospectoId)}
+            onClick={() =>
+              onUsarOrigenProspecto(
+                resultado.prospecto!.prospectoId,
+                resultado.prospecto!.razonSocial
+              )
+            }
           >
             Usar este origen
           </Button>
         </div>
+      ) : null}
+
+      {/* Resultado: CLIENTE (activo) */}
+      {resultado?.veredicto === "CLIENTE" && resultado.cliente ? (
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-background p-3">
+          <p className="text-sm font-medium text-foreground">
+            Cliente encontrado
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {resultado.cliente.razonSocial ?? resultado.cliente.nombreComercial ?? "Sin nombre registrado"}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() =>
+              onUsarOrigenCliente(
+                resultado.cliente!.clienteId,
+                resultado.cliente!.razonSocial ?? resultado.cliente!.nombreComercial
+              )
+            }
+          >
+            Usar este origen
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Resultado: CLIENTE_INACTIVO — deshabilitado, no se puede usar */}
+      {resultado?.veredicto === "CLIENTE_INACTIVO" ? (
+        <Alert variant="destructive">
+          <AlertDescription>
+            El cliente encontrado esta inactivo y no puede usarse como origen de una solicitud.
+          </AlertDescription>
+        </Alert>
       ) : null}
 
       {/* Resultado: NUEVO */}
@@ -166,15 +226,6 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
                 Registrar nuevo prospecto
               </Link>
             </Button>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      {/* Resultado: CLIENTE / CLIENTE_INACTIVO (V1 — deshabilitado) */}
-      {resultado?.veredicto === "CLIENTE" || resultado?.veredicto === "CLIENTE_INACTIVO" ? (
-        <Alert>
-          <AlertDescription>
-            Resolucion de clientes no disponible en esta version. Ingresa el origen manualmente.
           </AlertDescription>
         </Alert>
       ) : null}

@@ -1,5 +1,5 @@
 import { SiteHeader } from "@/compartido/componentes/site-header";
-import { SolicitudClienteDetalleVista } from "@/modulos/comercial/solicitudes-cliente/vistas/solicitud-cliente-detalle-vista";
+import { SolicitudClienteCotizarVista } from "@/modulos/comercial/solicitudes-cliente/vistas/solicitud-cliente-cotizar-vista";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -14,14 +14,15 @@ export default async function Page({ params }: Props) {
   return (
     <>
       <SiteHeader
-        title="Detalle de solicitud"
+        title="Nueva cotización"
         breadcrumbs={[
           { title: "Gestión Comercial", href: "/comercial" },
           { title: "Solicitudes de cliente", href: "/comercial/solicitudes-cliente" },
-          { title: "Detalle de solicitud" },
+          { title: "Detalle de solicitud", href: `/comercial/solicitudes-cliente/${id}` },
+          { title: "Nueva cotización" },
         ]}
       />
-      <SolicitudClienteDetalleVista id={id} />
+      <SolicitudClienteCotizarVista id={id} />
     </>
   );
 }

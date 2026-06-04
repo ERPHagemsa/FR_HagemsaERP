@@ -16,7 +16,14 @@ export default async function Page({ params, searchParams }: Props) {
 
   return (
     <>
-      <SiteHeader title="Detalle de prospecto" />
+      <SiteHeader
+        title="Detalle de prospecto"
+        breadcrumbs={[
+          { title: "Gestión Comercial", href: "/comercial" },
+          { title: "Prospectos", href: "/comercial/prospectos" },
+          { title: "Detalle de prospecto" },
+        ]}
+      />
       <ProspectoDetalleVista id={id} accion={accion} />
     </>
   );

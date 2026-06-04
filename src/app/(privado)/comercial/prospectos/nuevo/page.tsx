@@ -4,7 +4,14 @@ import { ProspectoNuevoVista } from "@/modulos/comercial/prospectos/vistas/prosp
 export default function Page() {
   return (
     <>
-      <SiteHeader title="Nuevo prospecto" />
+      <SiteHeader
+        title="Nuevo prospecto"
+        breadcrumbs={[
+          { title: "Gestión Comercial", href: "/comercial" },
+          { title: "Prospectos", href: "/comercial/prospectos" },
+          { title: "Nuevo prospecto" },
+        ]}
+      />
       <ProspectoNuevoVista />
     </>
   );

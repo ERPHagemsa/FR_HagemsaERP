@@ -7,7 +7,7 @@
 
 export type OrigenTipo = "PROSPECTO" | "CLIENTE";
 
-export type CanalEntrada = "CORREO" | "PRESENCIAL" | "LLAMADA" | "TELEFONO" | "EMAIL" | "OTRO";
+export type CanalEntrada = "CORREO" | "PRESENCIAL" | "LLAMADA" | "OTRO";
 
 export type TipoLinea =
   | "TRANSPORTE"
@@ -62,11 +62,9 @@ export type CargaHijo = {
   altoM: number | null;
   pesoTn: number | null;
   tipoCarga: string | null;
-  nUnidades: number | null;
-  ruta: string | null;
+  origen: string | null;
+  destino: string | null;
   tipoVehiculo: string | null;
-  clasificacionImo: string | null;
-  maxUnidadesConvoy: number | null;
 };
 
 export type EquipoHijo = {
@@ -124,7 +122,7 @@ export type Linea = {
   descripcion: string | null;
   moneda: Moneda;
   cantidad: number;
-  precioUnitario: number;
+  precioUnitario: number | null;
   costo: number;
   precio: number;
   margen: number;
@@ -161,7 +159,6 @@ export type Cotizacion = {
   origenTipo: OrigenTipo;
   origenId: string;
   contactoOrigenId: string;
-  canalEntrada: CanalEntrada;
   estado: EstadoCotizacion;
   motivoPerdida: string | null;
   idEjecutivoResponsable: string;
@@ -233,7 +230,8 @@ export type FiltrosModalidades = {
 
 // ---------------------------------------------------------------------------
 // DTOs de escritura (write model — anidado, lo que acepta el backend)
-// CRITICO: NUNCA enviar idSeccion, margen, precioUnitario, cantidad ni totales.
+// CRITICO: NUNCA enviar idSeccion, margen ni totales (los calcula el backend).
+// `cantidad` y `precioUnitario` SI se envian a nivel de linea (desglose N x P/u).
 // ---------------------------------------------------------------------------
 
 export type PayloadCargo = {
@@ -251,11 +249,9 @@ export type PayloadCargaHijo = {
   altoM?: number;
   pesoTn?: number;
   tipoCarga?: string;
-  nUnidades?: number;
-  ruta?: string;
+  origen?: string;
+  destino?: string;
   tipoVehiculo?: string;
-  clasificacionImo?: string;
-  maxUnidadesConvoy?: number;
 };
 
 export type PayloadEquipoHijo = {
@@ -276,12 +272,15 @@ export type PayloadPersonalHijo = {
   rol: string; // requerido si se envia el objeto
 };
 
-// Linea sin idSeccion, margen, precioUnitario, cantidad ni totales
+// Linea sin idSeccion, margen ni totales. `cantidad` (entero >=1) y
+// `precioUnitario` (informativo) SI se envian — desglose "N x P/u".
 export type PayloadLinea = {
   idModalidad: string;
   tipoLinea: TipoLinea;
   concepto: string;
   moneda: Moneda;
+  cantidad?: number;
+  precioUnitario?: number;
   costo: number;
   precio: number;
   esAlternativa?: boolean;
@@ -316,9 +315,11 @@ export type PayloadBorrador = {
   standbyTarifas?: PayloadStandby[];
 };
 
-// SC y transiciones
-export type PayloadRegistrarSC = {
-  origenTipo: OrigenTipo;
+// SC y transiciones — union discriminada por origenTipo
+// PROSPECTO requiere contactoOrigenId; CLIENTE requiere tipoDocumento + numeroDocumento
+// (backend resuelve el contacto y el nombre via BC-01).
+export type PayloadRegistrarSCProspecto = {
+  origenTipo: "PROSPECTO";
   origenId: string;
   contactoOrigenId: string;
   canalEntrada: CanalEntrada;
@@ -326,6 +327,21 @@ export type PayloadRegistrarSC = {
   fechaRequerida?: string;
   observaciones?: string;
 };
+
+export type TipoDocumento = "RUC" | "DNI" | "CE";
+
+export type PayloadRegistrarSCCliente = {
+  origenTipo: "CLIENTE";
+  origenId: string;
+  tipoDocumento: TipoDocumento;
+  numeroDocumento: string;
+  canalEntrada: CanalEntrada;
+  descripcionServicio: string;
+  fechaRequerida?: string;
+  observaciones?: string;
+};
+
+export type PayloadRegistrarSC = PayloadRegistrarSCProspecto | PayloadRegistrarSCCliente;
 
 export type PayloadEnviar = {
   validezDias?: number; // default 10 (DELTA 3)

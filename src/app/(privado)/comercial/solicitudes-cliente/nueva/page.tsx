@@ -4,7 +4,14 @@ import { SolicitudClienteNuevaVista } from "@/modulos/comercial/solicitudes-clie
 export default function Page() {
   return (
     <>
-      <SiteHeader title="Nueva solicitud de cliente" />
+      <SiteHeader
+        title="Nueva solicitud de cliente"
+        breadcrumbs={[
+          { title: "Gestión Comercial", href: "/comercial" },
+          { title: "Solicitudes de cliente", href: "/comercial/solicitudes-cliente" },
+          { title: "Nueva solicitud de cliente" },
+        ]}
+      />
       <SolicitudClienteNuevaVista />
     </>
   );
