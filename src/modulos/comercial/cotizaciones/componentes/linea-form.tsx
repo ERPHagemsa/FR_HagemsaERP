@@ -63,7 +63,7 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
           onClick={() => setExpandido((v) => !v)}
         >
           {expandido ? <ChevronUpIcon className="size-4 shrink-0" /> : <ChevronDownIcon className="size-4 shrink-0" />}
-          <span className="truncate">{linea.concepto || "Nueva linea"}</span>
+          <span className="truncate">{linea.descripcion || "Nueva linea"}</span>
           <span className="shrink-0 text-xs text-muted-foreground">
             ({TIPOS_LINEA.find((t) => t.valor === linea.tipoLinea)?.etiqueta ?? linea.tipoLinea})
           </span>
@@ -83,7 +83,7 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
 
       {expandido ? (
         <div className="flex flex-col gap-4 p-4">
-          {/* Fila 1: tipoLinea + concepto */}
+          {/* Fila 1: tipoLinea + modalidad */}
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">
@@ -109,35 +109,35 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
 
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">
-                Concepto <span className="text-destructive">*</span>
+                Modalidad <span className="text-destructive">*</span>
               </Label>
-              <Input
-                value={linea.concepto}
+              <ModalidadSelector
+                name="__modalidad__"
+                value={linea.idModalidad}
+                tipoLinea={linea.tipoLinea}
                 disabled={disabled}
-                placeholder="Descripcion del servicio"
-                aria-invalid={Boolean(erroresCampo["concepto"])}
-                onChange={(e) => onChange({ concepto: e.target.value })}
+                onValueChange={(id) => onChange({ idModalidad: id })}
               />
-              {erroresCampo["concepto"] ? (
-                <p className="text-xs text-destructive">{erroresCampo["concepto"]}</p>
+              {erroresCampo["idModalidad"] ? (
+                <p className="text-xs text-destructive">{erroresCampo["idModalidad"]}</p>
               ) : null}
             </div>
           </div>
 
-          {/* Fila 2: modalidad */}
+          {/* Fila 2: descripcion (nombre/identificacion de la linea) */}
           <div className="grid gap-1.5">
             <Label className="text-xs text-muted-foreground">
-              Modalidad <span className="text-destructive">*</span>
+              Descripcion <span className="text-destructive">*</span>
             </Label>
-            <ModalidadSelector
-              name="__modalidad__"
-              value={linea.idModalidad}
-              tipoLinea={linea.tipoLinea}
+            <Input
+              value={linea.descripcion}
               disabled={disabled}
-              onValueChange={(id) => onChange({ idModalidad: id })}
+              placeholder="Descripcion del servicio"
+              aria-invalid={Boolean(erroresCampo["descripcion"])}
+              onChange={(e) => onChange({ descripcion: e.target.value })}
             />
-            {erroresCampo["idModalidad"] ? (
-              <p className="text-xs text-destructive">{erroresCampo["idModalidad"]}</p>
+            {erroresCampo["descripcion"] ? (
+              <p className="text-xs text-destructive">{erroresCampo["descripcion"]}</p>
             ) : null}
           </div>
 
@@ -174,7 +174,8 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
             </div>
           ) : null}
 
-          {/* Fila 3: moneda + cantidad + precio unitario + costo + precio */}
+          {/* Fila 3: moneda + cantidad + precio unitario. El backend calcula
+              precioTotal = precioUnitario × cantidad (solo lectura). */}
           <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">Moneda</Label>
@@ -213,55 +214,20 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
             </div>
 
             <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Precio unitario</Label>
+              <Label className="text-xs text-muted-foreground">
+                Precio unitario <span className="text-destructive">*</span>
+              </Label>
               <Input
                 type="number"
                 min={0}
                 step="0.01"
                 value={linea.precioUnitario}
                 disabled={disabled}
-                placeholder="Informativo (N × P/u)"
                 aria-invalid={Boolean(erroresCampo["precioUnitario"])}
                 onChange={(e) => onChange({ precioUnitario: e.target.value })}
               />
               {erroresCampo["precioUnitario"] ? (
                 <p className="text-xs text-destructive">{erroresCampo["precioUnitario"]}</p>
-              ) : null}
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Costo <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={linea.costo}
-                disabled={disabled}
-                aria-invalid={Boolean(erroresCampo["costo"])}
-                onChange={(e) => onChange({ costo: e.target.value })}
-              />
-              {erroresCampo["costo"] ? (
-                <p className="text-xs text-destructive">{erroresCampo["costo"]}</p>
-              ) : null}
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Precio <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={linea.precio}
-                disabled={disabled}
-                aria-invalid={Boolean(erroresCampo["precio"])}
-                onChange={(e) => onChange({ precio: e.target.value })}
-              />
-              {erroresCampo["precio"] ? (
-                <p className="text-xs text-destructive">{erroresCampo["precio"]}</p>
               ) : null}
             </div>
           </div>
@@ -333,7 +299,6 @@ function SubformCarga({
       {/* Origen/Destino NO van acá: son la "Ruta" y se editan arriba, junto a la modalidad. */}
       <p className="mb-3 text-xs font-medium text-muted-foreground">Datos de carga (transporte)</p>
       <div className="grid gap-3 md:grid-cols-3">
-        <CampoTextoSubform label="Tipo de carga" value={carga.tipoCarga} disabled={disabled} onChange={(v) => onChange({ tipoCarga: v })} />
         <CampoTextoSubform label="Vehiculo" value={carga.tipoVehiculo} disabled={disabled} onChange={(v) => onChange({ tipoVehiculo: v })} />
         <CampoNumeroSubform label="Peso (Tn)" value={carga.pesoTn} disabled={disabled} onChange={(v) => onChange({ pesoTn: v })} />
         <CampoNumeroSubform label="Largo (m)" value={carga.largoM} disabled={disabled} onChange={(v) => onChange({ largoM: v })} />

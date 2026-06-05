@@ -61,7 +61,6 @@ export type CargaHijo = {
   anchoM: number | null;
   altoM: number | null;
   pesoTn: number | null;
-  tipoCarga: string | null;
   origen: string | null;
   destino: string | null;
   tipoVehiculo: string | null;
@@ -118,14 +117,11 @@ export type Linea = {
   idModalidad: string;
   tipoLinea: TipoLinea;
   orden: number;
-  concepto: string;
-  descripcion: string | null;
+  descripcion: string; // nombre/identificacion de la linea (antes `concepto`)
   moneda: Moneda;
   cantidad: number;
-  precioUnitario: number | null;
-  costo: number;
-  precio: number;
-  margen: number;
+  precioUnitario: number;
+  precioTotal: number; // calculado por el backend: precioUnitario × cantidad (solo lectura)
   idSeccion: string | null;
   cargos: Cargo[];
   carga?: CargaHijo;
@@ -138,9 +134,7 @@ export type Version = {
   numeroVersion: number;
   congelada: boolean;
   motivo: string | null;
-  costoTotal: number;
-  montoTotal: number;
-  margenTotal: number;
+  montoTotal: number | null; // suma de precioTotal de las lineas activas; calculado por el backend
   validezDias: number | null;
   fechaVencimiento: string | null;
   fechaEnvio: string | null;
@@ -228,8 +222,9 @@ export type FiltrosModalidades = {
 
 // ---------------------------------------------------------------------------
 // DTOs de escritura (write model — anidado, lo que acepta el backend)
-// CRITICO: NUNCA enviar idSeccion, margen ni totales (los calcula el backend).
-// `cantidad` y `precioUnitario` SI se envian a nivel de linea (desglose N x P/u).
+// CRITICO: NUNCA enviar idSeccion, precioTotal ni totales (los calcula el backend).
+// `precioUnitario` (requerido) y `cantidad` (opcional, default 1) SI se envian a nivel
+// de linea; el backend calcula `precioTotal = precioUnitario × cantidad`.
 // ---------------------------------------------------------------------------
 
 export type PayloadCargo = {
@@ -246,7 +241,6 @@ export type PayloadCargaHijo = {
   anchoM?: number;
   altoM?: number;
   pesoTn?: number;
-  tipoCarga?: string;
   origen?: string;
   destino?: string;
   tipoVehiculo?: string;
@@ -270,17 +264,15 @@ export type PayloadPersonalHijo = {
   rol: string; // requerido si se envia el objeto
 };
 
-// Linea sin idSeccion, margen ni totales. `cantidad` (entero >=1) y
-// `precioUnitario` (informativo) SI se envian — desglose "N x P/u".
+// Linea sin idSeccion ni totales. `precioUnitario` (requerido, >=0) y `cantidad`
+// (entero >=1, default 1) SI se envian — el backend calcula precioTotal = precioUnitario × cantidad.
 export type PayloadLinea = {
   idModalidad: string;
   tipoLinea: TipoLinea;
-  concepto: string;
+  descripcion: string;
   moneda: Moneda;
+  precioUnitario: number;
   cantidad?: number;
-  precioUnitario?: number;
-  costo: number;
-  precio: number;
   carga?: PayloadCargaHijo;
   equipo?: PayloadEquipoHijo;
   almacenaje?: PayloadAlmacenajeHijo;

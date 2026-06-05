@@ -35,8 +35,8 @@ export function EditorLineas({ lineas, erroresCampo = {}, disabled, onChange }: 
   }
 
   // Intentar mapear erroresCampo a la linea correspondiente por indice.
-  // OQ-3: NestJS class-validator emite paths como "secciones.0.lineas.0.concepto"
-  // o "lineas.0.concepto". Derivamos errores por linea por indice.
+  // OQ-3: NestJS class-validator emite paths como "secciones.0.lineas.0.descripcion"
+  // o "lineas.0.descripcion". Derivamos errores por linea por indice.
   function erroresPorLinea(idx: number): Record<string, string> {
     const resultado: Record<string, string> = {};
     for (const [ruta, mensaje] of Object.entries(erroresCampo)) {

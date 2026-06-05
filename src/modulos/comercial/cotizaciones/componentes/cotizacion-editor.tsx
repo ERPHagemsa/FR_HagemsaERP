@@ -90,7 +90,7 @@ export function CotizacionEditor({ cotizacion }: Props) {
     }
 
     // 400: intentar mapear errores por campo a inputs del editor
-    // OQ-3: NestJS class-validator emite strings como "secciones.0.lineas.0.concepto must be..."
+    // OQ-3: NestJS class-validator emite strings como "secciones.0.lineas.0.descripcion must be..."
     // El path antes del primer espacio es la ruta del campo.
     const erroresPorCampoApi = obtenerErroresPorCampo(err);
     const camposConError = Object.keys(erroresPorCampoApi);
