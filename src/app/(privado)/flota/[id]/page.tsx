@@ -1,21 +1,17 @@
 import { SiteHeader } from "@/compartido/componentes/site-header";
-import DetalleVehiculoClient from "./DetalleVehiculoClient";
+import { VehiculoDetalleVista } from "@/modulos/flota/vistas/vehiculo-detalle-vista";
 
-interface Params {
-  params: { id: string };
-}
+type Params = {
+  params: Promise<{ id: string }> | { id: string };
+};
 
-export default function Page({ params }: Params) {
-  const { id } = params;
+export default async function Page({ params }: Params) {
+  const { id } = (await params) as { id: string };
 
   return (
     <>
-      <SiteHeader title={`Vehículo ${id}`} />
-      <main className="flex min-h-screen flex-col bg-sky-50 px-6 py-12 text-slate-900">
-        <div className="mx-auto w-full max-w-3xl">
-          <DetalleVehiculoClient id={id} />
-        </div>
-      </main>
+      <SiteHeader title={`Vehículo ${id ?? ""}`} />
+      <VehiculoDetalleVista id={id} />
     </>
   );
 }

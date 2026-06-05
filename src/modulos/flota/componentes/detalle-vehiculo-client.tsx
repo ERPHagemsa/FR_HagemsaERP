@@ -5,7 +5,7 @@ import { obtenerConfiguracionApi } from "@/compartido/api/config";
 
 export default function DetalleVehiculoClient({ initialData, id }: any) {
   const [vehiculo, setVehiculo] = useState(initialData ?? null);
-  const [contrato, setContrato] = useState("");
+  const [contrato, setContrato] = useState(initialData?.contrato ?? "");
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [backendAvailable, setBackendAvailable] = useState(true);
@@ -104,7 +104,7 @@ export default function DetalleVehiculoClient({ initialData, id }: any) {
       <div className="mt-4 grid grid-cols-2 gap-4">
         <div>
           <label className="text-sm text-slate-600">Placa</label>
-          <div className="font-medium">{vehiculo.placaRodaje ?? vehiculo.id}</div>
+          <div className="font-medium">{vehiculo.placa ?? vehiculo.id}</div>
         </div>
         <div>
           <label className="text-sm text-slate-600">Marca</label>

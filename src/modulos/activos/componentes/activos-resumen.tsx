@@ -78,13 +78,13 @@ function ResumenCard({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <div className="mb-4 flex size-11 items-center justify-center rounded-lg border border-primary/25 bg-primary/10">
-          <Icon className="size-5 text-primary" />
+      <CardHeader className="gap-3">
+        <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-lg border border-destructive/25 bg-destructive/10">
+          <Icon className="size-6 text-destructive" />
         </div>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-3xl">{value}</CardTitle>
-        <CardDescription>{detail}</CardDescription>
+        <CardDescription className="text-sm">{label}</CardDescription>
+        <CardTitle className="text-4xl font-semibold mt-1">{value}</CardTitle>
+        <CardDescription className="text-xs text-muted-foreground mt-1">{detail}</CardDescription>
       </CardHeader>
     </Card>
   );

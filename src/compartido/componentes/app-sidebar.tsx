@@ -106,7 +106,7 @@ const data = {
       items: [
         { title: "Unidades", url: "/flota" },
         { title: "Conductores", url: "#" },
-        { title: "Disponibilidad", url: "/flota" },
+        { title: "Disponibilidad", url: "#" },
         { title: "Prestamos", url: "#" },
       ],
     },
