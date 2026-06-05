@@ -12,7 +12,7 @@ import { MoreVerticalCircle01Icon } from "@hugeicons/core-free-icons";
 import { obtenerVehiculos, obtenerResumen } from "../servicios/flota-api";
 import { ChartContainer } from "@/compartido/componentes/ui/chart";
 import { PieChart, Pie, Cell, Tooltip as ReTooltip } from "recharts";
-import { Truck, CheckCircle, Activity, AlertTriangle, Plus } from "lucide-react";
+import { Truck, CheckCircle, Activity, AlertTriangle } from "lucide-react";
 
 export function FlotaVista() {
   const [query, setQuery] = useState("");
@@ -120,8 +120,8 @@ export function FlotaVista() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4 rounded-md border border-border bg-background p-4">
-                  <div className="rounded-md bg-green-50 p-3">
-                    <CheckCircle className="h-6 w-6 text-green-600" />
+                  <div className="rounded-md bg-red-50 p-3">
+                    <CheckCircle className="h-6 w-6 text-red-600" />
                   </div>
                   <div>
                     <div className="text-sm text-muted-foreground">Activos vigentes</div>
@@ -130,8 +130,8 @@ export function FlotaVista() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4 rounded-md border border-border bg-background p-4">
-                  <div className="rounded-md bg-blue-50 p-3">
-                    <Activity className="h-6 w-6 text-sky-600" />
+                  <div className="rounded-md bg-red-50 p-3">
+                    <Activity className="h-6 w-6 text-red-600" />
                   </div>
                   <div>
                     <div className="text-sm text-muted-foreground">Operativos</div>
@@ -141,8 +141,8 @@ export function FlotaVista() {
                 </div>
                 <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-background p-4">
                   <div className="flex items-center gap-4">
-                    <div className="rounded-md bg-rose-50 p-3">
-                      <AlertTriangle className="h-6 w-6 text-rose-600" />
+                    <div className="rounded-md bg-red-50 p-3">
+                      <AlertTriangle className="h-6 w-6 text-red-600" />
                     </div>
                     <div>
                       <div className="text-sm text-muted-foreground">Mantenimiento / no calibrados</div>
@@ -161,9 +161,6 @@ export function FlotaVista() {
                   <h2 className="text-lg font-semibold">Maestro de unidades</h2>
                   <div className="text-sm text-muted-foreground">{total} de {items.length} activos visibles</div>
                 </div>
-                <Button variant="destructive">
-                  <Plus className="mr-2" /> Nuevo activo
-                </Button>
               </div>
 
               <div className="mt-4 rounded-md border border-border bg-background p-4">
@@ -250,70 +247,6 @@ export function FlotaVista() {
             </div>
           </div>
 
-          <div className="mt-4 overflow-x-auto">
-            {loading ? (
-              <div className="p-6">Cargando...</div>
-            ) : pageItems.length === 0 ? (
-              <div className="p-6">No se encontraron activos con los filtros aplicados.</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50 hover:bg-muted/50">
-                    <TableHead className="w-10" />
-                    <TableHead>Placa</TableHead>
-                    <TableHead>Marca</TableHead>
-                    <TableHead>Contrato</TableHead>
-                    <TableHead>Cuenta</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pageItems.map((v) => (
-                    <TableRow key={v.id}>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label="Acciones">
-                              <HugeiconsIcon icon={MoreVerticalCircle01Icon} strokeWidth={2} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuGroup>
-                              <DropdownMenuItem>
-                                <Link href={`/flota/${encodeURIComponent(v.id)}`}>Ver ficha</Link>
-                              </DropdownMenuItem>
-                              {/* <DropdownMenuItem>
-                                <Link href={`/flota/${encodeURIComponent(v.id)}/editar`}>Modificar</Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>Dar de baja</DropdownMenuItem> */}
-                            </DropdownMenuGroup>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">{v.placa ?? v.placaRodaje ?? v.id}</TableCell>
-                      <TableCell>{v.marca}</TableCell>
-                      <TableCell>{v.contrato ?? "-"}</TableCell>
-                      <TableCell>{v.cuenta ?? "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-
-          <div className="mt-4 flex items-center justify-between">
-            <div>Mostrando {Math.min(total, (page - 1) * pageSize + 1)}-{Math.min(total, page * pageSize)} de {total} activos</div>
-            <div className="flex items-center gap-3">
-              <label>Filas</label>
-              <select value={String(pageSize)} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm">
-                <option value="5">5</option>
-                <option value="10">10</option>
-                <option value="25">25</option>
-              </select>
-              <Button variant="outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Anterior</Button>
-              <div>{page} / {totalPages}</div>
-              <Button variant="outline" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Siguiente</Button>
-            </div>
-          </div>
         </section>
       </div>
     </main>
