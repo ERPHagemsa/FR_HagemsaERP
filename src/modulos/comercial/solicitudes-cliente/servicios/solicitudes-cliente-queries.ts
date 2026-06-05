@@ -2,7 +2,10 @@
 
 import { useConsulta, useMutar } from "@/compartido/api";
 
-import type { PayloadRegistrarSC } from "../../cotizaciones/tipos/cotizaciones.tipos";
+import type {
+  PayloadBorrador,
+  PayloadRegistrarSC,
+} from "../../cotizaciones/tipos/cotizaciones.tipos";
 import type {
   FiltrosSolicitudesCliente,
   PayloadDescartarSC,
@@ -66,8 +69,11 @@ export function useResolverIdentidadQuery(
 // ---------------------------------------------------------------------------
 
 export function useAgregarCotizacionMutation() {
-  return useMutar<string, Awaited<ReturnType<typeof agregarCotizacion>>>({
-    fn: agregarCotizacion,
+  return useMutar<
+    { id: string; payload: PayloadBorrador },
+    Awaited<ReturnType<typeof agregarCotizacion>>
+  >({
+    fn: ({ id, payload }) => agregarCotizacion(id, payload),
   });
 }
 

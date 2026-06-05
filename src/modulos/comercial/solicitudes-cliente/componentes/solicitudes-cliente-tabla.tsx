@@ -149,7 +149,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
-                placeholder="Buscar solicitudes..."
+                placeholder="Buscar por solicitante o descripcion..."
                 value={busquedaLocal}
                 onChange={(e) => setBusquedaLocal(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
@@ -196,12 +196,12 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[12%]">ID</TableHead>
-                <TableHead className="w-[12%]">Estado</TableHead>
+                <TableHead className="w-[26%]">Solicitante</TableHead>
+                <TableHead className="w-[26%]">Descripcion del servicio</TableHead>
                 <TableHead className="w-[12%]">Origen</TableHead>
-                <TableHead className="w-[40%]">Descripcion del servicio</TableHead>
-                <TableHead className="w-[14%]">Creado</TableHead>
-                <TableHead className="w-[10%] text-center">Accion</TableHead>
+                <TableHead className="w-[14%]">Estado</TableHead>
+                <TableHead className="w-[10%] text-center">Cotizaciones</TableHead>
+                <TableHead className="w-[12%] text-right">Accion</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -263,22 +263,29 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
 function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
   return (
     <TableRow>
-      <TableCell className="font-mono text-xs text-muted-foreground">
-        {item.id.slice(0, 8)}…
+      <TableCell className="text-sm">
+        <span className="block truncate font-medium">{item.nombreSolicitante}</span>
+        {item.contactoSolicitante ? (
+          <span className="block truncate text-xs text-muted-foreground">
+            {item.contactoSolicitante.nombre}
+          </span>
+        ) : null}
       </TableCell>
-      <TableCell>
-        <EstadoSolicitudBadge estado={item.estado} />
+      <TableCell className="truncate text-sm text-muted-foreground">
+        {item.descripcionServicio}
       </TableCell>
       <TableCell className="text-sm">
         {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
       </TableCell>
-      <TableCell className="truncate text-sm">
-        {item.descripcionServicio}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {formatearFecha(item.fechaCreacion)}
+      <TableCell>
+        <EstadoSolicitudBadge estado={item.estado} />
       </TableCell>
       <TableCell className="text-center">
+        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
+          {item.totalCotizaciones}
+        </span>
+      </TableCell>
+      <TableCell className="text-right">
         <Button asChild size="icon-sm" variant="outline">
           <Link href={`/comercial/solicitudes-cliente/${item.id}`}>
             <Eye />
@@ -324,10 +331,3 @@ function FiltroSelect({
   );
 }
 
-function formatearFecha(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
-}

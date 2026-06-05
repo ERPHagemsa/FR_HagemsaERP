@@ -1,6 +1,9 @@
 import { clienteComercial } from "@/compartido/api/clientes-backend";
 
-import type { PayloadRegistrarSC } from "../../cotizaciones/tipos/cotizaciones.tipos";
+import type {
+  PayloadBorrador,
+  PayloadRegistrarSC,
+} from "../../cotizaciones/tipos/cotizaciones.tipos";
 import type { TipoDocumento } from "../../prospectos/tipos/prospecto.tipos";
 import type {
   FiltrosSolicitudesCliente,
@@ -14,11 +17,13 @@ import type {
 // Registro (migrado desde cotizaciones/servicios/solicitudes-cliente-api.ts)
 // ---------------------------------------------------------------------------
 
-// POST /solicitudes-cliente → 201 { id, idCotizacion }
+// POST /solicitudes-cliente → 201 { id }
+// La SC nace en PENDIENTE SIN cotizacion. Cotizar es un paso posterior y explicito
+// via POST /solicitudes-cliente/:id/cotizaciones (ver agregarCotizacion).
 export async function registrarSolicitudCliente(
   payload: PayloadRegistrarSC
-): Promise<{ id: string; idCotizacion: string }> {
-  const { data } = await clienteComercial.post<{ id: string; idCotizacion: string }>(
+): Promise<{ id: string }> {
+  const { data } = await clienteComercial.post<{ id: string }>(
     "/solicitudes-cliente",
     payload
   );
@@ -61,13 +66,16 @@ export async function resolverIdentidad(
   return data;
 }
 
-// POST /solicitudes-cliente/:id/cotizaciones — body {} → 201 { idCotizacion }
+// POST /solicitudes-cliente/:id/cotizaciones — body { secciones?, lineas?, standbyTarifas? } → 201 { idCotizacion }
+// La cotizacion nace POBLADA (mismo body que PATCH /borrador). Requiere >=1 linea
+// activa entre secciones + raiz; un body sin lineas devuelve 422.
 export async function agregarCotizacion(
-  id: string
+  id: string,
+  payload: PayloadBorrador
 ): Promise<{ idCotizacion: string }> {
   const { data } = await clienteComercial.post<{ idCotizacion: string }>(
     `/solicitudes-cliente/${id}/cotizaciones`,
-    {}
+    payload
   );
   return data;
 }

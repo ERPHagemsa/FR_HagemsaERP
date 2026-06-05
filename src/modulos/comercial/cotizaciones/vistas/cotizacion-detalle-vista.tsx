@@ -25,7 +25,7 @@ export async function CotizacionDetalleVista({ id }: Props) {
         {/* Encabezado con acciones */}
         <section className="flex flex-col gap-4 rounded-xl border border-border bg-card px-5 py-4 md:flex-row md:items-start md:justify-between">
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-muted-foreground">BC-03 / Cotizaciones</p>
+            <p className="text-sm font-medium text-muted-foreground">Cotizaciones</p>
             <p className="font-mono text-xs text-muted-foreground">{cotizacion.id}</p>
           </div>
           <div className="flex flex-wrap gap-2">

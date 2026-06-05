@@ -247,6 +247,10 @@ function Dato({ label, value }: { label: string; value?: string | null }) {
   )
 }
 
+function formatearCount(count?: number | null) {
+  return typeof count === "number" ? String(count) : "-"
+}
+
 function MetricasMaestros({
   datos,
   total,
@@ -685,6 +689,7 @@ function TablaDatosMaestros({
         <TableHeader>
           <TableRow className="bg-muted/70 hover:bg-muted/70">
             <TableHead>Tipo</TableHead>
+            <TableHead className="w-16">#</TableHead>
             <TableHead>Codigo</TableHead>
             <TableHead>Nombre</TableHead>
             <TableHead>Dato especifico</TableHead>
@@ -703,6 +708,9 @@ function TablaDatosMaestros({
             >
               <TableCell>
                 <TipoBadge tipo={dato.tipoDatoMaestro} />
+              </TableCell>
+              <TableCell className="font-mono text-xs text-muted-foreground">
+                {formatearCount(dato.count)}
               </TableCell>
               <TableCell className="font-mono text-xs">{dato.codigo}</TableCell>
               <TableCell>
@@ -894,7 +902,10 @@ export function ConfiguracionGeneralReportesVista() {
   const catalogo = useCatalogoConfiguracionGeneralQuery(query)
   const exportacion = useExportarConfiguracionGeneralQuery(query, true)
   const datos = exportacion.data?.datos ?? catalogo.data?.datos ?? []
-  const total = exportacion.data?.paginacion?.total ?? datos.length
+  const total =
+    exportacion.data?.paginacion?.total ??
+    catalogo.data?.paginacion?.total ??
+    datos.length
   const disponibles = datos.filter(
     (dato) => dato.estado === "ACTIVO" && dato.estadoRegistro === "ACTIVO",
   ).length

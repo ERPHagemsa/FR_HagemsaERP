@@ -25,7 +25,7 @@ import { schemaDescartarSC } from "../tipos/solicitud-cliente.schemas";
 type Props = {
   id: string;
   disabled?: boolean;
-  onSuccess: () => void;
+  onSuccess?: () => void;
 };
 
 export function SolicitudClienteDescartarDialog({ id, disabled, onSuccess }: Props) {
@@ -67,7 +67,7 @@ export function SolicitudClienteDescartarDialog({ id, disabled, onSuccess }: Pro
       });
       toast.success("Solicitud descartada correctamente");
       setAbierto(false);
-      onSuccess();
+      onSuccess?.();
       router.refresh();
     } catch (err) {
       toast.error(

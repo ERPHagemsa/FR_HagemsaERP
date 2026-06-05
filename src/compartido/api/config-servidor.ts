@@ -7,6 +7,12 @@ export const URLS_SERVIDOR = {
   // Handlers de /api/auth/* hablan con este backend y devuelven al navegador
   // solo cookies httpOnly o datos no sensibles.
   authService: process.env.AUTH_SERVICE_URL ?? "http://localhost:8080",
+  configuracionGeneral:
+    process.env.CONFIGURACION_GENERAL_API_URL ??
+    process.env.NEXT_PUBLIC_CONFIGURACION_GENERAL_API_URL ??
+    process.env.API_GATEWAY_URL ??
+    process.env.NEXT_PUBLIC_API_GATEWAY_URL ??
+    "http://localhost:8080/api",
 } as const
 
 export type ServicioBackendServidor = keyof typeof URLS_SERVIDOR

@@ -202,11 +202,10 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[14%]">Origen</TableHead>
-                <TableHead className="w-[12%]">Canal</TableHead>
-                <TableHead className="w-[10%]">Estado</TableHead>
+                <TableHead className="w-[18%]">Origen</TableHead>
+                <TableHead className="w-[12%]">Estado</TableHead>
                 <TableHead className="w-[8%] text-right">Version</TableHead>
-                <TableHead className="w-[14%]">Ejecutivo</TableHead>
+                <TableHead className="w-[16%]">Ejecutivo</TableHead>
                 <TableHead className="w-[14%]">Creado</TableHead>
                 <TableHead className="w-[14%]">Actualizado</TableHead>
                 <TableHead className="w-[7%] text-center">Accion</TableHead>
@@ -219,7 +218,7 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
               {!cotizaciones.length ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={7}
                     className="h-28 text-center text-muted-foreground"
                   >
                     No se encontraron cotizaciones con los filtros aplicados.
@@ -278,9 +277,6 @@ function FilaCotizacion({ cotizacion }: { cotizacion: Cotizacion }) {
             {cotizacion.origenId.slice(0, 8)}…
           </span>
         </div>
-      </TableCell>
-      <TableCell className="truncate text-sm">
-        {formatearCanal(cotizacion.canalEntrada)}
       </TableCell>
       <TableCell>
         <EstadoCotizacionBadge estado={cotizacion.estado} />
@@ -351,16 +347,4 @@ function formatearFecha(value: string) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date(value));
-}
-
-function formatearCanal(canal: string) {
-  const mapa: Record<string, string> = {
-    CORREO: "Correo",
-    LLAMADA: "Llamada",
-    PRESENCIAL: "Presencial",
-    TELEFONO: "Telefono",
-    EMAIL: "Email",
-    OTRO: "Otro",
-  };
-  return mapa[canal] ?? canal;
 }
