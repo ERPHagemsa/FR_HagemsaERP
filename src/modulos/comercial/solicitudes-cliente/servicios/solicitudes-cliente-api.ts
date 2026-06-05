@@ -4,12 +4,10 @@ import type {
   PayloadBorrador,
   PayloadRegistrarSC,
 } from "../../cotizaciones/tipos/cotizaciones.tipos";
-import type { TipoDocumento } from "../../prospectos/tipos/prospecto.tipos";
 import type {
   FiltrosSolicitudesCliente,
   PayloadDescartarSC,
   RespuestaPaginadaSolicitudes,
-  RespuestaResolverIdentidad,
   SolicitudCliente,
 } from "../tipos/solicitud-cliente.tipos";
 
@@ -49,19 +47,6 @@ export async function listarSolicitudesCliente(
 export async function consultarSolicitudCliente(id: string): Promise<SolicitudCliente> {
   const { data } = await clienteComercial.get<SolicitudCliente>(
     `/solicitudes-cliente/${id}`
-  );
-  return data;
-}
-
-// GET /solicitudes-cliente/resolver-identidad — ruta ESTATICA (nunca tratar como UUID)
-// Query params: tipoDocumento, numeroDocumento
-export async function resolverIdentidad(
-  tipoDocumento: TipoDocumento,
-  numeroDocumento: string
-): Promise<RespuestaResolverIdentidad> {
-  const { data } = await clienteComercial.get<RespuestaResolverIdentidad>(
-    "/solicitudes-cliente/resolver-identidad",
-    { params: { tipoDocumento, numeroDocumento } }
   );
   return data;
 }

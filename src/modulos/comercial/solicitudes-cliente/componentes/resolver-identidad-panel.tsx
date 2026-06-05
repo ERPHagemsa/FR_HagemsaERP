@@ -17,9 +17,10 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
-import { resolverIdentidad } from "../servicios/solicitudes-cliente-api";
-import type { RespuestaResolverIdentidad, TipoOrigen } from "../tipos/solicitud-cliente.tipos";
-import { schemaResolverIdentidad } from "../tipos/solicitud-cliente.schemas";
+import { resolverIdentidad } from "../../identidad/servicios/identidad-api";
+import type { RespuestaResolverIdentidad } from "../../identidad/tipos/identidad.tipos";
+import { schemaResolverIdentidad } from "../../identidad/tipos/identidad.schemas";
+import type { TipoOrigen } from "../tipos/solicitud-cliente.tipos";
 
 type DatosIdentidadResuelta = {
   origenTipo: TipoOrigen;
