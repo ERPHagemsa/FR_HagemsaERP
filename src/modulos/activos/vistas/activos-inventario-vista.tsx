@@ -5,7 +5,7 @@ import { ActivosTabla } from "../componentes/activos-tabla";
 import { obtenerActivos } from "../servicios/activos-api";
 
 export async function ActivosInventarioVista() {
-  const resultado = await obtenerActivos()
+  const resultado = await obtenerActivos({ estadoRegistro: "TODOS" })
     .then((activos) => ({ activos, error: null }))
     .catch((error: unknown) => ({
       activos: [],
