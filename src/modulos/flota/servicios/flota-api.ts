@@ -40,6 +40,21 @@ export async function obtenerVehiculoPorId(id: string) {
   }
 }
 
+export async function obtenerResumen() {
+  const url = `${getApiUrl()}/vehiculos/resumen`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
+
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    return (await res.json()) as any;
+  } catch (e) {
+    return null;
+  }
+}
+
 export default {
   obtenerVehiculos,
   obtenerVehiculoPorId,

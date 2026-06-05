@@ -9,7 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 // Use native selects to avoid JSX parsing issues in this file
 import { HugeiconsIcon } from "@hugeicons/react";
 import { MoreVerticalCircle01Icon } from "@hugeicons/core-free-icons";
-import { obtenerVehiculos } from "../servicios/flota-api";
+import { obtenerVehiculos, obtenerResumen } from "../servicios/flota-api";
+import { ChartContainer } from "@/compartido/componentes/ui/chart";
+import { PieChart, Pie, Cell, Tooltip as ReTooltip } from "recharts";
 
 export function FlotaVista() {
   const [query, setQuery] = useState("");
@@ -20,6 +22,7 @@ export function FlotaVista() {
   const [pageSize, setPageSize] = useState(10);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resumen, setResumen] = useState<any | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -34,11 +37,22 @@ export function FlotaVista() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    obtenerResumen().then((r) => {
+      if (!mounted) return;
+      setResumen(r);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((v) => {
       if (q) {
-        const hay = [v.id, v.placaRodaje, v.marca, v.contrato, v.cuenta]
+        const hay = [v.id, v.placa, v.placaRodaje, v.marca, v.contrato, v.cuenta]
           .filter(Boolean)
           .some((s) => String(s).toLowerCase().includes(q));
         if (!hay) return false;
@@ -90,6 +104,49 @@ export function FlotaVista() {
 
           </div>
 
+          {/* Mini dashboard */}
+          <div className="mt-4 grid gap-4 md:grid-cols-4">
+            <div className="col-span-3 grid grid-cols-3 gap-3">
+              <div className="rounded-md border border-border bg-background p-3">
+                <div className="text-sm text-muted-foreground">Total unidades</div>
+                <div className="mt-1 text-2xl font-semibold">{resumen?.totalVehiculos ?? items.length}</div>
+              </div>
+              <div className="rounded-md border border-border bg-background p-3">
+                <div className="text-sm text-muted-foreground">Operativos activos</div>
+                <div className="mt-1 text-2xl font-semibold">{resumen?.operativosActivos ?? items.filter((x) => (x.estado === 'OPERATIVO' || x.estado === 'Operativo' || x.estado === 'Activo' || x.estado === 'ACTIVO')).length}</div>
+              </div>
+              <div className="rounded-md border border-border bg-background p-3">
+                <div className="text-sm text-muted-foreground">Registros recientes</div>
+                <div className="mt-1 text-2xl font-semibold">{(resumen?.registrosRecientes?.length ?? 0)}</div>
+              </div>
+            </div>
+            <div className="col-span-1">
+              <div className="rounded-md border border-border bg-background p-3">
+                <div className="text-sm text-muted-foreground mb-2">Por tipo</div>
+                <div style={{ width: '100%', height: 120 }}>
+                  <ChartContainer id="flota-tipos" config={{ tipos: { label: 'Por tipo', color: '#60A5FA' } }} initialDimension={{ width: 320, height: 120 }}>
+                    <PieChart>
+                      <Pie dataKey="value" data={
+                        (resumen?.porTipo && resumen.porTipo.length > 0)
+                          ? resumen.porTipo.map((t: any) => ({ name: t.tipoVehiculo, value: t.total }))
+                          : (() => {
+                              const map: Record<string, number> = {};
+                              items.forEach((it) => { const k = it.tipoVehiculo ?? 'Otros'; map[k] = (map[k] || 0) + 1; });
+                              return Object.entries(map).map(([name, value]) => ({ name, value }));
+                            })()
+                      } nameKey="name" cx="50%" cy="50%" outerRadius={40} innerRadius={12}>
+                        {((resumen?.porTipo && resumen.porTipo.length > 0) ? resumen.porTipo : items).map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={["#60A5FA", "#34D399", "#FBBF24", "#F87171"][index % 4]} />
+                        ))}
+                      </Pie>
+                      <ReTooltip />
+                    </PieChart>
+                  </ChartContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="mt-4 overflow-x-auto">
             {loading ? (
               <div className="p-6">Cargando...</div>
@@ -121,15 +178,15 @@ export function FlotaVista() {
                               <DropdownMenuItem>
                                 <Link href={`/flota/${encodeURIComponent(v.id)}`}>Ver ficha</Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              {/* <DropdownMenuItem>
                                 <Link href={`/flota/${encodeURIComponent(v.id)}/editar`}>Modificar</Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem>Dar de baja</DropdownMenuItem>
+                              <DropdownMenuItem>Dar de baja</DropdownMenuItem> */}
                             </DropdownMenuGroup>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{v.placaRodaje ?? v.id}</TableCell>
+                      <TableCell className="font-mono text-xs">{v.placa ?? v.placaRodaje ?? v.id}</TableCell>
                       <TableCell>{v.marca}</TableCell>
                       <TableCell>{v.contrato ?? "-"}</TableCell>
                       <TableCell>{v.cuenta ?? "-"}</TableCell>
