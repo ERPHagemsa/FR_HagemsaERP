@@ -129,15 +129,21 @@ function SeccionPanel({
 
       {expandida ? (
         <div className="flex flex-col gap-4 p-4">
-          {/* Nombre de la seccion */}
+          {/* Nombre de la seccion (obligatorio si la cotizacion usa secciones) */}
           <div className="grid gap-1.5 md:max-w-sm">
-            <Label className="text-xs text-muted-foreground">Nombre de la seccion</Label>
+            <Label className="text-xs text-muted-foreground">
+              Nombre de la seccion <span className="text-destructive">*</span>
+            </Label>
             <Input
               value={seccion.nombre}
               disabled={disabled}
               placeholder="Ej: Tramo Lima → Mina"
+              aria-invalid={Boolean(erroresCampo.nombre)}
               onChange={(e) => onChange({ nombre: e.target.value })}
             />
+            {erroresCampo.nombre ? (
+              <p className="text-xs text-destructive">{erroresCampo.nombre}</p>
+            ) : null}
           </div>
 
           <Separator />

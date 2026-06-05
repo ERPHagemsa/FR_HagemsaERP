@@ -14,6 +14,7 @@ import type { DraftBorrador } from "../servicios/cotizaciones-editor.utils";
 import {
   derivarDraft,
   armarPayloadBorrador,
+  validarBorrador,
 } from "../servicios/cotizaciones-editor.utils";
 import { useActualizarBorradorMutation, useConsultarCotizacion } from "../servicios/cotizaciones-queries";
 import { EditorBorradorCampos } from "./editor-borrador-campos";
@@ -48,6 +49,15 @@ export function CotizacionEditor({ cotizacion }: Props) {
 
   async function onGuardar() {
     setErroresCampo({});
+
+    // Validacion client-side previa (ej: nombre de seccion obligatorio).
+    const erroresValidacion = validarBorrador(draft);
+    if (Object.keys(erroresValidacion).length > 0) {
+      setErroresCampo(erroresValidacion);
+      toast.error("Revise los campos marcados antes de guardar.");
+      return;
+    }
+
     setGuardando(true);
 
     const payload = armarPayloadBorrador(draft);

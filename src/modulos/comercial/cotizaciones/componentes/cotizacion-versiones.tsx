@@ -267,11 +267,6 @@ function LineaRow({
             <Badge variant="outline" className="text-xs">
               {formatearTipoLinea(linea.tipoLinea)}
             </Badge>
-            {linea.esAlternativa ? (
-              <Badge variant="secondary" className="text-xs">
-                Alternativa
-              </Badge>
-            ) : null}
           </div>
           {linea.descripcion ? (
             <span className="text-xs text-muted-foreground">{linea.descripcion}</span>

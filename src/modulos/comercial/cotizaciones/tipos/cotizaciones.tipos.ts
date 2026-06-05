@@ -126,8 +126,6 @@ export type Linea = {
   costo: number;
   precio: number;
   margen: number;
-  esAlternativa: boolean;
-  grupoAlternativa: string | null;
   idSeccion: string | null;
   cargos: Cargo[];
   carga?: CargaHijo;
@@ -283,7 +281,6 @@ export type PayloadLinea = {
   precioUnitario?: number;
   costo: number;
   precio: number;
-  esAlternativa?: boolean;
   carga?: PayloadCargaHijo;
   equipo?: PayloadEquipoHijo;
   almacenaje?: PayloadAlmacenajeHijo;

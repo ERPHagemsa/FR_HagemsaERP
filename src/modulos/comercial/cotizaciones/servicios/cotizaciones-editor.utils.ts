@@ -81,7 +81,6 @@ export type DraftLinea = {
   precioUnitario: string; // informativo (N x P/u); "" = sin valor
   costo: string; // string para el input
   precio: string;
-  esAlternativa: boolean;
   cargos: DraftCargo[];
   // Hijos polimorficos (solo uno se usa segun tipoLinea; los demas ignorados en armarPayload)
   carga: DraftCargaHijo;
@@ -159,7 +158,6 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
     precioUnitario: "",
     costo: "0",
     precio: "0",
-    esAlternativa: false,
     cargos: [],
     carga: cargaVacia(),
     equipo: equipoVacio(),
@@ -260,7 +258,6 @@ function lineaReadADraft(l: Linea): DraftLinea {
     precioUnitario: l.precioUnitario !== null ? String(l.precioUnitario) : "",
     costo: String(l.costo),
     precio: String(l.precio),
-    esAlternativa: l.esAlternativa,
     cargos: l.cargos.map(cargoReadADraft),
     // Poblar el hijo correspondiente; el resto queda en valores por defecto
     carga: l.carga ? cargaReadADraft(l.carga) : cargaVacia(),
@@ -401,7 +398,6 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
     cantidad: l.cantidad !== "" ? parseNumero(l.cantidad) : 1,
     costo: parseNumero(l.costo),
     precio: parseNumero(l.precio),
-    esAlternativa: l.esAlternativa,
   };
 
   if (l.precioUnitario !== "") {
@@ -447,6 +443,25 @@ function seccionAPayload(s: DraftSeccion): PayloadSeccion {
   if (s.lineas.length > 0) payload.lineas = s.lineas.map(lineaAPayload);
   if (s.standby.length > 0) payload.standbyTarifas = s.standby.map(standbyAPayload);
   return payload;
+}
+
+/**
+ * validarBorrador — validaciones client-side previas al envío.
+ *
+ * Regla de UX más estricta que el backend: una sección DEBE tener nombre. Su
+ * única razón de existir es rotular un grupo de líneas; una sección sin nombre
+ * confunde y no aporta (el backend la acepta, pero acá la exigimos). Las claves
+ * de error siguen la misma convención que usa el editor (`secciones.{i}.nombre`),
+ * por lo que se pintan directo en el input correspondiente.
+ */
+export function validarBorrador(draft: DraftBorrador): Record<string, string> {
+  const errores: Record<string, string> = {};
+  draft.secciones.forEach((s, i) => {
+    if (s.nombre.trim() === "") {
+      errores[`secciones.${i}.nombre`] = "El nombre de la sección es obligatorio.";
+    }
+  });
+  return errores;
 }
 
 /**

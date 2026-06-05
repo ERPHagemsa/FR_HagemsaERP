@@ -14,7 +14,10 @@ import {
 
 import { useAgregarCotizacionMutation } from "../../solicitudes-cliente/servicios/solicitudes-cliente-queries";
 import type { DraftBorrador } from "../servicios/cotizaciones-editor.utils";
-import { armarPayloadBorrador } from "../servicios/cotizaciones-editor.utils";
+import {
+  armarPayloadBorrador,
+  validarBorrador,
+} from "../servicios/cotizaciones-editor.utils";
 import { EditorBorradorCampos } from "./editor-borrador-campos";
 
 type Props = {
@@ -51,6 +54,14 @@ export function CotizacionEditorNuevo({ solicitudClienteId }: Props) {
     // Guard cliente: el backend exige >=1 linea activa (422 si no hay ninguna).
     if (contarLineas(draft) === 0) {
       toast.error("Agrega al menos una linea para crear la cotizacion.");
+      return;
+    }
+
+    // Validacion client-side previa (ej: nombre de seccion obligatorio).
+    const erroresValidacion = validarBorrador(draft);
+    if (Object.keys(erroresValidacion).length > 0) {
+      setErroresCampo(erroresValidacion);
+      toast.error("Revise los campos marcados antes de crear.");
       return;
     }
 

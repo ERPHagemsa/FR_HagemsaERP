@@ -67,11 +67,6 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
           <span className="shrink-0 text-xs text-muted-foreground">
             ({TIPOS_LINEA.find((t) => t.valor === linea.tipoLinea)?.etiqueta ?? linea.tipoLinea})
           </span>
-          {linea.esAlternativa ? (
-            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              Alternativa
-            </span>
-          ) : null}
         </button>
         <Button
           type="button"
@@ -146,7 +141,40 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
             ) : null}
           </div>
 
-          {/* Fila 3: moneda + cantidad + precio unitario + costo + precio + esAlternativa */}
+          {/* Ruta (solo transporte): origen → destino es el dato que define el
+              servicio, por eso va junto a la modalidad y NO enterrado entre las
+              dimensiones de la carga. */}
+          {linea.tipoLinea === "TRANSPORTE" ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-muted-foreground">Ruta</p>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Origen</Label>
+                  <Input
+                    value={linea.carga.origen}
+                    disabled={disabled}
+                    placeholder="Ej: Lima"
+                    onChange={(e) =>
+                      onChange({ carga: { ...linea.carga, origen: e.target.value } })
+                    }
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Destino</Label>
+                  <Input
+                    value={linea.carga.destino}
+                    disabled={disabled}
+                    placeholder="Ej: Mina"
+                    onChange={(e) =>
+                      onChange({ carga: { ...linea.carga, destino: e.target.value } })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Fila 3: moneda + cantidad + precio unitario + costo + precio */}
           <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">Moneda</Label>
@@ -236,23 +264,6 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
                 <p className="text-xs text-destructive">{erroresCampo["precio"]}</p>
               ) : null}
             </div>
-
-            <div className="flex items-center gap-2 pt-6">
-              <input
-                type="checkbox"
-                id={`alt-${linea.claveCliente}`}
-                checked={linea.esAlternativa}
-                disabled={disabled}
-                onChange={(e) => onChange({ esAlternativa: e.target.checked })}
-                className="size-4 cursor-pointer rounded border border-input"
-              />
-              <Label
-                htmlFor={`alt-${linea.claveCliente}`}
-                className="cursor-pointer text-xs text-muted-foreground"
-              >
-                Es alternativa
-              </Label>
-            </div>
           </div>
 
           {/* Hijo polimorfico segun tipoLinea */}
@@ -319,12 +330,11 @@ function SubformCarga({
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-3">
+      {/* Origen/Destino NO van acá: son la "Ruta" y se editan arriba, junto a la modalidad. */}
       <p className="mb-3 text-xs font-medium text-muted-foreground">Datos de carga (transporte)</p>
       <div className="grid gap-3 md:grid-cols-3">
         <CampoTextoSubform label="Tipo de carga" value={carga.tipoCarga} disabled={disabled} onChange={(v) => onChange({ tipoCarga: v })} />
         <CampoTextoSubform label="Vehiculo" value={carga.tipoVehiculo} disabled={disabled} onChange={(v) => onChange({ tipoVehiculo: v })} />
-        <CampoTextoSubform label="Origen" value={carga.origen} disabled={disabled} onChange={(v) => onChange({ origen: v })} />
-        <CampoTextoSubform label="Destino" value={carga.destino} disabled={disabled} onChange={(v) => onChange({ destino: v })} />
         <CampoNumeroSubform label="Peso (Tn)" value={carga.pesoTn} disabled={disabled} onChange={(v) => onChange({ pesoTn: v })} />
         <CampoNumeroSubform label="Largo (m)" value={carga.largoM} disabled={disabled} onChange={(v) => onChange({ largoM: v })} />
         <CampoNumeroSubform label="Ancho (m)" value={carga.anchoM} disabled={disabled} onChange={(v) => onChange({ anchoM: v })} />
