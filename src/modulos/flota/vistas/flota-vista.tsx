@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from "react";
-import { obtenerVehiculos, obtenerResumen } from "../servicios/flota-api";
+import { obtenerAsignaciones } from "../servicios/flota-api";
 import { FlotaResumen } from "../componentes/flota-resumen";
 import { FlotaTabla } from "../componentes/flota-tabla";
 import type { ResumenFlota, VehiculoFlota } from "../tipos/flota.tipos";
@@ -13,21 +13,11 @@ export function FlotaVista() {
 
   useEffect(() => {
     let mounted = true;
-    obtenerVehiculos().then((list) => {
+    obtenerAsignaciones().then((list) => {
       if (!mounted) return;
       setItems(list);
+      // Omitimos el resumen temporalmente o calculamos localmente
       setLoading(false);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    obtenerResumen().then((r) => {
-      if (!mounted) return;
-      setResumen(r);
     });
     return () => {
       mounted = false;

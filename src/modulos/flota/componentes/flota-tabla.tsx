@@ -1,12 +1,20 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
   IconEye,
   IconRefresh,
   IconSearch,
+  IconDotsVertical,
 } from "@tabler/icons-react";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/compartido/componentes/ui/dropdown-menu";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -46,6 +54,7 @@ type Props = {
 };
 
 export function FlotaTabla({ loading, vehiculos }: Props) {
+  const router = useRouter();
   const [query, setQuery] = React.useState("");
   const [estadoActivo, setEstadoActivo] = React.useState("TODOS");
   const [estadoOperativo, setEstadoOperativo] = React.useState("TODOS");
@@ -173,6 +182,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[5%] text-center"></TableHead>
                 <TableHead className="w-[13%]">Placa</TableHead>
                 <TableHead className="w-[22%]">Unidad</TableHead>
                 <TableHead className="w-[14%]">Contrato</TableHead>
@@ -180,7 +190,6 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                 <TableHead className="w-[11%]">Estado</TableHead>
                 <TableHead className="w-[12%]">Operativo</TableHead>
                 <TableHead className="w-[12%]">Calibracion</TableHead>
-                <TableHead className="w-[8%] text-center">Accion</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -194,6 +203,24 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
               {!loading
                 ? visibles.map((vehiculo) => (
                     <TableRow key={vehiculo.id}>
+                      <TableCell className="text-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <span className="sr-only">Abrir menú</span>
+                              <IconDotsVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => router.push(`/flota/${encodeURIComponent(vehiculo.placa ?? "")}`)}                            >
+                              <IconEye className="h-4 w-4" />
+                              <span>Ver registro</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                       <TableCell className="truncate font-mono text-xs">
                         {placaVehiculo(vehiculo)}
                       </TableCell>
@@ -219,14 +246,6 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                       </TableCell>
                       <TableCell>
                         <EstadoBadge value={estadoCalibracionVehiculo(vehiculo)} />
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button asChild size="icon-sm" variant="outline">
-                          <Link href={`/flota/${encodeURIComponent(vehiculo.id)}`}>
-                            <IconEye />
-                            <span className="sr-only">Ver ficha</span>
-                          </Link>
-                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
