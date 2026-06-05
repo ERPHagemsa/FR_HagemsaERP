@@ -12,6 +12,7 @@ import { MoreVerticalCircle01Icon } from "@hugeicons/core-free-icons";
 import { obtenerVehiculos, obtenerResumen } from "../servicios/flota-api";
 import { ChartContainer } from "@/compartido/componentes/ui/chart";
 import { PieChart, Pie, Cell, Tooltip as ReTooltip } from "recharts";
+import { Truck, CheckCircle, Activity, AlertTriangle, Plus } from "lucide-react";
 
 export function FlotaVista() {
   const [query, setQuery] = useState("");
@@ -104,44 +105,146 @@ export function FlotaVista() {
 
           </div>
 
-          {/* Mini dashboard */}
-          <div className="mt-4 grid gap-4 md:grid-cols-4">
-            <div className="col-span-3 grid grid-cols-3 gap-3">
-              <div className="rounded-md border border-border bg-background p-3">
-                <div className="text-sm text-muted-foreground">Total unidades</div>
-                <div className="mt-1 text-2xl font-semibold">{resumen?.totalVehiculos ?? items.length}</div>
-              </div>
-              <div className="rounded-md border border-border bg-background p-3">
-                <div className="text-sm text-muted-foreground">Operativos activos</div>
-                <div className="mt-1 text-2xl font-semibold">{resumen?.operativosActivos ?? items.filter((x) => (x.estado === 'OPERATIVO' || x.estado === 'Operativo' || x.estado === 'Activo' || x.estado === 'ACTIVO')).length}</div>
-              </div>
-              <div className="rounded-md border border-border bg-background p-3">
-                <div className="text-sm text-muted-foreground">Registros recientes</div>
-                <div className="mt-1 text-2xl font-semibold">{(resumen?.registrosRecientes?.length ?? 0)}</div>
+          {/* Mini dashboard - visual styled like Activos */}
+          <div className="mt-4 grid gap-4">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div className="flex items-center gap-4 rounded-md border border-border bg-background p-4">
+                  <div className="rounded-md bg-red-50 p-3">
+                    <Truck className="h-6 w-6 text-red-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Total activos</div>
+                    <div className="mt-1 text-2xl font-semibold">{resumen?.totalVehiculos ?? items.length}</div>
+                    <div className="text-xs text-muted-foreground">Unidades registradas</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 rounded-md border border-border bg-background p-4">
+                  <div className="rounded-md bg-green-50 p-3">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Activos vigentes</div>
+                    <div className="mt-1 text-2xl font-semibold">{resumen?.operativosActivos ?? items.filter((x) => (x.estado === 'OPERATIVO' || x.estado === 'Operativo' || x.estado === 'Activo' || x.estado === 'ACTIVO')).length}</div>
+                    <div className="text-xs text-muted-foreground">Estado administrativo activo</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 rounded-md border border-border bg-background p-4">
+                  <div className="rounded-md bg-blue-50 p-3">
+                    <Activity className="h-6 w-6 text-sky-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Operativos</div>
+                    <div className="mt-1 text-2xl font-semibold">{resumen?.operativosActivos ?? items.filter((x) => (x.estado === 'OPERATIVO' || x.estado === 'Operativo' || x.estado === 'Activo' || x.estado === 'ACTIVO')).length}</div>
+                    <div className="text-xs text-muted-foreground">Disponibles para operar</div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-4 rounded-md border border-border bg-background p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="rounded-md bg-rose-50 p-3">
+                      <AlertTriangle className="h-6 w-6 text-rose-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Mantenimiento / no calibrados</div>
+                      <div className="mt-1 text-2xl font-semibold">{(resumen?.bajasRecientes?.length ?? 0)} / {(resumen?.registrosRecientes?.length ?? 0)}</div>
+                      <div className="text-xs text-muted-foreground">Alertas operativas</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="col-span-1">
-              <div className="rounded-md border border-border bg-background p-3">
-                <div className="text-sm text-muted-foreground mb-2">Por tipo</div>
-                <div style={{ width: '100%', height: 120 }}>
-                  <ChartContainer id="flota-tipos" config={{ tipos: { label: 'Por tipo', color: '#60A5FA' } }} initialDimension={{ width: 320, height: 120 }}>
-                    <PieChart>
-                      <Pie dataKey="value" data={
-                        (resumen?.porTipo && resumen.porTipo.length > 0)
-                          ? resumen.porTipo.map((t: any) => ({ name: t.tipoVehiculo, value: t.total }))
-                          : (() => {
-                              const map: Record<string, number> = {};
-                              items.forEach((it) => { const k = it.tipoVehiculo ?? 'Otros'; map[k] = (map[k] || 0) + 1; });
-                              return Object.entries(map).map(([name, value]) => ({ name, value }));
-                            })()
-                      } nameKey="name" cx="50%" cy="50%" outerRadius={40} innerRadius={12}>
-                        {((resumen?.porTipo && resumen.porTipo.length > 0) ? resumen.porTipo : items).map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={["#60A5FA", "#34D399", "#FBBF24", "#F87171"][index % 4]} />
-                        ))}
-                      </Pie>
-                      <ReTooltip />
-                    </PieChart>
-                  </ChartContainer>
+
+            {/* Maestro y filtros area */}
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold">Maestro de unidades</h2>
+                  <div className="text-sm text-muted-foreground">{total} de {items.length} activos visibles</div>
+                </div>
+                <Button variant="destructive">
+                  <Plus className="mr-2" /> Nuevo activo
+                </Button>
+              </div>
+
+              <div className="mt-4 rounded-md border border-border bg-background p-4">
+                <div className="grid gap-3 md:grid-cols-4">
+                  <Input placeholder="Codigo, placa, marca o modelo" value={query} onChange={(e) => setQuery(e.target.value)} />
+                  <select value={tipo} onChange={(e) => setTipo(e.target.value)} className="rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm">
+                    <option value="Todos">Todos</option>
+                    <option value="Vehiculo">Vehiculo</option>
+                  </select>
+                  <select value={estado} onChange={(e) => setEstado(e.target.value)} className="rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm">
+                    <option value="Todos">Todos</option>
+                    <option value="ACTIVO">ACTIVO</option>
+                    <option value="INACTIVO">INACTIVO</option>
+                  </select>
+                  <select value={operativo} onChange={(e) => setOperativo(e.target.value)} className="rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm">
+                    <option value="Todos">Todos</option>
+                    <option value="Operativo">Operativo</option>
+                    <option value="No operativo">No operativo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-4 overflow-x-auto">
+                {/* existing table follows here - keep original table rendering */}
+                {loading ? (
+                  <div className="p-6">Cargando...</div>
+                ) : pageItems.length === 0 ? (
+                  <div className="p-6">No se encontraron activos con los filtros aplicados.</div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50 hover:bg-muted/50">
+                        <TableHead className="w-10" />
+                        <TableHead>Placa</TableHead>
+                        <TableHead>Marca</TableHead>
+                        <TableHead>Contrato</TableHead>
+                        <TableHead>Cuenta</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pageItems.map((v) => (
+                        <TableRow key={v.id}>
+                          <TableCell>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" aria-label="Acciones">
+                                  <HugeiconsIcon icon={MoreVerticalCircle01Icon} strokeWidth={2} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start">
+                                <DropdownMenuGroup>
+                                  <DropdownMenuItem>
+                                    <Link href={`/flota/${encodeURIComponent(v.id)}`}>Ver ficha</Link>
+                                  </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                          <TableCell className="font-mono text-xs">{v.placa ?? v.placaRodaje ?? v.id}</TableCell>
+                          <TableCell>{v.marca}</TableCell>
+                          <TableCell>{v.contrato ?? "-"}</TableCell>
+                          <TableCell>{v.cuenta ?? "-"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+
+              <div className="mt-4 flex items-center justify-between">
+                <div>Mostrando {Math.min(total, (page - 1) * pageSize + 1)}-{Math.min(total, page * pageSize)} de {total} activos</div>
+                <div className="flex items-center gap-3">
+                  <label>Filas</label>
+                  <select value={String(pageSize)} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="rounded-4xl border border-input bg-input/30 px-3 py-2 text-sm">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                  </select>
+                  <Button variant="outline" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Anterior</Button>
+                  <div>{page} / {totalPages}</div>
+                  <Button variant="outline" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Siguiente</Button>
                 </div>
               </div>
             </div>
