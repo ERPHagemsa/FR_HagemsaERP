@@ -19,19 +19,3 @@ export const schemaDescartarSC = z.object({
 });
 
 export type DatosDescartarSC = z.infer<typeof schemaDescartarSC>;
-
-// ---------------------------------------------------------------------------
-// Schema de resolver identidad (panel opcional en formulario de creacion)
-// ---------------------------------------------------------------------------
-
-export const schemaResolverIdentidad = z.object({
-  tipoDocumento: z.enum(["RUC", "DNI", "CE"], {
-    message: "Selecciona un tipo de documento valido",
-  }),
-  numeroDocumento: z
-    .string()
-    .min(1, "El numero de documento es requerido")
-    .trim(),
-});
-
-export type DatosResolverIdentidad = z.infer<typeof schemaResolverIdentidad>;

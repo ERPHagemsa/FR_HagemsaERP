@@ -16,12 +16,6 @@ export type EstadoSolicitudCliente =
 
 export type TipoOrigen = "PROSPECTO" | "CLIENTE";
 
-export type VeredictoIdentidad =
-  | "CLIENTE"
-  | "CLIENTE_INACTIVO"
-  | "PROSPECTO_EXISTENTE"
-  | "NUEVO";
-
 // ---------------------------------------------------------------------------
 // Entidades de lectura (read model)
 // ---------------------------------------------------------------------------
@@ -107,24 +101,6 @@ export type FiltrosSolicitudesCliente = {
 
 export type PayloadDescartarSC = {
   motivo: string;
-};
-
-// Respuesta del endpoint resolver-identidad
-// Contrato autoritativo: API-Cotizaciones.md §5.12 (BC-03 docs/source DTO).
-export type RespuestaResolverIdentidad = {
-  veredicto: VeredictoIdentidad;
-  // Presente cuando veredicto = PROSPECTO_EXISTENTE
-  prospecto?: {
-    prospectoId: string;
-    razonSocial: string | null;
-  };
-  // Presente cuando veredicto = CLIENTE | CLIENTE_INACTIVO
-  cliente?: {
-    clienteId: string;
-    razonSocial: string | null;
-    nombreComercial: string | null;
-    estado: string;
-  };
 };
 
 // ---------------------------------------------------------------------------

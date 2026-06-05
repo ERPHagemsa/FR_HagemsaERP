@@ -14,6 +14,7 @@ import type { DraftBorrador } from "../servicios/cotizaciones-editor.utils";
 import {
   derivarDraft,
   armarPayloadBorrador,
+  validarBorrador,
 } from "../servicios/cotizaciones-editor.utils";
 import { useActualizarBorradorMutation, useConsultarCotizacion } from "../servicios/cotizaciones-queries";
 import { EditorBorradorCampos } from "./editor-borrador-campos";
@@ -48,6 +49,15 @@ export function CotizacionEditor({ cotizacion }: Props) {
 
   async function onGuardar() {
     setErroresCampo({});
+
+    // Validacion client-side previa (ej: nombre de seccion obligatorio).
+    const erroresValidacion = validarBorrador(draft);
+    if (Object.keys(erroresValidacion).length > 0) {
+      setErroresCampo(erroresValidacion);
+      toast.error("Revise los campos marcados antes de guardar.");
+      return;
+    }
+
     setGuardando(true);
 
     const payload = armarPayloadBorrador(draft);
@@ -80,7 +90,7 @@ export function CotizacionEditor({ cotizacion }: Props) {
     }
 
     // 400: intentar mapear errores por campo a inputs del editor
-    // OQ-3: NestJS class-validator emite strings como "secciones.0.lineas.0.concepto must be..."
+    // OQ-3: NestJS class-validator emite strings como "secciones.0.lineas.0.descripcion must be..."
     // El path antes del primer espacio es la ruta del campo.
     const erroresPorCampoApi = obtenerErroresPorCampo(err);
     const camposConError = Object.keys(erroresPorCampoApi);

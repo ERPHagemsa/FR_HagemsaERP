@@ -11,6 +11,7 @@ import {
   extraerMensajeError,
   obtenerErroresPorCampo,
 } from "@/compartido/api";
+import { Alert, AlertDescription } from "@/compartido/componentes/ui/alert";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -20,6 +21,7 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
+import { Spinner } from "@/compartido/componentes/ui/spinner";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
 import {
   Select,
@@ -28,7 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select";
+import { cn } from "@/compartido/utilidades/utils";
 
+import { resolverIdentidad } from "../../identidad/servicios/identidad-api";
+import { schemaResolverIdentidad } from "../../identidad/tipos/identidad.schemas";
+import type { RespuestaResolverIdentidad } from "../../identidad/tipos/identidad.tipos";
 import {
   useActualizarProspectoMutation,
   useRegistrarProspectoMutation,
@@ -85,11 +91,47 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
   const [erroresCampo, setErroresCampo] = React.useState<
     Record<string, string>
   >({});
+  // Dedup en alta: aviso si el documento ya es prospecto o cliente.
+  const [avisoIdentidad, setAvisoIdentidad] =
+    React.useState<RespuestaResolverIdentidad | null>(null);
+  const [verificandoIdentidad, setVerificandoIdentidad] = React.useState(false);
 
   const registrarMutation = useRegistrarProspectoMutation();
   const actualizarMutation = useActualizarProspectoMutation();
 
   const esEdicion = modo === "editar";
+
+  // Verifica contra resolver-identidad si el documento ya existe (prospecto/cliente),
+  // para evitar registrar informacion repetida. Best-effort: si la consulta falla
+  // no bloquea el alta — el 409 del backend sigue siendo la red de seguridad final.
+  async function verificarIdentidad() {
+    if (esEdicion) return;
+    const root = formularioRef.current;
+    if (!root) return;
+
+    const parsed = schemaResolverIdentidad.safeParse({
+      tipoDocumento: getValue(root, "tipoDocumento"),
+      numeroDocumento: getValue(root, "numeroDocumento"),
+    });
+    if (!parsed.success) {
+      setAvisoIdentidad(null);
+      return;
+    }
+
+    setVerificandoIdentidad(true);
+    try {
+      const respuesta = await resolverIdentidad(
+        parsed.data.tipoDocumento,
+        parsed.data.numeroDocumento
+      );
+      // NUEVO no genera ruido; solo avisamos cuando ya existe.
+      setAvisoIdentidad(respuesta.veredicto === "NUEVO" ? null : respuesta);
+    } catch {
+      setAvisoIdentidad(null);
+    } finally {
+      setVerificandoIdentidad(false);
+    }
+  }
 
   // Limpia error de un campo cuando el usuario lo edita
   function limpiarErrorCampo(name: string) {
@@ -378,7 +420,55 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
                   error={erroresCampo["numeroDocumento"]}
                   disabled={isSaving}
                   onChange={() => limpiarErrorCampo("numeroDocumento")}
+                  onBlur={() => void verificarIdentidad()}
+                  adornoFin={
+                    verificandoIdentidad ? (
+                      <Spinner className="size-4 text-muted-foreground" />
+                    ) : null
+                  }
                 />
+
+                {avisoIdentidad?.veredicto === "PROSPECTO_EXISTENTE" &&
+                avisoIdentidad.prospecto ? (
+                  <Alert>
+                    <AlertDescription className="flex flex-col gap-2">
+                      <span>
+                        Ya existe un prospecto con este documento
+                        {avisoIdentidad.prospecto.razonSocial
+                          ? `: ${avisoIdentidad.prospecto.razonSocial}`
+                          : ""}
+                        . Revisalo antes de registrar uno nuevo para no duplicar
+                        informacion.
+                      </span>
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="w-fit"
+                      >
+                        <Link
+                          href={`/comercial/prospectos/${avisoIdentidad.prospecto.prospectoId}`}
+                        >
+                          Ver prospecto existente
+                        </Link>
+                      </Button>
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
+                {avisoIdentidad?.veredicto === "CLIENTE" ||
+                avisoIdentidad?.veredicto === "CLIENTE_INACTIVO" ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      Este documento ya pertenece a un cliente registrado
+                      {avisoIdentidad.cliente?.razonSocial
+                        ? `: ${avisoIdentidad.cliente.razonSocial}`
+                        : ""}
+                      . No corresponde registrarlo como prospecto.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
                 <CampoSelect
                   label="Medio de contacto inicial"
                   name="medioContactoInicial"
@@ -492,12 +582,16 @@ function CampoTexto({
   requerido = false,
   error,
   onChange,
+  adornoFin,
+  className,
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   name: string;
   requerido?: boolean;
   error?: string;
+  // Contenido al final del input (ej. spinner de verificacion).
+  adornoFin?: React.ReactNode;
 }) {
   return (
     <div className="grid gap-2">
@@ -505,13 +599,21 @@ function CampoTexto({
         {label}
         {requerido ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      <Input
-        id={name}
-        name={name}
-        aria-invalid={Boolean(error)}
-        onChange={onChange}
-        {...props}
-      />
+      <div className="relative">
+        <Input
+          id={name}
+          name={name}
+          aria-invalid={Boolean(error)}
+          onChange={onChange}
+          className={cn(adornoFin ? "pr-9" : undefined, className)}
+          {...props}
+        />
+        {adornoFin ? (
+          <div className="absolute inset-y-0 right-2.5 flex items-center">
+            {adornoFin}
+          </div>
+        ) : null}
+      </div>
       {error ? (
         <p className="text-xs text-destructive">{error}</p>
       ) : null}

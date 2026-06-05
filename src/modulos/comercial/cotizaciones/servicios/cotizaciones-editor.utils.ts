@@ -47,7 +47,6 @@ export type DraftCargaHijo = {
   anchoM: string;
   altoM: string;
   pesoTn: string;
-  tipoCarga: string;
   origen: string;
   destino: string;
   tipoVehiculo: string;
@@ -75,13 +74,10 @@ export type DraftLinea = {
   claveCliente: string;
   idModalidad: string;
   tipoLinea: TipoLinea;
-  concepto: string;
+  descripcion: string; // nombre/identificacion de la linea (antes `concepto`)
   moneda: Moneda;
   cantidad: string; // entero >=1; nº de unidades de la linea
-  precioUnitario: string; // informativo (N x P/u); "" = sin valor
-  costo: string; // string para el input
-  precio: string;
-  esAlternativa: boolean;
+  precioUnitario: string; // requerido (>=0); el backend calcula precioTotal = precioUnitario × cantidad
   cargos: DraftCargo[];
   // Hijos polimorficos (solo uno se usa segun tipoLinea; los demas ignorados en armarPayload)
   carga: DraftCargaHijo;
@@ -122,7 +118,6 @@ function cargaVacia(): DraftCargaHijo {
     anchoM: "",
     altoM: "",
     pesoTn: "",
-    tipoCarga: "",
     origen: "",
     destino: "",
     tipoVehiculo: "",
@@ -153,13 +148,10 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
     claveCliente: crypto.randomUUID(),
     idModalidad: "",
     tipoLinea,
-    concepto: "",
+    descripcion: "",
     moneda: "PEN",
     cantidad: "1",
-    precioUnitario: "",
-    costo: "0",
-    precio: "0",
-    esAlternativa: false,
+    precioUnitario: "0",
     cargos: [],
     carga: cargaVacia(),
     equipo: equipoVacio(),
@@ -220,7 +212,6 @@ function cargaReadADraft(c: CargaHijo): DraftCargaHijo {
     anchoM: c.anchoM !== null ? String(c.anchoM) : "",
     altoM: c.altoM !== null ? String(c.altoM) : "",
     pesoTn: c.pesoTn !== null ? String(c.pesoTn) : "",
-    tipoCarga: c.tipoCarga ?? "",
     origen: c.origen ?? "",
     destino: c.destino ?? "",
     tipoVehiculo: c.tipoVehiculo ?? "",
@@ -254,13 +245,10 @@ function lineaReadADraft(l: Linea): DraftLinea {
     claveCliente: l.id,
     idModalidad: l.idModalidad,
     tipoLinea: l.tipoLinea,
-    concepto: l.concepto,
+    descripcion: l.descripcion,
     moneda: l.moneda,
     cantidad: String(l.cantidad),
-    precioUnitario: l.precioUnitario !== null ? String(l.precioUnitario) : "",
-    costo: String(l.costo),
-    precio: String(l.precio),
-    esAlternativa: l.esAlternativa,
+    precioUnitario: String(l.precioUnitario),
     cargos: l.cargos.map(cargoReadADraft),
     // Poblar el hijo correspondiente; el resto queda en valores por defecto
     carga: l.carga ? cargaReadADraft(l.carga) : cargaVacia(),
@@ -286,7 +274,7 @@ function standbyReadADraft(s: Standby): DraftStandby {
  * 1. Por cada Seccion del read crear un DraftSeccion con claveCliente = seccion.id.
  * 2. Agrupar lineas[] por idSeccion → bucket seccion.lineas; idSeccion null → lineasSinSeccion.
  * 3. Idem para standbyTarifas[] → seccion.standby o standbySinSeccion.
- * 4. Descartar cantidad/precioUnitario/margen/subtotal/totales.
+ * 4. Descartar precioTotal/subtotal/totales (los recalcula el backend).
  */
 export function derivarDraft(version: Version): DraftBorrador {
   // Indice de secciones por id del backend
@@ -356,7 +344,6 @@ function cargaAPayload(c: DraftCargaHijo): PayloadCargaHijo {
   if (c.anchoM !== "") payload.anchoM = parseNumero(c.anchoM);
   if (c.altoM !== "") payload.altoM = parseNumero(c.altoM);
   if (c.pesoTn !== "") payload.pesoTn = parseNumero(c.pesoTn);
-  if (c.tipoCarga !== "") payload.tipoCarga = c.tipoCarga;
   if (c.origen !== "") payload.origen = c.origen;
   if (c.destino !== "") payload.destino = c.destino;
   if (c.tipoVehiculo !== "") payload.tipoVehiculo = c.tipoVehiculo;
@@ -389,24 +376,18 @@ function personalAPayload(p: DraftPersonalHijo): PayloadPersonalHijo {
  * Emite el hijo polimorfico correcto segun tipoLinea.
  * TRANSPORTE → carga; ALQUILER_EQUIPO → equipo; ALMACENAJE → almacenaje; PERSONAL → personal.
  * AGENCIAMIENTO / SERVICIO_AUXILIAR → sin hijo.
- * Emite cantidad (entero >=1) y precioUnitario (solo si tiene valor); NUNCA
- * emitir idSeccion, margen, subtotal ni totales (los calcula el backend).
+ * Emite precioUnitario (requerido, >=0) y cantidad (entero >=1); NUNCA emitir
+ * idSeccion, precioTotal, subtotal ni totales (los calcula el backend).
  */
 function lineaAPayload(l: DraftLinea): PayloadLinea {
   const base: PayloadLinea = {
     idModalidad: l.idModalidad,
     tipoLinea: l.tipoLinea,
-    concepto: l.concepto,
+    descripcion: l.descripcion,
     moneda: l.moneda,
+    precioUnitario: parseNumero(l.precioUnitario),
     cantidad: l.cantidad !== "" ? parseNumero(l.cantidad) : 1,
-    costo: parseNumero(l.costo),
-    precio: parseNumero(l.precio),
-    esAlternativa: l.esAlternativa,
   };
-
-  if (l.precioUnitario !== "") {
-    base.precioUnitario = parseNumero(l.precioUnitario);
-  }
 
   if (l.cargos.length > 0) {
     base.cargos = l.cargos.map(cargoAPayload);
@@ -450,9 +431,28 @@ function seccionAPayload(s: DraftSeccion): PayloadSeccion {
 }
 
 /**
+ * validarBorrador — validaciones client-side previas al envío.
+ *
+ * Regla de UX más estricta que el backend: una sección DEBE tener nombre. Su
+ * única razón de existir es rotular un grupo de líneas; una sección sin nombre
+ * confunde y no aporta (el backend la acepta, pero acá la exigimos). Las claves
+ * de error siguen la misma convención que usa el editor (`secciones.{i}.nombre`),
+ * por lo que se pintan directo en el input correspondiente.
+ */
+export function validarBorrador(draft: DraftBorrador): Record<string, string> {
+  const errores: Record<string, string> = {};
+  draft.secciones.forEach((s, i) => {
+    if (s.nombre.trim() === "") {
+      errores[`secciones.${i}.nombre`] = "El nombre de la sección es obligatorio.";
+    }
+  });
+  return errores;
+}
+
+/**
  * armarPayloadBorrador — convierte DraftBorrador al PayloadBorrador ANIDADO que acepta el backend.
  *
- * Nunca emite: claveCliente, idSeccion, margen, precioUnitario, cantidad, subtotal ni totales.
+ * Nunca emite: claveCliente, idSeccion, precioTotal, subtotal ni totales.
  * El draft completo se re-envía siempre (replacement idempotente — ADR-10).
  */
 export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {

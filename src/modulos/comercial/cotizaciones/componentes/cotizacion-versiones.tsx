@@ -97,11 +97,9 @@ function VersionCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-5 pt-5">
-        {/* Totales */}
-        <div className="grid grid-cols-3 gap-3 rounded-xl border border-border bg-muted/30 p-4">
-          <TotalItem label="Costo total" valor={version.costoTotal} />
+        {/* Total */}
+        <div className="rounded-xl border border-border bg-muted/30 p-4">
           <TotalItem label="Monto total" valor={version.montoTotal} />
-          <TotalItem label="Margen total" valor={version.margenTotal} />
         </div>
 
         {/* Datos de validez/envio */}
@@ -263,29 +261,16 @@ function LineaRow({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium">{linea.concepto}</span>
+            <span className="text-sm font-medium">{linea.descripcion}</span>
             <Badge variant="outline" className="text-xs">
               {formatearTipoLinea(linea.tipoLinea)}
             </Badge>
-            {linea.esAlternativa ? (
-              <Badge variant="secondary" className="text-xs">
-                Alternativa
-              </Badge>
-            ) : null}
           </div>
-          {linea.descripcion ? (
-            <span className="text-xs text-muted-foreground">{linea.descripcion}</span>
-          ) : null}
         </div>
         <div className="flex flex-col items-end gap-0.5 text-sm">
-          <span className="font-medium">{formatearMonto(linea.precio)} {linea.moneda}</span>
-          {linea.precioUnitario !== null ? (
-            <span className="text-xs text-muted-foreground">
-              {linea.cantidad} × {formatearMonto(linea.precioUnitario)} {linea.moneda}
-            </span>
-          ) : null}
+          <span className="font-medium">{formatearMonto(linea.precioTotal)} {linea.moneda}</span>
           <span className="text-xs text-muted-foreground">
-            Costo: {formatearMonto(linea.costo)} · Margen: {formatearMonto(linea.margen)}
+            {linea.cantidad} × {formatearMonto(linea.precioUnitario)} {linea.moneda}
           </span>
         </div>
       </div>
@@ -316,7 +301,6 @@ function LineaRow({
 function CargaDetalle({ carga }: { carga: CargaHijo }) {
   return (
     <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 rounded-lg bg-muted/30 px-3 py-2 text-xs md:grid-cols-3">
-      <MiniDato label="Tipo de carga" value={carga.tipoCarga} />
       <MiniDato label="Vehiculo" value={carga.tipoVehiculo} />
       <MiniDato label="Origen" value={carga.origen} />
       <MiniDato label="Destino" value={carga.destino} />
@@ -391,11 +375,11 @@ function CargoRow({ cargo }: { cargo: Cargo }) {
   );
 }
 
-function TotalItem({ label, valor }: { label: string; valor: number }) {
+function TotalItem({ label, valor }: { label: string; valor: number | null }) {
   return (
     <div className="flex flex-col gap-0.5 text-center">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="font-semibold">{formatearMonto(valor)}</span>
+      <span className="font-semibold">{valor !== null ? formatearMonto(valor) : "—"}</span>
     </div>
   );
 }

@@ -10,7 +10,6 @@ import type {
   FiltrosSolicitudesCliente,
   PayloadDescartarSC,
 } from "../tipos/solicitud-cliente.tipos";
-import type { TipoDocumento } from "../../prospectos/tipos/prospecto.tipos";
 
 import {
   agregarCotizacion,
@@ -18,7 +17,6 @@ import {
   descartarSolicitudCliente,
   listarSolicitudesCliente,
   registrarSolicitudCliente,
-  resolverIdentidad,
 } from "./solicitudes-cliente-api";
 
 // ---------------------------------------------------------------------------
@@ -50,17 +48,6 @@ export function useSolicitudClienteQuery(id: string) {
     () => consultarSolicitudCliente(id),
     [id],
     { enabled: Boolean(id) }
-  );
-}
-
-export function useResolverIdentidadQuery(
-  tipoDocumento: TipoDocumento | "",
-  numeroDocumento: string
-) {
-  return useConsulta(
-    () => resolverIdentidad(tipoDocumento as TipoDocumento, numeroDocumento),
-    [tipoDocumento, numeroDocumento],
-    { enabled: Boolean(tipoDocumento && numeroDocumento) }
   );
 }
 
