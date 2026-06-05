@@ -13,15 +13,22 @@ import {
   obtenerErroresPorCampo,
   useConsulta,
 } from "@/compartido/api";
+import { CalendarDays } from "lucide-react";
+
 import { Button } from "@/compartido/componentes/ui/button";
+import { Calendar } from "@/compartido/componentes/ui/calendar";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
-import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/compartido/componentes/ui/popover";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
 import {
   Select,
@@ -30,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select";
+import { cn } from "@/compartido/utilidades/utils";
 
 import { consultarProspecto } from "../../prospectos/servicios/prospectos-api";
 import { useRegistrarSCMutation } from "../servicios/solicitudes-cliente-queries";
@@ -63,6 +71,15 @@ function esUuid(valor: string): boolean {
   return REGEX_UUID.test(valor.trim());
 }
 
+// Formatea a YYYY-MM-DD desde las partes locales (evita el corrimiento de dia
+// que produce toISOString al convertir a UTC).
+function aISODate(fecha: Date): string {
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  return `${anio}-${mes}-${dia}`;
+}
+
 // ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
@@ -82,6 +99,10 @@ export function SolicitudClienteFormulario() {
   const [numeroDocumentoValue, setNumeroDocumentoValue] = React.useState("");
   // PROSPECTO: contacto elegido a mano (null = usar el principal por defecto)
   const [contactoElegido, setContactoElegido] = React.useState<string | null>(null);
+  // Fecha requerida — controlada (el Calendar maneja un Date, no un input nativo)
+  const [fechaRequeridaValue, setFechaRequeridaValue] = React.useState<
+    Date | undefined
+  >(undefined);
 
   const registrarMutation = useRegistrarSCMutation();
 
@@ -123,7 +144,9 @@ export function SolicitudClienteFormulario() {
     try {
       const canalEntrada = getValue(root, "canalEntrada") as CanalEntrada;
       const descripcionServicio = getValue(root, "descripcionServicio");
-      const fechaRequerida = getValue(root, "fechaRequerida") || undefined;
+      const fechaRequerida = fechaRequeridaValue
+        ? aISODate(fechaRequeridaValue)
+        : undefined;
       const observaciones = getValue(root, "observaciones") || undefined;
 
       const datos =
@@ -349,13 +372,15 @@ export function SolicitudClienteFormulario() {
                 disabled={isSaving}
                 onChange={() => limpiarErrorCampo("descripcionServicio")}
               />
-              <CampoTexto
+              <CampoFecha
                 label="Fecha requerida"
-                name="fechaRequerida"
-                type="date"
+                value={fechaRequeridaValue}
+                onSelect={(fecha) => {
+                  setFechaRequeridaValue(fecha);
+                  limpiarErrorCampo("fechaRequerida");
+                }}
                 error={erroresCampo["fechaRequerida"]}
                 disabled={isSaving}
-                onChange={() => limpiarErrorCampo("fechaRequerida")}
               />
               <CampoTextarea
                 label="Observaciones"
@@ -403,32 +428,63 @@ function SeccionTitulo({
   );
 }
 
-function CampoTexto({
+function CampoFecha({
   label,
-  name,
   requerido = false,
+  value,
+  onSelect,
   error,
-  onChange,
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement> & {
+  disabled,
+}: {
   label: string;
-  name: string;
   requerido?: boolean;
+  value?: Date;
+  onSelect: (fecha: Date | undefined) => void;
   error?: string;
+  disabled?: boolean;
 }) {
+  const [abierto, setAbierto] = React.useState(false);
+
   return (
     <div className="grid gap-2">
-      <Label htmlFor={name}>
+      <Label>
         {label}
         {requerido ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
-      <Input
-        id={name}
-        name={name}
-        aria-invalid={Boolean(error)}
-        onChange={onChange}
-        {...props}
-      />
+      <Popover open={abierto} onOpenChange={setAbierto}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={disabled}
+            aria-invalid={Boolean(error)}
+            className={cn(
+              "w-full justify-start text-left font-normal",
+              !value && "text-muted-foreground"
+            )}
+          >
+            <CalendarDays className="size-4" />
+            {value
+              ? value.toLocaleDateString("es-ES", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                })
+              : "Selecciona una fecha"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={value}
+            onSelect={(fecha) => {
+              onSelect(fecha);
+              setAbierto(false);
+            }}
+            autoFocus
+          />
+        </PopoverContent>
+      </Popover>
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
