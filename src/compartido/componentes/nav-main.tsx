@@ -16,6 +16,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/compartido/componentes/ui/sidebar"
 import { cn } from "@/compartido/utilidades/utils"
 
@@ -62,6 +63,9 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
+  // En pantallas chicas el sidebar es un panel off-canvas; al navegar hay que
+  // cerrarlo (en escritorio openMobile no se usa, asi que es inocuo).
+  const { setOpenMobile } = useSidebar()
   const activeItem = React.useMemo(
     () =>
       items.find((item) => {
@@ -125,7 +129,10 @@ export function NavMain({
                     !isHighlighted && "dark:text-sidebar-foreground/60",
                   )}
                 >
-                  <Link href={moduleHref}>
+                  <Link
+                    href={moduleHref}
+                    onClick={() => setOpenMobile(false)}
+                  >
                     {item.icon}
                     <span>{item.title}</span>
                   </Link>
@@ -156,7 +163,10 @@ export function NavMain({
                           asChild
                           isActive={subItem.url === subUrlActiva}
                         >
-                          <Link href={subItem.url}>
+                          <Link
+                            href={subItem.url}
+                            onClick={() => setOpenMobile(false)}
+                          >
                             <span>{subItem.title}</span>
                           </Link>
                         </SidebarMenuSubButton>

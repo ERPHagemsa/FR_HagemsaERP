@@ -34,6 +34,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/compartido/componentes/ui/sidebar"
 
 const data = {
@@ -202,6 +203,7 @@ const navAdmin = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const esSuperAdmin = useTieneRol("SUPER_ADMIN")
   const navMain = esSuperAdmin ? [...data.navMain, navAdmin] : data.navMain
+  const { setOpenMobile } = useSidebar()
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -213,7 +215,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link href="/">
+              <Link href="/" onClick={() => setOpenMobile(false)}>
                 <span className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-accent">
                   <Image
                     src="/logo/logo.svg"
