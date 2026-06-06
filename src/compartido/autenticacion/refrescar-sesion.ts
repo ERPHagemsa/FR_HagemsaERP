@@ -16,7 +16,7 @@ import {
 import {
   COOKIE_ACCESS,
   COOKIE_REFRESH,
-  opcionesCookieSesion,
+  setCookiesSesion,
 } from "./cookies-sesion"
 import { extraerIpCliente } from "./extraer-ip-cliente"
 import { decodificarAccessToken, vaACaducar } from "./tokens-jwt"
@@ -127,18 +127,12 @@ export async function refrescarSiNecesario(
   }
 
   const response = NextResponse.next()
-  response.cookies.set({
-    ...opcionesCookieSesion,
-    name: COOKIE_ACCESS,
-    value: datos.accessToken,
-    maxAge: datos.expiresIn,
-  })
-  response.cookies.set({
-    ...opcionesCookieSesion,
-    name: COOKIE_REFRESH,
-    value: datos.refreshToken,
-    maxAge: datos.refreshExpiresIn,
-  })
+  // Mismo criterio de maxAge que el login y el fallback /api/auth/refresh
+  // (ver setCookiesSesion): la cookie de access vive lo que el refresh (~30d),
+  // NO lo que el access token (~1h). Si la atara al access, tras el primer
+  // refresh la cookie caducaria en 1h y un hueco de inactividad desloguearia al
+  // usuario aunque el refresh token siguiera vigente.
+  setCookiesSesion(response.cookies, datos)
 
   return { tipo: "refrescado", response }
 }
