@@ -72,6 +72,10 @@ export async function POST(request: Request) {
         { status: 429 },
       )
     }
+    console.error("[auth/login] No se pudo contactar al Auth Service", {
+      mensaje: extraerMensajeError(error, "Error desconocido"),
+      codigo: obtenerCodigoError(error),
+    })
     return NextResponse.json(
       { message: "Servicio de autenticacion no disponible." },
       { status: 503 },

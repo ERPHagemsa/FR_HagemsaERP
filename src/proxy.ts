@@ -56,10 +56,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next()
   }
 
-  if (!tieneSesion) {
-    return redirigirALogin(request)
-  }
-
   // El refresh transparente corre SOLO en navegaciones (requests de documento/RSC),
   // NUNCA en /api/*. Motivo: una pagina dispara varias llamadas /api concurrentes;
   // si cada una refrescara, todas presentarian el mismo refresh token a la vez ->
@@ -68,6 +64,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // lado cliente con single-flight (ver cliente-http.ts), que serializa a UN refresh.
   if (pathname.startsWith("/api/")) {
     return NextResponse.next()
+  }
+
+  if (!tieneSesion) {
+    return redirigirALogin(request)
   }
 
   // Navegacion con sesion: refresco transparente si el access esta por expirar.
