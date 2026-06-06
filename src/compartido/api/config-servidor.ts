@@ -7,10 +7,19 @@ export const URLS_SERVIDOR = {
   // Handlers de /api/auth/* hablan con este backend y devuelven al navegador
   // solo cookies httpOnly o datos no sensibles.
   authService: process.env.AUTH_SERVICE_URL ?? "http://localhost:8080",
+  // URL base del backend de Configuracion General (bc14). SOLO se usa aca, en
+  // el server: el Route Handler /api/configuracion-general/* reenvia hacia
+  // aqui. El navegador nunca la ve.
+  //
+  // OJO: debe resolverse desde una variable PLANA (sin NEXT_PUBLIC_). Las
+  // NEXT_PUBLIC_* se "inlinean" en tiempo de build, asi que en el servidor de
+  // produccion quedan congeladas como undefined aunque las setees en runtime.
+  // Por eso CONFIGURACION_GENERAL_API_URL va primero; las NEXT_PUBLIC_* quedan
+  // al final solo como conveniencia para `next dev` (donde si se cargan).
   configuracionGeneral:
     process.env.CONFIGURACION_GENERAL_API_URL ??
-    process.env.NEXT_PUBLIC_CONFIGURACION_GENERAL_API_URL ??
     process.env.API_GATEWAY_URL ??
+    process.env.NEXT_PUBLIC_CONFIGURACION_GENERAL_API_URL ??
     process.env.NEXT_PUBLIC_API_GATEWAY_URL ??
     "http://localhost:8080/api",
 } as const

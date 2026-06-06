@@ -18,14 +18,7 @@ function unirUrl(baseUrl: string, subruta: string, query: string) {
 async function reenviar(request: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const accessToken = await obtenerAccessToken()
   if (!accessToken) {
-    return NextResponse.json(
-      {
-        codigo: "COMUN_SOLICITUD_INVALIDA",
-        detalle: "Falta header Authorization: Bearer <token>",
-        titulo: "Solicitud invalida",
-      },
-      { status: 401 },
-    )
+    return NextResponse.json({ message: "Sesion no iniciada." }, { status: 401 })
   }
 
   const { path = [] } = await ctx.params
