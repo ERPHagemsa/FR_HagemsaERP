@@ -297,7 +297,7 @@ export type EstadoRevisionInventario =
   | "NO_APLICA";
 
 export type InventarioFisicoDetalle = {
-  id: number;
+  id: number | null;
   inventarioId: number;
   activoId: number;
   estadoRevision: EstadoRevisionInventario;
@@ -349,6 +349,11 @@ export type ActualizarDetalleInventarioFisicoPayload = {
   observacion?: string;
   usuarioRevision?: string;
 };
+
+export type RegistrarRevisionInventarioFisicoPayload =
+  ActualizarDetalleInventarioFisicoPayload & {
+    activoId: number;
+  };
 
 export type CerrarInventarioFisicoPayload = {
   usuarioCierre?: string;

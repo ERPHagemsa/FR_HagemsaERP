@@ -20,6 +20,7 @@ import type {
   ImagenActivo,
   InventarioFisico,
   PlantillaInventario,
+  RegistrarRevisionInventarioFisicoPayload,
   TanqueActivo,
 } from "../tipos/activo.tipos";
 
@@ -446,6 +447,17 @@ export async function actualizarDetalleInventarioFisico(
 ): Promise<InventarioFisico> {
   const { data } = await clienteActivos.patch<InventarioFisico>(
     `/activos/inventarios-fisicos/${inventarioId}/detalles/${detalleId}`,
+    payload
+  );
+  return data;
+}
+
+export async function registrarRevisionInventarioFisico(
+  inventarioId: number,
+  payload: RegistrarRevisionInventarioFisicoPayload
+): Promise<InventarioFisico> {
+  const { data } = await clienteActivos.post<InventarioFisico>(
+    `/activos/inventarios-fisicos/${inventarioId}/revisiones`,
     payload
   );
   return data;

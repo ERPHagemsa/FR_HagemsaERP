@@ -31,8 +31,10 @@ import {
 import {
   actualizarDetalleInventarioFisico,
   cerrarInventarioFisico,
+  registrarRevisionInventarioFisico,
 } from "../servicios/activos-api";
 import type {
+  Activo,
   EstadoRevisionInventario,
   InventarioFisico,
   InventarioFisicoDetalle,
@@ -48,8 +50,10 @@ const ESTADOS_REVISION: EstadoRevisionInventario[] = [
 
 export function InventarioFisicoDetallePanel({
   inventarioInicial,
+  activosMaestro,
 }: {
   inventarioInicial: InventarioFisico;
+  activosMaestro: Activo[];
 }) {
   const [inventario, setInventario] = React.useState(inventarioInicial);
   const [busqueda, setBusqueda] = React.useState("");
@@ -60,7 +64,12 @@ export function InventarioFisicoDetallePanel({
   const [error, setError] = React.useState<string | null>(null);
   const [cerrando, setCerrando] = React.useState(false);
 
-  const detallesFiltrados = inventario.detalles.filter((detalle) => {
+  const detallesBase = React.useMemo(
+    () => construirDetallesInventario(inventario, activosMaestro),
+    [inventario, activosMaestro]
+  );
+
+  const detallesFiltrados = detallesBase.filter((detalle) => {
     const query = busqueda.trim().toUpperCase();
     const valoresBusqueda = [
       detalle.codigoActivo,
@@ -98,20 +107,20 @@ export function InventarioFisicoDetallePanel({
 
   React.useEffect(() => {
     setPagina(1);
-  }, [busqueda, estadoFiltro, inventario.detalles.length, registrosPorPagina]);
+  }, [busqueda, estadoFiltro, detallesBase.length, registrosPorPagina]);
 
   const resumen = {
-    total: inventario.detalles.length,
-    pendientes: inventario.detalles.filter(
+    total: detallesBase.length,
+    pendientes: detallesBase.filter(
       (detalle) => detalle.estadoRevision === "PENDIENTE"
     ).length,
-    encontrados: inventario.detalles.filter(
+    encontrados: detallesBase.filter(
       (detalle) => detalle.estadoRevision === "ENCONTRADO"
     ).length,
-    faltantes: inventario.detalles.filter(
+    faltantes: detallesBase.filter(
       (detalle) => detalle.estadoRevision === "FALTANTE"
     ).length,
-    observados: inventario.detalles.filter(
+    observados: detallesBase.filter(
       (detalle) => detalle.estadoRevision === "OBSERVADO"
     ).length,
   };
@@ -127,14 +136,21 @@ export function InventarioFisicoDetallePanel({
     setError(null);
 
     try {
-      const actualizado = await actualizarDetalleInventarioFisico(
-        inventario.id,
-        detalle.id,
-        {
-          ...payload,
-          usuarioRevision: "activos.web",
-        }
-      );
+      const payloadRevision = {
+        ...payload,
+        usuarioRevision: "activos.web",
+      };
+      const actualizado =
+        detalle.id === null
+          ? await registrarRevisionInventarioFisico(inventario.id, {
+              ...payloadRevision,
+              activoId: detalle.activoId,
+            })
+          : await actualizarDetalleInventarioFisico(
+              inventario.id,
+              detalle.id,
+              payloadRevision
+            );
       setInventario(actualizado);
     } catch (err) {
       setError(
@@ -258,7 +274,7 @@ export function InventarioFisicoDetallePanel({
               <TableBody>
                 {detallesVisibles.map((detalle) => (
                   <DetalleRow
-                    key={detalle.id}
+                    key={obtenerDetalleKey(detalle)}
                     detalle={detalle}
                     disabled={inventario.estado === "CERRADO"}
                     onGuardar={guardarDetalle}
@@ -583,6 +599,68 @@ function ResumenCard({
       </CardContent>
     </Card>
   );
+}
+
+function construirDetallesInventario(
+  inventario: InventarioFisico,
+  activosMaestro: Activo[]
+): InventarioFisicoDetalle[] {
+  const detallesPorActivo = new Map<number, InventarioFisicoDetalle>();
+
+  for (const detalle of inventario.detalles) {
+    detallesPorActivo.set(detalle.activoId, detalle);
+  }
+
+  const vehiculosVigentes = activosMaestro.filter(
+    (activo) => activo.tipoActivo === "VEHICULO" && activo.estadoRegistro !== false
+  );
+
+  const detallesDesdeMaestro = vehiculosVigentes.map((activo) => {
+    const existente = detallesPorActivo.get(activo.id);
+
+    if (existente) {
+      return existente;
+    }
+
+    const vehiculo = activo.vehiculo;
+
+    return {
+      id: null,
+      inventarioId: inventario.id,
+      activoId: activo.id,
+      estadoRevision: "PENDIENTE",
+      codigoActivo: activo.codigo,
+      descripcionActivo: activo.descripcion,
+      tipoActivo: activo.tipoActivo,
+      estadoActivo: activo.estadoActivo,
+      marca: vehiculo?.marca ?? null,
+      modelo: vehiculo?.modelo ?? null,
+      carroceria: vehiculo?.carroceria ?? null,
+      estadoOperativo: vehiculo?.estadoOperativo ?? null,
+      estadoCalibracion: vehiculo?.estadoCalibracion ?? null,
+      placaRodaje: vehiculo?.placaRodaje ?? null,
+      ubicacionEsperada: activo.ubicacion,
+      ubicacionEncontrada: null,
+      observacion: null,
+      usuarioRevision: null,
+      fechaRevision: null,
+      createdAt: inventario.createdAt,
+      updatedAt: inventario.updatedAt,
+    } satisfies InventarioFisicoDetalle;
+  });
+
+  const idsMaestro = new Set(vehiculosVigentes.map((activo) => activo.id));
+  const detallesFueraDelMaestro = inventario.detalles.filter(
+    (detalle) => !idsMaestro.has(detalle.activoId)
+  );
+
+  return [...detallesDesdeMaestro, ...detallesFueraDelMaestro];
+}
+
+function obtenerDetalleKey(detalle: InventarioFisicoDetalle) {
+  return detalle.id === null
+    ? `pendiente-${detalle.activoId}`
+    : `detalle-${detalle.id}`;
 }
 
 function formatear(value?: string | null) {
