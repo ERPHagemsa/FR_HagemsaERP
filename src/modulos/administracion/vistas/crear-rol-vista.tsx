@@ -52,7 +52,7 @@ export function CrearRolVista() {
         asChild
         variant="ghost"
         size="sm"
-        className="rounded-none -ml-2 w-fit text-muted-foreground"
+        className="rounded-md -ml-2 w-fit text-muted-foreground"
       >
         <Link href="/admin/roles">
           <ArrowLeft />
@@ -75,7 +75,7 @@ export function CrearRolVista() {
                 <FieldLabel htmlFor="nombre">Nombre</FieldLabel>
                 <Input
                   id="nombre"
-                  className="rounded-none"
+                  className="rounded-md"
                   value={nombre}
                   onChange={(e) => setNombre(e.target.value)}
                   placeholder="ALMACENERO_LIMA"
@@ -87,7 +87,7 @@ export function CrearRolVista() {
                 <FieldLabel htmlFor="descripcion">Descripción</FieldLabel>
                 <Input
                   id="descripcion"
-                  className="rounded-none"
+                  className="rounded-md"
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
                   placeholder="Quién hace qué con este rol"
@@ -123,10 +123,10 @@ export function CrearRolVista() {
           </div>
 
           <div className="mt-4 flex justify-end gap-2">
-            <Button asChild variant="ghost" type="button" className="rounded-none">
+            <Button asChild variant="ghost" type="button" className="rounded-md">
               <Link href="/admin/roles">Cancelar</Link>
             </Button>
-            <Button type="submit" className="rounded-none" disabled={crearMutation.isPending}>
+            <Button type="submit" className="rounded-md" disabled={crearMutation.isPending}>
               {crearMutation.isPending ? "Creando..." : "Crear rol"}
             </Button>
           </div>

@@ -80,7 +80,7 @@ export function PaginacionTabla({
         aria-label="Página anterior"
         onClick={() => onCambiar(pagina - 1)}
         disabled={pagina <= 1}
-        className="rounded-none"
+        className="rounded-md"
       >
         <ChevronLeft />
       </Button>
@@ -103,7 +103,7 @@ export function PaginacionTabla({
             aria-current={item === pagina ? "page" : undefined}
             onClick={() => onCambiar(item)}
             className={cn(
-              "rounded-none tabular-nums",
+              "rounded-md tabular-nums",
               item === pagina && "pointer-events-none font-medium",
             )}
           >
@@ -118,7 +118,7 @@ export function PaginacionTabla({
         aria-label="Página siguiente"
         onClick={() => onCambiar(pagina + 1)}
         disabled={pagina >= totalPaginas}
-        className="rounded-none"
+        className="rounded-md"
       >
         <ChevronRight />
       </Button>
@@ -161,10 +161,10 @@ export function PiePaginacion({
             value={String(limite)}
             onValueChange={(v) => onLimite(Number(v))}
           >
-            <SelectTrigger size="sm" className="w-[4.25rem] rounded-none">
+            <SelectTrigger size="sm" className="w-[4.25rem] rounded-md">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="rounded-none">
+            <SelectContent className="rounded-md">
               {opciones.map((o) => (
                 <SelectItem key={o} value={String(o)}>
                   {o}

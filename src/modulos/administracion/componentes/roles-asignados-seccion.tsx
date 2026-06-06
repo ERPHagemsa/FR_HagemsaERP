@@ -182,12 +182,12 @@ function DialogAsignarRol({
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm" className="rounded-none">
+        <Button size="sm" className="rounded-md">
           <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
           Asignar rol
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Asignar rol a la cuenta</DialogTitle>
           <DialogDescription>
@@ -199,10 +199,10 @@ function DialogAsignarRol({
           <Field>
             <FieldLabel htmlFor="rolId">Rol</FieldLabel>
             <Select value={rolId} onValueChange={setRolId}>
-              <SelectTrigger id="rolId" className="rounded-none">
+              <SelectTrigger id="rolId" className="rounded-md">
                 <SelectValue placeholder="Selecciona un rol..." />
               </SelectTrigger>
-              <SelectContent className="rounded-none">
+              <SelectContent className="rounded-md">
                 {disponibles.length === 0 ? (
                   <div className="px-3 py-2 text-sm text-muted-foreground">
                     No hay roles disponibles para asignar.
@@ -221,7 +221,7 @@ function DialogAsignarRol({
             <FieldLabel htmlFor="scope">Scope (JSON)</FieldLabel>
             <textarea
               id="scope"
-              className="min-h-[80px] w-full rounded-none border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
               value={scopeTexto}
               onChange={(e) => setScopeTexto(e.target.value)}
               placeholder='{"almacenId":"lima-1"}'
@@ -233,7 +233,7 @@ function DialogAsignarRol({
             </FieldLabel>
             <Input
               id="expiraEn"
-              className="rounded-none"
+              className="rounded-md"
               type="datetime-local"
               value={expiraEn}
               onChange={(e) => setExpiraEn(e.target.value)}
@@ -248,14 +248,14 @@ function DialogAsignarRol({
         <DialogFooter>
           <Button
             variant="ghost"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
             Cancelar
           </Button>
           <Button
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => void confirmar()}
             disabled={mutation.isPending || disponibles.length === 0}
           >
@@ -328,11 +328,11 @@ function DialogEditarScope({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-none" title="Editar scope">
+        <Button variant="ghost" size="icon" className="rounded-md" title="Editar scope">
           <HugeiconsIcon icon={Edit02Icon} strokeWidth={2} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Editar scope</DialogTitle>
           <DialogDescription>
@@ -345,7 +345,7 @@ function DialogEditarScope({
             <FieldLabel htmlFor="scope-editar">Scope (JSON)</FieldLabel>
             <textarea
               id="scope-editar"
-              className="min-h-[80px] w-full rounded-none border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-xs focus:outline-none focus:ring-1 focus:ring-ring"
               value={scopeTexto}
               onChange={(e) => setScopeTexto(e.target.value)}
               placeholder='{"almacenId":"lima-1"}'
@@ -360,14 +360,14 @@ function DialogEditarScope({
         <DialogFooter>
           <Button
             variant="ghost"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
             Cancelar
           </Button>
           <Button
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -421,11 +421,11 @@ function DialogRevocarAsignacion({
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-none" title="Revocar">
+        <Button variant="ghost" size="icon" className="rounded-md" title="Revocar">
           <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Revocar asignacion</DialogTitle>
           <DialogDescription>
@@ -437,7 +437,7 @@ function DialogRevocarAsignacion({
             <FieldLabel htmlFor="razon-revocacion">Razon</FieldLabel>
             <Input
               id="razon-revocacion"
-              className="rounded-none"
+              className="rounded-md"
               value={razon}
               onChange={(e) => setRazon(e.target.value)}
               placeholder="Por que se revoca este rol"
@@ -453,7 +453,7 @@ function DialogRevocarAsignacion({
         <DialogFooter>
           <Button
             variant="ghost"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
@@ -461,7 +461,7 @@ function DialogRevocarAsignacion({
           </Button>
           <Button
             variant="destructive"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -507,7 +507,7 @@ export function RolesAsignadosSeccion({
       </div>
 
       {asignaciones.isLoading ? (
-        <Skeleton className="rounded-none h-24 w-full" />
+        <Skeleton className="rounded-md h-24 w-full" />
       ) : asignaciones.isError ? (
         <p className="text-sm text-destructive">
           {extraerMensajeError(
@@ -537,7 +537,7 @@ export function RolesAsignadosSeccion({
               return (
                 <TableRow key={asignacion.id}>
                   <TableCell className="font-medium">
-                    <Badge variant="default" className="rounded-none">{nombre}</Badge>
+                    <Badge variant="default" className="rounded-md">{nombre}</Badge>
                   </TableCell>
                   <TableCell>
                     {scopeVacio ? (
@@ -545,7 +545,7 @@ export function RolesAsignadosSeccion({
                         sin restriccion
                       </span>
                     ) : (
-                      <code className="rounded-none bg-muted px-1.5 py-0.5 text-xs">
+                      <code className="rounded-md bg-muted px-1.5 py-0.5 text-xs">
                         {JSON.stringify(asignacion.scope)}
                       </code>
                     )}

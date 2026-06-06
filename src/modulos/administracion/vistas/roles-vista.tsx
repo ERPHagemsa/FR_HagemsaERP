@@ -46,7 +46,7 @@ function FilaRol({ rol }: { rol: RolResponse }) {
     >
       <TableCell>
         <div className="flex items-center gap-3">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-none bg-primary/10 text-primary">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <ShieldCheck className="size-4" />
           </span>
           <span className="font-medium">{rol.nombre}</span>
@@ -61,7 +61,7 @@ function FilaRol({ rol }: { rol: RolResponse }) {
       <TableCell>
         <Badge
           variant={rol.esSistema ? "secondary" : "outline"}
-          className="rounded-none font-normal"
+          className="rounded-md font-normal"
         >
           {rol.esSistema ? "Sistema" : "Custom"}
         </Badge>
@@ -95,7 +95,7 @@ export function RolesVista() {
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-semibold tracking-tight">Roles</h1>
             {data ? (
-              <Badge variant="secondary" className="rounded-none tabular-nums">
+              <Badge variant="secondary" className="rounded-md tabular-nums">
                 {total}
               </Badge>
             ) : null}
@@ -104,7 +104,7 @@ export function RolesVista() {
             Catálogo de roles disponibles para asignar a las cuentas.
           </p>
         </div>
-        <Button asChild className="rounded-none">
+        <Button asChild className="rounded-md">
           <Link href="/admin/roles/nuevo">
             <Plus />
             Nuevo rol
@@ -131,18 +131,18 @@ export function RolesVista() {
                   <TableRow key={i} className="hover:bg-transparent [&>td]:py-1.5">
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Skeleton className="size-7 rounded-none" />
-                        <Skeleton className="rounded-none h-4 w-32" />
+                        <Skeleton className="size-7 rounded-md" />
+                        <Skeleton className="rounded-md h-4 w-32" />
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="rounded-none h-4 w-48" />
+                      <Skeleton className="rounded-md h-4 w-48" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="rounded-none h-4 w-8" />
+                      <Skeleton className="rounded-md h-4 w-8" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="rounded-none h-4 w-16" />
+                      <Skeleton className="rounded-md h-4 w-16" />
                     </TableCell>
                     <TableCell />
                   </TableRow>

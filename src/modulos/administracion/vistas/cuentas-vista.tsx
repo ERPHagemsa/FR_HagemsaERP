@@ -80,8 +80,8 @@ function FilaCuenta({ cuenta }: { cuenta: CuentaResponse }) {
     >
       <TableCell>
         <div className="flex items-center gap-3">
-          <Avatar size="sm" className="rounded-none after:rounded-none">
-            <AvatarFallback className="rounded-none bg-primary/10 text-xs font-medium text-primary">
+          <Avatar size="sm" className="rounded-md after:rounded-md">
+            <AvatarFallback className="rounded-md bg-primary/10 text-xs font-medium text-primary">
               {iniciales(cuenta.nombreCompleto)}
             </AvatarFallback>
           </Avatar>
@@ -108,7 +108,7 @@ function FilaCuenta({ cuenta }: { cuenta: CuentaResponse }) {
         {cuenta.email}
       </TableCell>
       <TableCell>
-        <Badge variant="outline" className="rounded-none font-normal capitalize">
+        <Badge variant="outline" className="rounded-md font-normal capitalize">
           {cuenta.tipoCuenta}
         </Badge>
       </TableCell>
@@ -116,7 +116,7 @@ function FilaCuenta({ cuenta }: { cuenta: CuentaResponse }) {
         <span className="inline-flex items-center gap-2 capitalize">
           <span
             className={cn(
-              "size-1.5 rounded-none",
+              "size-1.5 rounded-md",
               PUNTO_ESTADO[cuenta.estado] ?? "bg-zinc-400",
             )}
           />
@@ -171,7 +171,7 @@ export function CuentasVista() {
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-semibold tracking-tight">Cuentas</h1>
             {data ? (
-              <Badge variant="secondary" className="rounded-none tabular-nums">
+              <Badge variant="secondary" className="rounded-md tabular-nums">
                 {total}
               </Badge>
             ) : null}
@@ -180,7 +180,7 @@ export function CuentasVista() {
             Gestiona las cuentas registradas y sus accesos.
           </p>
         </div>
-        <Button asChild className="rounded-none">
+        <Button asChild className="rounded-md">
           <Link href="/admin/cuentas/nueva">
             <Plus />
             Nueva cuenta
@@ -196,7 +196,7 @@ export function CuentasVista() {
             placeholder="Buscar por nombre, usuario o email…"
             value={busqueda}
             onChange={(e) => aplicarFiltro<string>(setBusqueda)(e.target.value)}
-            className="rounded-none pl-9"
+            className="rounded-md pl-9"
           />
         </div>
 
@@ -211,29 +211,29 @@ export function CuentasVista() {
             }
             variant="outline"
             size="sm"
-            className="rounded-none"
+            className="rounded-md"
           >
             <ToggleGroupItem
               value="todos"
-              className="first:rounded-l-none last:rounded-r-none"
+              className="first:rounded-l-md last:rounded-r-md"
             >
               Todos
             </ToggleGroupItem>
             <ToggleGroupItem
               value="activo"
-              className="first:rounded-l-none last:rounded-r-none"
+              className="first:rounded-l-md last:rounded-r-md"
             >
               Activos
             </ToggleGroupItem>
             <ToggleGroupItem
               value="suspendido"
-              className="first:rounded-l-none last:rounded-r-none"
+              className="first:rounded-l-md last:rounded-r-md"
             >
               Suspendidos
             </ToggleGroupItem>
             <ToggleGroupItem
               value="inactivo"
-              className="first:rounded-l-none last:rounded-r-none"
+              className="first:rounded-l-md last:rounded-r-md"
             >
               Inactivos
             </ToggleGroupItem>
@@ -247,10 +247,10 @@ export function CuentasVista() {
               )
             }
           >
-            <SelectTrigger size="sm" className="w-40 rounded-none">
+            <SelectTrigger size="sm" className="w-40 rounded-md">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
-            <SelectContent className="rounded-none">
+            <SelectContent className="rounded-md">
               <SelectItem value="todos">Todos los tipos</SelectItem>
               <SelectItem value="interno">Interno</SelectItem>
               <SelectItem value="cliente">Cliente</SelectItem>
@@ -281,7 +281,7 @@ export function CuentasVista() {
                   <TableRow key={i} className="hover:bg-transparent [&>td]:py-1.5">
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <Skeleton className="size-6 rounded-none" />
+                        <Skeleton className="size-6 rounded-md" />
                         <div className="space-y-1.5">
                           <Skeleton className="h-3.5 w-32" />
                           <Skeleton className="h-3 w-20" />

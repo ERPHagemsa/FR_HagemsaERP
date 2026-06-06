@@ -70,7 +70,7 @@ function EstadoBadge({ estado }: { estado: EstadoCuenta }) {
     <span className="inline-flex items-center gap-1.5 text-sm capitalize text-muted-foreground">
       <span
         className={cn(
-          "size-1.5 rounded-none",
+          "size-1.5 rounded-md",
           PUNTO_ESTADO[estado] ?? "bg-zinc-400",
         )}
       />
@@ -120,12 +120,12 @@ function DialogSuspender({ cuenta, onActualizado }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-none">
+        <Button variant="outline" size="sm" className="rounded-md">
           <Ban />
           Suspender
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Suspender cuenta</DialogTitle>
           <DialogDescription>
@@ -137,7 +137,7 @@ function DialogSuspender({ cuenta, onActualizado }: PropsAccion) {
             <FieldLabel htmlFor="razon">Razon</FieldLabel>
             <Input
               id="razon"
-              className="rounded-none"
+              className="rounded-md"
               value={razon}
               onChange={(e) => setRazon(e.target.value)}
               placeholder="Por que se suspende esta cuenta"
@@ -153,7 +153,7 @@ function DialogSuspender({ cuenta, onActualizado }: PropsAccion) {
         <DialogFooter>
           <Button
             variant="ghost"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
@@ -161,7 +161,7 @@ function DialogSuspender({ cuenta, onActualizado }: PropsAccion) {
           </Button>
           <Button
             variant="destructive"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -186,7 +186,7 @@ function BotonReactivar({ cuenta, onActualizado }: PropsAccion) {
   }
 
   return (
-    <Button size="sm" className="rounded-none" onClick={() => void confirmar()} disabled={mutation.isPending}>
+    <Button size="sm" className="rounded-md" onClick={() => void confirmar()} disabled={mutation.isPending}>
       <Play />
       {mutation.isPending ? "Reactivando..." : "Reactivar"}
     </Button>
@@ -220,12 +220,12 @@ function DialogSetPassword({ cuenta }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-none">
+        <Button variant="outline" size="sm" className="rounded-md">
           <Key />
           Cambiar password
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Cambiar password</DialogTitle>
           <DialogDescription>
@@ -237,7 +237,7 @@ function DialogSetPassword({ cuenta }: PropsAccion) {
             <FieldLabel htmlFor="password">Nueva password</FieldLabel>
             <Input
               id="password"
-              className="rounded-none"
+              className="rounded-md"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -255,14 +255,14 @@ function DialogSetPassword({ cuenta }: PropsAccion) {
         <DialogFooter>
           <Button
             variant="ghost"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
             Cancelar
           </Button>
           <Button
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -303,12 +303,12 @@ function DialogResetPassword({ cuenta }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={cerrar}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-none">
+        <Button variant="outline" size="sm" className="rounded-md">
           <RefreshCw />
           Reset password
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Reset de password</DialogTitle>
           <DialogDescription>
@@ -322,8 +322,8 @@ function DialogResetPassword({ cuenta }: PropsAccion) {
             <Field>
               <FieldLabel>Password temporal</FieldLabel>
               <div className="flex gap-2">
-                <Input value={passwordTemporal} readOnly className="rounded-none font-mono" />
-                <Button variant="outline" size="icon" className="rounded-none" onClick={() => void copiar()}>
+                <Input value={passwordTemporal} readOnly className="rounded-md font-mono" />
+                <Button variant="outline" size="icon" className="rounded-md" onClick={() => void copiar()}>
                   <Copy />
                 </Button>
               </div>
@@ -332,19 +332,19 @@ function DialogResetPassword({ cuenta }: PropsAccion) {
         ) : null}
         <DialogFooter>
           {passwordTemporal ? (
-            <Button className="rounded-none" onClick={() => cerrar(false)}>Cerrar</Button>
+            <Button className="rounded-md" onClick={() => cerrar(false)}>Cerrar</Button>
           ) : (
             <>
               <Button
                 variant="ghost"
-                className="rounded-none"
+                className="rounded-md"
                 onClick={() => cerrar(false)}
                 disabled={mutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
-                className="rounded-none"
+                className="rounded-md"
                 onClick={() => void generar()}
                 disabled={mutation.isPending}
               >
@@ -413,12 +413,12 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-none">
+        <Button variant="outline" size="sm" className="rounded-md">
           <Pencil />
           Editar
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Editar cuenta</DialogTitle>
           <DialogDescription>
@@ -431,7 +431,7 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
             <FieldLabel htmlFor="nombre-editar">Nombre completo</FieldLabel>
             <Input
               id="nombre-editar"
-              className="rounded-none"
+              className="rounded-md"
               value={nombreCompleto}
               onChange={(e) => setNombreCompleto(e.target.value)}
               maxLength={200}
@@ -443,7 +443,7 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
             </FieldLabel>
             <Input
               id="documento-editar"
-              className="rounded-none"
+              className="rounded-md"
               value={documentoIdentidad}
               onChange={(e) => setDocumentoIdentidad(e.target.value)}
               placeholder="Dejar vacio para quitar"
@@ -459,14 +459,14 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
         <DialogFooter>
           <Button
             variant="ghost"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
             Cancelar
           </Button>
           <Button
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -505,12 +505,12 @@ function DialogDesactivar({ cuenta, onActualizado }: PropsAccion) {
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-none text-destructive hover:text-destructive">
+        <Button variant="outline" size="sm" className="rounded-md text-destructive hover:text-destructive">
           <Trash2 />
           Desactivar
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Desactivar cuenta</DialogTitle>
           <DialogDescription>
@@ -524,7 +524,7 @@ function DialogDesactivar({ cuenta, onActualizado }: PropsAccion) {
             <FieldLabel htmlFor="razon-desactivar">Razon</FieldLabel>
             <Input
               id="razon-desactivar"
-              className="rounded-none"
+              className="rounded-md"
               value={razon}
               onChange={(e) => setRazon(e.target.value)}
               placeholder="Por que se desactiva esta cuenta"
@@ -540,7 +540,7 @@ function DialogDesactivar({ cuenta, onActualizado }: PropsAccion) {
         <DialogFooter>
           <Button
             variant="ghost"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
           >
@@ -548,7 +548,7 @@ function DialogDesactivar({ cuenta, onActualizado }: PropsAccion) {
           </Button>
           <Button
             variant="destructive"
-            className="rounded-none"
+            className="rounded-md"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
           >
@@ -570,7 +570,7 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <Button asChild variant="ghost" size="sm" className="rounded-none -ml-2 w-fit text-muted-foreground">
+      <Button asChild variant="ghost" size="sm" className="rounded-md -ml-2 w-fit text-muted-foreground">
         <Link href="/admin/cuentas">
           <ArrowLeft />
           Volver a cuentas
@@ -580,7 +580,7 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
       {isLoading ? (
         <div className="space-y-6">
           <div className="flex items-center gap-4">
-            <Skeleton className="size-10 rounded-none" />
+            <Skeleton className="size-10 rounded-md" />
             <div className="space-y-2">
               <Skeleton className="h-6 w-48" />
               <Skeleton className="h-4 w-64" />
@@ -601,8 +601,8 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
           {/* Cabecera de identidad */}
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Avatar size="lg" className="rounded-none after:rounded-none">
-                <AvatarFallback className="rounded-none bg-primary/10 font-medium text-primary">
+              <Avatar size="lg" className="rounded-md after:rounded-md">
+                <AvatarFallback className="rounded-md bg-primary/10 font-medium text-primary">
                   {iniciales(data.nombreCompleto)}
                 </AvatarFallback>
               </Avatar>

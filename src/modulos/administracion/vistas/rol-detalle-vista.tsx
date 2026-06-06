@@ -179,12 +179,12 @@ function DialogEditarPermisosRol({
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button size="sm" className="rounded-none">
+        <Button size="sm" className="rounded-md">
           <Pencil />
           Editar permisos
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none max-w-2xl">
+      <DialogContent className="rounded-md max-w-2xl">
         <DialogHeader>
           <DialogTitle>Editar permisos del rol</DialogTitle>
           <DialogDescription>
@@ -197,7 +197,7 @@ function DialogEditarPermisosRol({
           placeholder="Buscar por codigo, descripcion o modulo..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          className="rounded-none"
+          className="rounded-md"
         />
 
         <div className="max-h-[50vh] space-y-4 overflow-y-auto pr-1">
@@ -224,7 +224,7 @@ function DialogEditarPermisosRol({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="rounded-none h-6 text-xs"
+                      className="rounded-md h-6 text-xs"
                       onClick={() => alternarModulo(modulo, codigosDelModulo)}
                     >
                       {todosSeleccionados
@@ -234,13 +234,13 @@ function DialogEditarPermisosRol({
                           : "Marcar todos"}
                     </Button>
                   </div>
-                  <div className="space-y-1.5 rounded-none border p-2">
+                  <div className="space-y-1.5 rounded-md border p-2">
                     {permisos.map((permiso) => {
                       const checked = seleccionados.has(permiso.codigo)
                       return (
                         <label
                           key={permiso.id}
-                          className="flex cursor-pointer items-start gap-2 rounded-none px-1 py-1 hover:bg-muted/60"
+                          className="flex cursor-pointer items-start gap-2 rounded-md px-1 py-1 hover:bg-muted/60"
                         >
                           <Checkbox
                             checked={checked}
@@ -276,14 +276,14 @@ function DialogEditarPermisosRol({
               variant="ghost"
               onClick={() => setAbierto(false)}
               disabled={mutation.isPending}
-              className="rounded-none"
+              className="rounded-md"
             >
               Cancelar
             </Button>
             <Button
               onClick={() => void guardar()}
               disabled={mutation.isPending || sinCambios}
-              className="rounded-none"
+              className="rounded-md"
             >
               {mutation.isPending ? "Guardando..." : "Guardar cambios"}
             </Button>
@@ -319,13 +319,13 @@ function BadgePermisoRevocable({
   }
 
   return (
-    <Badge variant="outline" className="rounded-none gap-1 pr-1 font-mono">
+    <Badge variant="outline" className="rounded-md gap-1 pr-1 font-mono">
       {codigo}
       <button
         type="button"
         onClick={() => void revocar()}
         disabled={mutation.isPending}
-        className="ml-1 inline-flex size-4 items-center justify-center rounded-none text-muted-foreground hover:bg-destructive/15 hover:text-destructive disabled:opacity-50"
+        className="ml-1 inline-flex size-4 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/15 hover:text-destructive disabled:opacity-50"
         aria-label={`Revocar ${codigo}`}
       >
         <X className="size-3" />
@@ -388,12 +388,12 @@ function DialogEditarRol({ rol, onActualizado }: PropsDialogEditarRol) {
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-none">
+        <Button variant="outline" size="sm" className="rounded-md">
           <Pencil />
           Editar
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Editar rol</DialogTitle>
           <DialogDescription>
@@ -409,7 +409,7 @@ function DialogEditarRol({ rol, onActualizado }: PropsDialogEditarRol) {
               value={nombre}
               onChange={(e) => setNombre(e.target.value.toUpperCase())}
               maxLength={50}
-              className="rounded-none font-mono"
+              className="rounded-md font-mono"
             />
           </Field>
           <Field>
@@ -419,7 +419,7 @@ function DialogEditarRol({ rol, onActualizado }: PropsDialogEditarRol) {
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
               maxLength={500}
-              className="rounded-none"
+              className="rounded-md"
             />
           </Field>
           {error ? (
@@ -433,14 +433,14 @@ function DialogEditarRol({ rol, onActualizado }: PropsDialogEditarRol) {
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
-            className="rounded-none"
+            className="rounded-md"
           >
             Cancelar
           </Button>
           <Button
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
-            className="rounded-none"
+            className="rounded-md"
           >
             {mutation.isPending ? "Guardando..." : "Guardar"}
           </Button>
@@ -494,13 +494,13 @@ function DialogEliminarRol({ rol, onEliminado }: PropsDialogEliminarRol) {
         <Button
           variant="outline"
           size="sm"
-          className="rounded-none text-destructive hover:text-destructive"
+          className="rounded-md text-destructive hover:text-destructive"
         >
           <Trash2 />
           Eliminar
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Eliminar rol</DialogTitle>
           <DialogDescription>
@@ -519,7 +519,7 @@ function DialogEliminarRol({ rol, onEliminado }: PropsDialogEliminarRol) {
               value={confirmacion}
               onChange={(e) => setConfirmacion(e.target.value)}
               autoComplete="off"
-              className="rounded-none"
+              className="rounded-md"
             />
           </Field>
           {error ? (
@@ -533,7 +533,7 @@ function DialogEliminarRol({ rol, onEliminado }: PropsDialogEliminarRol) {
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
-            className="rounded-none"
+            className="rounded-md"
           >
             Cancelar
           </Button>
@@ -541,7 +541,7 @@ function DialogEliminarRol({ rol, onEliminado }: PropsDialogEliminarRol) {
             variant="destructive"
             onClick={() => void confirmar()}
             disabled={mutation.isPending || confirmacion !== rol.nombre}
-            className="rounded-none"
+            className="rounded-md"
           >
             {mutation.isPending ? "Eliminando..." : "Eliminar"}
           </Button>
@@ -571,7 +571,7 @@ export function RolDetalleVista({ rolId }: PropsRolDetalleVista) {
         asChild
         variant="ghost"
         size="sm"
-        className="rounded-none -ml-2 w-fit text-muted-foreground"
+        className="rounded-md -ml-2 w-fit text-muted-foreground"
       >
         <Link href="/admin/roles">
           <ArrowLeft />
@@ -582,15 +582,15 @@ export function RolDetalleVista({ rolId }: PropsRolDetalleVista) {
       {isLoading ? (
         <div className="space-y-6">
           <div className="flex items-center gap-4">
-            <Skeleton className="size-10 rounded-none" />
+            <Skeleton className="size-10 rounded-md" />
             <div className="space-y-2">
-              <Skeleton className="rounded-none h-6 w-48" />
-              <Skeleton className="rounded-none h-4 w-64" />
+              <Skeleton className="rounded-md h-6 w-48" />
+              <Skeleton className="rounded-md h-4 w-64" />
             </div>
           </div>
           <div className="space-y-3 border p-5">
-            <Skeleton className="rounded-none h-5 w-full" />
-            <Skeleton className="rounded-none h-5 w-3/4" />
+            <Skeleton className="rounded-md h-5 w-full" />
+            <Skeleton className="rounded-md h-5 w-3/4" />
           </div>
         </div>
       ) : isError ? (
@@ -602,7 +602,7 @@ export function RolDetalleVista({ rolId }: PropsRolDetalleVista) {
           {/* Cabecera de identidad */}
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-4">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-none bg-primary/10 text-primary">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                 <ShieldCheck className="size-5" />
               </span>
               <div className="space-y-1">
@@ -612,7 +612,7 @@ export function RolDetalleVista({ rolId }: PropsRolDetalleVista) {
                   </h1>
                   <Badge
                     variant={data.esSistema ? "secondary" : "outline"}
-                    className="rounded-none font-normal"
+                    className="rounded-md font-normal"
                   >
                     {data.esSistema ? "Sistema" : "Custom"}
                   </Badge>

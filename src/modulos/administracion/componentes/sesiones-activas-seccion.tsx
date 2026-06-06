@@ -80,11 +80,11 @@ function DialogRevocarSesion({ sesion, onActualizado }: PropsDialogRevocar) {
   return (
     <Dialog open={abierto} onOpenChange={setAbierto}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" title="Revocar sesion" className="rounded-none">
+        <Button variant="ghost" size="icon" title="Revocar sesion" className="rounded-md">
           <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Revocar sesion</DialogTitle>
           <DialogDescription>
@@ -96,7 +96,7 @@ function DialogRevocarSesion({ sesion, onActualizado }: PropsDialogRevocar) {
           <Field>
             <FieldLabel htmlFor="razon-revocar-sesion">Razon</FieldLabel>
             <Input
-              className="rounded-none"
+              className="rounded-md"
               id="razon-revocar-sesion"
               value={razon}
               onChange={(e) => setRazon(e.target.value)}
@@ -112,7 +112,7 @@ function DialogRevocarSesion({ sesion, onActualizado }: PropsDialogRevocar) {
         </FieldGroup>
         <DialogFooter>
           <Button
-            className="rounded-none"
+            className="rounded-md"
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
@@ -120,7 +120,7 @@ function DialogRevocarSesion({ sesion, onActualizado }: PropsDialogRevocar) {
             Cancelar
           </Button>
           <Button
-            className="rounded-none"
+            className="rounded-md"
             variant="destructive"
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
@@ -154,7 +154,7 @@ export function SesionesActivasSeccion({
       </div>
 
       {sesiones.isLoading ? (
-        <Skeleton className="rounded-none h-24 w-full" />
+        <Skeleton className="rounded-md h-24 w-full" />
       ) : sesiones.isError ? (
         <p className="text-sm text-destructive">
           {extraerMensajeError(

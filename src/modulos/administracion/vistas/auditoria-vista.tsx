@@ -77,12 +77,12 @@ function DialogMetadata({ evento }: PropsDialogMetadata) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" disabled={sinMetadata} className="rounded-none">
+        <Button variant="ghost" size="sm" disabled={sinMetadata} className="rounded-md">
           <Eye />
           Detalle
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none max-w-2xl">
+      <DialogContent className="rounded-md max-w-2xl">
         <DialogHeader>
           <DialogTitle>Detalle del evento</DialogTitle>
           <DialogDescription>
@@ -90,7 +90,7 @@ function DialogMetadata({ evento }: PropsDialogMetadata) {
             {new Date(evento.ocurridoEn).toLocaleString("es-PE")}
           </DialogDescription>
         </DialogHeader>
-        <pre className="max-h-[60vh] overflow-auto rounded-none bg-muted p-3 font-mono text-xs">
+        <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted p-3 font-mono text-xs">
           {metadataTexto}
         </pre>
       </DialogContent>
@@ -137,7 +137,7 @@ export function AuditoriaVista() {
         <div className="flex items-center gap-2.5">
           <h1 className="text-2xl font-semibold tracking-tight">Auditoría</h1>
           {data ? (
-            <Badge variant="secondary" className="rounded-none tabular-nums">
+            <Badge variant="secondary" className="rounded-md tabular-nums">
               {total}
             </Badge>
           ) : null}
@@ -154,10 +154,10 @@ export function AuditoriaVista() {
           value={tipo}
           onValueChange={(v) => aplicarFiltro<string>(setTipo)(v)}
         >
-          <SelectTrigger className="rounded-none w-full">
+          <SelectTrigger className="rounded-md w-full">
             <SelectValue placeholder="Tipo de evento" />
           </SelectTrigger>
-          <SelectContent className="rounded-none">
+          <SelectContent className="rounded-md">
             <SelectItem value="todos">Todos los tipos</SelectItem>
             {TIPOS_EVENTO_AUTH.map((t) => (
               <SelectItem key={t} value={t}>
@@ -168,14 +168,14 @@ export function AuditoriaVista() {
         </Select>
 
         <Input
-          className="rounded-none"
+          className="rounded-md"
           placeholder="ID de cuenta (UUID)"
           value={cuentaId}
           onChange={(e) => aplicarFiltro<string>(setCuentaId)(e.target.value)}
         />
 
         <Input
-          className="rounded-none"
+          className="rounded-md"
           type="datetime-local"
           value={desde}
           onChange={(e) => aplicarFiltro<string>(setDesde)(e.target.value)}
@@ -183,7 +183,7 @@ export function AuditoriaVista() {
         />
 
         <Input
-          className="rounded-none"
+          className="rounded-md"
           type="datetime-local"
           value={hasta}
           onChange={(e) => aplicarFiltro<string>(setHasta)(e.target.value)}
@@ -209,16 +209,16 @@ export function AuditoriaVista() {
                 Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i} className="hover:bg-transparent [&>td]:py-1.5">
                     <TableCell>
-                      <Skeleton className="rounded-none h-4 w-36" />
+                      <Skeleton className="rounded-md h-4 w-36" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="rounded-none h-4 w-28" />
+                      <Skeleton className="rounded-md h-4 w-28" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="rounded-none h-4 w-16" />
+                      <Skeleton className="rounded-md h-4 w-16" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="rounded-none h-4 w-20" />
+                      <Skeleton className="rounded-md h-4 w-20" />
                     </TableCell>
                     <TableCell />
                   </TableRow>
@@ -243,7 +243,7 @@ export function AuditoriaVista() {
                     <TableCell>
                       <Badge
                         className={cn(
-                          "rounded-none font-mono font-normal",
+                          "rounded-md font-mono font-normal",
                           clasePorTipo(evento.tipo),
                         )}
                       >
