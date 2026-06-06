@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 
 function getApiUrl() {
   const cfg = obtenerConfiguracionApi("flota");
-  // En nuestro backend lo mapeamos a /api/flota, asi que la baseUrl probablemente apunte ahi
   return `${cfg.baseUrl}/flota/asignaciones-contratos`;
 }
 
@@ -36,6 +35,26 @@ export async function obtenerAsignacionPorPlaca(placa: string) {
     if (!res.ok) return null;
     const json = await res.json() as { datos?: any };
     return json.datos ?? null;
+  } catch (e) {
+    return null;
+  }
+}
+
+export async function obtenerHistorialPorPlaca(placa: string) {
+  const url = `${getApiUrl()}/${encodeURIComponent(placa)}/historial`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    return await res.json() as {
+      datos?: any[];
+      placa?: string;
+      contrato?: string;
+      cuenta?: string;
+    };
   } catch (e) {
     return null;
   }

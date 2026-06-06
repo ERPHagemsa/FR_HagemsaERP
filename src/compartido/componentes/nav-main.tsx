@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 
 import {
   SidebarGroup,
@@ -41,6 +41,7 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [openItem, setOpenItem] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -78,7 +79,10 @@ export function NavMain({
               >
                 <SidebarMenuButton
                   tooltip={item.title}
-                  onClick={() => setOpenItem(isOpen ? null : item.title)}
+                  onClick={() => {
+                    setOpenItem(isOpen ? null : item.title)
+                    if (item.url) router.push(item.url)
+                  }}
                   aria-expanded={isOpen}
                   isActive={isHighlighted}
                   className={cn(

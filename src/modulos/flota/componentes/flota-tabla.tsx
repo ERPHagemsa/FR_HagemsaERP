@@ -7,6 +7,7 @@ import {
   IconRefresh,
   IconSearch,
   IconDotsVertical,
+  IconHistory,
 } from "@tabler/icons-react";
 
 import {
@@ -47,6 +48,7 @@ import {
   placaVehiculo,
   textoBusquedaVehiculo,
 } from "./flota-normalizadores";
+import { FlotaAuditPanel } from "./flota-audit-panel";
 
 type Props = {
   loading: boolean;
@@ -58,6 +60,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
   const [query, setQuery] = React.useState("");
   const [estadoActivo, setEstadoActivo] = React.useState("TODOS");
   const [estadoOperativo, setEstadoOperativo] = React.useState("TODOS");
+  const [auditPlaca, setAuditPlaca] = React.useState<string | null>(null);
   const [estadoCalibracion, setEstadoCalibracion] = React.useState("TODOS");
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
@@ -123,8 +126,9 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
   }
 
   return (
-    <Card>
-      <CardHeader className="border-b border-border">
+    <>
+      <Card>
+        <CardHeader className="border-b border-border">
         <CardTitle>Maestro de flota</CardTitle>
         <CardDescription>
           {filtrados.length} de {vehiculos.length} unidades visibles
@@ -218,6 +222,13 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                               <IconEye className="h-4 w-4" />
                               <span>Ver registro</span>
                             </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => setAuditPlaca(vehiculo.placa ?? null)}
+                            >
+                              <IconHistory className="h-4 w-4" />
+                              <span>Auditar</span>
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -307,6 +318,13 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
         </div>
       </CardContent>
     </Card>
+
+    <FlotaAuditPanel
+      placa={auditPlaca}
+      isOpen={!!auditPlaca}
+      onClose={() => setAuditPlaca(null)}
+    />
+    </>
   );
 }
 

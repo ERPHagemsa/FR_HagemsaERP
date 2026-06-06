@@ -102,9 +102,10 @@ const data = {
     },
     {
       title: "Flota y Disponibilidad",
+      url: "/flota",
       icon: <HugeiconsIcon icon={Car01Icon} strokeWidth={2} />,
       items: [
-        { title: "Unidades", url: "/flota" },
+        { title: "Unidades", url: "/flota/unidades" },
         { title: "Conductores", url: "#" },
         { title: "Disponibilidad", url: "#" },
         { title: "Prestamos", url: "#" },
