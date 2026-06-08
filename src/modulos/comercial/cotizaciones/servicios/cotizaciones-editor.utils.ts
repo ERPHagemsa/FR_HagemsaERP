@@ -6,7 +6,8 @@
 //   Write model: ANIDADO — lineas viven dentro de secciones[].lineas; el cliente NUNCA envia idSeccion.
 // ADR-10: draft completo se reenvía siempre (replacement idempotente).
 // ADR-D1: la seccion por defecto (nombre null) se modela explicitamente en el draft con esDefecto:true.
-// ADR-D2: seccion por defecto sin nombre y sin cargos -> lineas[] raiz; con cargos o con nombre -> secciones[].
+// ADR-D2 (revisado 2026-06): NO hay canal de lineas raiz. Toda seccion (incluida la
+//   por defecto) se emite en secciones[]; la por defecto viaja SIN nombre (caso plano).
 
 import type {
   CargaHijo,
@@ -481,15 +482,19 @@ function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
 }
 
 /**
- * seccionAPayload — ADR-D2: emision condicional raiz vs secciones.
- * Retorna null para la seccion por defecto sin cargos (sus lineas van a raiz).
+ * seccionAPayload — convierte una DraftSeccion a su payload.
+ *
+ * Contrato 2026-06 (API-Cotizaciones.md §5.4): NO existe canal de lineas raiz.
+ * Toda linea va dentro de secciones[].lineas; el caso "plano" (bucket por defecto)
+ * es una seccion SIN nombre (se omite `nombre`). Se descartan secciones vacias
+ * (sin lineas ni cargos) para no enviar ruido.
  */
 function seccionAPayload(s: DraftSeccion): PayloadSeccion | null {
-  // Seccion por defecto sin nombre y sin cargos → sus lineas van a lineas[] raiz (ADR-D2)
-  if (s.esDefecto && s.nombre === "" && s.cargosAdicionales.length === 0) {
+  if (s.lineas.length === 0 && s.cargosAdicionales.length === 0) {
     return null;
   }
   const payload: PayloadSeccion = {};
+  // La seccion por defecto (esDefecto) viaja sin nombre = seccion "plana".
   if (!s.esDefecto && s.nombre !== "") payload.nombre = s.nombre;
   if (s.orden > 0) payload.orden = s.orden;
   if (s.lineas.length > 0) payload.lineas = s.lineas.map(lineaAPayload);
@@ -577,7 +582,8 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
 /**
  * armarPayloadBorrador — convierte DraftBorrador al PayloadBorrador ANIDADO que acepta el backend.
  *
- * ADR-D2: seccion por defecto sin nombre y sin cargos → lineas[] raiz.
+ * Contrato 2026-06: SOLO secciones[]; NO hay canal de lineas raiz. El bucket por
+ * defecto se emite como seccion sin nombre (caso plano).
  * Nunca emite: claveCliente, idSeccion, precioTotal, subtotal ni totales.
  * Nunca emite: moneda en linea, cargosAdicionales en raiz, standbys en secciones.
  * El draft completo se re-envía siempre (replacement idempotente — ADR-10).
@@ -588,26 +594,13 @@ export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {
   // Moneda nivel version
   payload.moneda = draft.moneda;
 
-  // Secciones vs lineas raiz (ADR-D2)
-  const seccionesPayload: PayloadSeccion[] = [];
-  const lineasRaiz: ReturnType<typeof lineaAPayload>[] = [];
-
-  for (const seccion of draft.secciones) {
-    const secPayload = seccionAPayload(seccion);
-    if (secPayload === null) {
-      // Seccion por defecto sin cargos → sus lineas van a raiz
-      const lineas = seccion.lineas.map(lineaAPayload);
-      lineasRaiz.push(...lineas);
-    } else {
-      seccionesPayload.push(secPayload);
-    }
-  }
+  // Solo secciones[] — toda linea va anidada en su seccion (no hay lineas raiz).
+  const seccionesPayload = draft.secciones
+    .map(seccionAPayload)
+    .filter((s): s is PayloadSeccion => s !== null);
 
   if (seccionesPayload.length > 0) {
     payload.secciones = seccionesPayload;
-  }
-  if (lineasRaiz.length > 0) {
-    payload.lineas = lineasRaiz;
   }
 
   // Standbys nivel version (NUNCA en secciones)
