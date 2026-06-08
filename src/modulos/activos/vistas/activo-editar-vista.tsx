@@ -21,11 +21,13 @@ export async function ActivoEditarVista({ codigo }: Props) {
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <section className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Modificar</p>
-            <h1 className="text-2xl font-semibold">{activo.codigo}</h1>
+      <div className="flex w-full flex-col gap-5">
+        <section className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-normal">
+              Actualizar activo
+            </h1>
+            <p className="text-sm text-muted-foreground">{activo.codigo}</p>
           </div>
           <Button asChild variant="outline">
             <Link href={`/activos/${activo.codigo}`}>Volver</Link>
