@@ -1,8 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { LayersIcon } from "lucide-react";
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/compartido/componentes/ui/accordion";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -22,20 +27,22 @@ import { Separator } from "@/compartido/componentes/ui/separator";
 
 import type { Moneda } from "../tipos/cotizaciones.tipos";
 import type { DraftBorrador, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
-import { seccionDefectoVacia } from "../servicios/cotizaciones-editor.utils";
-import { EditorCargos } from "./editor-cargos";
+import { EditorContenido } from "./editor-contenido";
 import { EditorLeadtimes } from "./editor-leadtimes";
-import { EditorLineas } from "./editor-lineas";
-import { EditorSecciones } from "./editor-secciones";
 import { EditorStandby } from "./editor-standby";
 
 // Presentacional puro del cuerpo del editor de borrador. No tiene logica de API:
 // el contenedor (CotizacionEditor para editar, CotizacionEditorNuevo para crear)
 // provee el estado del draft y el handler de guardado.
 //
-// ADR-D1: el draft siempre modela la seccion por defecto (esDefecto:true) cuando hay
-// lineas sin seccion. El camino principal ("sin agrupar") usa esa seccion invisible.
-// ADR-D2: la seccion por defecto sin nombre y sin cargos emite lineas[] raiz en el payload.
+// Layout en dos zonas:
+//   1. Zona financiera (protagonista): moneda + contenido (lineas, secciones,
+//      cargos) + totales. EditorContenido es una sola grilla.
+//   2. Zona informativa (secundaria, colapsada): standby y lead times — no suman
+//      al total, viven en un accordion para descomprimir la pantalla.
+//
+// ADR-D1/D2: el modelo de secciones (bucket por defecto, emision raiz vs secciones)
+// lo maneja EditorContenido + armarPayloadBorrador; aca solo cableamos el draft.
 type Props = {
   draft: DraftBorrador;
   setDraft: React.Dispatch<React.SetStateAction<DraftBorrador>>;
@@ -57,60 +64,8 @@ export function EditorBorradorCampos({
   textoBoton,
   textoBotonGuardando,
 }: Props) {
-  // Seccion por defecto (esDefecto:true) — bucket de lineas del camino simple
-  const seccionDefecto = draft.secciones.find((s) => s.esDefecto);
-  const indiceSeccionDefecto = draft.secciones.findIndex((s) => s.esDefecto);
-  const seccionesExplicitas = draft.secciones.filter((s) => !s.esDefecto);
-  const haySeccionesExplicitas = seccionesExplicitas.length > 0;
-
-  // Estado derivado, sin effect: el panel se muestra si hay secciones ya o si el usuario lo activó.
-  const [agruparManual, setAgruparManual] = React.useState(false);
-  const agruparEnSecciones = haySeccionesExplicitas || agruparManual;
-
-  // Asegurar que la seccion por defecto exista en el draft
-  function asegurarSeccionDefecto(d: DraftBorrador): DraftBorrador {
-    if (d.secciones.find((s) => s.esDefecto)) return d;
-    return { ...d, secciones: [seccionDefectoVacia(), ...d.secciones] };
-  }
-
-  // Actualizar lineas de la seccion por defecto
-  function actualizarLineasDefecto(lineas: DraftSeccion["lineas"]) {
-    setDraft((d) => {
-      const draft_ = asegurarSeccionDefecto(d);
-      return {
-        ...draft_,
-        secciones: draft_.secciones.map((s) =>
-          s.esDefecto ? { ...s, lineas } : s
-        ),
-      };
-    });
-  }
-
-  // Actualizar cargosAdicionales de la seccion por defecto
-  function actualizarCargosDefecto(
-    cargosAdicionales: DraftSeccion["cargosAdicionales"]
-  ) {
-    setDraft((d) => {
-      const draft_ = asegurarSeccionDefecto(d);
-      return {
-        ...draft_,
-        secciones: draft_.secciones.map((s) =>
-          s.esDefecto ? { ...s, cargosAdicionales } : s
-        ),
-      };
-    });
-  }
-
-  // Errores de cargos de la seccion por defecto: recortar el prefijo "secciones.{i}."
-  // para que EditorCargos pueda resolver "cargosAdicionales.{j}.descripcion" correctamente.
-  const erroresCargosDefecto: Record<string, string> = {};
-  if (indiceSeccionDefecto >= 0) {
-    const prefijo = `secciones.${indiceSeccionDefecto}.`;
-    for (const [clave, mensaje] of Object.entries(erroresCampo)) {
-      if (clave.startsWith(prefijo)) {
-        erroresCargosDefecto[clave.slice(prefijo.length)] = mensaje;
-      }
-    }
+  function actualizarSecciones(secciones: DraftSeccion[]) {
+    setDraft((d) => ({ ...d, secciones }));
   }
 
   return (
@@ -123,7 +78,7 @@ export function EditorBorradorCampos({
             Configuracion general que aplica a toda la version.
           </p>
         </CardHeader>
-        <CardContent className="pt-5">
+        <CardContent>
           <div className="grid gap-1.5 md:max-w-xs">
             <Label className="text-xs text-muted-foreground">
               Moneda <span className="text-destructive">*</span>
@@ -148,135 +103,87 @@ export function EditorBorradorCampos({
         </CardContent>
       </Card>
 
-      {/* Lineas — camino principal (seccion por defecto) */}
+      {/* Contenido de la cotizacion: lineas + secciones + cargos + totales */}
       <Card>
         <CardHeader className="border-b border-border">
-          <CardTitle className="text-base">
-            Lineas ({seccionDefecto?.lineas.length ?? 0})
-          </CardTitle>
+          <CardTitle className="text-base">Contenido de la cotizacion</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Agregue aqui los conceptos de la cotizacion. Para la mayoria de los casos,
-            esto es todo lo necesario.
+            Agregue los conceptos de la cotizacion. Agrupelos en secciones solo si
+            hace falta; el detalle de cada linea se edita en el panel lateral.
           </p>
         </CardHeader>
         <CardContent className="pt-5">
-          <EditorLineas
-            lineas={seccionDefecto?.lineas ?? []}
+          <EditorContenido
+            secciones={draft.secciones}
+            moneda={draft.moneda}
             erroresCampo={erroresCampo}
             disabled={guardando}
-            onChange={actualizarLineasDefecto}
+            onChange={actualizarSecciones}
           />
         </CardContent>
       </Card>
 
-      {/* Cargos adicionales de la seccion por defecto */}
+      {/* Zona informativa secundaria: standby + lead times (colapsables).
+          AccordionContent recibe h-auto para anular la altura fija del primitivo
+          (h-(--radix-accordion-content-height)), que recorta el contenido que
+          crece despues de abrir (ej.: agregar filas). twMerge deja ganar h-auto.
+          Al Accordion se le quita su borde/redondeo propio (border-0 rounded-none)
+          para que no dibuje un marco dentro de la Card; los triggers usan px-6 para
+          alinearse con el header. */}
       <Card>
         <CardHeader className="border-b border-border">
-          <CardTitle className="text-base">
-            Cargos adicionales ({seccionDefecto?.cargosAdicionales.length ?? 0})
-          </CardTitle>
+          <CardTitle className="text-base">Informacion adicional</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Cargos extra de la cotizacion (escolta, viaticos, etc.). Suman al total.
+            Datos informativos de la version. No suman al total de la cotizacion.
           </p>
         </CardHeader>
-        <CardContent className="pt-5">
-          <EditorCargos
-            cargos={seccionDefecto?.cargosAdicionales ?? []}
-            erroresCampo={erroresCargosDefecto}
-            disabled={guardando}
-            onChange={actualizarCargosDefecto}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Standby / tarifas a nivel version */}
-      <Card>
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-base">
-            Standby / tarifas ({draft.standbys.length})
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Tarifas de standby a nivel de version (informativos, no suman al total).
-          </p>
-        </CardHeader>
-        <CardContent className="pt-5">
-          <EditorStandby
-            standby={draft.standbys}
-            disabled={guardando}
-            onChange={(standbys) => setDraft((d) => ({ ...d, standbys }))}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Lead times / plazos a nivel version */}
-      <Card>
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-base">
-            Lead times / plazos ({draft.leadTimes.length})
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Plazos de entrega estimados para esta version (informativos).
-          </p>
-        </CardHeader>
-        <CardContent className="pt-5">
-          <EditorLeadtimes
-            leadTimes={draft.leadTimes}
-            erroresCampo={erroresCampo}
-            disabled={guardando}
-            onChange={(leadTimes) => setDraft((d) => ({ ...d, leadTimes }))}
-          />
-        </CardContent>
-      </Card>
-
-      <Separator />
-
-      {/* Secciones — agrupacion OPCIONAL (opt-in) */}
-      {agruparEnSecciones ? (
-        <Card>
-          <CardHeader className="border-b border-border">
-            <div className="flex items-start justify-between gap-2">
-              <CardTitle className="text-base">
-                Secciones ({seccionesExplicitas.length})
-              </CardTitle>
-              {!haySeccionesExplicitas ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
+        <CardContent className="p-0">
+          <Accordion type="multiple" className="rounded-none border-0">
+            <AccordionItem value="standby">
+              <AccordionTrigger className="px-6">
+                <div className="flex flex-col items-start gap-0.5 text-left">
+                  <span className="text-sm font-medium">
+                    Stand by ({draft.standbys.length})
+                  </span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    Periodo durante el cual un vehículo o conductor permanece inactivo, a la
+                    expectativa o retenido en el punto de carga, descarga o en ruta.
+                  </span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="h-auto px-6">
+                <EditorStandby
+                  standby={draft.standbys}
                   disabled={guardando}
-                  onClick={() => setAgruparManual(false)}
-                >
-                  Ocultar
-                </Button>
-              ) : null}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Agrupe lineas en bloques con nombre (ej.: varios tramos o servicios
-              diferenciados). Uselas solo si la cotizacion lo necesita.
-            </p>
-          </CardHeader>
-          <CardContent className="pt-5">
-            <EditorSecciones
-              secciones={draft.secciones}
-              erroresCampo={erroresCampo}
-              disabled={guardando}
-              onChange={(secciones) => setDraft((d) => ({ ...d, secciones }))}
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="self-start"
-          disabled={guardando}
-          onClick={() => setAgruparManual(true)}
-        >
-          <LayersIcon data-icon="inline-start" />
-          Agrupar en secciones (opcional)
-        </Button>
-      )}
+                  onChange={(standbys) => setDraft((d) => ({ ...d, standbys }))}
+                />
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="leadtimes">
+              <AccordionTrigger className="px-6">
+                <div className="flex flex-col items-start gap-0.5 text-left">
+                  <span className="text-sm font-medium">
+                    Lead time ({draft.leadTimes.length})
+                  </span>
+                  <span className="text-xs font-normal text-muted-foreground">
+                    Tiempo total que transcurre desde que un cliente solicita un servicio o
+                    pedido hasta que la mercancía se entrega en su destino final.
+                  </span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="h-auto px-6">
+                <EditorLeadtimes
+                  leadTimes={draft.leadTimes}
+                  erroresCampo={erroresCampo}
+                  disabled={guardando}
+                  onChange={(leadTimes) => setDraft((d) => ({ ...d, leadTimes }))}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </CardContent>
+      </Card>
 
       <Separator />
 

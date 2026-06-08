@@ -73,7 +73,9 @@ export function CotizacionEditorNuevo({ solicitudClienteId }: Props) {
       });
       toast.success("Cotizacion creada en BORRADOR.");
       // No reseteamos guardando: navegamos fuera y el componente se desmonta.
-      router.push(`/comercial/cotizaciones/${idCotizacion}/editar`);
+      // Al crear vamos al DETALLE (no al editor): el alta ya quedó persistida;
+      // editar el borrador es una acción posterior y explícita desde el detalle.
+      router.push(`/comercial/cotizaciones/${idCotizacion}`);
     } catch (err) {
       aplicarErrorApi(err);
       setGuardando(false);

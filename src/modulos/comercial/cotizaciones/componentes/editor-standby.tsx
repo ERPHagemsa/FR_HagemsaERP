@@ -6,6 +6,14 @@ import { Button } from "@/compartido/componentes/ui/button";
 import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/compartido/componentes/ui/table";
 
 import type { DraftStandby } from "../servicios/cotizaciones-editor.utils";
 import { standbyVacio } from "../servicios/cotizaciones-editor.utils";
@@ -35,43 +43,35 @@ export function EditorStandby({ standby, disabled, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-muted-foreground">
-        Los standbys son informativos y no suman al monto total de la cotizacion.
-      </p>
-
       {standby.length > 0 ? (
         <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Descripcion</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                  Tarifa diaria
-                </th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
-                  <span title="El costo se cobra una vez por cada linea de la cotizacion">
-                    Aplica por linea
-                  </span>
-                </th>
-                <th className="px-2 py-2" />
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40 hover:bg-muted/40">
+                <TableHead className="w-full">Descripcion</TableHead>
+                <TableHead>Tarifa diaria</TableHead>
+                <TableHead title="El costo se cobra una vez por cada linea de la cotizacion">
+                  Aplica por linea
+                </TableHead>
+                <TableHead className="w-px" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {standby.map((sb) => (
-                <tr key={sb.claveCliente} className="border-b border-border last:border-0">
-                  <td className="px-3 py-2">
+                <TableRow key={sb.claveCliente}>
+                  <TableCell>
                     <Input
-                      className="h-7 text-xs"
+                      className="h-8 text-xs"
                       value={sb.descripcion}
                       disabled={disabled}
                       placeholder="Ej: Grua de reserva"
                       onChange={(e) => actualizar(sb.claveCliente, { descripcion: e.target.value })}
                     />
-                  </td>
-                  <td className="px-3 py-2">
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-1">
                       <Input
-                        className="h-7 w-28 text-xs"
+                        className="h-8 w-28 text-xs"
                         type="number"
                         min={0}
                         step="0.01"
@@ -79,10 +79,10 @@ export function EditorStandby({ standby, disabled, onChange }: Props) {
                         disabled={disabled}
                         onChange={(e) => actualizar(sb.claveCliente, { monto: e.target.value })}
                       />
-                      <span className="text-xs text-muted-foreground whitespace-nowrap">/dia</span>
+                      <span className="whitespace-nowrap text-xs text-muted-foreground">/dia</span>
                     </div>
-                  </td>
-                  <td className="px-3 py-2">
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-1.5">
                       <Checkbox
                         id={`porLinea-${sb.claveCliente}`}
@@ -100,24 +100,24 @@ export function EditorStandby({ standby, disabled, onChange }: Props) {
                         Si
                       </Label>
                     </div>
-                  </td>
-                  <td className="px-2 py-2">
+                  </TableCell>
+                  <TableCell className="text-right">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="size-7 text-destructive hover:text-destructive"
+                      className="size-8 text-destructive hover:text-destructive"
                       disabled={disabled}
                       onClick={() => eliminar(sb.claveCliente)}
                       aria-label="Eliminar standby"
                     >
                       <Trash2Icon />
                     </Button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : null}
 
