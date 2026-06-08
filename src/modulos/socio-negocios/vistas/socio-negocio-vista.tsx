@@ -17,13 +17,6 @@ import {
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -81,7 +74,6 @@ import {
   Loading03Icon,
   MoreVerticalCircle01Icon,
   Search01Icon,
-  UserGroupIcon,
   ViewIcon,
 } from "@hugeicons/core-free-icons"
 
@@ -102,7 +94,6 @@ import type {
 
 type SocioNegocioVistaProps = {
   titulo: string
-  etiqueta: string
   accionPrincipal?: string
   crearHref?: string
   filtros?: ConsultarSociosDeNegocioQuery
@@ -141,85 +132,6 @@ const estadoRegistroIconClassName = {
   ACTIVO: "text-emerald-500",
   ANULADO: "text-destructive",
 } as const
-
-function obtenerVisualMetrica(etiqueta: string, index: number) {
-  const texto = etiqueta.toLowerCase()
-
-  if (texto.includes("activo") || texto.includes("vigente")) {
-    return {
-      icon: CheckmarkCircle01Icon,
-      iconClassName:
-        "bg-background text-emerald-500 ring-border",
-      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName:
-        "border-border bg-background text-foreground shadow-xs",
-      badge: "Operativo",
-      contexto: "Disponibles",
-    }
-  }
-
-  if (
-    texto.includes("inactivo") ||
-    texto.includes("anulado") ||
-    texto.includes("observ") ||
-    texto.includes("baja") ||
-    texto.includes("pendiente")
-  ) {
-    return {
-      icon: Loading03Icon,
-      iconClassName:
-        "bg-background text-amber-500 ring-border",
-      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName:
-        "border-border bg-background text-foreground shadow-xs",
-      badge: "Seguimiento",
-      contexto: "Requieren revision",
-    }
-  }
-
-  if (texto.includes("export") || texto.includes("formato") || texto.includes("campos")) {
-    return {
-      icon: Download01Icon,
-      iconClassName:
-        "bg-background text-sky-500 ring-border",
-      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName:
-        "border-border bg-background text-foreground shadow-xs",
-      badge: "Reporte",
-      contexto: "Exportable",
-    }
-  }
-
-  if (index === 0) {
-    return {
-      icon: UserGroupIcon,
-      iconClassName: "bg-background text-primary ring-border",
-      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName: "border-border bg-background text-foreground shadow-xs",
-      badge: "Total",
-      contexto: "Consulta actual",
-    }
-  }
-
-  return {
-    icon: ChartUpIcon,
-    iconClassName: "bg-background text-primary ring-border",
-    cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-    descriptionClassName: "text-muted-foreground",
-    detailClassName: "text-muted-foreground",
-    badgeClassName: "border-border bg-background text-foreground shadow-xs",
-    badge: "Control",
-    contexto: "Control operativo",
-  }
-}
 
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
@@ -411,23 +323,6 @@ function obtenerClaseContenidoSocio(socio: SocioDeNegocioResponse) {
     : undefined
 }
 
-function DatoFicha({
-  label,
-  value,
-}: {
-  label: string
-  value?: string | number | null
-}) {
-  return (
-    <div className="min-w-0 rounded-md border border-border bg-background p-3">
-      <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 truncate text-sm font-medium">{value || "-"}</p>
-    </div>
-  )
-}
-
 function AccionesSocio({
   socio,
   onActualizado,
@@ -443,15 +338,13 @@ function AccionesSocio({
   const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
-  const [accion, setAccion] = useState<"baja" | "anular" | "reactivar" | null>(null)
+  const [accion, setAccion] = useState<"anular" | "reactivar" | null>(null)
   const [modificarAbierto, setModificarAbierto] = useState(false)
-  const [fichaAbierta, setFichaAbierta] = useState(false)
   const [motivo, setMotivo] = useState("")
   const procesando =
     bajaMutation.isPending || modificarMutation.isPending || reactivarMutation.isPending
-  const puedeDarBaja = socio.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
   const puedeReactivar = socio.estado === "INACTIVO" || socio.estadoRegistro === "ANULADO"
-  const requiereMotivo = accion === "baja" || accion === "anular"
+  const requiereMotivo = accion === "anular"
   const partesRazonSocial = socio.razonSocial.split(/\s+/).filter(Boolean)
   const primerNombreInicial = socio.primerNombre || partesRazonSocial[0] || ""
   const segundoNombreInicial = socio.segundoNombre || ""
@@ -460,7 +353,7 @@ function AccionesSocio({
   const apellidoMaternoInicial =
     socio.apellidoMaterno || partesRazonSocial.at(-1) || ""
 
-  function abrirAccion(nuevaAccion: "baja" | "anular" | "reactivar") {
+  function abrirAccion(nuevaAccion: "anular" | "reactivar") {
     setMotivo(
       nuevaAccion === "anular"
         ? "Documento registrado incorrectamente"
@@ -471,22 +364,13 @@ function AccionesSocio({
 
   async function confirmarAccion() {
     try {
-      if (accion === "baja") {
-        await bajaMutation.mutateAsync({
-          motivo: motivo.trim(),
-          usuarioId: "admin",
-          estadoRegistro: "ACTIVO",
-        })
-        onMensaje(`${socio.razonSocial} fue dado de baja.`)
-      }
-
       if (accion === "anular") {
         await bajaMutation.mutateAsync({
           motivo: motivo.trim(),
           usuarioId: "admin",
           estadoRegistro: "ANULADO",
         })
-        onMensaje(`${socio.razonSocial} fue anulado.`)
+        onMensaje(`${socio.razonSocial} fue borrado.`)
       }
 
       if (accion === "reactivar") {
@@ -531,7 +415,7 @@ function AccionesSocio({
     try {
       await modificarMutation.mutateAsync(payload)
       setModificarAbierto(false)
-      onMensaje(`${socio.razonSocial} fue modificado.`)
+      onMensaje(`${socio.razonSocial} fue editado.`)
     } catch (error) {
       onError(obtenerErrorOperacion(error))
     }
@@ -550,9 +434,11 @@ function AccionesSocio({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
-            <DropdownMenuItem onSelect={() => setFichaAbierta(true)}>
-              <HugeiconsIcon data-icon="inline-start" icon={ViewIcon} strokeWidth={2} />
-              Ver ficha
+            <DropdownMenuItem asChild>
+              <Link href={`/socio-negocios/${socio.id}`}>
+                <HugeiconsIcon data-icon="inline-start" icon={ViewIcon} strokeWidth={2} />
+                Ver
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href={`/socio-negocios/historial/${socio.id}`}>
@@ -565,26 +451,32 @@ function AccionesSocio({
               onSelect={() => setModificarAbierto(true)}
             >
               <HugeiconsIcon data-icon="inline-start" icon={Edit02Icon} strokeWidth={2} />
-              Modificar
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              asChild
+              disabled={
+                socio.estado !== "ACTIVO" ||
+                socio.estadoRegistro !== "ACTIVO" ||
+                procesando
+              }
+            >
+              <Link href={`/socio-negocios/${socio.id}`}>
+                <HugeiconsIcon
+                  data-icon="inline-start"
+                  icon={ArchiveArrowDownIcon}
+                  strokeWidth={2}
+                />
+                Dar de baja
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={!puedeDarBaja || procesando}
-              onSelect={() => abrirAccion("baja")}
-            >
-              <HugeiconsIcon
-                data-icon="inline-start"
-                icon={ArchiveArrowDownIcon}
-                strokeWidth={2}
-              />
-              Dar de baja
-            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
               onSelect={() => abrirAccion("anular")}
             >
               <HugeiconsIcon data-icon="inline-start" icon={CancelCircleIcon} strokeWidth={2} />
-              Anular
+              Borrar
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!puedeReactivar || procesando}
@@ -601,69 +493,18 @@ function AccionesSocio({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog
-        open={fichaAbierta}
-        onOpenChange={(open) => !open && setFichaAbierta(false)}
-      >
-        <AlertDialogContent className="max-w-4xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Ficha del socio de negocio</AlertDialogTitle>
-            <AlertDialogDescription>
-              Datos vigentes del registro #{socio.count}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="grid gap-4">
-            <div className="grid gap-3 md:grid-cols-4">
-              <DatoFicha label="Count" value={socio.count} />
-              <DatoFicha label="Tipo" value={socio.tipo} />
-              <DatoFicha label="Estado" value={socio.estado} />
-              <DatoFicha label="Registro" value={socio.estadoRegistro} />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <DatoFicha label="Razon social" value={socio.razonSocial} />
-              <DatoFicha label="Nombre comercial" value={socio.nombreComercial} />
-              <DatoFicha label="Codigo SAP" value={socio.codigoInternoSap} />
-              <DatoFicha label="Documento" value={socio.numeroDocumento} />
-              <DatoFicha label="Direccion" value={socio.direccion} />
-              <DatoFicha label="Contacto" value={socio.contacto} />
-              <DatoFicha label="Correo" value={socio.correo} />
-              <DatoFicha label="Celular" value={socio.numeroCelular} />
-              <DatoFicha label="Departamento" value={socio.areaNombre || socio.area} />
-              <DatoFicha label="Cargo" value={socio.cargoNombre || socio.cargo} />
-              <DatoFicha label="Cuenta" value={socio.cuentaNombre || socio.cuenta} />
-              <DatoFicha label="Creacion" value={formatearFecha(socio.fechaCreacion)} />
-            </div>
-          </div>
-
-          <AlertDialogFooter>
-            <Button asChild variant="outline">
-              <Link href={`/socio-negocios/historial/${socio.id}`}>
-                <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
-                Auditar
-              </Link>
-            </Button>
-            <AlertDialogAction onClick={() => setFichaAbierta(false)}>
-              Cerrar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AlertDialog open={accion !== null} onOpenChange={(open) => !open && setAccion(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {accion === "baja"
-                ? "Dar de baja socio"
-                : accion === "anular"
-                  ? "Anular registro"
-                  : "Reactivar socio"}
+              {accion === "anular" ? "Borrar registro" : "Reactivar socio"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {accion === "reactivar"
                 ? `Confirma la reactivacion de ${socio.razonSocial}.`
-                : `Registra el motivo para ${socio.razonSocial}.`}
+                : accion === "anular"
+                  ? "Tenga en cuenta que esta informacion no se podra recuperar."
+                  : `Registra el motivo para ${socio.razonSocial}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -706,7 +547,7 @@ function AccionesSocio({
                 void confirmarAccion()
               }}
             >
-              {procesando ? "Procesando..." : "Confirmar"}
+              {procesando ? "Procesando..." : accion === "anular" ? "Borrar" : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -718,10 +559,10 @@ function AccionesSocio({
       >
         <AlertDialogContent className="max-w-3xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Modificar socio de negocio</AlertDialogTitle>
+            <AlertDialogTitle>Editar socio de negocio</AlertDialogTitle>
             <AlertDialogDescription>
               El tipo, documento y codigo SAP no se modifican. Si el documento esta mal,
-              anula el registro por error y crea uno nuevo.
+              borra el registro por error y crea uno nuevo.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -874,8 +715,7 @@ function AccionesSocio({
 
 export function SocioNegocioVista({
   titulo,
-  etiqueta,
-  accionPrincipal = "Nuevo registro",
+  accionPrincipal = "Nuevo",
   crearHref,
   filtros,
 }: SocioNegocioVistaProps) {
@@ -919,32 +759,6 @@ export function SocioNegocioVista({
   const cargando = sociosQuery.isLoading
   const error = sociosQuery.error ? obtenerMensajeError(sociosQuery.error) : null
   const tipoBloqueado = Boolean(filtros?.tipo)
-
-  const metricasVista = useMemo(() => {
-    const activosRegistrados = socios.filter(
-      (socio) => socio.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
-    ).length
-    const inactivos = socios.filter((socio) => socio.estado === "INACTIVO").length
-    const anulados = socios.filter((socio) => socio.estadoRegistro === "ANULADO").length
-
-    return [
-      {
-        etiqueta: "Registros consultados",
-        valor: String(socios.length),
-        detalle: "Resultado recibido segun el filtro aplicado.",
-      },
-      {
-        etiqueta: "Activos registrados",
-        valor: String(activosRegistrados),
-        detalle: "Socios disponibles para operar y sin anulacion.",
-      },
-      {
-        etiqueta: "Inactivos / anulados",
-        valor: String(inactivos + anulados),
-        detalle: `${inactivos} inactivos y ${anulados} anulados en la consulta.`,
-      },
-    ]
-  }, [socios])
 
   async function exportar(formato: ReporteSociosDeNegocioResponse["formato"]) {
     setReporteGenerado(null)
@@ -1012,6 +826,26 @@ export function SocioNegocioVista({
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
+          <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-normal">
+                Listar socio de negocio
+              </h1>
+            </div>
+            {crearHref ? (
+              <Button asChild className="w-full sm:w-auto">
+                <Link href={crearHref}>
+                  <HugeiconsIcon
+                    data-icon="inline-start"
+                    icon={Add01Icon}
+                    strokeWidth={2}
+                  />
+                  {accionPrincipal}
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+
           {error ? (
             <Alert variant="destructive">
               <AlertTitle>Error de API</AlertTitle>
@@ -1033,62 +867,12 @@ export function SocioNegocioVista({
             </Alert>
           ) : null}
 
-          <section className="grid gap-3 md:grid-cols-3">
-            {metricasVista.map((metrica, index) => {
-              const visual = obtenerVisualMetrica(metrica.etiqueta, index)
-
-              return (
-                <Card
-                  key={metrica.etiqueta}
-                  className={`overflow-hidden ${visual.cardClassName}`}
-                >
-                  <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
-                    <div className="min-w-0">
-                      <CardDescription
-                        className={`truncate text-xs font-medium uppercase tracking-[0.08em] ${visual.descriptionClassName}`}
-                      >
-                        {metrica.etiqueta}
-                      </CardDescription>
-                      <CardTitle className="mt-2 text-3xl font-semibold tabular-nums tracking-normal">
-                        {metrica.valor}
-                      </CardTitle>
-                    </div>
-                    <span
-                      className={`flex size-9 shrink-0 items-center justify-center rounded-md ring-1 ${visual.iconClassName}`}
-                    >
-                      <HugeiconsIcon icon={visual.icon} strokeWidth={2} />
-                    </span>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-3 pt-0">
-                    <p className={`min-h-10 text-sm leading-5 ${visual.detailClassName}`}>
-                      {metrica.detalle}
-                    </p>
-                    <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-                      <span className="text-xs text-muted-foreground">
-                        {visual.contexto}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className={`h-6 shrink-0 gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${visual.badgeClassName}`}
-                      >
-                        <HugeiconsIcon
-                          data-icon="inline-start"
-                          icon={visual.icon}
-                          strokeWidth={2}
-                        />
-                        {visual.badge}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </section>
-
           <section className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <h2 className="text-lg font-semibold">Socios de negocio</h2>
-              <p className="text-sm text-muted-foreground">{etiqueta}</p>
+              <h2 className="text-lg font-semibold">Consulta de socios</h2>
+              <p className="text-sm text-muted-foreground">
+                Filtra, exporta y revisa los registros disponibles.
+              </p>
             </div>
 
             <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
@@ -1214,18 +998,6 @@ export function SocioNegocioVista({
                   </div>
                 </form>
                 <div className="flex flex-wrap gap-2">
-                {crearHref ? (
-                  <Button asChild size="sm">
-                    <Link href={crearHref}>
-                      <HugeiconsIcon
-                        data-icon="inline-start"
-                        icon={Add01Icon}
-                        strokeWidth={2}
-                      />
-                      {accionPrincipal}
-                    </Link>
-                  </Button>
-                ) : null}
                   <Button
                     variant="outline"
                     size="sm"

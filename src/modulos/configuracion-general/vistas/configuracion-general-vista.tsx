@@ -540,7 +540,7 @@ function FlujosConfiguracionGeneral() {
       titulo: "Registrar maestro",
       descripcion: "Crear cada maestro siguiendo el orden operativo recomendado.",
       href: "/configuracion/nuevo/ubicacion",
-      accion: "Nuevo registro",
+      accion: "Nuevo",
       icon: Plus,
     },
     {
@@ -775,6 +775,26 @@ export function ConfiguracionGeneralDashboardVista() {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
+          <section className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-normal">Configuracion general</h1>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button asChild variant="outline">
+                <Link href="/configuracion/listar">
+                  <Database data-icon="inline-start" />
+                  Listar
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/configuracion/nuevo/ubicacion">
+                  <Plus data-icon="inline-start" />
+                  Nuevo
+                </Link>
+              </Button>
+            </div>
+          </section>
+
           {resumenQuery.error ? (
             <Alert variant="destructive">
               <AlertTitle>No se pudo cargar la informacion</AlertTitle>
@@ -820,20 +840,20 @@ export function ConfiguracionGeneralDashboardVista() {
                 <CardContent className="flex flex-col gap-2">
                   <Button asChild>
                     <Link href="/configuracion/nuevo/ubicacion">
-                      <Plus className="size-4" />
-                      Registrar configuracion
+                      <Plus data-icon="inline-start" />
+                      Nuevo
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
                     <Link href="/configuracion/reportes">
-                      <FileDown className="size-4" />
+                      <FileDown data-icon="inline-start" />
                       Ver reportes
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
                     <Link href="/configuracion/listar">
-                      <Database className="size-4" />
-                      Ver configuraciones
+                      <Database data-icon="inline-start" />
+                      Listar
                     </Link>
                   </Button>
                 </CardContent>
@@ -871,10 +891,22 @@ export function ConfiguracionGeneralListadoVista() {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
+          <section className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-normal">Listar configuracion general</h1>
+            </div>
+            <Button asChild className="w-full md:w-auto">
+              <Link href="/configuracion/nuevo/ubicacion">
+                <Plus data-icon="inline-start" />
+                Nuevo
+              </Link>
+            </Button>
+          </section>
+
           <section>
             <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
               <div className="border-b border-border px-4 py-3">
-                <h2 className="text-base font-semibold">Configuraciones por maestro</h2>
+                <h2 className="text-base font-semibold">Maestros</h2>
                 <p className="text-sm text-muted-foreground">
                   Selecciona un maestro para consultar, buscar y exportar sus registros.
                 </p>
@@ -945,6 +977,18 @@ export function ConfiguracionGeneralReportesVista() {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
+          <section className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-normal">Reportes de configuracion</h1>
+            </div>
+            <Button asChild className="w-full md:w-auto">
+              <Link href="/configuracion/nuevo/ubicacion">
+                <Plus data-icon="inline-start" />
+                Nuevo
+              </Link>
+            </Button>
+          </section>
+
           {exportacion.error ? (
             <Alert variant="destructive">
               <AlertTitle>No se pudo cargar la informacion</AlertTitle>

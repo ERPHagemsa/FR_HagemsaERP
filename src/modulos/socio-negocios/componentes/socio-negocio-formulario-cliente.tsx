@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, type ReactNode, useRef, useState } from "react"
+import { type FormEvent, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -43,10 +43,6 @@ const USUARIO_RESPONSABLE_ID = "admin"
 type ErrorDialogo = {
   titulo: string
   descripcion: string
-}
-
-type SocioNegocioFormularioClienteProps = {
-  selectorTipo?: ReactNode
 }
 
 function texto(formData: FormData, name: string) {
@@ -126,9 +122,7 @@ function obtenerErrorDialogo(error: unknown): ErrorDialogo {
   }
 }
 
-export function SocioNegocioFormularioCliente({
-  selectorTipo,
-}: SocioNegocioFormularioClienteProps) {
+export function SocioNegocioFormularioCliente() {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
@@ -306,18 +300,17 @@ export function SocioNegocioFormularioCliente({
     <>
       <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
         <div className="border-b border-border px-5 py-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-1">
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold">Nuevo cliente</h2>
+              <h2 className="text-lg font-semibold">Agregar cliente</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Registra los datos comerciales y el contacto principal del cliente.
               </p>
             </div>
-            {selectorTipo ? <div className="w-full lg:max-w-xs">{selectorTipo}</div> : null}
           </div>
         </div>
         <div className="px-5 py-5">
-          <form ref={formRef} onSubmit={(event) => void registrar(event)}>
+          <form id="agregar-cliente" ref={formRef} onSubmit={(event) => void registrar(event)}>
             <FieldGroup>
               <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
                 <FieldSet className="rounded-lg border border-border p-4">
@@ -562,26 +555,6 @@ export function SocioNegocioFormularioCliente({
                 </Alert>
               ) : null}
 
-              <div className="flex justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                  disabled={registrarMutation.isPending}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={registrarMutation.isPending || catalogosCargando}>
-                  {registrarMutation.isPending ? (
-                    <>
-                      <Spinner data-icon="inline-start" />
-                      Registrando...
-                    </>
-                  ) : (
-                    "Registrar cliente"
-                  )}
-                </Button>
-              </div>
             </FieldGroup>
           </form>
         </div>

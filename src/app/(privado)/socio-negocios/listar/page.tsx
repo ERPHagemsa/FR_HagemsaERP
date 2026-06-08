@@ -4,8 +4,7 @@ export default function ListarSociosNegocioPage() {
   return (
     <SocioNegocioVista
       titulo="Listar Socios de Negocio"
-      etiqueta="Vista general del maestro de socios de negocio."
-      accionPrincipal="Nuevo socio"
+      accionPrincipal="Nuevo"
       crearHref="/socio-negocios/nuevo"
       filtros={{
         estado: "ACTIVO",

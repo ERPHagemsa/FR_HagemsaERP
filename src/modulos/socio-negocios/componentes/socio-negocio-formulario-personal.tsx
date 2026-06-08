@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, type ReactNode, useState } from "react"
+import { type FormEvent, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -13,7 +13,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/compartido/componentes/ui/alert-dialog"
-import { Button } from "@/compartido/componentes/ui/button"
 import {
   Field,
   FieldDescription,
@@ -48,10 +47,6 @@ const USUARIO_RESPONSABLE_ID = "admin"
 type ErrorDialogo = {
   titulo: string
   descripcion: string
-}
-
-type SocioNegocioFormularioPersonalProps = {
-  selectorTipo?: ReactNode
 }
 
 function texto(formData: FormData, name: string) {
@@ -142,9 +137,7 @@ function obtenerErrorDialogo(error: unknown): ErrorDialogo {
   }
 }
 
-export function SocioNegocioFormularioPersonal({
-  selectorTipo,
-}: SocioNegocioFormularioPersonalProps) {
+export function SocioNegocioFormularioPersonal() {
   const router = useRouter()
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
   const [distritoSeleccionado, setDistritoSeleccionado] = useState<string | undefined>()
@@ -267,12 +260,6 @@ export function SocioNegocioFormularioPersonal({
   )
   const contratoFinalId = [...contratosSeleccionados].reverse().find(Boolean)
 
-  const catalogosCargando =
-    ubicacionesQuery.isLoading ||
-    sedesQuery.isLoading ||
-    areasQuery.isLoading ||
-    cargosQuery.isLoading
-
   const maestrosConsultados =
     ubicacionesQuery.isSuccess &&
     sedesQuery.isSuccess &&
@@ -375,18 +362,17 @@ export function SocioNegocioFormularioPersonal({
     <>
       <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
         <div className="border-b border-border px-5 py-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex flex-col gap-1">
             <div className="min-w-0">
-              <h2 className="text-lg font-semibold">Nuevo personal</h2>
+              <h2 className="text-lg font-semibold">Agregar personal</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Registra los datos personales, laborales y contractuales del colaborador.
               </p>
             </div>
-            {selectorTipo ? <div className="w-full lg:max-w-xs">{selectorTipo}</div> : null}
           </div>
         </div>
         <div className="px-5 py-5">
-          <form onSubmit={(event) => void registrar(event)}>
+          <form id="agregar-personal" onSubmit={(event) => void registrar(event)}>
             <FieldGroup>
               {faltanMaestros ? (
                 <Alert variant="destructive">
@@ -691,19 +677,6 @@ export function SocioNegocioFormularioPersonal({
                 </Alert>
               ) : null}
 
-              <div className="flex justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                  disabled={registrarMutation.isPending}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={registrarMutation.isPending || catalogosCargando}>
-                  {registrarMutation.isPending ? "Registrando..." : "Registrar personal"}
-                </Button>
-              </div>
             </FieldGroup>
           </form>
         </div>

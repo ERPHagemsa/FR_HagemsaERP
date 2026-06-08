@@ -984,6 +984,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
   const detalleFormulario = detalleFormularioMaestro[tipoNuevo]
   const moduloFormulario = obtenerModulo(tipoNuevo)
   const IconoFormulario = moduloFormulario.icon
+  const formId = `agregar-configuracion-${rutasRegistroConfiguracion[tipoNuevo]}`
   const [nivelAreaNuevo, setNivelAreaNuevo] = useState<NivelArea>("AREA")
   const [nombreNuevo, setNombreNuevo] = useState("")
   const [sedeAreaId, setSedeAreaId] = useState("")
@@ -1189,6 +1190,26 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-5">
+          <section className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold tracking-normal">Registrar configuracion</h1>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button asChild variant="outline" className="sm:w-auto">
+                <Link href="/configuracion/listar">Cancelar</Link>
+              </Button>
+              <Button
+                type="submit"
+                form={formId}
+                className="sm:w-auto"
+                disabled={registrarMutation.isPending || Boolean(bloqueoDependencia)}
+              >
+                <CheckCircle2 data-icon="inline-start" />
+                {registrarMutation.isPending ? "Agregando..." : "Agregar configuracion"}
+              </Button>
+            </div>
+          </section>
+
           {mensaje ? (
             <Alert>
               <AlertTitle>Registro completado</AlertTitle>
@@ -1219,6 +1240,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
           ) : null}
 
           <form
+            id={formId}
             className="w-full min-w-0 overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm"
             onSubmit={(event) => void registrar(event)}
           >
@@ -1318,19 +1340,6 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
               </aside>
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-border px-5 py-4 sm:flex-row sm:justify-end">
-              <Button asChild variant="outline" className="sm:w-auto">
-                <Link href="/configuracion/listar">Cancelar</Link>
-              </Button>
-              <Button
-                type="submit"
-                className="sm:w-auto"
-                disabled={registrarMutation.isPending || Boolean(bloqueoDependencia)}
-              >
-                <CheckCircle2 className="size-4" />
-                {registrarMutation.isPending ? "Guardando..." : "Guardar configuracion"}
-              </Button>
-            </div>
           </form>
         </div>
       </main>
