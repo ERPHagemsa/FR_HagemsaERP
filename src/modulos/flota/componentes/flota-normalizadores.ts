@@ -1,5 +1,41 @@
 import type { VehiculoFlota } from "../tipos/flota.tipos";
 
+export type ContratoRef = { id: string; codigo: string; nombre: string } | null;
+
+/** 
+ * Parsea seguramente un campo JSON de contrato/cuenta.
+ * Soporta tres formas de llegada:
+ *   1. Ya es un objeto  → lo retorna directamente
+ *   2. Es un string JSON → lo parsea
+ *   3. null / undefined  → retorna null
+ */
+export function parseRef(raw: unknown): ContratoRef {
+  if (!raw) return null;
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (typeof obj.id === "string" && typeof obj.codigo === "string" && typeof obj.nombre === "string") {
+      return { id: obj.id, codigo: obj.codigo, nombre: obj.nombre };
+    }
+    return null;
+  }
+  if (typeof raw === "string") {
+    try {
+      return parseRef(JSON.parse(raw));
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function contratoVehiculo(vehiculo: VehiculoFlota): ContratoRef {
+  return parseRef(vehiculo.contrato);
+}
+
+export function cuentaVehiculo(vehiculo: VehiculoFlota): ContratoRef {
+  return parseRef(vehiculo.cuenta);
+}
+
 export function placaVehiculo(vehiculo: VehiculoFlota) {
   return (
     vehiculo.placa ??
@@ -23,7 +59,7 @@ export function carroceriaVehiculo(vehiculo: VehiculoFlota) {
 }
 
 export function estadoActivoVehiculo(vehiculo: VehiculoFlota) {
-  return normalizarEstado(vehiculo.estadoActivo ?? vehiculo.estado);
+  return normalizarEstado(vehiculo.estadoRegistro ?? vehiculo.estadoActivo ?? vehiculo.estado);
 }
 
 export function estadoOperativoVehiculo(vehiculo: VehiculoFlota) {
@@ -32,17 +68,13 @@ export function estadoOperativoVehiculo(vehiculo: VehiculoFlota) {
   );
 }
 
-export function estadoCalibracionVehiculo(vehiculo: VehiculoFlota) {
-  return normalizarEstado(
-    vehiculo.estadoCalibracion ?? vehiculo.vehiculo?.estadoCalibracion
-  );
-}
-
 export function esVisibleEnFlota(vehiculo: VehiculoFlota) {
   return estadoActivoVehiculo(vehiculo) !== "ELIMINADO";
 }
 
 export function textoBusquedaVehiculo(vehiculo: VehiculoFlota) {
+  const contrato = contratoVehiculo(vehiculo);
+  const cuenta = cuentaVehiculo(vehiculo);
   return [
     vehiculo.id,
     vehiculo.codigo,
@@ -50,8 +82,10 @@ export function textoBusquedaVehiculo(vehiculo: VehiculoFlota) {
     placaVehiculo(vehiculo),
     marcaVehiculo(vehiculo),
     modeloVehiculo(vehiculo),
-    vehiculo.contrato,
-    vehiculo.cuenta,
+    contrato?.codigo,
+    contrato?.nombre,
+    cuenta?.codigo,
+    cuenta?.nombre,
   ]
     .filter(Boolean)
     .join(" ")
@@ -71,3 +105,4 @@ export function formatear(value?: string | null) {
 function normalizarEstado(value?: string | null) {
   return value?.trim().replace(/\s+/g, "_").toUpperCase() ?? null;
 }
+

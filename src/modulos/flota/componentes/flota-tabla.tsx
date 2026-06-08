@@ -7,7 +7,7 @@ import {
   IconRefresh,
   IconSearch,
   IconDotsVertical,
-  IconHistory,
+  IconChartBar,
 } from "@tabler/icons-react";
 
 import {
@@ -39,8 +39,9 @@ import { cn } from "@/compartido/utilidades";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
 import {
   carroceriaVehiculo,
+  contratoVehiculo,
+  cuentaVehiculo,
   estadoActivoVehiculo,
-  estadoCalibracionVehiculo,
   estadoOperativoVehiculo,
   formatear,
   marcaVehiculo,
@@ -48,7 +49,6 @@ import {
   placaVehiculo,
   textoBusquedaVehiculo,
 } from "./flota-normalizadores";
-import { FlotaAuditPanel } from "./flota-audit-panel";
 
 type Props = {
   loading: boolean;
@@ -60,8 +60,6 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
   const [query, setQuery] = React.useState("");
   const [estadoActivo, setEstadoActivo] = React.useState("TODOS");
   const [estadoOperativo, setEstadoOperativo] = React.useState("TODOS");
-  const [auditPlaca, setAuditPlaca] = React.useState<string | null>(null);
-  const [estadoCalibracion, setEstadoCalibracion] = React.useState("TODOS");
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
 
@@ -74,16 +72,15 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
       (estadoActivo === "TODOS" || estadoActivoVehiculo(vehiculo) === estadoActivo) &&
       (estadoOperativo === "TODOS" ||
         estadoOperativoVehiculo(vehiculo) === estadoOperativo) &&
-      (estadoCalibracion === "TODOS" ||
-        estadoCalibracionVehiculo(vehiculo) === estadoCalibracion)
+      (estadoOperativo === "TODOS" ||
+        estadoOperativoVehiculo(vehiculo) === estadoOperativo)
     );
   });
 
   const hayFiltros =
     query ||
     estadoActivo !== "TODOS" ||
-    estadoOperativo !== "TODOS" ||
-    estadoCalibracion !== "TODOS";
+    estadoOperativo !== "TODOS";
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / registrosPorPagina));
   const inicioPagina = (pagina - 1) * registrosPorPagina;
@@ -96,7 +93,6 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
     setQuery("");
     setEstadoActivo("TODOS");
     setEstadoOperativo("TODOS");
-    setEstadoCalibracion("TODOS");
     setPagina(1);
   }
 
@@ -115,10 +111,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
     setPagina(1);
   }
 
-  function actualizarEstadoCalibracion(value: string) {
-    setEstadoCalibracion(value);
-    setPagina(1);
-  }
+
 
   function actualizarRegistrosPorPagina(value: number) {
     setRegistrosPorPagina(value);
@@ -164,13 +157,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
             onChange={actualizarEstadoOperativo}
             values={["TODOS", "OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]}
           />
-          <FiltroSelect
-            className="min-w-40 flex-1"
-            label="Calibracion"
-            value={estadoCalibracion}
-            onChange={actualizarEstadoCalibracion}
-            values={["TODOS", "CALIBRADA", "NO_CALIBRADA", "PENDIENTE", "OBSERVADA"]}
-          />
+
         </div>
 
         {hayFiltros ? (
@@ -192,8 +179,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                 <TableHead className="w-[14%]">Contrato</TableHead>
                 <TableHead className="w-[14%]">Cuenta</TableHead>
                 <TableHead className="w-[11%]">Estado</TableHead>
-                <TableHead className="w-[12%]">Operativo</TableHead>
-                <TableHead className="w-[12%]">Calibracion</TableHead>
+                <TableHead className="w-[14%]">Operativo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -224,9 +210,9 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="cursor-pointer"
-                              onClick={() => setAuditPlaca(vehiculo.placa ?? null)}
+                              onClick={() => router.push(`/flota/${encodeURIComponent(vehiculo.placa ?? "")}/auditoria`)}
                             >
-                              <IconHistory className="h-4 w-4" />
+                              <IconChartBar className="h-4 w-4" />
                               <span>Auditar</span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -247,16 +233,13 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="truncate">{vehiculo.contrato ?? "-"}</TableCell>
-                      <TableCell className="truncate">{vehiculo.cuenta ?? "-"}</TableCell>
+                      <TableCell className="truncate">{contratoVehiculo(vehiculo)?.codigo || "-"}</TableCell>
+                      <TableCell className="truncate">{cuentaVehiculo(vehiculo)?.nombre || "-"}</TableCell>
                       <TableCell>
                         <EstadoBadge value={estadoActivoVehiculo(vehiculo)} />
                       </TableCell>
                       <TableCell>
                         <EstadoBadge value={estadoOperativoVehiculo(vehiculo)} />
-                      </TableCell>
-                      <TableCell>
-                        <EstadoBadge value={estadoCalibracionVehiculo(vehiculo)} />
                       </TableCell>
                     </TableRow>
                   ))
@@ -318,12 +301,6 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
         </div>
       </CardContent>
     </Card>
-
-    <FlotaAuditPanel
-      placa={auditPlaca}
-      isOpen={!!auditPlaca}
-      onClose={() => setAuditPlaca(null)}
-    />
     </>
   );
 }

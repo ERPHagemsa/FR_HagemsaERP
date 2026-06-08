@@ -20,7 +20,6 @@ import type { ResumenFlota, VehiculoFlota } from "../tipos/flota.tipos";
 import {
   esVisibleEnFlota,
   estadoActivoVehiculo,
-  estadoCalibracionVehiculo,
   estadoOperativoVehiculo,
 } from "./flota-normalizadores";
 
@@ -40,9 +39,7 @@ export function FlotaResumen({ resumen, vehiculos }: Props) {
   const mantenimiento = vehiculosVisibles.filter(
     (vehiculo) => estadoOperativoVehiculo(vehiculo) === "MANTENIMIENTO"
   );
-  const noCalibrados = vehiculosVisibles.filter(
-    (vehiculo) => estadoCalibracionVehiculo(vehiculo) === "NO_CALIBRADA"
-  );
+
 
   const dataOperativo = [
     { name: "Operativo", value: operativos.length, color: "#10b981" },
@@ -79,10 +76,8 @@ export function FlotaResumen({ resumen, vehiculos }: Props) {
         />
         <ResumenCard
           icon={IconAlertTriangle}
-          label="Mantenimiento / sin calibrar"
-          value={`${resumen?.mantenimiento ?? mantenimiento.length} / ${
-            resumen?.noCalibrados ?? noCalibrados.length
-          }`}
+          label="Mantenimiento"
+          value={resumen?.mantenimiento ?? mantenimiento.length}
           detail="Alertas de disponibilidad"
         />
       </div>

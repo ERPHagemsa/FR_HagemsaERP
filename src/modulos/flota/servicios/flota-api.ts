@@ -62,7 +62,8 @@ export async function obtenerHistorialPorPlaca(placa: string) {
 
 export async function asignarContrato(
   placa: string,
-  contrato: string
+  contrato: any,
+  cuenta: any
 ): Promise<{ success: boolean; mensaje: string }> {
   const url = `${getApiUrl()}`;
   const controller = new AbortController();
@@ -72,7 +73,7 @@ export async function asignarContrato(
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ placa, contrato }),
+      body: JSON.stringify({ placa, contrato, cuenta }),
       signal: controller.signal,
     });
     clearTimeout(timeout);
