@@ -526,6 +526,15 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
     if (!s.esDefecto && s.nombre.trim() === "") {
       errores[`secciones.${i}.nombre`] = "El nombre de la seccion es obligatorio.";
     }
+    // Lineas: cantidad debe ser un entero >= 1
+    s.lineas.forEach((l, j) => {
+      if (l.cantidad !== "") {
+        const cantidadNum = parseFloat(l.cantidad);
+        if (isNaN(cantidadNum) || cantidadNum < 1 || !Number.isInteger(cantidadNum)) {
+          errores[`secciones.${i}.lineas.${j}.cantidad`] = "La cantidad debe ser un entero mayor o igual a 1.";
+        }
+      }
+    });
     // Cargos adicionales de esta seccion
     s.cargosAdicionales.forEach((c, j) => {
       if (c.descripcion.trim() === "") {

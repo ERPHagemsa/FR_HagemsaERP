@@ -247,7 +247,7 @@ function SeccionCard({
     <div className="rounded-xl border border-border bg-muted/20">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <p className="text-sm font-medium">
-          {seccion.nombre ?? `Seccion ${seccion.orden}`}
+          {seccion.nombre ?? "Lineas sin seccion"}
         </p>
         <span className="text-sm text-muted-foreground">
           Subtotal: {formatearMonto(seccion.subtotal)}

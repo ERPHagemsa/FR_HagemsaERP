@@ -59,6 +59,7 @@ export function EditorBorradorCampos({
 }: Props) {
   // Seccion por defecto (esDefecto:true) — bucket de lineas del camino simple
   const seccionDefecto = draft.secciones.find((s) => s.esDefecto);
+  const indiceSeccionDefecto = draft.secciones.findIndex((s) => s.esDefecto);
   const seccionesExplicitas = draft.secciones.filter((s) => !s.esDefecto);
   const haySeccionesExplicitas = seccionesExplicitas.length > 0;
 
@@ -98,6 +99,18 @@ export function EditorBorradorCampos({
         ),
       };
     });
+  }
+
+  // Errores de cargos de la seccion por defecto: recortar el prefijo "secciones.{i}."
+  // para que EditorCargos pueda resolver "cargosAdicionales.{j}.descripcion" correctamente.
+  const erroresCargosDefecto: Record<string, string> = {};
+  if (indiceSeccionDefecto >= 0) {
+    const prefijo = `secciones.${indiceSeccionDefecto}.`;
+    for (const [clave, mensaje] of Object.entries(erroresCampo)) {
+      if (clave.startsWith(prefijo)) {
+        erroresCargosDefecto[clave.slice(prefijo.length)] = mensaje;
+      }
+    }
   }
 
   return (
@@ -169,7 +182,7 @@ export function EditorBorradorCampos({
         <CardContent className="pt-5">
           <EditorCargos
             cargos={seccionDefecto?.cargosAdicionales ?? []}
-            erroresCampo={erroresCampo}
+            erroresCampo={erroresCargosDefecto}
             disabled={guardando}
             onChange={actualizarCargosDefecto}
           />

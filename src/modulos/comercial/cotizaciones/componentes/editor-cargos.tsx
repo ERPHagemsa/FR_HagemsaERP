@@ -46,8 +46,8 @@ export function EditorCargos({ cargos, erroresCampo = {}, disabled, onChange }: 
             </thead>
             <tbody>
               {cargos.map((cargo, idx) => {
-                const errDesc = erroresCampo[`${idx}.descripcion`];
-                const errMonto = erroresCampo[`${idx}.monto`];
+                const errDesc = erroresCampo[`cargosAdicionales.${idx}.descripcion`];
+                const errMonto = erroresCampo[`cargosAdicionales.${idx}.monto`];
                 return (
                   <tr key={cargo.claveCliente} className="border-b border-border last:border-0">
                     <td className="px-3 py-2">

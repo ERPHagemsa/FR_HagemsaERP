@@ -1,5 +1,7 @@
 // Tipos del modulo Comercial / Cotizaciones (Epica 2, BC03).
-// Solo declaraciones de tipo — sin imports de runtime (zod va en cotizaciones.schemas.ts).
+// Solo declaraciones de tipo — sin imports de runtime.
+// Nota: cotizaciones.schemas.ts cubre solo validaciones de SC/transiciones (enviar, nueva-version, perdida).
+// La validacion del borrador vive en validarBorrador (cotizaciones-editor.utils.ts).
 
 // ---------------------------------------------------------------------------
 // Enums
