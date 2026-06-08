@@ -1,8 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Moon02Icon, Sun03Icon } from "@hugeicons/core-free-icons"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Button } from "@/compartido/componentes/ui/button"
@@ -18,7 +17,10 @@ export function ThemeToggle({
   const [mounted, setMounted] = React.useState(false)
   const { resolvedTheme, setTheme } = useTheme()
 
+  // next-themes: marcamos "mounted" tras hidratar para evitar el mismatch del
+  // icono (el server asume modo claro). El flag se setea una sola vez.
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 
@@ -27,23 +29,23 @@ export function ThemeToggle({
   return (
     <Button
       type="button"
-      variant="outline"
+      variant="ghost"
       size={showLabel ? "default" : "icon-sm"}
       aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       className={cn(
-        "rounded-xl bg-background/70 shadow-none",
-        showLabel && "w-full justify-start px-3",
-        className
+        "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        showLabel && "w-full justify-start px-2",
+        // En modo riel (icon) el boton se reduce a solo icono.
+        "group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0",
+        className,
       )}
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >
-      <HugeiconsIcon
-        icon={isDark ? Sun03Icon : Moon02Icon}
-        strokeWidth={2}
-        data-icon={showLabel ? "inline-start" : undefined}
-      />
+      {isDark ? <Sun /> : <Moon />}
       {showLabel ? (
-        <span>{isDark ? "Modo claro" : "Modo oscuro"}</span>
+        <span className="group-data-[collapsible=icon]:hidden">
+          {isDark ? "Modo claro" : "Modo oscuro"}
+        </span>
       ) : null}
     </Button>
   )

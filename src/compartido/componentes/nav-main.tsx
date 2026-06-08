@@ -3,28 +3,50 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { ChevronRight } from "lucide-react"
 
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/compartido/componentes/ui/sidebar"
 import { cn } from "@/compartido/utilidades/utils"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
 
-function isRouteActive(pathname: string, href: string) {
+function isRouteActive(pathname: string, href: string, exact = false) {
   if (href === "#") {
     return false
   }
 
+  if (exact) {
+    return pathname === href
+  }
+
   return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+// Devuelve la URL del subitem que mejor coincide con la ruta actual: de todos
+// los que matchean por prefijo, gana el de URL mas larga (mas especifica). Asi,
+// estando en "/comercial/prospectos", Prospectos (/comercial/prospectos) le gana
+// a Cotizaciones (/comercial) y solo se marca el correcto.
+function urlSubitemActivo(
+  pathname: string,
+  subitems: { url: string }[],
+): string | null {
+  let mejor: string | null = null
+  for (const { url } of subitems) {
+    if (isRouteActive(pathname, url) && (!mejor || url.length > mejor.length)) {
+      mejor = url
+    }
+  }
+  return mejor
 }
 
 export function NavMain({
@@ -41,102 +63,111 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const [openItem, setOpenItem] = React.useState<string | null>(null)
+  // En pantallas chicas el sidebar es un panel off-canvas; al navegar hay que
+  // cerrarlo (en escritorio openMobile no se usa, asi que es inocuo).
+  const { setOpenMobile } = useSidebar()
+  const activeItem = React.useMemo(
+    () =>
+      items.find((item) => {
+        const moduleHref =
+          item.url ?? item.items.find((subItem) => subItem.url !== "#")?.url ?? "#"
 
-  React.useEffect(() => {
-    const activeItem = items.find((item) =>
-      item.items.some((subItem) => isRouteActive(pathname, subItem.url))
-    )
+        return (
+          isRouteActive(pathname, moduleHref) ||
+          item.items.some((subItem) =>
+            isRouteActive(pathname, subItem.url, subItem.url === moduleHref),
+          )
+        )
+      }),
+    [items, pathname],
+  )
+  const activeItemTitle = activeItem?.title ?? null
 
-    if (activeItem) {
-      setOpenItem(activeItem.title)
-    }
-  }, [items, pathname])
+  // Modulo abierto (solo uno a la vez). Se siembra con el modulo activo por
+  // ruta para que el sidebar muestre la seccion del usuario al cargar.
+  const [openItem, setOpenItem] = React.useState<string | null>(activeItemTitle)
+
+  // Cuando la ruta cambia a otro modulo, abrimos automaticamente el nuevo.
+  // Se hace en render (patron oficial de React para ajustar state ante cambio
+  // de prop) — evita un commit extra.
+  const [lastActiveTitle, setLastActiveTitle] = React.useState<string | null>(
+    activeItemTitle,
+  )
+  if (activeItemTitle !== lastActiveTitle) {
+    setLastActiveTitle(activeItemTitle)
+    if (activeItemTitle) setOpenItem(activeItemTitle)
+  }
+
+  function alternar(itemTitle: string) {
+    setOpenItem((actual) => (actual === itemTitle ? null : itemTitle))
+  }
 
   return (
-    <SidebarGroup className="px-2 pt-1">
-      <SidebarGroupLabel className="px-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-sidebar-foreground/45">
-        Modulos
-      </SidebarGroupLabel>
-      <SidebarGroupContent className="flex flex-col gap-2">
-        <SidebarMenu className="gap-1">
+    <SidebarGroup>
+      <SidebarGroupLabel>Modulos</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
           {items.map((item) => {
-            const hasActiveChild = item.items.some((subItem) =>
-              isRouteActive(pathname, subItem.url)
-            )
+            const moduleHref =
+              item.url ?? item.items.find((subItem) => subItem.url !== "#")?.url ?? "#"
+            const isModuleActive = isRouteActive(pathname, moduleHref)
+            const subUrlActiva = urlSubitemActivo(pathname, item.items)
+            const hasActiveChild = subUrlActiva !== null
             const isOpen = openItem === item.title
-            const isHighlighted = isOpen || hasActiveChild
+            const isHighlighted = isOpen || hasActiveChild || isModuleActive
+            const tieneSub = item.items.length > 0
 
             return (
-              <SidebarMenuItem
-                key={item.title}
-                className={cn(
-                  "sidebar-nav-item relative rounded-2xl transition-colors duration-300 ease-out before:absolute before:inset-y-3 before:left-0 before:w-0.5 before:rounded-full before:bg-transparent before:transition-colors",
-                  isHighlighted &&
-                    "bg-sidebar-accent/80 text-sidebar-accent-foreground before:bg-primary"
-                )}
-              >
+              <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
+                  asChild
                   tooltip={item.title}
-                  onClick={() => {
-                    setOpenItem(isOpen ? null : item.title)
-                    if (item.url) router.push(item.url)
-                  }}
-                  aria-expanded={isOpen}
                   isActive={isHighlighted}
                   className={cn(
-                    "h-11 rounded-2xl border border-transparent px-3 font-medium text-sidebar-foreground/76 transition-all duration-300 ease-out",
-                    "hover:translate-x-0.5 hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground",
-                    isHighlighted &&
-                      "bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    // En tema oscuro los modulos inactivos van mas tenues; el
+                    // seleccionado conserva el tono pleno (data-active manda).
+                    !isHighlighted && "dark:text-sidebar-foreground/60",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "flex size-8 shrink-0 items-center justify-center rounded-xl bg-background/80 text-sidebar-foreground/62 transition-all duration-300 ease-out",
-                      "group-hover/button:scale-105 group-hover/button:text-sidebar-foreground",
-                      isHighlighted &&
-                        "bg-primary text-primary-foreground",
-                      hasActiveChild &&
-                        !isHighlighted &&
-                        "bg-primary/10 text-primary"
-                    )}
+                  <Link
+                    href={moduleHref}
+                    onClick={() => setOpenMobile(false)}
                   >
                     {item.icon}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                  <span
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+
+                {tieneSub ? (
+                  <SidebarMenuAction
+                    onClick={() => alternar(item.title)}
+                    aria-label={
+                      isOpen
+                        ? `Contraer ${item.title}`
+                        : `Expandir ${item.title}`
+                    }
                     className={cn(
-                      "ml-auto flex size-6 shrink-0 items-center justify-center rounded-lg text-sidebar-foreground/38 transition-all duration-300 ease-out",
-                      isOpen &&
-                        "rotate-90 bg-background text-sidebar-foreground"
+                      "text-sidebar-foreground/50 transition-transform duration-200",
+                      isOpen && "rotate-90",
                     )}
                   >
-                    <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={2} />
-                  </span>
-                </SidebarMenuButton>
-                {isOpen ? (
-                  <SidebarMenuSub className="sidebar-submenu mb-2 ml-7 mt-1.5 gap-1 border-l border-sidebar-border/70 pl-3">
-                    {item.items.map((subItem, index) => (
-                      <SidebarMenuSubItem
-                        key={subItem.title}
-                        className="sidebar-submenu-item"
-                        style={
-                          {
-                            "--submenu-index": index,
-                          } as React.CSSProperties
-                        }
-                      >
+                    <ChevronRight />
+                  </SidebarMenuAction>
+                ) : null}
+
+                {isOpen && tieneSub ? (
+                  <SidebarMenuSub>
+                    {item.items.map((subItem) => (
+                      <SidebarMenuSubItem key={subItem.title}>
                         <SidebarMenuSubButton
                           asChild
-                          isActive={isRouteActive(pathname, subItem.url)}
-                          className="group/sub relative h-8 rounded-xl px-3 text-sidebar-foreground/60 transition-all duration-300 ease-out before:absolute before:-left-[17px] before:size-1.5 before:rounded-full before:bg-sidebar-border before:transition-all before:duration-300 hover:translate-x-0.5 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:before:bg-primary data-active:bg-transparent data-active:font-semibold data-active:text-primary data-active:before:bg-primary"
+                          isActive={subItem.url === subUrlActiva}
                         >
-                          <Link href={subItem.url}>
-                            <span className="truncate pl-2">
-                              {subItem.title}
-                            </span>
+                          <Link
+                            href={subItem.url}
+                            onClick={() => setOpenMobile(false)}
+                          >
+                            <span>{subItem.title}</span>
                           </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>

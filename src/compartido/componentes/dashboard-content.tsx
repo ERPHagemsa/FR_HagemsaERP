@@ -1,8 +1,5 @@
 import { ChartAreaInteractive } from "@/compartido/componentes/chart-area-interactive"
-import { DataTable } from "@/compartido/componentes/data-table"
 import { SectionCards } from "@/compartido/componentes/section-cards"
-
-import data from "@/app/(privado)/dashboard/data.json"
 
 export function DashboardContent() {
   return (
@@ -13,7 +10,6 @@ export function DashboardContent() {
           <div className="px-4 lg:px-6">
             <ChartAreaInteractive />
           </div>
-          <DataTable data={data} />
         </div>
       </div>
     </div>

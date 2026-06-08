@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 import { IconGasStation, IconPlus, IconTrash } from "@tabler/icons-react";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Input } from "@/compartido/componentes/ui/input";
@@ -16,11 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
-import { cn } from "@/compartido/utilidades";
 import {
-  crearTanquePorCodigo,
-  eliminarTanquePorCodigo,
-} from "../servicios/activos-api";
+  useCrearTanqueActivoMutation,
+  useEliminarTanqueActivoMutation,
+} from "../servicios/activos-queries";
 import type { TanqueActivo, TipoTanqueActivo } from "../tipos/activo.tipos";
 
 type Props = {
@@ -36,11 +37,9 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [tipoTanque, setTipoTanque] = React.useState<TipoTanqueActivo>("DIESEL");
   const [isSaving, setIsSaving] = React.useState(false);
-  const [deletingId, setDeletingId] = React.useState<string | null>(null);
-  const [message, setMessage] = React.useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const crearTanqueMutation = useCrearTanqueActivoMutation(codigo);
+  const eliminarTanqueMutation = useEliminarTanqueActivoMutation(codigo);
 
   const totalDiesel = sumarCapacidad(tanques, "DIESEL");
   const totalUrea = sumarCapacidad(tanques, "UREA");
@@ -49,16 +48,17 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const tipoTanqueSeleccionado =
+      formData.get("tipoTanque") === "UREA" ? "UREA" : "DIESEL";
     const capacidad = Number(formData.get("capacidad"));
     const orden = Number(formData.get("orden") || 1);
     const observacion = String(formData.get("observacion") ?? "").trim();
 
-    setMessage(null);
     setIsSaving(true);
 
     try {
-      await crearTanquePorCodigo(codigo, {
-        tipoTanque,
+      await crearTanqueMutation.mutateAsync({
+        tipoTanque: tipoTanqueSeleccionado,
         capacidad,
         orden,
         observacion: observacion || undefined,
@@ -67,19 +67,10 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
       form.reset();
       setTipoTanque("DIESEL");
       setMostrarFormulario(false);
-      setMessage({
-        type: "success",
-        text: "Tanque registrado correctamente.",
-      });
+      toast.success("Tanque registrado correctamente.");
       router.refresh();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "No se pudo registrar el tanque.",
-      });
+      toast.error(extraerMensajeError(error, "No se pudo registrar el tanque."));
     } finally {
       setIsSaving(false);
     }
@@ -92,24 +83,14 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
 
     if (!confirmado) return;
 
-    setMessage(null);
     setDeletingId(tanque.id);
 
     try {
-      await eliminarTanquePorCodigo(codigo, tanque.id);
-      setMessage({
-        type: "success",
-        text: "Tanque eliminado correctamente.",
-      });
+      await eliminarTanqueMutation.mutateAsync(tanque.id);
+      toast.success("Tanque eliminado correctamente.");
       router.refresh();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "No se pudo eliminar el tanque.",
-      });
+      toast.error(extraerMensajeError(error, "No se pudo eliminar el tanque."));
     } finally {
       setDeletingId(null);
     }
@@ -146,19 +127,6 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
         <ResumenTanque label="Urea" total={totalUrea} unidad="litros" tipo="UREA" />
       </div>
 
-      {editable && message ? (
-        <div
-          className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
-            message.type === "success"
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
-              : "border-destructive/40 bg-destructive/10 text-destructive"
-          )}
-        >
-          {message.text}
-        </div>
-      ) : null}
-
       {editable && mostrarFormulario ? (
         <form
           onSubmit={onSubmit}
@@ -172,10 +140,12 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
               <select
                 className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                 name="tipoTanque"
-                onChange={(event) =>
-                  setTipoTanque(event.target.value as TipoTanqueActivo)
-                }
                 value={tipoTanque}
+                onChange={(event) => {
+                  const next =
+                    event.currentTarget.value === "UREA" ? "UREA" : "DIESEL";
+                  setTipoTanque(next);
+                }}
               >
                 {tiposTanque.map((tipo) => (
                   <option key={tipo} value={tipo}>
@@ -193,12 +163,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
               step="0.01"
               type="number"
             />
-            <Field
-              label="Unidad"
-              name="unidadMedida"
-              readOnly
-              value={tipoTanque === "DIESEL" ? "GALON" : "LITRO"}
-            />
+            <UnidadTanqueDisplay tipoTanque={tipoTanque} />
             <Field label="Orden" min="1" name="orden" step="1" type="number" />
           </div>
           <Field
@@ -242,7 +207,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
                   <Badge
                     className={
                       tanque.tipoTanque === "DIESEL"
-                        ? "bg-red-600 text-white"
+                        ? "bg-primary text-primary-foreground"
                         : "bg-sky-600 text-white"
                     }
                   >
@@ -300,7 +265,7 @@ function ResumenTanque({
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <span className="flex size-9 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-600">
+        <span className="flex size-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
           <IconGasStation className="size-5" />
         </span>
         <p className="font-semibold">{label}</p>
@@ -329,6 +294,22 @@ function Field({
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
       <Input id={`tanque-${name}`} name={name} required={required} {...props} />
+    </div>
+  );
+}
+
+function UnidadTanqueDisplay({ tipoTanque }: { tipoTanque: TipoTanqueActivo }) {
+  const unidad = tipoTanque === "UREA" ? "Litros" : "Galones";
+
+  return (
+    <div className="grid gap-2">
+      <Label>Unidad</Label>
+      <div
+        key={unidad}
+        className="flex h-9 items-center rounded-lg border border-input bg-muted/40 px-3 text-sm font-medium text-foreground"
+      >
+        {unidad}
+      </div>
     </div>
   );
 }

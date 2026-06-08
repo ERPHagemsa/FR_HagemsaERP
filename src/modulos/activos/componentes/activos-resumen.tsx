@@ -1,10 +1,10 @@
 import {
-  IconActivity,
-  IconAlertTriangle,
-  IconCar,
-  IconCircleCheck,
-  type Icon,
-} from "@tabler/icons-react";
+  Activity,
+  AlertTriangle,
+  CircleCheck,
+  Truck,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   Card,
@@ -20,7 +20,7 @@ type Props = {
 
 export function ActivosResumen({ activos }: Props) {
   const activosVisibles = activos.filter(
-    (activo) => activo.estadoActivo !== "ELIMINADO"
+    (activo) => activo.estadoRegistro !== false
   );
   const activosVigentes = activosVisibles.filter(
     (activo) => activo.estadoActivo === "ACTIVO"
@@ -38,25 +38,25 @@ export function ActivosResumen({ activos }: Props) {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <ResumenCard
-        icon={IconCar}
+        icon={Truck}
         label="Total activos"
         value={activosVisibles.length}
         detail="Unidades registradas"
       />
       <ResumenCard
-        icon={IconCircleCheck}
+        icon={CircleCheck}
         label="Activos vigentes"
         value={activosVigentes.length}
         detail="Estado administrativo activo"
       />
       <ResumenCard
-        icon={IconActivity}
+        icon={Activity}
         label="Operativos"
         value={operativos.length}
         detail="Disponibles para operar"
       />
       <ResumenCard
-        icon={IconAlertTriangle}
+        icon={AlertTriangle}
         label="Mantenimiento / no calibrados"
         value={`${mantenimiento.length} / ${noCalibrados.length}`}
         detail="Alertas operativas"
@@ -72,15 +72,15 @@ function ResumenCard({
   value,
 }: {
   detail: string;
-  icon: Icon;
+  icon: LucideIcon;
   label: string;
   value: number | string;
 }) {
   return (
     <Card>
-      <CardHeader className="gap-3">
-        <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-lg border border-destructive/25 bg-destructive/10">
-          <Icon className="size-6 text-destructive" />
+      <CardHeader>
+        <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <Icon className="size-5" />
         </div>
         <CardDescription className="text-sm">{label}</CardDescription>
         <CardTitle className="text-4xl font-semibold mt-1">{value}</CardTitle>

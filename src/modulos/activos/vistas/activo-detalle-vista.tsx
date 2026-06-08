@@ -18,12 +18,16 @@ import {
 } from "@/compartido/componentes/ui/tabs";
 import { ActivoAccionesCicloVida } from "../componentes/activo-acciones-ciclo-vida";
 import { AvisoResultado } from "../componentes/aviso-resultado";
+import { ConfiguracionHistoricaActivo } from "../componentes/configuracion-historica-activo";
 import { DocumentosActivo } from "../componentes/documentos-activo";
+import { HistorialActivo } from "../componentes/historial-activo";
 import { ImagenesActivo } from "../componentes/imagenes-activo";
 import { TanquesActivo } from "../componentes/tanques-activo";
 import {
   obtenerActivoPorCodigo,
+  obtenerConfiguracionHistoricaPorCodigo,
   obtenerDocumentosPorCodigo,
+  obtenerHistorialPorCodigo,
   obtenerImagenesPorCodigo,
   obtenerTanquesPorCodigo,
 } from "../servicios/activos-api";
@@ -43,7 +47,11 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
   const imagenes = await obtenerImagenesPorCodigo(codigo).catch(() => []);
   const documentos = await obtenerDocumentosPorCodigo(codigo).catch(() => []);
   const tanques = await obtenerTanquesPorCodigo(codigo).catch(() => []);
+  const historial = await obtenerHistorialPorCodigo(codigo).catch(() => []);
+  const configuracionHistorica =
+    await obtenerConfiguracionHistoricaPorCodigo(codigo).catch(() => []);
   const vehiculo = activo.vehiculo;
+  const ultimaConfiguracionHistorica = configuracionHistorica[0];
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
@@ -53,9 +61,23 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
             <p className="text-sm font-medium text-muted-foreground">{activo.codigo}</p>
             <h1 className="text-2xl font-semibold">{activo.descripcion}</h1>
             <p className="text-sm text-muted-foreground">{activo.ubicacion}</p>
-            <p className="mt-2 max-w-full truncate font-mono text-xs text-muted-foreground" title={activo.id}>
+            <p className="mt-2 max-w-full truncate font-mono text-xs text-muted-foreground" title={String(activo.id)}>
               ID inventario: {activo.id}
             </p>
+            {ultimaConfiguracionHistorica ? (
+              <Badge className="mt-2 w-fit border-primary/30 bg-primary/10 text-primary" variant="outline">
+                {formatearTipoConfiguracion(ultimaConfiguracionHistorica.tipoCambio)}:{" "}
+                {ultimaConfiguracionHistorica.placaAnterior
+                  ? `placa anterior ${ultimaConfiguracionHistorica.placaAnterior}`
+                  : ultimaConfiguracionHistorica.codigoAnterior
+                    ? `codigo anterior ${ultimaConfiguracionHistorica.codigoAnterior}`
+                    : `ID anterior ${activo.activoOrigenId ?? "-"}`}
+              </Badge>
+            ) : activo.activoOrigenId ? (
+              <Badge className="mt-2 w-fit border-primary/30 bg-primary/10 text-primary" variant="outline">
+                ID anterior {activo.activoOrigenId}
+              </Badge>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
@@ -70,8 +92,8 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
         <AvisoResultado accion={accion} />
 
         <div className="grid gap-4 md:grid-cols-3">
-          <EstadoCard titulo="Estado activo" valor={activo.estadoActivo} />
-          <EstadoCard titulo="Operativo" valor={vehiculo?.estadoOperativo ?? "SIN_DETALLE"} />
+          <EstadoCard titulo="Estado activo" valor={formatearEstadoActivo(activo.estadoActivo)} />
+          <EstadoCard titulo="Condicion activo" valor={vehiculo?.estadoOperativo ?? "SIN_DETALLE"} />
           <EstadoCard titulo="Calibracion" valor={vehiculo?.estadoCalibracion ?? "SIN_DETALLE"} />
         </div>
 
@@ -84,6 +106,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
               <Tabs defaultValue="base">
                 <TabsList>
                   <TabsTrigger value="base">Base</TabsTrigger>
+                  <TabsTrigger value="adquisicion">Adquisicion</TabsTrigger>
                   <TabsTrigger value="vehiculo">Vehiculo</TabsTrigger>
                   <TabsTrigger value="equipamiento">Equipamiento</TabsTrigger>
                   <TabsTrigger value="dimensiones">Dimensiones</TabsTrigger>
@@ -99,15 +122,25 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Tipo activo" value={activo.tipoActivo} />
                     <Dato label="Descripcion" value={activo.descripcion} />
                     <Dato label="Ubicacion" value={activo.ubicacion} />
-                    <Dato label="Estado activo" value={activo.estadoActivo} />
+                    <Dato label="Estado activo" value={formatearEstadoActivo(activo.estadoActivo)} />
                     <Dato label="Observacion" value={activo.observacion} />
+                  </FichaGrid>
+                </TabsContent>
+
+                <TabsContent value="adquisicion" className="pt-5">
+                  <FichaGrid>
+                    <Dato label="Valor de unidad" value={formatearMonto(activo.valorUnidad, activo.moneda)} />
+                    <Dato label="Moneda" value={activo.moneda} />
+                    <Dato label="Proveedor" value={activo.proveedor} />
+                    <Dato label="Numero factura" value={activo.numeroFactura} />
+                    <Dato label="Fecha factura" value={formatearFecha(activo.fechaFactura)} />
                   </FichaGrid>
                 </TabsContent>
 
                 <TabsContent value="vehiculo" className="pt-5">
                   <FichaGrid>
-                    <Dato label="Plantilla" value={vehiculo?.plantillaInventario} />
-                    <Dato label="Placa" value={vehiculo?.placaRodaje} />
+                    <Dato label="Clase" value={vehiculo?.plantillaInventario} />
+                    <Dato label="Placa" value={vehiculo?.placa} />
                     <Dato label="Marca" value={vehiculo?.marca} />
                     <Dato label="Modelo" value={vehiculo?.modelo} />
                     <Dato label="Ano fabricacion" value={vehiculo?.anioFabricacion} />
@@ -143,12 +176,15 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Alto" value={vehiculo?.alto} />
                     <Dato label="Tipo suspension" value={vehiculo?.tipoSuspension} />
                     <Dato label="Tipo tornamesa" value={vehiculo?.tipoTornamesa} />
+                    <Dato label="Clase Euro / NEC" value={vehiculo?.claseEuro} />
+                    <Dato label="Ratio corona" value={vehiculo?.ratioCorona} />
+                    <Dato label="Tipo transmision" value={vehiculo?.tipoTransmision} />
                   </FichaGrid>
                 </TabsContent>
 
                 <TabsContent value="control" className="pt-5">
                   <FichaGrid>
-                    <Dato label="Estado operativo" value={vehiculo?.estadoOperativo} />
+                    <Dato label="Condicion activo" value={vehiculo?.estadoOperativo} />
                     <Dato label="Estado calibracion" value={vehiculo?.estadoCalibracion} />
                     <Dato label="Factor correccion" value={vehiculo?.factorCorreccion} />
                     <Dato label="Capacidad tanque galones" value={vehiculo?.capacidadTanqueGalones} />
@@ -180,11 +216,36 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                 <CardTitle>Registro del activo</CardTitle>
               </CardHeader>
               <CardContent>
-                <FichaGrid>
-                  <Dato label="ID inventario" value={activo.id} />
-                  <Dato label="Fecha de creacion" value={formatearFechaHora(activo.createdAt)} />
-                  <Dato label="Ultima modificacion" value={formatearFechaHora(activo.updatedAt)} />
-                </FichaGrid>
+                  <FichaGrid>
+                    <Dato label="ID inventario" value={activo.id} />
+                    {activo.activoOrigenId ? (
+                      <Dato label="ID anterior" value={activo.activoOrigenId} />
+                    ) : null}
+                    {ultimaConfiguracionHistorica ? (
+                      <>
+                        <Dato
+                          label="Tipo cambio historico"
+                          value={formatearTipoConfiguracion(
+                            ultimaConfiguracionHistorica.tipoCambio
+                          )}
+                        />
+                        <Dato
+                          label="Codigo anterior"
+                          value={ultimaConfiguracionHistorica.codigoAnterior}
+                        />
+                        <Dato
+                          label="Placa anterior"
+                          value={ultimaConfiguracionHistorica.placaAnterior}
+                        />
+                        <Dato
+                          label="Carroceria anterior"
+                          value={ultimaConfiguracionHistorica.carroceriaAnterior}
+                        />
+                      </>
+                    ) : null}
+                    <Dato label="Fecha de creacion" value={formatearFechaHora(activo.createdAt)} />
+                    <Dato label="Ultima modificacion" value={formatearFechaHora(activo.updatedAt)} />
+                  </FichaGrid>
               </CardContent>
             </Card>
 
@@ -196,6 +257,15 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
           codigo={activo.codigo}
           editable={false}
           imagenes={imagenes}
+        />
+
+        <ConfiguracionHistoricaActivo
+          configuraciones={configuracionHistorica}
+        />
+
+        <HistorialActivo
+          configuraciones={configuracionHistorica}
+          historial={historial}
         />
       </div>
     </main>
@@ -225,6 +295,48 @@ function formatearFechaHora(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatearFecha(value: string | null | undefined) {
+  if (!value) return null;
+  return new Intl.DateTimeFormat("es-PE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatearMonto(
+  value: number | null | undefined,
+  moneda: string | null | undefined
+) {
+  if (value === null || value === undefined) return null;
+
+  return new Intl.NumberFormat("es-PE", {
+    style: "currency",
+    currency: moneda || "PEN",
+  }).format(value);
+}
+
+function formatearTipoConfiguracion(value: string) {
+  const labels: Record<string, string> = {
+    REPOTENCIACION: "Repotenciacion",
+    CAMBIO_CARROCERIA: "Cambio de carroceria",
+    CAMBIO_PLACA: "Replaqueo",
+    REMOLCAMIENTO: "Remolcamiento",
+    MEJORA_ESTRUCTURAL: "Mejora estructural",
+    RENOVACION: "Renovacion",
+    OTRO: "Configuracion historica",
+  };
+
+  return labels[value] ?? value.replaceAll("_", " ").toLowerCase();
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return value ?? "-";
 }
 
 function Dato({

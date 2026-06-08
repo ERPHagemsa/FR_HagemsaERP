@@ -2,10 +2,29 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
+import {
+  BadgeCheck,
+  Boxes,
+  Briefcase,
+  Car,
+  CircleDot,
+  Fuel,
+  MapPin,
+  ReceiptText,
+  Settings,
+  ShieldCheck,
+  Truck,
+  Users,
+  Wallet,
+  Warehouse,
+  Wrench,
+} from "lucide-react"
 
 import { NavMain } from "@/compartido/componentes/nav-main"
 import { NavUser } from "@/compartido/componentes/nav-user"
 import { ThemeToggle } from "@/compartido/componentes/theme-toggle"
+import { useTieneRol } from "@/modulos/autenticacion/ganchos/use-tiene-rol"
 import {
   Sidebar,
   SidebarContent,
@@ -14,22 +33,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
+  useSidebar,
 } from "@/compartido/componentes/ui/sidebar"
-import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  Analytics01Icon,
-  Building03Icon,
-  Car01Icon,
-  CheckListIcon,
-  FuelStationIcon,
-  Invoice01Icon,
-  LegalDocument01Icon,
-  Route01Icon,
-  Settings02Icon,
-  ToolsIcon,
-  TruckIcon,
-  UserGroupIcon,
-} from "@hugeicons/core-free-icons"
 
 const data = {
   user: {
@@ -39,31 +45,31 @@ const data = {
   },
   navMain: [
     {
-      title: "Activos",
-      icon: <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} />,
+      title: "Socio de Negocios",
+      url: "/socio-negocios",
+      icon: <Users />,
       items: [
-        { title: "Registro de activos", url: "/activos" },
-        { title: "Inventario de activos", url: "/activos/inventario" },
+        { title: "Listar socios", url: "/socio-negocios/listar" },
+        { title: "Registrar socio", url: "/socio-negocios/nuevo" },
+        { title: "Historial", url: "/socio-negocios/historial" },
+      ],
+    },
+    {
+      title: "Activos",
+      url: "/activos",
+      icon: <Boxes />,
+      items: [
+        { title: "Listado de activos", url: "/activos/inventario" },
+        { title: "Inventario fisico", url: "/activos/inventario-fisico" },
         { title: "Nuevo activo", url: "/activos/nuevo" },
+        { title: "Nuevo acople", url: "/activos/nuevo-acople" },
         { title: "Estados", url: "#" },
         { title: "Documentos", url: "#" },
       ],
     },
     {
-      title: "Socio de Negocios",
-      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
-      items: [
-        { title: "Resumen", url: "/socio-negocios" },
-        { title: "Clientes", url: "/socio-negocios/clientes" },
-        { title: "Proveedores", url: "/socio-negocios/proveedores" },
-        { title: "Personal", url: "/socio-negocios/personal" },
-        { title: "Consultas", url: "/socio-negocios/consultas" },
-        { title: "Reportes", url: "/socio-negocios/reportes" },
-      ],
-    },
-    {
       title: "TMS-Operaciones",
-      icon: <HugeiconsIcon icon={TruckIcon} strokeWidth={2} />,
+      icon: <Truck />,
       items: [
         { title: "Ordenes de Servicio", url: "#" },
         { title: "Manifiestos", url: "#" },
@@ -73,7 +79,7 @@ const data = {
     },
     {
       title: "WMS-Almacen",
-      icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
+      icon: <Warehouse />,
       items: [
         { title: "Inventario", url: "#" },
         { title: "Ingresos", url: "#" },
@@ -83,16 +89,18 @@ const data = {
     },
     {
       title: "Gestion Comercial",
-      icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
+      icon: <Briefcase />,
       items: [
-        { title: "Cotizaciones", url: "/comercial" },
+        { title: "Prospectos", url: "/comercial/prospectos" },
+        { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
+        { title: "Cotizaciones", url: "/comercial/cotizaciones" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
       ],
     },
     {
       title: "Seguimiento y Monitoreo",
-      icon: <HugeiconsIcon icon={Route01Icon} strokeWidth={2} />,
+      icon: <MapPin />,
       items: [
         { title: "Tracking GPS", url: "#" },
         { title: "Checkpoints", url: "#" },
@@ -103,7 +111,7 @@ const data = {
     {
       title: "Flota y Disponibilidad",
       url: "/flota",
-      icon: <HugeiconsIcon icon={Car01Icon} strokeWidth={2} />,
+      icon: <Car />,
       items: [
         { title: "Unidades", url: "/flota/unidades" },
         { title: "Conductores", url: "#" },
@@ -113,7 +121,7 @@ const data = {
     },
     {
       title: "Acreditaciones",
-      icon: <HugeiconsIcon icon={LegalDocument01Icon} strokeWidth={2} />,
+      icon: <BadgeCheck />,
       items: [
         { title: "Homologaciones", url: "#" },
         { title: "Documentos", url: "#" },
@@ -122,7 +130,7 @@ const data = {
     },
     {
       title: "Mantenimiento de Flota",
-      icon: <HugeiconsIcon icon={ToolsIcon} strokeWidth={2} />,
+      icon: <Wrench />,
       items: [
         { title: "Ordenes", url: "#" },
         { title: "Preventivos", url: "#" },
@@ -131,7 +139,7 @@ const data = {
     },
     {
       title: "Gestion de Neumaticos",
-      icon: <HugeiconsIcon icon={Route01Icon} strokeWidth={2} />,
+      icon: <CircleDot />,
       items: [
         { title: "Inventario", url: "#" },
         { title: "Rotaciones", url: "#" },
@@ -140,7 +148,7 @@ const data = {
     },
     {
       title: "Control de Combustible",
-      icon: <HugeiconsIcon icon={FuelStationIcon} strokeWidth={2} />,
+      icon: <Fuel />,
       items: [
         { title: "Asignaciones", url: "/combustible" },
         { title: "Vales", url: "/combustible/solicitudes" },
@@ -150,7 +158,7 @@ const data = {
     },
     {
       title: "Valorizacion y Facturacion",
-      icon: <HugeiconsIcon icon={Invoice01Icon} strokeWidth={2} />,
+      icon: <ReceiptText />,
       items: [
         { title: "Valorizaciones", url: "#" },
         { title: "Facturas", url: "#" },
@@ -159,7 +167,7 @@ const data = {
     },
     {
       title: "Liquidacion de Viaticos",
-      icon: <HugeiconsIcon icon={CheckListIcon} strokeWidth={2} />,
+      icon: <Wallet />,
       items: [
         { title: "Viaticos", url: "#" },
         { title: "Rendiciones", url: "#" },
@@ -167,49 +175,63 @@ const data = {
       ],
     },
     {
-      title: "Configuracion",
-      icon: <HugeiconsIcon icon={Settings02Icon} strokeWidth={2} />,
+      title: "CS-Configuración General",
+      url: "/configuracion",
+      icon: <Settings />,
       items: [
-        { title: "Usuarios y roles", url: "#" },
-        { title: "Parametros ERP", url: "#" },
-        { title: "Preferencias", url: "#" },
+        { title: "Configuraciones", url: "/configuracion/listar" },
+        { title: "Nueva configuración", url: "/configuracion/nuevo/ubicacion" },
+        { title: "Reportes", url: "/configuracion/reportes" },
       ],
     },
   ],
 }
 
+// Bloque de IAM y administracion (gestion de identidades, accesos y auditoria
+// del Auth Service). Visible solo para SUPER_ADMIN — todas sus rutas estan
+// ademas protegidas server-side en /(privado)/admin/layout.tsx.
+const navAdmin = {
+  title: "IAM y administracion",
+  icon: <ShieldCheck />,
+  items: [
+    { title: "Cuentas", url: "/admin/cuentas" },
+    { title: "Roles", url: "/admin/roles" },
+    { title: "Permisos", url: "/admin/permisos" },
+    { title: "Auditoria", url: "/admin/auditoria" },
+  ],
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const esSuperAdmin = useTieneRol("SUPER_ADMIN")
+  const navMain = esSuperAdmin ? [...data.navMain, navAdmin] : data.navMain
+  const { setOpenMobile } = useSidebar()
+
   return (
-    <Sidebar
-      collapsible="offcanvas"
-      className="border-none p-0 group-data-[variant=floating]:p-0 [&_[data-slot=sidebar-inner]]:rounded-none [&_[data-slot=sidebar-inner]]:bg-sidebar [&_[data-slot=sidebar-inner]]:shadow-none [&_[data-slot=sidebar-inner]]:ring-0"
-      {...props}
-    >
-      <SidebarHeader className="border-b border-sidebar-border/60 p-3">
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
+              size="lg"
               asChild
-              className="h-auto rounded-2xl bg-transparent px-0 py-0 text-sidebar-foreground shadow-none ring-0 hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent active:text-sidebar-foreground data-[slot=sidebar-menu-button]:p-0!"
+              className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link
-                href="/"
-                className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-sidebar-accent"
-              >
-                <span className="flex size-14 shrink-0 items-center justify-center">
-                  <img
+              <Link href="/" onClick={() => setOpenMobile(false)}>
+                <span className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-accent">
+                  <Image
                     src="/logo/logo.svg"
                     alt="Hagemsa"
-                    className="size-full object-contain"
+                    width={24}
+                    height={24}
+                    className="size-6 object-contain"
                   />
                 </span>
-                <span className="min-w-0 flex flex-1 flex-col gap-0.5">
-                  <span className="truncate text-[15px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground">
+                <span className="grid flex-1 text-left leading-tight">
+                  <span className="truncate text-sm font-semibold">
                     Hagemsa ERP
                   </span>
-                  <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/52">
-                    <span className="size-1.5 rounded-full bg-primary" />
-                    Operacion
+                  <span className="truncate text-xs text-muted-foreground">
+                    Operación
                   </span>
                 </span>
               </Link>
@@ -217,16 +239,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent className="px-1.5 py-3">
-        <NavMain items={data.navMain} />
+
+      <SidebarContent>
+        <NavMain items={navMain} />
       </SidebarContent>
-      <SidebarFooter className="gap-2 border-t border-sidebar-border/70 p-2.5">
-        <ThemeToggle
-          showLabel
-          className="border-sidebar-border/80 bg-sidebar-accent/70 text-sidebar-foreground hover:bg-sidebar-accent"
-        />
+
+      <SidebarFooter>
+        <ThemeToggle showLabel />
         <NavUser user={data.user} />
       </SidebarFooter>
+
+      <SidebarRail />
     </Sidebar>
   )
 }

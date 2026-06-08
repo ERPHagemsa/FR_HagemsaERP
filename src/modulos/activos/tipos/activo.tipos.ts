@@ -1,4 +1,5 @@
-export type EstadoActivo = "ACTIVO" | "INACTIVO" | "SINIESTRADO" | "ELIMINADO";
+export type EstadoActivo = "ACTIVO" | "INACTIVO" | "SINIESTRADO";
+export type EstadoRegistro = boolean;
 export type TipoActivo =
   | "VEHICULO"
   | "EQUIPO"
@@ -11,9 +12,37 @@ export type EstadoCalibracion =
   | "NO_CALIBRADA"
   | "PENDIENTE"
   | "OBSERVADA";
+export type ClaseEuro = "EURO_1" | "EURO_2" | "EURO_3" | "EURO_4" | "EURO_5";
+export type TipoTransmision =
+  | "AUTOMATICA"
+  | "AUTOMATIZADA"
+  | "MECANICA_10_VELOCIDADES"
+  | "MECANICA_13_VELOCIDADES"
+  | "MECANICA_15_VELOCIDADES"
+  | "MECANICA_18_VELOCIDADES"
+  | "MECANICA_OTRA";
+export type PlantillaInventario =
+  | "CAMION"
+  | "REMOLCADOR"
+  | "SEMIREMOLQUE"
+  | "EQUIPO_LIVIANO";
+
+export type CarroceriaReferencia = {
+  id: number;
+  plantillaInventario: PlantillaInventario;
+  nombre: string;
+  descripcion: string | null;
+  anchoSugerido: number | null;
+  longitudSugerida: number | null;
+  altoSugerido: number | null;
+  ejesSugeridos: number | null;
+  categoriaSugerida: string | null;
+  activo: boolean;
+};
 
 export type VehiculoDetalle = {
-  plantillaInventario: string;
+  plantillaInventario: PlantillaInventario;
+  carroceriaReferenciaId: number | null;
   tarjetaPropiedad: string | null;
   tarjetaMercancias: string | null;
   soat: string | null;
@@ -25,7 +54,7 @@ export type VehiculoDetalle = {
   certificadoMatpel: string | null;
   certificadoBonificacion: string | null;
   certificadoOperatividad: string | null;
-  placaRodaje: string | null;
+  placa: string | null;
   anioFabricacion: number | null;
   color: string | null;
   marca: string | null;
@@ -55,19 +84,83 @@ export type VehiculoDetalle = {
   capacidadTanqueGalones: number | null;
   estadoCalibracion: EstadoCalibracion | null;
   factorCorreccion: number | null;
+  claseEuro: ClaseEuro | null;
+  ratioCorona: number | null;
+  tipoTransmision: TipoTransmision | null;
 };
 
 export type Activo = {
-  id: string;
+  id: number;
   codigo: string;
   tipoActivo: TipoActivo;
   descripcion: string;
   ubicacion: string;
   estadoActivo: EstadoActivo;
+  estadoRegistro?: EstadoRegistro;
+  activoOrigenId: number | null;
   observacion: string | null;
+  valorUnidad: number | null;
+  moneda: string | null;
+  proveedor: string | null;
+  numeroFactura: string | null;
+  fechaFactura: string | null;
   vehiculo: VehiculoDetalle | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ActivoHistorial = {
+  id: number;
+  activoId: number;
+  tipoCambio: string;
+  campo: string | null;
+  valorAnterior: string | null;
+  valorNuevo: string | null;
+  motivo: string | null;
+  usuario: string | null;
+  createdAt: string;
+};
+
+export type TipoCambioConfiguracionHistorica =
+  | "REPOTENCIACION"
+  | "CAMBIO_CARROCERIA"
+  | "CAMBIO_PLACA"
+  | "REMOLCAMIENTO"
+  | "MEJORA_ESTRUCTURAL"
+  | "RENOVACION"
+  | "OTRO";
+
+export type ActivoConfiguracionHistorica = {
+  id: number;
+  activoNuevoId: number;
+  activoAnteriorId: number | null;
+  codigoAnterior: string | null;
+  placaAnterior: string | null;
+  carroceriaAnterior: string | null;
+  codigoNuevo: string;
+  placaNueva: string | null;
+  carroceriaNueva: string | null;
+  tipoCambio: TipoCambioConfiguracionHistorica;
+  motivo: string | null;
+  fechaCambio: string;
+  documentoSustentoUrl: string | null;
+  usuarioRegistro: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CrearConfiguracionHistoricaPayload = {
+  codigoNuevo?: string;
+  codigoAnterior?: string;
+  placaAnterior?: string | null;
+  carroceriaAnterior?: string | null;
+  placaNueva?: string | null;
+  carroceriaNueva?: string | null;
+  tipoCambio: TipoCambioConfiguracionHistorica;
+  motivo: string;
+  fechaCambio?: string;
+  documentoSustentoUrl?: string | null;
+  usuarioRegistro?: string | null;
 };
 
 export type CrearActivoPayload = {
@@ -77,8 +170,13 @@ export type CrearActivoPayload = {
   ubicacion: string;
   estadoActivo: EstadoActivo;
   observacion?: string;
+  valorUnidad?: number | null;
+  moneda?: string | null;
+  proveedor?: string | null;
+  numeroFactura?: string | null;
+  fechaFactura?: string | null;
   vehiculo?: Partial<VehiculoDetalle> & {
-    plantillaInventario: string;
+    plantillaInventario: PlantillaInventario;
   };
 };
 
@@ -93,8 +191,8 @@ export type TipoImagenActivo =
   | "OTRO";
 
 export type ImagenActivo = {
-  id: string;
-  activoId: string;
+  id: number;
+  activoId: number;
   tipoImagen: TipoImagenActivo;
   url: string;
   descripcion: string | null;
@@ -138,8 +236,8 @@ export type EstadoDocumentoActivo =
   | "NO_APLICA";
 
 export type DocumentoActivo = {
-  id: string;
-  activoId: string;
+  id: number;
+  activoId: number;
   tipoDocumento: TipoDocumentoActivo;
   estadoDocumento: EstadoDocumentoActivo;
   numero: string | null;
@@ -167,8 +265,8 @@ export type TipoTanqueActivo = "DIESEL" | "UREA";
 export type UnidadMedidaTanque = "GALON" | "LITRO";
 
 export type TanqueActivo = {
-  id: string;
-  activoId: string;
+  id: number;
+  activoId: number;
   tipoTanque: TipoTanqueActivo;
   capacidad: number;
   unidadMedida: UnidadMedidaTanque;
@@ -182,5 +280,82 @@ export type CrearTanqueActivoPayload = {
   tipoTanque: TipoTanqueActivo;
   capacidad: number;
   orden?: number;
+  observacion?: string;
+};
+
+export type EstadoInventarioFisico =
+  | "ABIERTO"
+  | "EN_REVISION"
+  | "CERRADO"
+  | "ANULADO";
+
+export type EstadoRevisionInventario =
+  | "PENDIENTE"
+  | "ENCONTRADO"
+  | "FALTANTE"
+  | "OBSERVADO"
+  | "NO_APLICA";
+
+export type InventarioFisicoDetalle = {
+  id: number | null;
+  inventarioId: number;
+  activoId: number;
+  estadoRevision: EstadoRevisionInventario;
+  codigoActivo: string;
+  descripcionActivo: string | null;
+  tipoActivo: string | null;
+  estadoActivo: string | null;
+  marca: string | null;
+  modelo: string | null;
+  carroceria: string | null;
+  estadoOperativo: string | null;
+  estadoCalibracion: string | null;
+  placa: string | null;
+  ubicacionEsperada: string | null;
+  ubicacionEncontrada: string | null;
+  observacion: string | null;
+  usuarioRevision: string | null;
+  fechaRevision: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InventarioFisico = {
+  id: number;
+  codigo: string;
+  nombre: string;
+  descripcion: string | null;
+  fechaApertura: string;
+  fechaCierre: string | null;
+  estado: EstadoInventarioFisico;
+  usuarioApertura: string | null;
+  usuarioCierre: string | null;
+  observacion: string | null;
+  createdAt: string;
+  updatedAt: string;
+  detalles: InventarioFisicoDetalle[];
+};
+
+export type CrearInventarioFisicoPayload = {
+  codigo?: string;
+  nombre?: string;
+  descripcion?: string;
+  usuarioApertura?: string;
+};
+
+export type ActualizarDetalleInventarioFisicoPayload = {
+  estadoRevision: EstadoRevisionInventario;
+  ubicacionEncontrada?: string;
+  observacion?: string;
+  usuarioRevision?: string;
+};
+
+export type RegistrarRevisionInventarioFisicoPayload =
+  ActualizarDetalleInventarioFisicoPayload & {
+    activoId: number;
+  };
+
+export type CerrarInventarioFisicoPayload = {
+  usuarioCierre?: string;
   observacion?: string;
 };

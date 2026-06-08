@@ -2,7 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -12,7 +14,11 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
-import { cambiarEstadoActivo, siniestrarActivo } from "../servicios/activos-api";
+import {
+  useCambiarEstadoActivoMutation,
+  useCambiarEstadoRegistroMutation,
+  useSiniestrarActivoMutation,
+} from "../servicios/activos-queries";
 import type { Activo } from "../tipos/activo.tipos";
 
 type Props = {
@@ -23,25 +29,29 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
   const router = useRouter();
   const [motivo, setMotivo] = React.useState("");
   const [isSaving, setIsSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const [mostrarConfirmacionBorrado, setMostrarConfirmacionBorrado] =
     React.useState(false);
+  const cambiarEstadoMutation = useCambiarEstadoActivoMutation();
+  const cambiarEstadoRegistroMutation = useCambiarEstadoRegistroMutation();
+  const siniestrarMutation = useSiniestrarActivoMutation();
   const estaCerrado =
-    activo.estadoActivo === "SINIESTRADO" || activo.estadoActivo === "ELIMINADO";
+    activo.estadoActivo === "SINIESTRADO" || activo.estadoRegistro === false;
 
   async function onSiniestrar() {
     if (!confirm("Se marcara el activo como SINIESTRADO. Deseas continuar?")) return;
-    setError(null);
     setIsSaving(true);
 
     try {
-      const saved = await siniestrarActivo(activo.id, {
-        observacion: motivo.trim() || undefined,
+      const saved = await siniestrarMutation.mutateAsync({
+        id: activo.id,
+        payload: {
+          observacion: motivo.trim() || undefined,
+        },
       });
       router.push(`/activos/${saved.codigo}?siniestrado=1`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo siniestrar el activo");
+      toast.error(extraerMensajeError(err, "No se pudo siniestrar el activo"));
     } finally {
       setIsSaving(false);
     }
@@ -49,39 +59,43 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
 
   async function onInactivar() {
     if (!confirm("Se marcara el activo como INACTIVO. Deseas continuar?")) return;
-    setError(null);
     setIsSaving(true);
 
     try {
-      const saved = await cambiarEstadoActivo(activo.id, {
-        estadoActivo: "INACTIVO",
-        motivo: motivo.trim() || undefined,
-        usuario: "activos.web",
+      const saved = await cambiarEstadoMutation.mutateAsync({
+        id: activo.id,
+        payload: {
+          estadoActivo: "INACTIVO",
+          motivo: motivo.trim() || undefined,
+          usuario: "activos.web",
+        },
       });
       router.push(`/activos/${saved.codigo}?inactive=1`);
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo inactivar el activo");
+      toast.error(extraerMensajeError(err, "No se pudo inactivar el activo"));
     } finally {
       setIsSaving(false);
     }
   }
 
   async function onEliminar() {
-    setError(null);
     setIsSaving(true);
 
     try {
-      const saved = await cambiarEstadoActivo(activo.id, {
-        estadoActivo: "ELIMINADO",
-        motivo: motivo.trim() || "Borrado logico desde Activos",
-        usuario: "activos.web",
+      const saved = await cambiarEstadoRegistroMutation.mutateAsync({
+        id: activo.id,
+        payload: {
+          estadoRegistro: false,
+          motivo: motivo.trim() || "Borrado logico desde Activos",
+          usuario: "activos.web",
+        },
       });
       router.push(`/activos/${saved.codigo}?deleted=1`);
       router.refresh();
       setMostrarConfirmacionBorrado(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo borrar el activo");
+      toast.error(extraerMensajeError(err, "No se pudo borrar el activo"));
     } finally {
       setIsSaving(false);
     }
@@ -103,12 +117,6 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
             disabled={estaCerrado || isSaving}
           />
         </div>
-
-        {error ? (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
 
         <div className="flex flex-wrap justify-end gap-2">
           <Button

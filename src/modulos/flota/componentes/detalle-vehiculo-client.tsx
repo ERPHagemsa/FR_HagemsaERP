@@ -356,13 +356,41 @@ export default function DetalleVehiculoClient({ initialData, id }: any) {
         {/* ─── Gestión de contrato ─── */}
         <Card>
           <CardHeader>
-            <CardTitle>Gestión de Contrato</CardTitle>
-            <CardDescription>
-              Modifica o retira la asignación contractual actual de este vehículo
-            </CardDescription>
+            <div className="flex items-start justify-between w-full">
+              <div>
+                <CardTitle>Gestión de Contrato</CardTitle>
+                <CardDescription>
+                  Modifica o retira la asignación contractual actual de este vehículo
+                </CardDescription>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Assign button outside form but submits it via form attribute */}
+                <Button
+                  type="submit"
+                  form="contrato-form"
+                  disabled={loading || !contratoSeleccionado}
+                >
+                  {loading ? "Guardando..." : "Asignar Contrato"}
+                </Button>
+
+                {tieneContrato && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={onRetire}
+                    disabled={loading}
+                  >
+                    Retirar Contrato
+                  </Button>
+                )}
+              </div>
+            </div>
           </CardHeader>
+
           <CardContent>
             <form
+              id="contrato-form"
               onSubmit={onSave}
               className="flex flex-col md:flex-row gap-4 items-end"
             >
@@ -381,19 +409,6 @@ export default function DetalleVehiculoClient({ initialData, id }: any) {
                   </p>
                 )}
               </div>
-              <Button type="submit" disabled={loading || !contratoSeleccionado}>
-                {loading ? "Guardando..." : "Asignar Contrato"}
-              </Button>
-              {tieneContrato && (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={onRetire}
-                  disabled={loading}
-                >
-                  Retirar Contrato
-                </Button>
-              )}
             </form>
           </CardContent>
         </Card>

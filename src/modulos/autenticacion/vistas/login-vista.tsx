@@ -1,10 +1,13 @@
 "use client"
 
 import { FormEvent, useState } from "react"
+import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Login03Icon } from "@hugeicons/core-free-icons"
 
+import { extraerMensajeError } from "@/compartido/api"
+import { clienteHttp } from "@/compartido/api/cliente-http"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
@@ -25,8 +28,9 @@ import { Input } from "@/compartido/componentes/ui/input"
 export function LoginVista() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState("operaciones@hagemsa.local")
-  const [password, setPassword] = useState("demo123")
+  const motivo = searchParams.get("motivo")
+  const [identificador, setIdentificador] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
 
@@ -36,26 +40,11 @@ export function LoginVista() {
     setError(null)
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          message?: string
-        } | null
-
-        throw new Error(payload?.message ?? "No se pudo iniciar sesion.")
-      }
-
+      await clienteHttp.post("/api/auth/login", { identificador, password })
       router.replace(searchParams.get("next") || "/")
       router.refresh()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "No se pudo iniciar sesion.")
+    } catch (err) {
+      setError(extraerMensajeError(err, "No se pudo iniciar sesion."))
     } finally {
       setCargando(false)
     }
@@ -66,7 +55,13 @@ export function LoginVista() {
       <div className="flex w-full max-w-md flex-col gap-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="flex size-16 items-center justify-center">
-            <img src="/logo/logo.svg" alt="Hagemsa" className="size-full object-contain" />
+            <Image
+              src="/logo/logo.svg"
+              alt="Hagemsa"
+              width={64}
+              height={64}
+              className="size-full object-contain"
+            />
           </span>
           <div>
             <h1 className="text-2xl font-semibold">Hagemsa ERP</h1>
@@ -75,6 +70,15 @@ export function LoginVista() {
             </p>
           </div>
         </div>
+
+        {motivo === "sesion_expirada" ? (
+          <Alert>
+            <AlertTitle>Tu sesion expiro</AlertTitle>
+            <AlertDescription>
+              Por seguridad, te pedimos que vuelvas a ingresar tus credenciales.
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <Card>
           <CardHeader>
@@ -85,13 +89,15 @@ export function LoginVista() {
             <form onSubmit={(event) => void iniciarSesion(event)}>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="email">Correo</FieldLabel>
+                  <FieldLabel htmlFor="identificador">
+                    Usuario o correo
+                  </FieldLabel>
                   <Input
-                    id="email"
-                    autoComplete="email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
+                    id="identificador"
+                    autoComplete="username"
+                    type="text"
+                    value={identificador}
+                    onChange={(event) => setIdentificador(event.target.value)}
                     required
                   />
                 </Field>
@@ -123,13 +129,6 @@ export function LoginVista() {
             </form>
           </CardContent>
         </Card>
-
-        <Alert>
-          <AlertTitle>Acceso temporal</AlertTitle>
-          <AlertDescription>
-            Esta pantalla deja una sesion local hasta conectar la API real de autenticacion.
-          </AlertDescription>
-        </Alert>
       </div>
     </main>
   )

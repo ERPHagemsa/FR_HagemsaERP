@@ -15,14 +15,22 @@ export default async function Page({ params, searchParams }: Props) {
       : query.updated === "1"
         ? "updated"
         : query.inactive === "1"
-          ? "inactive"
-          : query.siniestrado === "1"
-            ? "siniestrado"
+        ? "inactive"
+        : query.siniestrado === "1"
+          ? "siniestrado"
+          : query.deleted === "1"
+            ? "deleted"
             : undefined;
 
   return (
     <>
-      <SiteHeader title="Detalle de activo" />
+      <SiteHeader
+        title="Ver Activo"
+        breadcrumbs={[
+          { title: "Activos", href: "/activos" },
+          { title: "Ver Activo" },
+        ]}
+      />
       <ActivoDetalleVista codigo={codigo} accion={accion} />
     </>
   );
