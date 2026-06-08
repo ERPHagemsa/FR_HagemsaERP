@@ -14,10 +14,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
-import type {
-  Moneda,
-  TipoLinea,
-} from "../tipos/cotizaciones.tipos";
+import type { TipoLinea } from "../tipos/cotizaciones.tipos";
 import type {
   DraftLinea,
   DraftCargaHijo,
@@ -25,7 +22,6 @@ import type {
   DraftAlmacenajeHijo,
   DraftPersonalHijo,
 } from "../servicios/cotizaciones-editor.utils";
-import { EditorCargos } from "./editor-cargos";
 import { ModalidadSelector } from "./modalidad-selector";
 
 const TIPOS_LINEA: { valor: TipoLinea; etiqueta: string }[] = [
@@ -35,11 +31,6 @@ const TIPOS_LINEA: { valor: TipoLinea; etiqueta: string }[] = [
   { valor: "AGENCIAMIENTO", etiqueta: "Agenciamiento" },
   { valor: "PERSONAL", etiqueta: "Personal" },
   { valor: "SERVICIO_AUXILIAR", etiqueta: "Servicio auxiliar" },
-];
-
-const MONEDAS: { valor: Moneda; etiqueta: string }[] = [
-  { valor: "PEN", etiqueta: "PEN" },
-  { valor: "USD", etiqueta: "USD" },
 ];
 
 type Props = {
@@ -141,9 +132,7 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
             ) : null}
           </div>
 
-          {/* Ruta (solo transporte): origen → destino es el dato que define el
-              servicio, por eso va junto a la modalidad y NO enterrado entre las
-              dimensiones de la carga. */}
+          {/* Ruta (solo transporte) */}
           {linea.tipoLinea === "TRANSPORTE" ? (
             <div className="flex flex-col gap-2">
               <p className="text-xs font-medium text-muted-foreground">Ruta</p>
@@ -174,29 +163,10 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
             </div>
           ) : null}
 
-          {/* Fila 3: moneda + cantidad + precio unitario. El backend calcula
-              precioTotal = precioUnitario × cantidad (solo lectura). */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Moneda</Label>
-              <Select
-                value={linea.moneda}
-                onValueChange={(v) => onChange({ moneda: v as Moneda })}
-                disabled={disabled}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {MONEDAS.map((m) => (
-                    <SelectItem key={m.valor} value={m.valor}>
-                      {m.etiqueta}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+          {/* Fila 3: cantidad + precio unitario.
+              Moneda se gestiona a nivel de version en editor-borrador-campos.tsx.
+              El backend calcula precioTotal = precioUnitario × cantidad (solo lectura). */}
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-1.5">
               <Label className="text-xs text-muted-foreground">Cantidad</Label>
               <Input
@@ -265,16 +235,6 @@ export function LineaForm({ linea, erroresCampo = {}, disabled, onEliminar, onCh
               }
             />
           ) : null}
-
-          {/* Cargos adicionales */}
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-medium text-muted-foreground">Cargos adicionales</p>
-            <EditorCargos
-              cargos={linea.cargos}
-              disabled={disabled}
-              onChange={(cargos) => onChange({ cargos })}
-            />
-          </div>
         </div>
       ) : null}
     </div>

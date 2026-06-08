@@ -10,9 +10,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Label } from "@/compartido/componentes/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select";
 import { Separator } from "@/compartido/componentes/ui/separator";
 
-import type { DraftBorrador } from "../servicios/cotizaciones-editor.utils";
+import type { Moneda } from "../tipos/cotizaciones.tipos";
+import type { DraftBorrador, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
+import { seccionDefectoVacia } from "../servicios/cotizaciones-editor.utils";
+import { EditorCargos } from "./editor-cargos";
+import { EditorLeadtimes } from "./editor-leadtimes";
 import { EditorLineas } from "./editor-lineas";
 import { EditorSecciones } from "./editor-secciones";
 import { EditorStandby } from "./editor-standby";
@@ -21,10 +33,9 @@ import { EditorStandby } from "./editor-standby";
 // el contenedor (CotizacionEditor para editar, CotizacionEditorNuevo para crear)
 // provee el estado del draft y el handler de guardado.
 //
-// Jerarquia de UX (ver dominio en API-Cotizaciones §5.4): el caso tipico de una
-// cotizacion NO lleva secciones — las lineas van sueltas a nivel raiz. Por eso
-// "Lineas" es el camino principal y "Secciones" es una agrupacion OPCIONAL que
-// se ofrece solo cuando la cotizacion realmente tiene varios bloques.
+// ADR-D1: el draft siempre modela la seccion por defecto (esDefecto:true) cuando hay
+// lineas sin seccion. El camino principal ("sin agrupar") usa esa seccion invisible.
+// ADR-D2: la seccion por defecto sin nombre y sin cargos emite lineas[] raiz en el payload.
 type Props = {
   draft: DraftBorrador;
   setDraft: React.Dispatch<React.SetStateAction<DraftBorrador>>;
@@ -46,34 +57,121 @@ export function EditorBorradorCampos({
   textoBoton,
   textoBotonGuardando,
 }: Props) {
-  const haySecciones = draft.secciones.length > 0;
-  // Estado derivado, sin effect: el panel se muestra si el usuario lo activó
-  // manualmente O si el draft ya trae secciones (ej: al editar una cotización
-  // existente o tras un refetch). "Ocultar" solo aplica cuando no hay secciones.
+  // Seccion por defecto (esDefecto:true) — bucket de lineas del camino simple
+  const seccionDefecto = draft.secciones.find((s) => s.esDefecto);
+  const seccionesExplicitas = draft.secciones.filter((s) => !s.esDefecto);
+  const haySeccionesExplicitas = seccionesExplicitas.length > 0;
+
+  // Estado derivado, sin effect: el panel se muestra si hay secciones ya o si el usuario lo activó.
   const [agruparManual, setAgruparManual] = React.useState(false);
-  const agruparEnSecciones = haySecciones || agruparManual;
+  const agruparEnSecciones = haySeccionesExplicitas || agruparManual;
+
+  // Asegurar que la seccion por defecto exista en el draft
+  function asegurarSeccionDefecto(d: DraftBorrador): DraftBorrador {
+    if (d.secciones.find((s) => s.esDefecto)) return d;
+    return { ...d, secciones: [seccionDefectoVacia(), ...d.secciones] };
+  }
+
+  // Actualizar lineas de la seccion por defecto
+  function actualizarLineasDefecto(lineas: DraftSeccion["lineas"]) {
+    setDraft((d) => {
+      const draft_ = asegurarSeccionDefecto(d);
+      return {
+        ...draft_,
+        secciones: draft_.secciones.map((s) =>
+          s.esDefecto ? { ...s, lineas } : s
+        ),
+      };
+    });
+  }
+
+  // Actualizar cargosAdicionales de la seccion por defecto
+  function actualizarCargosDefecto(
+    cargosAdicionales: DraftSeccion["cargosAdicionales"]
+  ) {
+    setDraft((d) => {
+      const draft_ = asegurarSeccionDefecto(d);
+      return {
+        ...draft_,
+        secciones: draft_.secciones.map((s) =>
+          s.esDefecto ? { ...s, cargosAdicionales } : s
+        ),
+      };
+    });
+  }
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Lineas — camino principal */}
+      {/* Datos de la version: moneda */}
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle className="text-base">Datos de la version</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Configuracion general que aplica a toda la version.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-5">
+          <div className="grid gap-1.5 md:max-w-xs">
+            <Label className="text-xs text-muted-foreground">
+              Moneda <span className="text-destructive">*</span>
+            </Label>
+            <Select
+              value={draft.moneda}
+              onValueChange={(v) => setDraft((d) => ({ ...d, moneda: v as Moneda }))}
+              disabled={guardando}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PEN">PEN — Sol peruano</SelectItem>
+                <SelectItem value="USD">USD — Dolar</SelectItem>
+              </SelectContent>
+            </Select>
+            {erroresCampo["moneda"] ? (
+              <p className="text-xs text-destructive">{erroresCampo["moneda"]}</p>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lineas — camino principal (seccion por defecto) */}
       <Card>
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">
-            Lineas ({draft.lineasSinSeccion.length})
+            Lineas ({seccionDefecto?.lineas.length ?? 0})
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Agregue aquí los conceptos de la cotización. Para la mayoría de los casos,
+            Agregue aqui los conceptos de la cotizacion. Para la mayoria de los casos,
             esto es todo lo necesario.
           </p>
         </CardHeader>
         <CardContent className="pt-5">
           <EditorLineas
-            lineas={draft.lineasSinSeccion}
+            lineas={seccionDefecto?.lineas ?? []}
             erroresCampo={erroresCampo}
             disabled={guardando}
-            onChange={(lineasSinSeccion) =>
-              setDraft((d) => ({ ...d, lineasSinSeccion }))
-            }
+            onChange={actualizarLineasDefecto}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Cargos adicionales de la seccion por defecto */}
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle className="text-base">
+            Cargos adicionales ({seccionDefecto?.cargosAdicionales.length ?? 0})
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Cargos extra de la cotizacion (escolta, viaticos, etc.). Suman al total.
+          </p>
+        </CardHeader>
+        <CardContent className="pt-5">
+          <EditorCargos
+            cargos={seccionDefecto?.cargosAdicionales ?? []}
+            erroresCampo={erroresCampo}
+            disabled={guardando}
+            onChange={actualizarCargosDefecto}
           />
         </CardContent>
       </Card>
@@ -82,19 +180,37 @@ export function EditorBorradorCampos({
       <Card>
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">
-            Standby / tarifas ({draft.standbySinSeccion.length})
+            Standby / tarifas ({draft.standbys.length})
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Tarifas de standby a nivel de versión (opcional).
+            Tarifas de standby a nivel de version (informativos, no suman al total).
           </p>
         </CardHeader>
         <CardContent className="pt-5">
           <EditorStandby
-            standby={draft.standbySinSeccion}
+            standby={draft.standbys}
             disabled={guardando}
-            onChange={(standbySinSeccion) =>
-              setDraft((d) => ({ ...d, standbySinSeccion }))
-            }
+            onChange={(standbys) => setDraft((d) => ({ ...d, standbys }))}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Lead times / plazos a nivel version */}
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle className="text-base">
+            Lead times / plazos ({draft.leadTimes.length})
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Plazos de entrega estimados para esta version (informativos).
+          </p>
+        </CardHeader>
+        <CardContent className="pt-5">
+          <EditorLeadtimes
+            leadTimes={draft.leadTimes}
+            erroresCampo={erroresCampo}
+            disabled={guardando}
+            onChange={(leadTimes) => setDraft((d) => ({ ...d, leadTimes }))}
           />
         </CardContent>
       </Card>
@@ -107,9 +223,9 @@ export function EditorBorradorCampos({
           <CardHeader className="border-b border-border">
             <div className="flex items-start justify-between gap-2">
               <CardTitle className="text-base">
-                Secciones ({draft.secciones.length})
+                Secciones ({seccionesExplicitas.length})
               </CardTitle>
-              {!haySecciones ? (
+              {!haySeccionesExplicitas ? (
                 <Button
                   type="button"
                   variant="ghost"
@@ -122,8 +238,8 @@ export function EditorBorradorCampos({
               ) : null}
             </div>
             <p className="text-sm text-muted-foreground">
-              Agrupe líneas en bloques con nombre (ej.: varios tramos o servicios
-              diferenciados). Úselas solo si la cotización lo necesita.
+              Agrupe lineas en bloques con nombre (ej.: varios tramos o servicios
+              diferenciados). Uselas solo si la cotizacion lo necesita.
             </p>
           </CardHeader>
           <CardContent className="pt-5">

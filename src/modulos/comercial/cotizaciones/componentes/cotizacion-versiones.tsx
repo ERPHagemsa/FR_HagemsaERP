@@ -7,14 +7,12 @@ import {
 } from "@/compartido/componentes/ui/card";
 
 import type {
-  Cargo,
   CargaHijo,
   EquipoHijo,
   AlmacenajeHijo,
   PersonalHijo,
   Linea,
   Seccion,
-  Standby,
   Version,
 } from "../tipos/cotizaciones.tipos";
 
@@ -68,12 +66,8 @@ function VersionCard({
     lineasPorSeccion.get(key)!.push(linea);
   }
 
-  const standbyPorSeccion = new Map<string | null, Standby[]>();
-  for (const sb of version.standbyTarifas) {
-    const key = sb.idSeccion ?? null;
-    if (!standbyPorSeccion.has(key)) standbyPorSeccion.set(key, []);
-    standbyPorSeccion.get(key)!.push(sb);
-  }
+  const standbys = version.standbys ?? [];
+  const leadTimes = version.leadTimes ?? [];
 
   return (
     <Card>
@@ -82,6 +76,10 @@ function VersionCard({
           <CardTitle className="text-base">
             Version {version.numeroVersion}
           </CardTitle>
+          {/* Moneda de la version junto al numero */}
+          <Badge variant="outline" className="text-xs font-medium">
+            {version.moneda}
+          </Badge>
           {esVigente ? (
             <Badge variant="default">Vigente</Badge>
           ) : null}
@@ -99,7 +97,11 @@ function VersionCard({
       <CardContent className="flex flex-col gap-5 pt-5">
         {/* Total */}
         <div className="rounded-xl border border-border bg-muted/30 p-4">
-          <TotalItem label="Monto total" valor={version.montoTotal} />
+          <TotalItem
+            label="Monto total"
+            valor={version.montoTotal}
+            moneda={version.moneda}
+          />
         </div>
 
         {/* Datos de validez/envio */}
@@ -118,7 +120,36 @@ function VersionCard({
           />
         </div>
 
-        {/* Secciones con sus lineas */}
+        {/* Lead times */}
+        {leadTimes.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium">Lead times / plazos</p>
+            <div className="overflow-hidden rounded-xl border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40">
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Descripcion</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Plazo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leadTimes.map((lt) => (
+                    <tr key={lt.id} className="border-b border-border last:border-0">
+                      <td className="px-3 py-2">{lt.descripcion}</td>
+                      <td className="px-3 py-2 text-muted-foreground">
+                        {lt.diasMax !== null
+                          ? `${lt.diasMin}–${lt.diasMax} dias`
+                          : `${lt.diasMin} dia${lt.diasMin !== 1 ? "s" : ""}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Secciones con sus lineas y cargosAdicionales */}
         {version.secciones.length > 0 ? (
           <div className="flex flex-col gap-3">
             <p className="text-sm font-medium">Secciones</p>
@@ -129,7 +160,7 @@ function VersionCard({
                   key={seccion.id}
                   seccion={seccion}
                   lineas={lineasPorSeccion.get(seccion.id) ?? []}
-                  standby={standbyPorSeccion.get(seccion.id) ?? []}
+                  moneda={version.moneda}
                 />
               ))}
           </div>
@@ -139,35 +170,49 @@ function VersionCard({
         {(lineasPorSeccion.get(null) ?? []).length > 0 ? (
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium">
-              Lineas sin seccion ({(lineasPorSeccion.get(null) ?? []).length})
+              Lineas ({(lineasPorSeccion.get(null) ?? []).length})
             </p>
             <div className="flex flex-col gap-2">
               {(lineasPorSeccion.get(null) ?? []).map((linea) => (
-                <LineaRow key={linea.id} linea={linea} seccionesMap={seccionesMap} />
+                <LineaRow
+                  key={linea.id}
+                  linea={linea}
+                  moneda={version.moneda}
+                  seccionesMap={seccionesMap}
+                />
               ))}
             </div>
           </div>
         ) : null}
 
-        {/* Standby sin seccion */}
-        {(standbyPorSeccion.get(null) ?? []).length > 0 ? (
+        {/* Standbys (informativos, no suman al total) */}
+        {standbys.length > 0 ? (
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium">Standby / tarifas</p>
+            <p className="text-xs text-muted-foreground">Informativos — no suman al monto total.</p>
             <div className="overflow-hidden rounded-xl border border-border">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Recurso</th>
-                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Tarifa/dia</th>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Moneda</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Descripcion</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Monto</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Unidad</th>
+                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Por linea</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(standbyPorSeccion.get(null) ?? []).map((sb) => (
+                  {standbys.map((sb) => (
                     <tr key={sb.id} className="border-b border-border last:border-0">
-                      <td className="px-3 py-2">{sb.recurso}</td>
-                      <td className="px-3 py-2 text-right">{formatearMonto(sb.tarifaDia)}</td>
-                      <td className="px-3 py-2">{sb.moneda}</td>
+                      <td className="px-3 py-2">{sb.descripcion}</td>
+                      <td className="px-3 py-2 text-right">{formatearMonto(sb.monto)}</td>
+                      <td className="px-3 py-2">{sb.unidad}</td>
+                      <td className="px-3 py-2">
+                        {sb.porLinea ? (
+                          <Badge variant="secondary" className="text-xs">Por linea</Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -177,7 +222,7 @@ function VersionCard({
         ) : null}
 
         {/* Si no hay lineas ni standby */}
-        {version.lineas.length === 0 && version.standbyTarifas.length === 0 ? (
+        {version.lineas.length === 0 && standbys.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Esta version no tiene lineas ni tarifas de standby.
           </p>
@@ -190,12 +235,14 @@ function VersionCard({
 function SeccionCard({
   seccion,
   lineas,
-  standby,
+  moneda,
 }: {
   seccion: Seccion;
   lineas: Linea[];
-  standby: Standby[];
+  moneda: string;
 }) {
+  const cargosAdicionales = seccion.cargosAdicionales ?? [];
+
   return (
     <div className="rounded-xl border border-border bg-muted/20">
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
@@ -211,30 +258,34 @@ function SeccionCard({
         <div className="p-3">
           <div className="flex flex-col gap-2">
             {lineas.map((linea) => (
-              <LineaRow key={linea.id} linea={linea} seccionesMap={new Map()} />
+              <LineaRow
+                key={linea.id}
+                linea={linea}
+                moneda={moneda}
+                seccionesMap={new Map()}
+              />
             ))}
           </div>
         </div>
       ) : null}
 
-      {standby.length > 0 ? (
+      {/* Cargos adicionales de la seccion */}
+      {cargosAdicionales.length > 0 ? (
         <div className="border-t border-border px-3 py-2">
-          <p className="mb-1.5 text-xs text-muted-foreground">Standby</p>
+          <p className="mb-1.5 text-xs text-muted-foreground">Cargos adicionales</p>
           <div className="overflow-hidden rounded-lg border border-border">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Recurso</th>
-                  <th className="px-3 py-1.5 text-right font-medium text-muted-foreground">Tarifa/dia</th>
-                  <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Moneda</th>
+                  <th className="px-3 py-1.5 text-left font-medium text-muted-foreground">Descripcion</th>
+                  <th className="px-3 py-1.5 text-right font-medium text-muted-foreground">Monto</th>
                 </tr>
               </thead>
               <tbody>
-                {standby.map((sb) => (
-                  <tr key={sb.id} className="border-b border-border last:border-0">
-                    <td className="px-3 py-1.5">{sb.recurso}</td>
-                    <td className="px-3 py-1.5 text-right">{formatearMonto(sb.tarifaDia)}</td>
-                    <td className="px-3 py-1.5">{sb.moneda}</td>
+                {cargosAdicionales.map((cargo) => (
+                  <tr key={cargo.id} className="border-b border-border last:border-0">
+                    <td className="px-3 py-1.5">{cargo.descripcion}</td>
+                    <td className="px-3 py-1.5 text-right">{formatearMonto(cargo.monto)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -243,7 +294,7 @@ function SeccionCard({
         </div>
       ) : null}
 
-      {lineas.length === 0 && standby.length === 0 ? (
+      {lineas.length === 0 && cargosAdicionales.length === 0 ? (
         <p className="px-4 py-3 text-sm text-muted-foreground">Sin lineas en esta seccion.</p>
       ) : null}
     </div>
@@ -252,8 +303,10 @@ function SeccionCard({
 
 function LineaRow({
   linea,
+  moneda,
 }: {
   linea: Linea;
+  moneda: string;
   seccionesMap: Map<string, Seccion>;
 }) {
   return (
@@ -268,9 +321,9 @@ function LineaRow({
           </div>
         </div>
         <div className="flex flex-col items-end gap-0.5 text-sm">
-          <span className="font-medium">{formatearMonto(linea.precioTotal)} {linea.moneda}</span>
+          <span className="font-medium">{formatearMonto(linea.precioTotal)} {moneda}</span>
           <span className="text-xs text-muted-foreground">
-            {linea.cantidad} × {formatearMonto(linea.precioUnitario)} {linea.moneda}
+            {linea.cantidad} × {formatearMonto(linea.precioUnitario)} {moneda}
           </span>
         </div>
       </div>
@@ -280,20 +333,6 @@ function LineaRow({
       {linea.equipo ? <EquipoDetalle equipo={linea.equipo} /> : null}
       {linea.almacenaje ? <AlmacenajeDetalle almacenaje={linea.almacenaje} /> : null}
       {linea.personal ? <PersonalDetalle personal={linea.personal} /> : null}
-
-      {/* Cargos adicionales */}
-      {linea.cargos.length > 0 ? (
-        <div className="mt-2 border-t border-border pt-2">
-          <p className="mb-1 text-xs text-muted-foreground">
-            Cargos ({linea.cargos.length})
-          </p>
-          <div className="flex flex-col gap-1">
-            {linea.cargos.map((cargo) => (
-              <CargoRow key={cargo.id} cargo={cargo} />
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -359,27 +398,21 @@ function PersonalDetalle({ personal }: { personal: PersonalHijo }) {
   );
 }
 
-function CargoRow({ cargo }: { cargo: Cargo }) {
-  return (
-    <div className="flex items-center justify-between gap-2 text-xs">
-      <div className="flex items-center gap-1.5">
-        <span className="text-muted-foreground">{formatearTipoCargo(cargo.tipoCargo)}</span>
-        <span>—</span>
-        <span>{cargo.concepto}</span>
-        {cargo.esContingente ? (
-          <Badge variant="outline" className="text-xs">Contingente</Badge>
-        ) : null}
-      </div>
-      <span className="font-medium">{formatearMonto(cargo.monto)}</span>
-    </div>
-  );
-}
-
-function TotalItem({ label, valor }: { label: string; valor: number | null }) {
+function TotalItem({
+  label,
+  valor,
+  moneda,
+}: {
+  label: string;
+  valor: number | null;
+  moneda: string;
+}) {
   return (
     <div className="flex flex-col gap-0.5 text-center">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="font-semibold">{valor !== null ? formatearMonto(valor) : "—"}</span>
+      <span className="font-semibold">
+        {valor !== null ? `${formatearMonto(valor)} ${moneda}` : "—"}
+      </span>
     </div>
   );
 }
@@ -410,19 +443,6 @@ function formatearTipoLinea(tipo: string) {
     AGENCIAMIENTO: "Agenciamiento",
     PERSONAL: "Personal",
     SERVICIO_AUXILIAR: "Servicio auxiliar",
-  };
-  return mapa[tipo] ?? tipo;
-}
-
-function formatearTipoCargo(tipo: string) {
-  const mapa: Record<string, string> = {
-    DESMOVILIZACION: "Desmovilizacion",
-    MOVILIZACION: "Movilizacion",
-    ESCOLTA: "Escolta",
-    HOSPEDAJE: "Hospedaje",
-    VIATICOS: "Viaticos",
-    RECARGO: "Recargo",
-    OTRO: "Otro",
   };
   return mapa[tipo] ?? tipo;
 }

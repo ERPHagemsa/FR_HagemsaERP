@@ -1,49 +1,32 @@
 "use client";
 
-import * as React from "react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
 import { Input } from "@/compartido/componentes/ui/input";
-import { Label } from "@/compartido/componentes/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/compartido/componentes/ui/select";
 
-import type { TipoCargo } from "../tipos/cotizaciones.tipos";
-import type { DraftCargo } from "../servicios/cotizaciones-editor.utils";
-import { cargoVacio } from "../servicios/cotizaciones-editor.utils";
-
-const TIPOS_CARGO: { valor: TipoCargo; etiqueta: string }[] = [
-  { valor: "MOVILIZACION", etiqueta: "Movilizacion" },
-  { valor: "DESMOVILIZACION", etiqueta: "Desmovilizacion" },
-  { valor: "ESCOLTA", etiqueta: "Escolta" },
-  { valor: "HOSPEDAJE", etiqueta: "Hospedaje" },
-  { valor: "VIATICOS", etiqueta: "Viaticos" },
-  { valor: "RECARGO", etiqueta: "Recargo" },
-  { valor: "OTRO", etiqueta: "Otro" },
-];
+import type { DraftCargoAdicional } from "../servicios/cotizaciones-editor.utils";
+import { cargoAdicionalVacio } from "../servicios/cotizaciones-editor.utils";
 
 type Props = {
-  cargos: DraftCargo[];
+  cargos: DraftCargoAdicional[];
+  erroresCampo?: Record<string, string>;
   disabled?: boolean;
-  onChange: (cargos: DraftCargo[]) => void;
+  onChange: (cargos: DraftCargoAdicional[]) => void;
 };
 
-export function EditorCargos({ cargos, disabled, onChange }: Props) {
+export function EditorCargos({ cargos, erroresCampo = {}, disabled, onChange }: Props) {
   function agregar() {
-    onChange([...cargos, cargoVacio()]);
+    const nuevo = cargoAdicionalVacio();
+    nuevo.orden = cargos.length;
+    onChange([...cargos, nuevo]);
   }
 
   function eliminar(clave: string) {
     onChange(cargos.filter((c) => c.claveCliente !== clave));
   }
 
-  function actualizar(clave: string, patch: Partial<DraftCargo>) {
+  function actualizar(clave: string, patch: Partial<DraftCargoAdicional>) {
     onChange(
       cargos.map((c) => (c.claveCliente === clave ? { ...c, ...patch } : c))
     );
@@ -52,16 +35,67 @@ export function EditorCargos({ cargos, disabled, onChange }: Props) {
   return (
     <div className="flex flex-col gap-2">
       {cargos.length > 0 ? (
-        <div className="flex flex-col gap-2">
-          {cargos.map((cargo) => (
-            <FilaCargo
-              key={cargo.claveCliente}
-              cargo={cargo}
-              disabled={disabled}
-              onEliminar={() => eliminar(cargo.claveCliente)}
-              onActualizar={(patch) => actualizar(cargo.claveCliente, patch)}
-            />
-          ))}
+        <div className="overflow-hidden rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Descripcion</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Monto</th>
+                <th className="px-2 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {cargos.map((cargo, idx) => {
+                const errDesc = erroresCampo[`${idx}.descripcion`];
+                const errMonto = erroresCampo[`${idx}.monto`];
+                return (
+                  <tr key={cargo.claveCliente} className="border-b border-border last:border-0">
+                    <td className="px-3 py-2">
+                      <Input
+                        className="h-7 text-xs"
+                        value={cargo.descripcion}
+                        disabled={disabled}
+                        placeholder="Ej: Escolta SUTRAN"
+                        aria-invalid={Boolean(errDesc)}
+                        onChange={(e) => actualizar(cargo.claveCliente, { descripcion: e.target.value })}
+                      />
+                      {errDesc ? (
+                        <p className="mt-0.5 text-xs text-destructive">{errDesc}</p>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2">
+                      <Input
+                        className="h-7 w-28 text-xs"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={cargo.monto}
+                        disabled={disabled}
+                        aria-invalid={Boolean(errMonto)}
+                        onChange={(e) => actualizar(cargo.claveCliente, { monto: e.target.value })}
+                      />
+                      {errMonto ? (
+                        <p className="mt-0.5 text-xs text-destructive">{errMonto}</p>
+                      ) : null}
+                    </td>
+                    <td className="px-2 py-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="size-7 text-destructive hover:text-destructive"
+                        disabled={disabled}
+                        onClick={() => eliminar(cargo.claveCliente)}
+                        aria-label="Eliminar cargo adicional"
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       ) : null}
 
@@ -74,86 +108,8 @@ export function EditorCargos({ cargos, disabled, onChange }: Props) {
         onClick={agregar}
       >
         <PlusIcon data-icon="inline-start" />
-        Agregar cargo
+        Agregar cargo adicional
       </Button>
-    </div>
-  );
-}
-
-function FilaCargo({
-  cargo,
-  disabled,
-  onEliminar,
-  onActualizar,
-}: {
-  cargo: DraftCargo;
-  disabled?: boolean;
-  onEliminar: () => void;
-  onActualizar: (patch: Partial<DraftCargo>) => void;
-}) {
-  return (
-    <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 rounded-lg border border-border bg-muted/20 p-3">
-      {/* Tipo */}
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">Tipo</Label>
-        <Select
-          value={cargo.tipoCargo}
-          onValueChange={(v) => onActualizar({ tipoCargo: v as TipoCargo })}
-          disabled={disabled}
-        >
-          <SelectTrigger className="h-8 w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TIPOS_CARGO.map((t) => (
-              <SelectItem key={t.valor} value={t.valor} className="text-xs">
-                {t.etiqueta}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Concepto */}
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">Concepto</Label>
-        <Input
-          className="h-8 text-xs"
-          value={cargo.concepto}
-          disabled={disabled}
-          placeholder="Descripcion del cargo"
-          onChange={(e) => onActualizar({ concepto: e.target.value })}
-        />
-      </div>
-
-      {/* Monto */}
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">Monto</Label>
-        <Input
-          className="h-8 w-24 text-xs"
-          type="number"
-          min={0}
-          step="0.01"
-          value={cargo.monto}
-          disabled={disabled}
-          onChange={(e) => onActualizar({ monto: parseFloat(e.target.value) || 0 })}
-        />
-      </div>
-
-      {/* Eliminar */}
-      <div className="flex items-end pb-0.5">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="size-8 text-destructive hover:text-destructive"
-          disabled={disabled}
-          onClick={onEliminar}
-          aria-label="Eliminar cargo"
-        >
-          <Trash2Icon />
-        </Button>
-      </div>
     </div>
   );
 }

@@ -26,10 +26,7 @@ type Props = {
 };
 
 function contarLineas(draft: DraftBorrador): number {
-  return (
-    draft.lineasSinSeccion.length +
-    draft.secciones.reduce((acc, s) => acc + s.lineas.length, 0)
-  );
+  return draft.secciones.reduce((acc, s) => acc + s.lineas.length, 0);
 }
 
 // Editor en MODO CREACION: arma un borrador en memoria y lo persiste con el
@@ -39,9 +36,10 @@ function contarLineas(draft: DraftBorrador): number {
 export function CotizacionEditorNuevo({ solicitudClienteId }: Props) {
   const router = useRouter();
   const [draft, setDraft] = React.useState<DraftBorrador>({
+    moneda: "PEN",
     secciones: [],
-    lineasSinSeccion: [],
-    standbySinSeccion: [],
+    standbys: [],
+    leadTimes: [],
   });
   const [erroresCampo, setErroresCampo] = React.useState<Record<string, string>>({});
   const [guardando, setGuardando] = React.useState(false);

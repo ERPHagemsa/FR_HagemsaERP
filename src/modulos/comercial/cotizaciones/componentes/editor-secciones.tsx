@@ -11,7 +11,7 @@ import { Separator } from "@/compartido/componentes/ui/separator";
 import type { DraftSeccion } from "../servicios/cotizaciones-editor.utils";
 import { seccionVacia } from "../servicios/cotizaciones-editor.utils";
 import { EditorLineas } from "./editor-lineas";
-import { EditorStandby, LabelStandby } from "./editor-standby";
+import { EditorCargos } from "./editor-cargos";
 
 type Props = {
   secciones: DraftSeccion[];
@@ -22,7 +22,7 @@ type Props = {
 
 export function EditorSecciones({ secciones, erroresCampo = {}, disabled, onChange }: Props) {
   function agregar() {
-    const nueva = seccionVacia();
+    const nueva = seccionVacia(false);
     nueva.orden = secciones.length;
     onChange([...secciones, nueva]);
   }
@@ -49,18 +49,24 @@ export function EditorSecciones({ secciones, erroresCampo = {}, disabled, onChan
     return resultado;
   }
 
+  // Solo mostrar secciones no-defecto en el panel de agrupacion
+  const seccionesVisibles = secciones.filter((s) => !s.esDefecto);
+
   return (
     <div className="flex flex-col gap-3">
-      {secciones.map((seccion, idx) => (
-        <SeccionPanel
-          key={seccion.claveCliente}
-          seccion={seccion}
-          erroresCampo={erroresPorSeccion(idx)}
-          disabled={disabled}
-          onEliminar={() => eliminar(seccion.claveCliente)}
-          onChange={(patch) => actualizar(seccion.claveCliente, patch)}
-        />
-      ))}
+      {seccionesVisibles.map((seccion) => {
+        const idx = secciones.indexOf(seccion);
+        return (
+          <SeccionPanel
+            key={seccion.claveCliente}
+            seccion={seccion}
+            erroresCampo={erroresPorSeccion(idx)}
+            disabled={disabled}
+            onEliminar={() => eliminar(seccion.claveCliente)}
+            onChange={(patch) => actualizar(seccion.claveCliente, patch)}
+          />
+        );
+      })}
 
       <Button
         type="button"
@@ -114,39 +120,44 @@ function SeccionPanel({
           </span>
         </button>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="size-8 text-destructive hover:text-destructive"
-          disabled={disabled}
-          onClick={onEliminar}
-          aria-label="Eliminar seccion"
-        >
-          <Trash2Icon />
-        </Button>
+        {/* No permitir eliminar la seccion por defecto */}
+        {!seccion.esDefecto ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="size-8 text-destructive hover:text-destructive"
+            disabled={disabled}
+            onClick={onEliminar}
+            aria-label="Eliminar seccion"
+          >
+            <Trash2Icon />
+          </Button>
+        ) : null}
       </div>
 
       {expandida ? (
         <div className="flex flex-col gap-4 p-4">
-          {/* Nombre de la seccion (obligatorio si la cotizacion usa secciones) */}
-          <div className="grid gap-1.5 md:max-w-sm">
-            <Label className="text-xs text-muted-foreground">
-              Nombre de la seccion <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={seccion.nombre}
-              disabled={disabled}
-              placeholder="Ej: Tramo Lima → Mina"
-              aria-invalid={Boolean(erroresCampo.nombre)}
-              onChange={(e) => onChange({ nombre: e.target.value })}
-            />
-            {erroresCampo.nombre ? (
-              <p className="text-xs text-destructive">{erroresCampo.nombre}</p>
-            ) : null}
-          </div>
+          {/* Nombre de la seccion (obligatorio para secciones con nombre; no aplica a esDefecto) */}
+          {!seccion.esDefecto ? (
+            <div className="grid gap-1.5 md:max-w-sm">
+              <Label className="text-xs text-muted-foreground">
+                Nombre de la seccion <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                value={seccion.nombre}
+                disabled={disabled}
+                placeholder="Ej: Tramo Lima → Mina"
+                aria-invalid={Boolean(erroresCampo.nombre)}
+                onChange={(e) => onChange({ nombre: e.target.value })}
+              />
+              {erroresCampo.nombre ? (
+                <p className="text-xs text-destructive">{erroresCampo.nombre}</p>
+              ) : null}
+            </div>
+          ) : null}
 
-          <Separator />
+          {!seccion.esDefecto ? <Separator /> : null}
 
           {/* Lineas de esta seccion */}
           <div className="flex flex-col gap-2">
@@ -163,13 +174,19 @@ function SeccionPanel({
 
           <Separator />
 
-          {/* Standby de esta seccion */}
+          {/* Cargos adicionales de esta seccion */}
           <div className="flex flex-col gap-2">
-            <LabelStandby count={seccion.standby.length} />
-            <EditorStandby
-              standby={seccion.standby}
+            <Label className="text-xs font-medium text-muted-foreground">
+              Cargos adicionales ({seccion.cargosAdicionales.length})
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Los cargos adicionales suman al subtotal de esta seccion.
+            </p>
+            <EditorCargos
+              cargos={seccion.cargosAdicionales}
+              erroresCampo={erroresCampo}
               disabled={disabled}
-              onChange={(standby) => onChange({ standby })}
+              onChange={(cargosAdicionales) => onChange({ cargosAdicionales })}
             />
           </div>
         </div>

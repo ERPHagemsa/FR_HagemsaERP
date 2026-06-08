@@ -5,24 +5,28 @@
 //   Read model: PLANO  — lineas[] llevan idSeccion, secciones[] son cabeceras.
 //   Write model: ANIDADO — lineas viven dentro de secciones[].lineas; el cliente NUNCA envia idSeccion.
 // ADR-10: draft completo se reenvía siempre (replacement idempotente).
+// ADR-D1: la seccion por defecto (nombre null) se modela explicitamente en el draft con esDefecto:true.
+// ADR-D2: seccion por defecto sin nombre y sin cargos -> lineas[] raiz; con cargos o con nombre -> secciones[].
 
 import type {
-  Cargo,
   CargaHijo,
   EquipoHijo,
   AlmacenajeHijo,
   PersonalHijo,
   Linea,
   Standby,
-  TipoCargo,
+  CargoAdicional,
+  LeadTime,
   TipoLinea,
   Moneda,
+  UnidadCobro,
   Version,
   PayloadBorrador,
   PayloadLinea,
   PayloadSeccion,
   PayloadStandby,
-  PayloadCargo,
+  PayloadLeadTime,
+  PayloadCargoAdicional,
   PayloadCargaHijo,
   PayloadEquipoHijo,
   PayloadAlmacenajeHijo,
@@ -33,12 +37,19 @@ import type {
 // Tipos del draft client-side
 // ---------------------------------------------------------------------------
 
-export type DraftCargo = {
+export type DraftLeadTime = {
   claveCliente: string; // clave efimera UI
-  tipoCargo: TipoCargo;
-  concepto: string;
-  monto: number;
-  esContingente: boolean;
+  descripcion: string;
+  diasMin: string;      // input numerico como string
+  diasMax: string;      // "" = plazo exacto (no se emite diasMax)
+  esRango: boolean;     // UI toggle: false => plazo exacto; true => rango
+  orden: number;
+};
+
+export type DraftCargoAdicional = {
+  claveCliente: string; // clave efimera UI
+  descripcion: string;
+  monto: string;        // input numerico como string (>=0)
   orden: number;
 };
 
@@ -74,11 +85,9 @@ export type DraftLinea = {
   claveCliente: string;
   idModalidad: string;
   tipoLinea: TipoLinea;
-  descripcion: string; // nombre/identificacion de la linea (antes `concepto`)
-  moneda: Moneda;
-  cantidad: string; // entero >=1; nº de unidades de la linea
-  precioUnitario: string; // requerido (>=0); el backend calcula precioTotal = precioUnitario × cantidad
-  cargos: DraftCargo[];
+  descripcion: string; // nombre/identificacion de la linea
+  cantidad: string; // entero >=1
+  precioUnitario: string; // requerido (>=0)
   // Hijos polimorficos (solo uno se usa segun tipoLinea; los demas ignorados en armarPayload)
   carga: DraftCargaHijo;
   equipo: DraftEquipoHijo;
@@ -88,24 +97,27 @@ export type DraftLinea = {
 
 export type DraftStandby = {
   claveCliente: string;
-  recurso: string;
-  tarifaDia: string;
-  moneda: Moneda;
+  descripcion: string;   // antes recurso
+  monto: string;         // antes tarifaDia
+  unidad: UnidadCobro;   // antes moneda
+  porLinea: boolean;
   orden: number;
 };
 
 export type DraftSeccion = {
   claveCliente: string; // seeded desde seccion.id del backend durante esta sesion
+  esDefecto: boolean;   // true para la seccion por defecto (nombre null en el backend)
   nombre: string;
   orden: number;
   lineas: DraftLinea[];
-  standby: DraftStandby[];
+  cargosAdicionales: DraftCargoAdicional[];
 };
 
 export type DraftBorrador = {
-  secciones: DraftSeccion[];
-  lineasSinSeccion: DraftLinea[];
-  standbySinSeccion: DraftStandby[];
+  moneda: Moneda;            // nivel version
+  secciones: DraftSeccion[]; // incluye la seccion por defecto (esDefecto:true) si existe
+  standbys: DraftStandby[];  // nivel version
+  leadTimes: DraftLeadTime[]; // nivel version
 };
 
 // ---------------------------------------------------------------------------
@@ -149,10 +161,8 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
     idModalidad: "",
     tipoLinea,
     descripcion: "",
-    moneda: "PEN",
     cantidad: "1",
     precioUnitario: "0",
-    cargos: [],
     carga: cargaVacia(),
     equipo: equipoVacio(),
     almacenaje: almacenajeVacio(),
@@ -163,46 +173,71 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
 export function standbyVacio(): DraftStandby {
   return {
     claveCliente: crypto.randomUUID(),
-    recurso: "",
-    tarifaDia: "0",
-    moneda: "PEN",
+    descripcion: "",
+    monto: "0",
+    unidad: "DIA",
+    porLinea: false,
     orden: 0,
   };
 }
 
-export function seccionVacia(): DraftSeccion {
+export function leadTimeVacio(): DraftLeadTime {
   return {
     claveCliente: crypto.randomUUID(),
+    descripcion: "",
+    diasMin: "0",
+    diasMax: "",
+    esRango: false,
+    orden: 0,
+  };
+}
+
+export function cargoAdicionalVacio(): DraftCargoAdicional {
+  return {
+    claveCliente: crypto.randomUUID(),
+    descripcion: "",
+    monto: "0",
+    orden: 0,
+  };
+}
+
+export function seccionVacia(esDefecto = false): DraftSeccion {
+  return {
+    claveCliente: crypto.randomUUID(),
+    esDefecto,
     nombre: "",
     orden: 0,
     lineas: [],
-    standby: [],
+    cargosAdicionales: [],
   };
 }
 
-export function cargoVacio(): DraftCargo {
-  return {
-    claveCliente: crypto.randomUUID(),
-    tipoCargo: "OTRO",
-    concepto: "",
-    monto: 0,
-    esContingente: false,
-    orden: 0,
-  };
+export function seccionDefectoVacia(): DraftSeccion {
+  return seccionVacia(true);
 }
 
 // ---------------------------------------------------------------------------
 // derivarDraft: read model (PLANO) → DraftBorrador (client-side)
+// Con migracion graceful de shapes viejos (ADR-D3)
 // ---------------------------------------------------------------------------
 
-function cargoReadADraft(c: Cargo): DraftCargo {
+function cargoAdicionalReadADraft(c: CargoAdicional): DraftCargoAdicional {
   return {
     claveCliente: c.id,
-    tipoCargo: c.tipoCargo,
-    concepto: c.concepto,
-    monto: c.monto,
-    esContingente: c.esContingente,
+    descripcion: c.descripcion,
+    monto: String(c.monto),
     orden: c.orden,
+  };
+}
+
+function leadTimeReadADraft(l: LeadTime): DraftLeadTime {
+  return {
+    claveCliente: l.id,
+    descripcion: l.descripcion,
+    diasMin: String(l.diasMin),
+    diasMax: l.diasMax !== null ? String(l.diasMax) : "",
+    esRango: l.diasMax !== null,
+    orden: l.orden,
   };
 }
 
@@ -246,10 +281,8 @@ function lineaReadADraft(l: Linea): DraftLinea {
     idModalidad: l.idModalidad,
     tipoLinea: l.tipoLinea,
     descripcion: l.descripcion,
-    moneda: l.moneda,
     cantidad: String(l.cantidad),
     precioUnitario: String(l.precioUnitario),
-    cargos: l.cargos.map(cargoReadADraft),
     // Poblar el hijo correspondiente; el resto queda en valores por defecto
     carga: l.carga ? cargaReadADraft(l.carga) : cargaVacia(),
     equipo: l.equipo ? equipoReadADraft(l.equipo) : equipoVacio(),
@@ -258,12 +291,23 @@ function lineaReadADraft(l: Linea): DraftLinea {
   };
 }
 
-function standbyReadADraft(s: Standby): DraftStandby {
+// Migracion graceful: el shape viejo del standby tenia recurso/tarifaDia/moneda/idSeccion.
+// Usamos un tipo interseccion con campos opcionales del shape viejo para la compat.
+type StandbyCompat = Standby & {
+  recurso?: string;
+  tarifaDia?: number;
+};
+
+function standbyReadADraft(s: StandbyCompat): DraftStandby {
+  // Migracion: si llega con shape viejo (recurso/tarifaDia), mapear a nuevo
+  const descripcion = s.descripcion || s.recurso || "";
+  const monto = s.monto !== undefined ? s.monto : (s.tarifaDia ?? 0);
   return {
     claveCliente: s.id,
-    recurso: s.recurso,
-    tarifaDia: String(s.tarifaDia),
-    moneda: s.moneda,
+    descripcion,
+    monto: String(monto),
+    unidad: s.unidad ?? "DIA",
+    porLinea: s.porLinea ?? false,
     orden: s.orden,
   };
 }
@@ -271,23 +315,28 @@ function standbyReadADraft(s: Standby): DraftStandby {
 /**
  * derivarDraft — convierte la version vigente (read model PLANO) al DraftBorrador client-side.
  *
- * 1. Por cada Seccion del read crear un DraftSeccion con claveCliente = seccion.id.
- * 2. Agrupar lineas[] por idSeccion → bucket seccion.lineas; idSeccion null → lineasSinSeccion.
- * 3. Idem para standbyTarifas[] → seccion.standby o standbySinSeccion.
- * 4. Descartar precioTotal/subtotal/totales (los recalcula el backend).
+ * ADR-D1: introduce seccion por defecto (esDefecto:true) cuando hay lineas sin seccion explícita.
+ * ADR-D3: migracion graceful de shapes viejos (cargos-por-linea → cargosAdicionales de seccion,
+ *         moneda-por-linea → version.moneda, standby viejo → nuevo shape).
+ * ADR-D4: deteccion de seccion por defecto por nombre === null (NUNCA por idSeccion === null).
  */
 export function derivarDraft(version: Version): DraftBorrador {
-  // Indice de secciones por id del backend
+  // 1. Moneda: tomar de version; fallback PEN para shapes viejos
+  const moneda: Moneda = version.moneda ?? "PEN";
+
+  // 2. Crear DraftSeccion por cada Seccion del backend
   const seccionesMap = new Map<string, DraftSeccion>();
   const secciones: DraftSeccion[] = [];
 
   for (const s of version.secciones) {
+    const esDefecto = s.nombre === null; // ADR-D4
     const draftSeccion: DraftSeccion = {
       claveCliente: s.id,
+      esDefecto,
       nombre: s.nombre ?? "",
       orden: s.orden,
       lineas: [],
-      standby: [],
+      cargosAdicionales: (s.cargosAdicionales ?? []).map(cargoAdicionalReadADraft),
     };
     seccionesMap.set(s.id, draftSeccion);
     secciones.push(draftSeccion);
@@ -296,27 +345,32 @@ export function derivarDraft(version: Version): DraftBorrador {
   // Ordenar secciones por orden ascendente
   secciones.sort((a, b) => a.orden - b.orden);
 
-  const lineasSinSeccion: DraftLinea[] = [];
+  // 3. Agrupar lineas por idSeccion; lineas sin seccion → seccion por defecto
   for (const l of version.lineas) {
     const draftLinea = lineaReadADraft(l);
     if (l.idSeccion && seccionesMap.has(l.idSeccion)) {
       seccionesMap.get(l.idSeccion)!.lineas.push(draftLinea);
     } else {
-      lineasSinSeccion.push(draftLinea);
+      // Linea sin seccion: va a la seccion por defecto (crear on-demand si no existe)
+      let seccionDefecto = secciones.find((s) => s.esDefecto);
+      if (!seccionDefecto) {
+        seccionDefecto = seccionDefectoVacia();
+        secciones.unshift(seccionDefecto);
+        seccionesMap.set(seccionDefecto.claveCliente, seccionDefecto);
+      }
+      seccionDefecto.lineas.push(draftLinea);
     }
   }
 
-  const standbySinSeccion: DraftStandby[] = [];
-  for (const s of version.standbyTarifas) {
-    const draftSb = standbyReadADraft(s);
-    if (s.idSeccion && seccionesMap.has(s.idSeccion)) {
-      seccionesMap.get(s.idSeccion)!.standby.push(draftSb);
-    } else {
-      standbySinSeccion.push(draftSb);
-    }
-  }
+  // 4. Standbys: leer version.standbys (nuevo) con compat para shape viejo
+  // El tipo Version ya usa standbys; la compat cubre cotizaciones en memoria con shape antiguo.
+  const standbysRaw = version.standbys ?? [];
+  const standbys: DraftStandby[] = standbysRaw.map((s) => standbyReadADraft(s as StandbyCompat));
 
-  return { secciones, lineasSinSeccion, standbySinSeccion };
+  // 5. LeadTimes: nuevo campo; leadTimeDias escalar viejo se descarta (no hay mapeo sensato)
+  const leadTimes: DraftLeadTime[] = (version.leadTimes ?? []).map(leadTimeReadADraft);
+
+  return { moneda, secciones, standbys, leadTimes };
 }
 
 // ---------------------------------------------------------------------------
@@ -326,16 +380,6 @@ export function derivarDraft(version: Version): DraftBorrador {
 function parseNumero(valor: string): number {
   const n = parseFloat(valor);
   return isNaN(n) ? 0 : n;
-}
-
-function cargoAPayload(c: DraftCargo): PayloadCargo {
-  return {
-    tipoCargo: c.tipoCargo,
-    concepto: c.concepto,
-    monto: c.monto,
-    esContingente: c.esContingente,
-    orden: c.orden,
-  };
 }
 
 function cargaAPayload(c: DraftCargaHijo): PayloadCargaHijo {
@@ -378,20 +422,16 @@ function personalAPayload(p: DraftPersonalHijo): PayloadPersonalHijo {
  * AGENCIAMIENTO / SERVICIO_AUXILIAR → sin hijo.
  * Emite precioUnitario (requerido, >=0) y cantidad (entero >=1); NUNCA emitir
  * idSeccion, precioTotal, subtotal ni totales (los calcula el backend).
+ * NUNCA emitir moneda ni cargos en linea.
  */
 function lineaAPayload(l: DraftLinea): PayloadLinea {
   const base: PayloadLinea = {
     idModalidad: l.idModalidad,
     tipoLinea: l.tipoLinea,
     descripcion: l.descripcion,
-    moneda: l.moneda,
     precioUnitario: parseNumero(l.precioUnitario),
     cantidad: l.cantidad !== "" ? parseNumero(l.cantidad) : 1,
   };
-
-  if (l.cargos.length > 0) {
-    base.cargos = l.cargos.map(cargoAPayload);
-  }
 
   switch (l.tipoLinea) {
     case "TRANSPORTE":
@@ -414,60 +454,165 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
 
 function standbyAPayload(s: DraftStandby): PayloadStandby {
   return {
-    recurso: s.recurso,
-    tarifaDia: parseNumero(s.tarifaDia),
-    moneda: s.moneda,
+    descripcion: s.descripcion,
+    monto: parseNumero(s.monto),
+    unidad: s.unidad,
+    porLinea: s.porLinea,
     orden: s.orden,
   };
 }
 
-function seccionAPayload(s: DraftSeccion): PayloadSeccion {
+function leadTimeAPayload(l: DraftLeadTime): PayloadLeadTime {
+  const payload: PayloadLeadTime = {
+    descripcion: l.descripcion,
+    diasMin: parseNumero(l.diasMin),
+  };
+  // diasMax solo si esRango y el campo no esta vacio
+  if (l.esRango && l.diasMax !== "") {
+    payload.diasMax = parseNumero(l.diasMax);
+  }
+  if (l.orden > 0) payload.orden = l.orden;
+  return payload;
+}
+
+function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
+  const payload: PayloadCargoAdicional = {
+    descripcion: c.descripcion,
+    monto: parseNumero(c.monto),
+  };
+  if (c.orden > 0) payload.orden = c.orden;
+  return payload;
+}
+
+/**
+ * seccionAPayload — ADR-D2: emision condicional raiz vs secciones.
+ * Retorna null para la seccion por defecto sin cargos (sus lineas van a raiz).
+ */
+function seccionAPayload(s: DraftSeccion): PayloadSeccion | null {
+  // Seccion por defecto sin nombre y sin cargos → sus lineas van a lineas[] raiz (ADR-D2)
+  if (s.esDefecto && s.nombre === "" && s.cargosAdicionales.length === 0) {
+    return null;
+  }
   const payload: PayloadSeccion = {};
-  if (s.nombre !== "") payload.nombre = s.nombre;
+  if (!s.esDefecto && s.nombre !== "") payload.nombre = s.nombre;
   if (s.orden > 0) payload.orden = s.orden;
   if (s.lineas.length > 0) payload.lineas = s.lineas.map(lineaAPayload);
-  if (s.standby.length > 0) payload.standbyTarifas = s.standby.map(standbyAPayload);
+  if (s.cargosAdicionales.length > 0) {
+    payload.cargosAdicionales = s.cargosAdicionales.map(cargoAdicionalAPayload);
+  }
   return payload;
 }
 
 /**
  * validarBorrador — validaciones client-side previas al envío.
  *
- * Regla de UX más estricta que el backend: una sección DEBE tener nombre. Su
- * única razón de existir es rotular un grupo de líneas; una sección sin nombre
- * confunde y no aporta (el backend la acepta, pero acá la exigimos). Las claves
- * de error siguen la misma convención que usa el editor (`secciones.{i}.nombre`),
- * por lo que se pintan directo en el input correspondiente.
+ * - Seccion con nombre obligatorio (EXCEPTO esDefecto — la seccion por defecto no exige nombre).
+ * - LeadTime: descripcion no vacia; diasMax >= diasMin cuando esRango.
+ * - CargoAdicional: descripcion no vacia; monto >= 0.
+ * - Standby: descripcion no vacia; monto >= 0.
+ * - Moneda: requerida a nivel version.
  */
 export function validarBorrador(draft: DraftBorrador): Record<string, string> {
   const errores: Record<string, string> = {};
+
+  // Moneda
+  if (!draft.moneda) {
+    errores["moneda"] = "La moneda es obligatoria.";
+  }
+
+  // Secciones
   draft.secciones.forEach((s, i) => {
-    if (s.nombre.trim() === "") {
-      errores[`secciones.${i}.nombre`] = "El nombre de la sección es obligatorio.";
+    // Solo las secciones no-defecto exigen nombre
+    if (!s.esDefecto && s.nombre.trim() === "") {
+      errores[`secciones.${i}.nombre`] = "El nombre de la seccion es obligatorio.";
+    }
+    // Cargos adicionales de esta seccion
+    s.cargosAdicionales.forEach((c, j) => {
+      if (c.descripcion.trim() === "") {
+        errores[`secciones.${i}.cargosAdicionales.${j}.descripcion`] = "La descripcion del cargo es obligatoria.";
+      }
+      const montoNum = parseFloat(c.monto);
+      if (isNaN(montoNum) || montoNum < 0) {
+        errores[`secciones.${i}.cargosAdicionales.${j}.monto`] = "El monto debe ser >= 0.";
+      }
+    });
+  });
+
+  // Lead times
+  draft.leadTimes.forEach((l, i) => {
+    if (l.descripcion.trim() === "") {
+      errores[`leadTimes.${i}.descripcion`] = "La descripcion del lead time es obligatoria.";
+    }
+    const minNum = parseFloat(l.diasMin);
+    if (isNaN(minNum) || minNum < 0) {
+      errores[`leadTimes.${i}.diasMin`] = "Los dias minimos deben ser >= 0.";
+    }
+    if (l.esRango && l.diasMax !== "") {
+      const maxNum = parseFloat(l.diasMax);
+      if (isNaN(maxNum) || maxNum < minNum) {
+        errores[`leadTimes.${i}.diasMax`] = "Los dias maximos deben ser >= dias minimos.";
+      }
     }
   });
+
+  // Standbys
+  draft.standbys.forEach((s, i) => {
+    if (s.descripcion.trim() === "") {
+      errores[`standbys.${i}.descripcion`] = "La descripcion del standby es obligatoria.";
+    }
+    const montoNum = parseFloat(s.monto);
+    if (isNaN(montoNum) || montoNum < 0) {
+      errores[`standbys.${i}.monto`] = "El monto debe ser >= 0.";
+    }
+  });
+
   return errores;
 }
 
 /**
  * armarPayloadBorrador — convierte DraftBorrador al PayloadBorrador ANIDADO que acepta el backend.
  *
+ * ADR-D2: seccion por defecto sin nombre y sin cargos → lineas[] raiz.
  * Nunca emite: claveCliente, idSeccion, precioTotal, subtotal ni totales.
+ * Nunca emite: moneda en linea, cargosAdicionales en raiz, standbys en secciones.
  * El draft completo se re-envía siempre (replacement idempotente — ADR-10).
  */
 export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {
   const payload: PayloadBorrador = {};
 
-  if (draft.secciones.length > 0) {
-    payload.secciones = draft.secciones.map(seccionAPayload);
+  // Moneda nivel version
+  payload.moneda = draft.moneda;
+
+  // Secciones vs lineas raiz (ADR-D2)
+  const seccionesPayload: PayloadSeccion[] = [];
+  const lineasRaiz: ReturnType<typeof lineaAPayload>[] = [];
+
+  for (const seccion of draft.secciones) {
+    const secPayload = seccionAPayload(seccion);
+    if (secPayload === null) {
+      // Seccion por defecto sin cargos → sus lineas van a raiz
+      const lineas = seccion.lineas.map(lineaAPayload);
+      lineasRaiz.push(...lineas);
+    } else {
+      seccionesPayload.push(secPayload);
+    }
   }
 
-  if (draft.lineasSinSeccion.length > 0) {
-    payload.lineas = draft.lineasSinSeccion.map(lineaAPayload);
+  if (seccionesPayload.length > 0) {
+    payload.secciones = seccionesPayload;
+  }
+  if (lineasRaiz.length > 0) {
+    payload.lineas = lineasRaiz;
   }
 
-  if (draft.standbySinSeccion.length > 0) {
-    payload.standbyTarifas = draft.standbySinSeccion.map(standbyAPayload);
+  // Standbys nivel version (NUNCA en secciones)
+  if (draft.standbys.length > 0) {
+    payload.standbys = draft.standbys.map(standbyAPayload);
+  }
+
+  // LeadTimes nivel version
+  if (draft.leadTimes.length > 0) {
+    payload.leadTimes = draft.leadTimes.map(leadTimeAPayload);
   }
 
   return payload;

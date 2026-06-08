@@ -3,6 +3,7 @@
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
+import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -13,9 +14,20 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
-import type { Moneda } from "../tipos/cotizaciones.tipos";
+import type { UnidadCobro } from "../tipos/cotizaciones.tipos";
 import type { DraftStandby } from "../servicios/cotizaciones-editor.utils";
 import { standbyVacio } from "../servicios/cotizaciones-editor.utils";
+
+const UNIDADES_COBRO: { valor: UnidadCobro; etiqueta: string }[] = [
+  { valor: "VIAJE", etiqueta: "Viaje" },
+  { valor: "DIA", etiqueta: "Dia" },
+  { valor: "M2", etiqueta: "M2" },
+  { valor: "SERVICIO", etiqueta: "Servicio" },
+  { valor: "HORA", etiqueta: "Hora" },
+  { valor: "TONELADA", etiqueta: "Tonelada" },
+  { valor: "CONTENEDOR", etiqueta: "Contenedor" },
+  { valor: "OTRO", etiqueta: "Otro" },
+];
 
 type Props = {
   standby: DraftStandby[];
@@ -25,7 +37,9 @@ type Props = {
 
 export function EditorStandby({ standby, disabled, onChange }: Props) {
   function agregar() {
-    onChange([...standby, standbyVacio()]);
+    const nuevo = standbyVacio();
+    nuevo.orden = standby.length;
+    onChange([...standby, nuevo]);
   }
 
   function eliminar(clave: string) {
@@ -40,14 +54,23 @@ export function EditorStandby({ standby, disabled, onChange }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
+      <p className="text-xs text-muted-foreground">
+        Los standbys son informativos y no suman al monto total de la cotizacion.
+      </p>
+
       {standby.length > 0 ? (
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Recurso</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Tarifa/dia</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Moneda</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Descripcion</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Monto</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Unidad</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                  <span title="El costo se cobra una vez por cada linea de la cotizacion">
+                    Aplica por linea
+                  </span>
+                </th>
                 <th className="px-2 py-2" />
               </tr>
             </thead>
@@ -57,37 +80,59 @@ export function EditorStandby({ standby, disabled, onChange }: Props) {
                   <td className="px-3 py-2">
                     <Input
                       className="h-7 text-xs"
-                      value={sb.recurso}
+                      value={sb.descripcion}
                       disabled={disabled}
-                      placeholder="Nombre del recurso"
-                      onChange={(e) => actualizar(sb.claveCliente, { recurso: e.target.value })}
+                      placeholder="Ej: Grua de reserva"
+                      onChange={(e) => actualizar(sb.claveCliente, { descripcion: e.target.value })}
                     />
                   </td>
                   <td className="px-3 py-2">
                     <Input
-                      className="h-7 w-24 text-xs"
+                      className="h-7 w-28 text-xs"
                       type="number"
                       min={0}
                       step="0.01"
-                      value={sb.tarifaDia}
+                      value={sb.monto}
                       disabled={disabled}
-                      onChange={(e) => actualizar(sb.claveCliente, { tarifaDia: e.target.value })}
+                      onChange={(e) => actualizar(sb.claveCliente, { monto: e.target.value })}
                     />
                   </td>
                   <td className="px-3 py-2">
                     <Select
-                      value={sb.moneda}
-                      onValueChange={(v) => actualizar(sb.claveCliente, { moneda: v as Moneda })}
+                      value={sb.unidad}
+                      onValueChange={(v) => actualizar(sb.claveCliente, { unidad: v as UnidadCobro })}
                       disabled={disabled}
                     >
-                      <SelectTrigger className="h-7 w-20 text-xs">
+                      <SelectTrigger className="h-7 w-28 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PEN" className="text-xs">PEN</SelectItem>
-                        <SelectItem value="USD" className="text-xs">USD</SelectItem>
+                        {UNIDADES_COBRO.map((u) => (
+                          <SelectItem key={u.valor} value={u.valor} className="text-xs">
+                            {u.etiqueta}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <Checkbox
+                        id={`porLinea-${sb.claveCliente}`}
+                        checked={sb.porLinea}
+                        disabled={disabled}
+                        onCheckedChange={(checked) =>
+                          actualizar(sb.claveCliente, { porLinea: Boolean(checked) })
+                        }
+                      />
+                      <Label
+                        htmlFor={`porLinea-${sb.claveCliente}`}
+                        className="cursor-pointer text-xs text-muted-foreground"
+                        title="El costo se cobra una vez por cada linea de la cotizacion (vs. una sola vez)"
+                      >
+                        Si
+                      </Label>
+                    </div>
                   </td>
                   <td className="px-2 py-2">
                     <Button
