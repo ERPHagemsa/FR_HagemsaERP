@@ -1,6 +1,7 @@
 "use client"
 
 import { FormEvent, useState } from "react"
+import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Login03Icon } from "@hugeicons/core-free-icons"
@@ -54,7 +55,13 @@ export function LoginVista() {
       <div className="flex w-full max-w-md flex-col gap-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <span className="flex size-16 items-center justify-center">
-            <img src="/logo/logo.svg" alt="Hagemsa" className="size-full object-contain" />
+            <Image
+              src="/logo/logo.svg"
+              alt="Hagemsa"
+              width={64}
+              height={64}
+              className="size-full object-contain"
+            />
           </span>
           <div>
             <h1 className="text-2xl font-semibold">Hagemsa ERP</h1>
