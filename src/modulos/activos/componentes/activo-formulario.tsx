@@ -1335,27 +1335,13 @@ export function ActivoFormulario({
                       className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4"
                     >
                       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <label className="grid gap-2">
-                          <span className="text-sm font-medium text-foreground">
-                            Tipo tanque <span className="text-destructive">*</span>
-                          </span>
-                          <select
-                            className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-                            name="tipoTanque"
-                            value={tipoTanque}
-                            onChange={(event) => {
-                              const next =
-                                event.currentTarget.value === "UREA"
-                                  ? "UREA"
-                                  : "DIESEL";
-                              setTipoTanque(next);
-                              actualizarResumen();
-                            }}
-                          >
-                            <option value="DIESEL">Diesel</option>
-                            <option value="UREA">Urea</option>
-                          </select>
-                        </label>
+                        <TipoTanqueSelector
+                          tipoTanque={tipoTanque}
+                          onChange={(next) => {
+                            setTipoTanque(next);
+                            actualizarResumen();
+                          }}
+                        />
                         <Field
                           label="Capacidad"
                           min="0.01"
@@ -1691,6 +1677,38 @@ function Field({
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
       <Input id={name} name={name} required={required} {...props} />
+    </div>
+  );
+}
+
+function TipoTanqueSelector({
+  tipoTanque,
+  onChange,
+}: {
+  tipoTanque: TipoTanqueActivo;
+  onChange: (tipo: TipoTanqueActivo) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label>
+        Tipo tanque <span className="text-destructive">*</span>
+      </Label>
+      <input name="tipoTanque" type="hidden" value={tipoTanque} readOnly />
+      <div className="grid h-9 grid-cols-2 rounded-lg border border-input bg-background p-0.5">
+        {(["DIESEL", "UREA"] as TipoTanqueActivo[]).map((tipo) => (
+          <button
+            key={tipo}
+            type="button"
+            onClick={() => onChange(tipo)}
+            className={cn(
+              "rounded-md px-3 text-sm font-medium text-muted-foreground transition",
+              tipoTanque === tipo && "bg-primary text-primary-foreground"
+            )}
+          >
+            {tipo === "DIESEL" ? "Diesel" : "Urea"}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
