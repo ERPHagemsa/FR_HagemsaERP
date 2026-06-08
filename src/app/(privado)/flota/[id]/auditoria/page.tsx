@@ -1,7 +1,6 @@
-import { SiteHeader } from "@/compartido/componentes/site-header";
-import { FlotaAuditoriaVista } from "@/modulos/flota/vistas/flota-auditoria-vista";
-import { obtenerHistorialPorPlaca } from "@/modulos/flota/servicios/flota-api";
 import { redirect } from "next/navigation";
+import { obtenerHistorialPorPlaca } from "@/modulos/flota/servicios/flota-api";
+import { FlotaAuditoriaVista } from "@/modulos/flota/vistas/flota-auditoria-vista";
 
 export default async function FlotaAuditoriaPage({
   params,
@@ -10,17 +9,11 @@ export default async function FlotaAuditoriaPage({
 }) {
   const resolvedParams = await params;
   const placa = decodeURIComponent(resolvedParams.id);
-  
   const res = await obtenerHistorialPorPlaca(placa);
-  
+
   if (!res) {
     redirect("/flota/unidades");
   }
 
-  return (
-    <>
-      <SiteHeader title="Auditoría de Unidad" />
-      <FlotaAuditoriaVista placa={placa} historial={res.datos || []} />
-    </>
-  );
+  return <FlotaAuditoriaVista placa={placa} historial={res.datos || []} />;
 }

@@ -1,12 +1,13 @@
 "use client";
 
 import {
-  IconActivity,
-  IconAlertTriangle,
-  IconCircleCheck,
-  IconTruck,
-  type Icon,
-} from "@tabler/icons-react";
+  Activity,
+  AlertTriangle,
+  CircleCheck,
+  Truck,
+  type LucideIcon,
+} from "lucide-react";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
 import {
   Card,
@@ -15,7 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import type { ResumenFlota, VehiculoFlota } from "../tipos/flota.tipos";
 import {
   esVisibleEnFlota,
@@ -31,51 +31,60 @@ type Props = {
 export function FlotaResumen({ resumen, vehiculos }: Props) {
   const vehiculosVisibles = vehiculos.filter(esVisibleEnFlota);
   const activosVigentes = vehiculosVisibles.filter(
-    (vehiculo) => estadoActivoVehiculo(vehiculo) === "ACTIVO"
+    (vehiculo) => estadoActivoVehiculo(vehiculo) === "ACTIVO",
   );
   const operativos = vehiculosVisibles.filter(
-    (vehiculo) => estadoOperativoVehiculo(vehiculo) === "OPERATIVO"
+    (vehiculo) => estadoOperativoVehiculo(vehiculo) === "OPERATIVO",
   );
   const mantenimiento = vehiculosVisibles.filter(
-    (vehiculo) => estadoOperativoVehiculo(vehiculo) === "MANTENIMIENTO"
+    (vehiculo) => estadoOperativoVehiculo(vehiculo) === "MANTENIMIENTO",
   );
-
 
   const dataOperativo = [
     { name: "Operativo", value: operativos.length, color: "#10b981" },
     { name: "Mantenimiento", value: mantenimiento.length, color: "#f59e0b" },
-    { name: "Otros", value: vehiculosVisibles.length - operativos.length - mantenimiento.length, color: "#ef4444" },
+    {
+      name: "Otros",
+      value: vehiculosVisibles.length - operativos.length - mantenimiento.length,
+      color: "#ef4444",
+    },
   ];
 
-  const asignados = vehiculosVisibles.filter(v => v.contrato && v.contrato !== "Sin Contrato");
+  const asignados = vehiculosVisibles.filter(
+    (vehiculo) => vehiculo.contrato && vehiculo.contrato !== "Sin Contrato",
+  );
   const dataContratos = [
-    { name: "Asignados", value: asignados.length, color: "#3b82f6" },
-    { name: "Sin Contrato", value: vehiculosVisibles.length - asignados.length, color: "#94a3b8" },
+    { name: "Asignados", value: asignados.length, color: "#10b981" },
+    {
+      name: "Sin contrato",
+      value: vehiculosVisibles.length - asignados.length,
+      color: "#94a3b8",
+    },
   ];
 
   return (
     <div className="flex flex-col gap-5">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ResumenCard
-          icon={IconTruck}
+          icon={Truck}
           label="Total flota"
           value={resumen?.totalVehiculos ?? vehiculosVisibles.length}
           detail="Unidades registradas"
         />
         <ResumenCard
-          icon={IconCircleCheck}
+          icon={CircleCheck}
           label="Vigentes"
           value={activosVigentes.length}
           detail="Estado administrativo activo"
         />
         <ResumenCard
-          icon={IconActivity}
+          icon={Activity}
           label="Operativas"
           value={resumen?.operativosActivos ?? operativos.length}
           detail="Disponibles para servicio"
         />
         <ResumenCard
-          icon={IconAlertTriangle}
+          icon={AlertTriangle}
           label="Mantenimiento"
           value={resumen?.mantenimiento ?? mantenimiento.length}
           detail="Alertas de disponibilidad"
@@ -83,12 +92,12 @@ export function FlotaResumen({ resumen, vehiculos }: Props) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Estado Operativo</CardTitle>
-            <CardDescription>Distribución de unidades por estado</CardDescription>
+        <Card className="rounded-lg border border-border shadow-sm ring-0">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-lg">Estado operativo</CardTitle>
+            <CardDescription>Distribucion de unidades por estado</CardDescription>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-64 pt-5">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -100,23 +109,23 @@ export function FlotaResumen({ resumen, vehiculos }: Props) {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {dataOperativo.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {dataOperativo.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend verticalAlign="bottom" height={36}/>
+                <Legend verticalAlign="bottom" height={36} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Asignación de Contratos</CardTitle>
+        <Card className="rounded-lg border border-border shadow-sm ring-0">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-lg">Asignacion de contratos</CardTitle>
             <CardDescription>Unidades con contrato vs sin contrato</CardDescription>
           </CardHeader>
-          <CardContent className="h-64">
+          <CardContent className="h-64 pt-5">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -128,12 +137,12 @@ export function FlotaResumen({ resumen, vehiculos }: Props) {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {dataContratos.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {dataContratos.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend verticalAlign="bottom" height={36}/>
+                <Legend verticalAlign="bottom" height={36} />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
@@ -150,19 +159,19 @@ function ResumenCard({
   value,
 }: {
   detail: string;
-  icon: Icon;
+  icon: LucideIcon;
   label: string;
   value: number | string;
 }) {
   return (
-    <Card>
-      <CardHeader className="gap-3">
-        <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-lg border border-destructive/25 bg-destructive/10">
-          <Icon className="size-6 text-destructive" />
+    <Card className="rounded-lg border border-border shadow-sm ring-0">
+      <CardHeader className="gap-2">
+        <div className="mb-1 flex size-10 items-center justify-center rounded-lg border border-border bg-background">
+          <Icon className="size-5 text-primary" />
         </div>
         <CardDescription className="text-sm">{label}</CardDescription>
-        <CardTitle className="mt-1 text-4xl font-semibold">{value}</CardTitle>
-        <CardDescription className="mt-1 text-xs text-muted-foreground">
+        <CardTitle className="text-3xl font-semibold">{value}</CardTitle>
+        <CardDescription className="text-xs text-muted-foreground">
           {detail}
         </CardDescription>
       </CardHeader>

@@ -1,4 +1,3 @@
-import { SiteHeader } from "@/compartido/componentes/site-header";
 import { VehiculoDetalleVista } from "@/modulos/flota/vistas/vehiculo-detalle-vista";
 
 type Params = {
@@ -8,10 +7,5 @@ type Params = {
 export default async function Page({ params }: Params) {
   const { id } = (await params) as { id: string };
 
-  return (
-    <>
-      <SiteHeader title={`Vehículo ${id ?? ""}`} />
-      <VehiculoDetalleVista id={id} />
-    </>
-  );
+  return <VehiculoDetalleVista id={id} />;
 }
