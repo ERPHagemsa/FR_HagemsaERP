@@ -193,7 +193,7 @@ export function CuentasVista() {
         <Button asChild className="rounded-md">
           <Link href="/admin/cuentas/nueva">
             <Plus />
-            Nueva cuenta
+            Nuevo
           </Link>
         </Button>
       </div>

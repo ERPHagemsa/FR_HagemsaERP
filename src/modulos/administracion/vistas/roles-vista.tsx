@@ -117,7 +117,7 @@ export function RolesVista() {
         <Button asChild className="rounded-md">
           <Link href="/admin/roles/nuevo">
             <Plus />
-            Nuevo rol
+            Nuevo
           </Link>
         </Button>
       </div>

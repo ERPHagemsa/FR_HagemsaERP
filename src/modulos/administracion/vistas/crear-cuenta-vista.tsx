@@ -63,11 +63,11 @@ export function CrearCuentaVista() {
   return (
     <>
       <SiteHeader
-        title="Nueva cuenta"
+        title="Nuevo"
         breadcrumbs={[
           { title: "IAM y administración" },
           { title: "Cuentas", href: "/admin/cuentas" },
-          { title: "Nueva cuenta" },
+          { title: "Nuevo" },
         ]}
       />
       <div className="flex flex-col gap-6 p-6">
@@ -85,7 +85,7 @@ export function CrearCuentaVista() {
 
       <div className="max-w-2xl space-y-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Nueva cuenta</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Nuevo</h1>
           <p className="text-sm text-muted-foreground">
             Crea una nueva cuenta. Después podrás asignarle roles desde el
             detalle.
@@ -178,7 +178,7 @@ export function CrearCuentaVista() {
               <Link href="/admin/cuentas">Cancelar</Link>
             </Button>
             <Button type="submit" className="rounded-md" disabled={crearMutation.isPending}>
-              {crearMutation.isPending ? "Creando..." : "Crear cuenta"}
+              {crearMutation.isPending ? "Agregando..." : "Agregar"}
             </Button>
           </div>
         </form>

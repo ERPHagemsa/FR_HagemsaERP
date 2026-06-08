@@ -108,7 +108,7 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
       <DialogTrigger asChild>
         <Button className="rounded-md">
           <Plus />
-          Nuevo permiso
+          Nuevo
         </Button>
       </DialogTrigger>
       <DialogContent className="rounded-md">
@@ -176,7 +176,7 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
             disabled={mutation.isPending}
             className="rounded-md"
           >
-            {mutation.isPending ? "Creando..." : "Crear"}
+            {mutation.isPending ? "Agregando..." : "Agregar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -236,7 +236,7 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
       </DialogTrigger>
       <DialogContent className="rounded-md">
         <DialogHeader>
-          <DialogTitle>Editar permiso</DialogTitle>
+          <DialogTitle>Actualizar permiso</DialogTitle>
           <DialogDescription>
             Solo la descripcion es editable. El codigo y el modulo son
             inmutables — para cambiarlos hay que crear un permiso nuevo.
@@ -279,7 +279,7 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
             disabled={mutation.isPending}
             className="rounded-md"
           >
-            {mutation.isPending ? "Guardando..." : "Guardar"}
+            {mutation.isPending ? "Actualizando..." : "Actualizar"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -51,11 +51,11 @@ export function CrearRolVista() {
   return (
     <>
       <SiteHeader
-        title="Nuevo rol"
+        title="Nuevo"
         breadcrumbs={[
           { title: "IAM y administración" },
           { title: "Roles", href: "/admin/roles" },
-          { title: "Nuevo rol" },
+          { title: "Nuevo" },
         ]}
       />
       <div className="flex flex-col gap-6 p-6">
@@ -73,7 +73,7 @@ export function CrearRolVista() {
 
       <div className="max-w-2xl space-y-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Nuevo rol</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Nuevo</h1>
           <p className="text-sm text-muted-foreground">
             Crea un nuevo rol. Después podrás asignarle permisos del catálogo.
           </p>
@@ -138,7 +138,7 @@ export function CrearRolVista() {
               <Link href="/admin/roles">Cancelar</Link>
             </Button>
             <Button type="submit" className="rounded-md" disabled={crearMutation.isPending}>
-              {crearMutation.isPending ? "Creando..." : "Crear rol"}
+              {crearMutation.isPending ? "Agregando..." : "Agregar"}
             </Button>
           </div>
         </form>

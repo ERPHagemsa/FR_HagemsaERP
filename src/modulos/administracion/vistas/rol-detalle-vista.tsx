@@ -183,14 +183,14 @@ function DialogEditarPermisosRol({
       <DialogTrigger asChild>
         <Button size="sm" className="rounded-md">
           <Pencil />
-          Editar permisos
+          Actualizar
         </Button>
       </DialogTrigger>
       <DialogContent className="rounded-md max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Editar permisos del rol</DialogTitle>
+          <DialogTitle>Actualizar permisos del rol</DialogTitle>
           <DialogDescription>
-            Marca o desmarca permisos del catalogo. Al guardar se aplican
+            Marca o desmarca permisos del catalogo. Al actualizar se aplican
             todos los cambios.
           </DialogDescription>
         </DialogHeader>
@@ -287,7 +287,7 @@ function DialogEditarPermisosRol({
               disabled={mutation.isPending || sinCambios}
               className="rounded-md"
             >
-              {mutation.isPending ? "Guardando..." : "Guardar cambios"}
+              {mutation.isPending ? "Actualizando..." : "Actualizar"}
             </Button>
           </div>
         </DialogFooter>
@@ -392,12 +392,12 @@ function DialogEditarRol({ rol, onActualizado }: PropsDialogEditarRol) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="rounded-md">
           <Pencil />
-          Editar
+          Actualizar
         </Button>
       </DialogTrigger>
       <DialogContent className="rounded-md">
         <DialogHeader>
-          <DialogTitle>Editar rol</DialogTitle>
+          <DialogTitle>Actualizar</DialogTitle>
           <DialogDescription>
             Cambia el nombre o la descripcion. El nombre debe estar en
             UPPER_SNAKE_CASE (ej. SUPERVISOR_ALMACEN).
@@ -676,7 +676,7 @@ export function RolDetalleVista({ rolId }: PropsRolDetalleVista) {
                 <p className="text-xs text-muted-foreground">
                   {data.esSistema
                     ? "Rol de sistema — nombre y descripción son inmutables, pero podés ajustar sus permisos."
-                    : "Editar masivamente o quitar uno a uno con la X."}
+                    : "Actualizar masivamente o quitar uno a uno con la X."}
                 </p>
               </div>
               {permisosCatalogo.data ? (
