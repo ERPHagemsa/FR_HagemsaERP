@@ -182,9 +182,19 @@ export function FlotaAuditoriaVista({ placa, historial }: Props) {
   );
 }
 
-function DiffRow({ label, oldVal, newVal }: { label: string, oldVal: string | null | undefined, newVal: string | null | undefined }) {
-  const o = oldVal || "Sin asignar";
-  const n = newVal || "Sin asignar";
+function DiffRow({ label, oldVal, newVal }: { label: string, oldVal: any, newVal: any }) {
+  function formatVal(v: any) {
+    if (v === null || v === undefined) return 'Sin asignar';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'object') {
+      // Prefer mostrar `codigo`, luego `nombre`, luego `id`, sino JSON
+      return v.codigo ?? v.nombre ?? v.id ?? JSON.stringify(v);
+    }
+    return String(v);
+  }
+
+  const o = formatVal(oldVal);
+  const n = formatVal(newVal);
   const changed = o !== n;
 
   return (
