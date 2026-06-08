@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft } from "lucide-react"
 
+import { SiteHeader } from "@/compartido/componentes/site-header"
+
 import { extraerMensajeError } from "@/compartido/api"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
@@ -47,7 +49,16 @@ export function CrearRolVista() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Nuevo rol"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Roles", href: "/admin/roles" },
+          { title: "Nuevo rol" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       <Button
         asChild
         variant="ghost"
@@ -132,6 +143,7 @@ export function CrearRolVista() {
           </div>
         </form>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

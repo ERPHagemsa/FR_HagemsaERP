@@ -5,6 +5,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ChevronRight, Plus, Search, Users } from "lucide-react"
 
+import { SiteHeader } from "@/compartido/componentes/site-header"
+
 import {
   Avatar,
   AvatarFallback,
@@ -164,7 +166,15 @@ export function CuentasVista() {
   const total = data?.paginacion.total ?? 0
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Cuentas"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Cuentas" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       {/* Cabecera */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
@@ -351,6 +361,7 @@ export function CuentasVista() {
           />
         ) : null}
       </div>
-    </div>
+      </div>
+    </>
   )
 }

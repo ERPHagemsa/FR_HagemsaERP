@@ -4,6 +4,8 @@ import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Pencil, Plus, Search, Trash2 } from "lucide-react"
 
+import { SiteHeader } from "@/compartido/componentes/site-header"
+
 import { extraerMensajeError } from "@/compartido/api"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
@@ -410,7 +412,15 @@ export function PermisosVista() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Permisos"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Permisos" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       {/* Cabecera */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
@@ -536,6 +546,7 @@ export function PermisosVista() {
           />
         ) : null}
       </div>
-    </div>
+      </div>
+    </>
   )
 }

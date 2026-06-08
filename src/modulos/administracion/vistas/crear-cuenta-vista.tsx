@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft } from "lucide-react"
 
+import { SiteHeader } from "@/compartido/componentes/site-header"
+
 import { extraerMensajeError } from "@/compartido/api"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
@@ -59,7 +61,16 @@ export function CrearCuentaVista() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Nueva cuenta"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Cuentas", href: "/admin/cuentas" },
+          { title: "Nueva cuenta" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       <Button
         asChild
         variant="ghost"
@@ -172,6 +183,7 @@ export function CrearCuentaVista() {
           </div>
         </form>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

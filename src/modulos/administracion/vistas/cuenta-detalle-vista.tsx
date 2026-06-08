@@ -3,6 +3,8 @@
 import { useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
+
+import { SiteHeader } from "@/compartido/componentes/site-header"
 import {
   ArrowLeft,
   Ban,
@@ -569,7 +571,16 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
   const inactiva = data?.estado === "inactivo"
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Detalle de cuenta"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Cuentas", href: "/admin/cuentas" },
+          { title: "Detalle" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       <Button asChild variant="ghost" size="sm" className="rounded-md -ml-2 w-fit text-muted-foreground">
         <Link href="/admin/cuentas">
           <ArrowLeft />
@@ -669,6 +680,7 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
           <SesionesActivasSeccion cuentaId={data.id} />
         </>
       ) : null}
-    </div>
+      </div>
+    </>
   )
 }

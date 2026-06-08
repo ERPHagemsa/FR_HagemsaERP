@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react"
 import { Eye } from "lucide-react"
 
+import { SiteHeader } from "@/compartido/componentes/site-header"
+
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
@@ -131,7 +133,15 @@ export function AuditoriaVista() {
   const total = data?.paginacion.total ?? 0
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Auditoría"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Auditoría" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       {/* Cabecera */}
       <div className="space-y-1">
         <div className="flex items-center gap-2.5">
@@ -293,6 +303,7 @@ export function AuditoriaVista() {
           />
         ) : null}
       </div>
-    </div>
+      </div>
+    </>
   )
 }

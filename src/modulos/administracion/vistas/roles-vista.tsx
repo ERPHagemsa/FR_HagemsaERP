@@ -5,6 +5,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ChevronRight, Plus, ShieldCheck } from "lucide-react"
 
+import { SiteHeader } from "@/compartido/componentes/site-header"
+
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import { Empty } from "@/compartido/componentes/ui/empty"
@@ -88,7 +90,15 @@ export function RolesVista() {
   const total = data?.paginacion.total ?? 0
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Roles"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Roles" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       {/* Cabecera */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
@@ -190,6 +200,7 @@ export function RolesVista() {
           />
         ) : null}
       </div>
-    </div>
+      </div>
+    </>
   )
 }

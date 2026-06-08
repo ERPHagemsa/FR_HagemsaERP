@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft, Pencil, ShieldCheck, Trash2, X } from "lucide-react"
 
+import { SiteHeader } from "@/compartido/componentes/site-header"
+
 import { extraerMensajeError } from "@/compartido/api"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
@@ -566,7 +568,16 @@ export function RolDetalleVista({ rolId }: PropsRolDetalleVista) {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Detalle de rol"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Roles", href: "/admin/roles" },
+          { title: "Detalle" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       <Button
         asChild
         variant="ghost"
@@ -705,6 +716,7 @@ export function RolDetalleVista({ rolId }: PropsRolDetalleVista) {
           </div>
         </>
       ) : null}
-    </div>
+      </div>
+    </>
   )
 }
