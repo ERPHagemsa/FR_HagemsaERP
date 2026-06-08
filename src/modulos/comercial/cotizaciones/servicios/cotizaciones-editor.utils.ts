@@ -19,7 +19,6 @@ import type {
   LeadTime,
   TipoLinea,
   Moneda,
-  UnidadCobro,
   Version,
   PayloadBorrador,
   PayloadLinea,
@@ -95,11 +94,11 @@ export type DraftLinea = {
   personal: DraftPersonalHijo;
 };
 
+// Contrato 2026-06-06: sin campo unidad. monto = tarifa diaria.
 export type DraftStandby = {
   claveCliente: string;
-  descripcion: string;   // antes recurso
-  monto: string;         // antes tarifaDia
-  unidad: UnidadCobro;   // antes moneda
+  descripcion: string;
+  monto: string;         // tarifa diaria (input numerico como string)
   porLinea: boolean;
   orden: number;
 };
@@ -175,7 +174,6 @@ export function standbyVacio(): DraftStandby {
     claveCliente: crypto.randomUUID(),
     descripcion: "",
     monto: "0",
-    unidad: "DIA",
     porLinea: false,
     orden: 0,
   };
@@ -306,7 +304,6 @@ function standbyReadADraft(s: StandbyCompat): DraftStandby {
     claveCliente: s.id,
     descripcion,
     monto: String(monto),
-    unidad: s.unidad ?? "DIA",
     porLinea: s.porLinea ?? false,
     orden: s.orden,
   };
@@ -456,7 +453,6 @@ function standbyAPayload(s: DraftStandby): PayloadStandby {
   return {
     descripcion: s.descripcion,
     monto: parseNumero(s.monto),
-    unidad: s.unidad,
     porLinea: s.porLinea,
     orden: s.orden,
   };

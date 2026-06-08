@@ -6,28 +6,9 @@ import { Button } from "@/compartido/componentes/ui/button";
 import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/compartido/componentes/ui/select";
 
-import type { UnidadCobro } from "../tipos/cotizaciones.tipos";
 import type { DraftStandby } from "../servicios/cotizaciones-editor.utils";
 import { standbyVacio } from "../servicios/cotizaciones-editor.utils";
-
-const UNIDADES_COBRO: { valor: UnidadCobro; etiqueta: string }[] = [
-  { valor: "VIAJE", etiqueta: "Viaje" },
-  { valor: "DIA", etiqueta: "Dia" },
-  { valor: "M2", etiqueta: "M2" },
-  { valor: "SERVICIO", etiqueta: "Servicio" },
-  { valor: "HORA", etiqueta: "Hora" },
-  { valor: "TONELADA", etiqueta: "Tonelada" },
-  { valor: "CONTENEDOR", etiqueta: "Contenedor" },
-  { valor: "OTRO", etiqueta: "Otro" },
-];
 
 type Props = {
   standby: DraftStandby[];
@@ -64,8 +45,9 @@ export function EditorStandby({ standby, disabled, onChange }: Props) {
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Descripcion</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Monto</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Unidad</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
+                  Tarifa diaria
+                </th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">
                   <span title="El costo se cobra una vez por cada linea de la cotizacion">
                     Aplica por linea
@@ -87,33 +69,18 @@ export function EditorStandby({ standby, disabled, onChange }: Props) {
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <Input
-                      className="h-7 w-28 text-xs"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={sb.monto}
-                      disabled={disabled}
-                      onChange={(e) => actualizar(sb.claveCliente, { monto: e.target.value })}
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <Select
-                      value={sb.unidad}
-                      onValueChange={(v) => actualizar(sb.claveCliente, { unidad: v as UnidadCobro })}
-                      disabled={disabled}
-                    >
-                      <SelectTrigger className="h-7 w-28 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {UNIDADES_COBRO.map((u) => (
-                          <SelectItem key={u.valor} value={u.valor} className="text-xs">
-                            {u.etiqueta}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        className="h-7 w-28 text-xs"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={sb.monto}
+                        disabled={disabled}
+                        onChange={(e) => actualizar(sb.claveCliente, { monto: e.target.value })}
+                      />
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">/dia</span>
+                    </div>
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-1.5">

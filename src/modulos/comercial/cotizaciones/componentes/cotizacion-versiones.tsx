@@ -195,8 +195,7 @@ function VersionCard({
                 <thead>
                   <tr className="border-b border-border bg-muted/40">
                     <th className="px-3 py-2 text-left font-medium text-muted-foreground">Descripcion</th>
-                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Monto</th>
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Unidad</th>
+                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Tarifa diaria</th>
                     <th className="px-3 py-2 text-left font-medium text-muted-foreground">Por linea</th>
                   </tr>
                 </thead>
@@ -204,8 +203,9 @@ function VersionCard({
                   {standbys.map((sb) => (
                     <tr key={sb.id} className="border-b border-border last:border-0">
                       <td className="px-3 py-2">{sb.descripcion}</td>
-                      <td className="px-3 py-2 text-right">{formatearMonto(sb.monto)}</td>
-                      <td className="px-3 py-2">{sb.unidad}</td>
+                      <td className="px-3 py-2 text-right">
+                        {formatearMonto(sb.monto)} {version.moneda} / dia
+                      </td>
                       <td className="px-3 py-2">
                         {sb.porLinea ? (
                           <Badge variant="secondary" className="text-xs">Por linea</Badge>

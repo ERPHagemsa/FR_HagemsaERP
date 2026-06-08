@@ -98,12 +98,12 @@ export type CargoAdicional = {
 };
 
 // --- Standby (reshape, SOLO nivel version) ---
+// Contrato 2026-06-06: sin campo unidad. monto = tarifa diaria (el standby siempre es por dia).
 export type Standby = {
   id: string;
   descripcion: string;   // antes recurso
-  monto: number;         // antes tarifaDia
-  unidad: UnidadCobro;   // antes moneda (cambia el tipo)
-  porLinea: boolean;
+  monto: number;         // tarifa diaria
+  porLinea: boolean;     // true = tarifa por linea por dia
   orden: number;
 };
 
@@ -245,11 +245,11 @@ export type PayloadCargoAdicional = {
 };
 
 // --- PayloadStandby (nivel version; NUNCA en seccion) ---
+// Contrato 2026-06-06: sin campo unidad (backend usa forbidNonWhitelisted).
 export type PayloadStandby = {
   descripcion: string;
-  monto: number;
-  unidad?: UnidadCobro; // default DIA
-  porLinea?: boolean;   // default false
+  monto: number;         // tarifa diaria
+  porLinea?: boolean;    // default false; true = por linea por dia
   orden?: number;
 };
 
