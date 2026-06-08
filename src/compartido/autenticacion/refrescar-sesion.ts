@@ -67,7 +67,20 @@ function llamarRefreshUnaVez(
         )
         return null
       }
-      return (await respuesta.json()) as RespuestaRefresh
+      // El Auth Service envuelve la respuesta en { datos: ... } (contrato del
+      // ecosistema). A diferencia de auth-service-cliente.ts (que usa axios y
+      // desempaqueta data.datos), aca usamos fetch crudo, asi que hay que
+      // desempaquetar `datos` a mano. Sin esto, accessToken/refreshToken/
+      // refreshExpiresIn quedan undefined y reescribiriamos las cookies vacias.
+      const cuerpo = (await respuesta.json()) as { datos?: RespuestaRefresh }
+      const datos = cuerpo?.datos
+      if (!datos?.accessToken || !datos?.refreshToken) {
+        console.warn(
+          "[refrescar-sesion] Respuesta de refresh con forma inesperada (sin datos.tokens)",
+        )
+        return null
+      }
+      return datos
     } catch (err) {
       console.warn(
         "[refrescar-sesion] Network error contactando al Auth Service",
