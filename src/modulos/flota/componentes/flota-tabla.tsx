@@ -1,32 +1,56 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import * as React from "react";
 import {
-  IconEye,
-  IconRefresh,
-  IconSearch,
-  IconDotsVertical,
-  IconChartBar,
-} from "@tabler/icons-react";
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/compartido/componentes/ui/dropdown-menu";
+  BarChart3,
+  CheckCircle2,
+  Download,
+  Eye,
+  Loader2,
+  MoreVertical,
+  Search,
+  XCircle,
+} from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card";
-import { Input } from "@/compartido/componentes/ui/input";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/compartido/componentes/ui/dropdown-menu";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/compartido/componentes/ui/empty";
+import { Field } from "@/compartido/componentes/ui/field";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/compartido/componentes/ui/input-group";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/compartido/componentes/ui/pagination";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -35,7 +59,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
-import { cn } from "@/compartido/utilidades";
+import { cn } from "@/compartido/utilidades/utils";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
 import {
   carroceriaVehiculo,
@@ -55,34 +79,48 @@ type Props = {
   vehiculos: VehiculoFlota[];
 };
 
+type FiltrosFlota = {
+  busqueda: string;
+  estadoActivo: string;
+  estadoOperativo: string;
+};
+
+const filtrosIniciales: FiltrosFlota = {
+  busqueda: "",
+  estadoActivo: "TODOS",
+  estadoOperativo: "TODOS",
+};
+
+const estadoIconClassName = {
+  success: "text-emerald-500",
+  warning: "text-amber-500",
+  danger: "text-destructive",
+  neutral: "text-muted-foreground",
+} as const;
+
 export function FlotaTabla({ loading, vehiculos }: Props) {
-  const router = useRouter();
-  const [queryApplied, setQueryApplied] = React.useState("");
-  const [estadoActivoApplied, setEstadoActivoApplied] = React.useState("TODOS");
-  const [estadoOperativoApplied, setEstadoOperativoApplied] = React.useState("TODOS");
-
-  // Form state (unsaved until 'Aplicar')
-  const [queryForm, setQueryForm] = React.useState("");
-  const [estadoActivoForm, setEstadoActivoForm] = React.useState("TODOS");
-  const [estadoOperativoForm, setEstadoOperativoForm] = React.useState("TODOS");
+  const [filtrosFormulario, setFiltrosFormulario] =
+    React.useState<FiltrosFlota>(filtrosIniciales);
+  const [filtrosAplicados, setFiltrosAplicados] =
+    React.useState<FiltrosFlota>(filtrosIniciales);
   const [pagina, setPagina] = React.useState(1);
-  const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
+  const [registrosPorPagina, setRegistrosPorPagina] = React.useState(20);
 
-  const normalizedQuery = queryApplied.trim().toUpperCase();
-  const filtrados = vehiculos.filter((vehiculo) => {
-    const coincideTexto = textoBusquedaVehiculo(vehiculo).includes(normalizedQuery);
+  const filtrados = React.useMemo(() => {
+    const normalizedQuery = filtrosAplicados.busqueda.trim().toUpperCase();
 
-    return (
-      coincideTexto &&
-      (estadoActivoApplied === "TODOS" || estadoActivoVehiculo(vehiculo) === estadoActivoApplied) &&
-      (estadoOperativoApplied === "TODOS" || estadoOperativoVehiculo(vehiculo) === estadoOperativoApplied)
-    );
-  });
+    return vehiculos.filter((vehiculo) => {
+      const coincideTexto = textoBusquedaVehiculo(vehiculo).includes(normalizedQuery);
 
-  const hayFiltros =
-    queryApplied ||
-    estadoActivoApplied !== "TODOS" ||
-    estadoOperativoApplied !== "TODOS";
+      return (
+        coincideTexto &&
+        (filtrosAplicados.estadoActivo === "TODOS" ||
+          estadoActivoVehiculo(vehiculo) === filtrosAplicados.estadoActivo) &&
+        (filtrosAplicados.estadoOperativo === "TODOS" ||
+          estadoOperativoVehiculo(vehiculo) === filtrosAplicados.estadoOperativo)
+      );
+    });
+  }, [filtrosAplicados, vehiculos]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / registrosPorPagina));
   const inicioPagina = (pagina - 1) * registrosPorPagina;
@@ -91,30 +129,25 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
   const desdeVisible = filtrados.length ? inicioPagina + 1 : 0;
   const hastaVisible = Math.min(finPagina, filtrados.length);
 
-  function limpiarFiltros() {
-    setQueryForm("");
-    setEstadoActivoForm("TODOS");
-    setEstadoOperativoForm("TODOS");
-
-    setQueryApplied("");
-    setEstadoActivoApplied("TODOS");
-    setEstadoOperativoApplied("TODOS");
-    setPagina(1);
+  function actualizarFiltro<K extends keyof FiltrosFlota>(
+    key: K,
+    value: FiltrosFlota[K],
+  ) {
+    setFiltrosFormulario((actual) => ({
+      ...actual,
+      [key]: value,
+    }));
   }
 
-  function actualizarQuery(value: string) {
-    setQueryForm(value);
+  function aplicarFiltros() {
     setPagina(1);
+    setFiltrosAplicados(filtrosFormulario);
   }
 
-  function actualizarEstadoActivo(value: string) {
-    setEstadoActivoForm(value);
+  function limpiarBusqueda() {
     setPagina(1);
-  }
-
-  function actualizarEstadoOperativo(value: string) {
-    setEstadoOperativoForm(value);
-    setPagina(1);
+    setFiltrosFormulario(filtrosIniciales);
+    setFiltrosAplicados(filtrosIniciales);
   }
 
   function actualizarRegistrosPorPagina(value: number) {
@@ -123,238 +156,313 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
   }
 
   return (
-    <>
-      {/* Header card */}
-      <Card>
-        <CardHeader className="border-b border-border">
-          <CardTitle>Maestro de flota</CardTitle>
-          <CardDescription>
-            {filtrados.length} de {vehiculos.length} unidades visibles
-          </CardDescription>
-        </CardHeader>
-      </Card>
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-lg font-semibold">Consulta de unidades</h2>
+        <p className="text-sm text-muted-foreground">
+          Filtra, exporta y revisa las unidades disponibles.
+        </p>
+      </div>
 
-      {/* Filters outside the table card */}
-      <div className="my-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
           <form
             className="flex flex-col gap-2 lg:flex-row lg:items-center"
-            onSubmit={(e) => {
-              e.preventDefault();
-              // aplicar filtros
-              setQueryApplied(queryForm);
-              setEstadoActivoApplied(estadoActivoForm);
-              setEstadoOperativoApplied(estadoOperativoForm);
-              setPagina(1);
+            onSubmit={(event) => {
+              event.preventDefault();
+              aplicarFiltros();
             }}
           >
-            <div className="grid min-w-64 flex-1 gap-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Busqueda</span>
-              <div className="relative">
-                <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder="Placa, codigo, marca, contrato o cuenta"
-                  value={queryForm}
-                  onChange={(event) => actualizarQuery(event.target.value)}
+            <Field className="lg:w-80">
+              <InputGroup>
+                <InputGroupAddon>
+                  <Search />
+                </InputGroupAddon>
+                <InputGroupInput
+                  value={filtrosFormulario.busqueda}
+                  placeholder="Buscar unidad"
+                  onChange={(event) => actualizarFiltro("busqueda", event.target.value)}
                 />
-              </div>
-            </div>
-
-            <FiltroSelect
-              className="min-w-40 flex-1"
-              label="Estado"
-              value={estadoActivoForm}
-              onChange={actualizarEstadoActivo}
-              values={["TODOS", "ACTIVO", "INACTIVO", "SINIESTRADO"]}
-            />
-            <FiltroSelect
-              className="min-w-40 flex-1"
-              label="Operativo"
-              value={estadoOperativoForm}
-              onChange={actualizarEstadoOperativo}
-              values={["TODOS", "OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]}
-            />
-
+              </InputGroup>
+            </Field>
+            <Field className="lg:w-44">
+              <Select
+                value={filtrosFormulario.estadoActivo}
+                onValueChange={(value) => actualizarFiltro("estadoActivo", value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="TODOS">Estado: todos</SelectItem>
+                    <SelectItem value="ACTIVO">Activo</SelectItem>
+                    <SelectItem value="INACTIVO">Inactivo</SelectItem>
+                    <SelectItem value="SINIESTRADO">Siniestrado</SelectItem>
+                    <SelectItem value="ELIMINADO">Eliminado</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field className="lg:w-48">
+              <Select
+                value={filtrosFormulario.estadoOperativo}
+                onValueChange={(value) => actualizarFiltro("estadoOperativo", value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Operativo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="TODOS">Operativo: todos</SelectItem>
+                    <SelectItem value="OPERATIVO">Operativo</SelectItem>
+                    <SelectItem value="MANTENIMIENTO">Mantenimiento</SelectItem>
+                    <SelectItem value="NO_OPERATIVO">No operativo</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
             <div className="flex gap-2">
-              <Button type="submit" size="sm">
-                <IconSearch />
-                Aplicar
+              <Button type="submit" size="sm" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin" /> : <Search />}
+                {loading ? "Consultando..." : "Aplicar"}
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={limpiarFiltros}>
+              <Button type="button" variant="outline" size="sm" onClick={limpiarBusqueda}>
                 Limpiar
               </Button>
             </div>
           </form>
 
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm">Excel</Button>
-            <Button variant="outline" size="sm">PDF</Button>
+            <Button variant="outline" size="sm">
+              <Download />
+              Excel
+            </Button>
+            <Button variant="outline" size="sm">
+              <Download />
+              PDF
+            </Button>
           </div>
         </div>
 
-        {hayFiltros ? (
-          <div className="flex justify-end mt-2">
-            <Button type="button" className="h-8" onClick={limpiarFiltros}>
-              <IconRefresh />
-              Limpiar filtros
-            </Button>
+        {loading ? (
+          <div className="flex flex-col gap-3 p-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
           </div>
-        ) : null}
-      </div>
-
-      {/* Table card */}
-      <Card>
-        <CardContent className="flex flex-col gap-4 pt-5">
-          <div className="overflow-hidden rounded-xl border border-border">
-            <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
+        ) : visibles.length === 0 ? (
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyTitle>Sin unidades de flota</EmptyTitle>
+              <EmptyDescription>
+                No existen registros para el filtro aplicado.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[5%] text-center"></TableHead>
-                  <TableHead className="w-[13%]">Placa</TableHead>
-                  <TableHead className="w-[22%]">Unidad</TableHead>
-                  <TableHead className="w-[14%]">Contrato</TableHead>
-                  <TableHead className="w-[14%]">Cuenta</TableHead>
-                  <TableHead className="w-[11%]">Estado</TableHead>
-                  <TableHead className="w-[14%]">Operativo</TableHead>
+                <TableRow className="bg-muted/70 hover:bg-muted/70">
+                  <TableHead className="w-10">Acciones</TableHead>
+                  <TableHead className="text-right">#</TableHead>
+                  <TableHead>Placa</TableHead>
+                  <TableHead>Unidad</TableHead>
+                  <TableHead>Contrato</TableHead>
+                  <TableHead>Cuenta</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Operativo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-28 text-center text-muted-foreground">
-                      Cargando flota...
+                {visibles.map((vehiculo, index) => (
+                  <TableRow key={vehiculo.id} className={obtenerClaseFila(vehiculo)}>
+                    <TableCell>
+                      <AccionesFlota vehiculo={vehiculo} />
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {inicioPagina + index + 1}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {placaVehiculo(vehiculo)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex min-w-48 flex-col">
+                        <span className="font-medium">
+                          {[marcaVehiculo(vehiculo), modeloVehiculo(vehiculo)]
+                            .filter((item) => item && item !== "-")
+                            .join(" ") || "Unidad sin detalle"}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {carroceriaVehiculo(vehiculo)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <ReferenciaFlota
+                        principal={contratoVehiculo(vehiculo)?.codigo}
+                        secundario={contratoVehiculo(vehiculo)?.nombre}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <ReferenciaFlota
+                        principal={cuentaVehiculo(vehiculo)?.nombre}
+                        secundario={cuentaVehiculo(vehiculo)?.codigo}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <EstadoBadge value={estadoActivoVehiculo(vehiculo)} />
+                    </TableCell>
+                    <TableCell>
+                      <EstadoBadge value={estadoOperativoVehiculo(vehiculo)} />
                     </TableCell>
                   </TableRow>
-                ) : null}
-                {!loading
-                  ? visibles.map((vehiculo) => (
-                      <TableRow key={vehiculo.id}>
-                        <TableCell className="text-center">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Abrir menú</span>
-                                <IconDotsVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start">
-                              <DropdownMenuItem
-                                className="cursor-pointer"
-                                onClick={() => router.push(`/flota/${encodeURIComponent(vehiculo.placa ?? "")}`)}                            >
-                                <IconEye className="h-4 w-4" />
-                                <span>Ver registro</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="cursor-pointer"
-                                onClick={() => router.push(`/flota/${encodeURIComponent(vehiculo.placa ?? "")}/auditoria`)}
-                              >
-                                <IconChartBar className="h-4 w-4" />
-                                <span>Auditar</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                        <TableCell className="truncate font-mono text-xs">
-                          {placaVehiculo(vehiculo)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex min-w-0 flex-col gap-1">
-                            <span className="truncate font-medium">
-                              {[marcaVehiculo(vehiculo), modeloVehiculo(vehiculo)]
-                                .filter((item) => item && item !== "-")
-                                .join(" ") || "Unidad sin detalle"}
-                            </span>
-                            <span className="truncate text-xs text-muted-foreground">
-                              {carroceriaVehiculo(vehiculo)}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="truncate">{contratoVehiculo(vehiculo)?.codigo || "-"}</TableCell>
-                        <TableCell className="truncate">{cuentaVehiculo(vehiculo)?.nombre || "-"}</TableCell>
-                        <TableCell>
-                          <EstadoBadge value={estadoActivoVehiculo(vehiculo)} />
-                        </TableCell>
-                        <TableCell>
-                          <EstadoBadge value={estadoOperativoVehiculo(vehiculo)} />
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  : null}
-                {!loading && !filtrados.length ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="h-28 text-center text-muted-foreground">
-                      No se encontraron unidades con los filtros aplicados.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
+                ))}
               </TableBody>
             </Table>
           </div>
+        )}
 
-          <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-            <div>
-              Mostrando {desdeVisible}-{hastaVisible} de {filtrados.length} unidades
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2">
-                <span>Filas</span>
-                <select
-                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-                  value={registrosPorPagina}
-                  onChange={(event) =>
-                    actualizarRegistrosPorPagina(Number(event.target.value))
-                  }
-                >
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagina === 1}
-                onClick={() => setPagina((actual) => Math.max(1, actual - 1))}
+        {filtrados.length > 0 ? (
+          <div className="flex flex-col gap-4 border-t border-border px-4 py-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-wrap items-center gap-3 text-sm md:justify-start">
+              <span className="text-muted-foreground">Registros por pagina:</span>
+              <Select
+                value={String(registrosPorPagina)}
+                onValueChange={(value) => actualizarRegistrosPorPagina(Number(value))}
               >
-                Anterior
-              </Button>
-              <span className="min-w-20 text-center">
-                {pagina} / {totalPaginas}
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              <span className="text-muted-foreground">
+                Mostrando {desdeVisible} a {hastaVisible} de {filtrados.length} registros
               </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={pagina === totalPaginas}
-                onClick={() =>
-                  setPagina((actual) => Math.min(totalPaginas, actual + 1))
-                }
-              >
-                Siguiente
-              </Button>
             </div>
+            <Pagination className="md:mx-0 md:ml-auto md:w-auto md:justify-end">
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => pagina > 1 && setPagina((actual) => actual - 1)}
+                    className={pagina === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                  />
+                </PaginationItem>
+                {generarNumerosPaginas(pagina, totalPaginas).map((pageNum, index) => (
+                  <PaginationItem key={`${pageNum}-${index}`}>
+                    {pageNum === "..." ? (
+                      <span className="flex h-9 w-9 items-center justify-center text-muted-foreground">
+                        ...
+                      </span>
+                    ) : (
+                      <PaginationLink
+                        onClick={() => setPagina(Number(pageNum))}
+                        isActive={pageNum === pagina}
+                        className={Number(pageNum) === pagina ? "" : "cursor-pointer"}
+                        size="icon"
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    )}
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() =>
+                      pagina < totalPaginas && setPagina((actual) => actual + 1)
+                    }
+                    className={
+                      pagina === totalPaginas
+                        ? "pointer-events-none opacity-50"
+                        : "cursor-pointer"
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
-        </CardContent>
-      </Card>
-    </>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
-type BadgeVariant = React.ComponentProps<typeof Badge>["variant"];
+function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
+  const placa = encodeURIComponent(placaVehiculo(vehiculo) ?? "");
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label="Acciones">
+          <MoreVertical />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild>
+            <Link href={`/flota/${placa}`}>
+              <Eye />
+              Ver
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href={`/flota/${placa}/auditoria`}>
+              <BarChart3 />
+              Auditar
+            </Link>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function ReferenciaFlota({
+  principal,
+  secundario,
+}: {
+  principal?: string | null;
+  secundario?: string | null;
+}) {
+  return (
+    <div className="flex min-w-44 flex-col">
+      <span className="font-medium">{principal || "-"}</span>
+      <span className="text-xs text-muted-foreground">{secundario || "Sin detalle"}</span>
+    </div>
+  );
+}
 
 function EstadoBadge({ value }: { value: string | null }) {
+  const tipo = obtenerTipoEstado(value);
+
   return (
-    <Badge className="max-w-44" variant={estadoVariant(value)}>
-      <span className="truncate">{formatear(value)}</span>
+    <Badge
+      variant={tipo === "danger" ? "destructive" : "outline"}
+      className="h-6 gap-1.5 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+    >
+      {tipo === "danger" ? (
+        <XCircle className={estadoIconClassName[tipo]} />
+      ) : (
+        <CheckCircle2 className={estadoIconClassName[tipo]} />
+      )}
+      {formatear(value)}
     </Badge>
   );
 }
 
-function estadoVariant(value: string | null): BadgeVariant {
+function obtenerTipoEstado(value: string | null) {
   if (value === "ACTIVO" || value === "OPERATIVO" || value === "CALIBRADA") {
-    return "default";
+    return "success";
+  }
+
+  if (value === "MANTENIMIENTO") {
+    return "warning";
   }
 
   if (
@@ -364,39 +472,59 @@ function estadoVariant(value: string | null): BadgeVariant {
     value === "NO_CALIBRADA" ||
     value === "OBSERVADA"
   ) {
-    return "destructive";
+    return "danger";
   }
 
-  return "secondary";
+  return "neutral";
 }
 
-function FiltroSelect({
-  className,
-  label,
-  value,
-  values,
-  onChange,
-}: {
-  className?: string;
-  label: string;
-  value: string;
-  values: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className={cn("grid gap-1.5", className)}>
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <select
-        className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {values.map((item) => (
-          <option key={item} value={item}>
-            {item === "TODOS" ? "Todos" : formatear(item)}
-          </option>
-        ))}
-      </select>
-    </label>
+function obtenerClaseFila(vehiculo: VehiculoFlota) {
+  const estadoActivo = estadoActivoVehiculo(vehiculo);
+  const estadoOperativo = estadoOperativoVehiculo(vehiculo);
+
+  return cn(
+    "border-border/80",
+    estadoActivo === "INACTIVO" && "bg-muted/45 hover:bg-muted/65",
+    estadoActivo === "ELIMINADO" &&
+      "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/10",
+    estadoOperativo === "MANTENIMIENTO" && "bg-amber-500/5 hover:bg-amber-500/10",
   );
+}
+
+function generarNumerosPaginas(paginaActual: number, totalPaginas: number) {
+  const paginas: (number | string)[] = [];
+  const maxPaginasVisibles = 5;
+
+  if (totalPaginas <= maxPaginasVisibles) {
+    for (let i = 1; i <= totalPaginas; i++) {
+      paginas.push(i);
+    }
+    return paginas;
+  }
+
+  paginas.push(1);
+
+  let inicio = Math.max(2, paginaActual - 1);
+  let fin = Math.min(totalPaginas - 1, paginaActual + 1);
+
+  if (paginaActual <= 2) {
+    fin = Math.min(totalPaginas - 1, 4);
+  } else if (paginaActual >= totalPaginas - 1) {
+    inicio = Math.max(2, totalPaginas - 3);
+  }
+
+  if (inicio > 2) {
+    paginas.push("...");
+  }
+
+  for (let i = inicio; i <= fin; i++) {
+    paginas.push(i);
+  }
+
+  if (fin < totalPaginas - 1) {
+    paginas.push("...");
+  }
+
+  paginas.push(totalPaginas);
+  return paginas;
 }
