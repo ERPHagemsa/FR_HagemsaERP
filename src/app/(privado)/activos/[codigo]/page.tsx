@@ -24,7 +24,13 @@ export default async function Page({ params, searchParams }: Props) {
 
   return (
     <>
-      <SiteHeader title="Detalle de activo" />
+      <SiteHeader
+        title="Ver Activo"
+        breadcrumbs={[
+          { title: "Activos", href: "/activos" },
+          { title: "Ver Activo" },
+        ]}
+      />
       <ActivoDetalleVista codigo={codigo} accion={accion} />
     </>
   );

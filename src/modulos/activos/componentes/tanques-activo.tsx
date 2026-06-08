@@ -207,7 +207,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
                   <Badge
                     className={
                       tanque.tipoTanque === "DIESEL"
-                        ? "bg-red-600 text-white"
+                        ? "bg-primary text-primary-foreground"
                         : "bg-sky-600 text-white"
                     }
                   >
@@ -265,7 +265,7 @@ function ResumenTanque({
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <span className="flex size-9 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-600">
+        <span className="flex size-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
           <IconGasStation className="size-5" />
         </span>
         <p className="font-semibold">{label}</p>

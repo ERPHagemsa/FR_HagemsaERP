@@ -56,9 +56,9 @@ const data = {
     },
     {
       title: "Activos",
+      url: "/activos",
       icon: <Boxes />,
       items: [
-        { title: "Resumen de activos", url: "/activos" },
         { title: "Listado de activos", url: "/activos/inventario" },
         { title: "Inventario fisico", url: "/activos/inventario-fisico" },
         { title: "Nuevo activo", url: "/activos/nuevo" },

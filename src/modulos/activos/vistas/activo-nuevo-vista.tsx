@@ -140,7 +140,7 @@ function ActivoOrigenCard({
           <DatoOrigen etiqueta="Codigo anterior" valor={activo.codigo} />
           <DatoOrigen etiqueta="Unidad anterior" valor={activo.descripcion} />
           <DatoOrigen etiqueta="Ubicacion anterior" valor={activo.ubicacion} />
-          <DatoOrigen etiqueta="Placa anterior" valor={vehiculo?.placaRodaje} />
+          <DatoOrigen etiqueta="Placa anterior" valor={vehiculo?.placa} />
           <DatoOrigen
             etiqueta="Carroceria anterior"
             valor={vehiculo?.carroceria}

@@ -73,7 +73,7 @@ export function InventarioFisicoDetallePanel({
     const query = busqueda.trim().toUpperCase();
     const valoresBusqueda = [
       detalle.codigoActivo,
-      detalle.placaRodaje,
+      detalle.placa,
       detalle.ubicacionEsperada,
       detalle.descripcionActivo,
       detalle.marca,
@@ -409,7 +409,7 @@ function DetalleRow({
       </TableCell>
       <TableCell className="min-w-64 align-top">
         <div className="grid gap-1 text-xs">
-          <TextoDato label="Placa" value={detalle.placaRodaje || "Sin placa"} />
+          <TextoDato label="Placa" value={detalle.placa || "Sin placa"} />
           <TextoDato label="Ubicacion" value={detalle.ubicacionEsperada} />
           <TextoDato
             label="Marca/modelo"
@@ -638,7 +638,7 @@ function construirDetallesInventario(
       carroceria: vehiculo?.carroceria ?? null,
       estadoOperativo: vehiculo?.estadoOperativo ?? null,
       estadoCalibracion: vehiculo?.estadoCalibracion ?? null,
-      placaRodaje: vehiculo?.placaRodaje ?? null,
+      placa: vehiculo?.placa ?? null,
       ubicacionEsperada: activo.ubicacion,
       ubicacionEncontrada: null,
       observacion: null,

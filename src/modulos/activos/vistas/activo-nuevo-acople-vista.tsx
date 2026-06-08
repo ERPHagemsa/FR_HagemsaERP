@@ -127,7 +127,7 @@ export async function ActivoNuevoAcopleVista() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {formatearTexto(activo.vehiculo?.placaRodaje)}
+                          {formatearTexto(activo.vehiculo?.placa)}
                         </TableCell>
                         <TableCell>
                           {formatearTexto(activo.vehiculo?.carroceria)}

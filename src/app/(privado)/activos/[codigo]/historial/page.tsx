@@ -13,7 +13,13 @@ export default async function Page({ params }: Props) {
 
   return (
     <>
-      <SiteHeader title="Historial y auditoria" />
+      <SiteHeader
+        title="Auditar Activo"
+        breadcrumbs={[
+          { title: "Activos", href: "/activos" },
+          { title: "Auditar Activo" },
+        ]}
+      />
       <ActivoHistorialVista codigo={codigo} />
     </>
   );

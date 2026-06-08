@@ -205,7 +205,7 @@ export async function ActivosVista() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {activo.vehiculo?.placaRodaje || "Sin placa"}
+                          {activo.vehiculo?.placa || "Sin placa"}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">

@@ -9,10 +9,17 @@ type PageProps = {
 
 export default async function Page({ searchParams }: PageProps) {
   const params = await searchParams;
+  const title = params?.origenId ? "Nuevo Acople" : "Nuevo Activo";
 
   return (
     <>
-      <SiteHeader title={params?.origenId ? "Nuevo acople" : "Nuevo activo"} />
+      <SiteHeader
+        title={title}
+        breadcrumbs={[
+          { title: "Activos", href: "/activos" },
+          { title },
+        ]}
+      />
       <ActivoNuevoVista origenId={params?.origenId} />
     </>
   );

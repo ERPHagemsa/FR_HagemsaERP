@@ -509,7 +509,7 @@ const CAMPOS_HISTORIAL: Record<string, string> = {
   numeroFactura: "Numero de factura",
   fechaFactura: "Fecha de factura",
   "vehiculo.plantillaInventario": "Clase",
-  "vehiculo.placaRodaje": "Placa",
+  "vehiculo.placa": "Placa",
   "vehiculo.anioFabricacion": "Ano de fabricacion",
   "vehiculo.color": "Color",
   "vehiculo.marca": "Marca",

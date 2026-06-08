@@ -54,7 +54,7 @@ export type VehiculoDetalle = {
   certificadoMatpel: string | null;
   certificadoBonificacion: string | null;
   certificadoOperatividad: string | null;
-  placaRodaje: string | null;
+  placa: string | null;
   anioFabricacion: number | null;
   color: string | null;
   marca: string | null;
@@ -310,7 +310,7 @@ export type InventarioFisicoDetalle = {
   carroceria: string | null;
   estadoOperativo: string | null;
   estadoCalibracion: string | null;
-  placaRodaje: string | null;
+  placa: string | null;
   ubicacionEsperada: string | null;
   ubicacionEncontrada: string | null;
   observacion: string | null;

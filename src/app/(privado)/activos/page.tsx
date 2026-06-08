@@ -7,7 +7,13 @@ export const revalidate = 0;
 export default function Page() {
   return (
     <>
-      <SiteHeader title="Activos" />
+      <SiteHeader
+        title="Listar Activos"
+        breadcrumbs={[
+          { title: "Activos", href: "/activos" },
+          { title: "Listar Activos" },
+        ]}
+      />
       <ActivosVista />
     </>
   );

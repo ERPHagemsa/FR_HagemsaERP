@@ -7,7 +7,13 @@ export const revalidate = 0;
 export default function ActivosInventarioFisicoPage() {
   return (
     <>
-      <SiteHeader title="Inventario fisico" />
+      <SiteHeader
+        title="Inventario Fisico"
+        breadcrumbs={[
+          { title: "Activos", href: "/activos" },
+          { title: "Inventario Fisico" },
+        ]}
+      />
       <ActivosInventarioFisicoVista />
     </>
   );

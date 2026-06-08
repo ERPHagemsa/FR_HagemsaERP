@@ -140,7 +140,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                 <TabsContent value="vehiculo" className="pt-5">
                   <FichaGrid>
                     <Dato label="Clase" value={vehiculo?.plantillaInventario} />
-                    <Dato label="Placa" value={vehiculo?.placaRodaje} />
+                    <Dato label="Placa" value={vehiculo?.placa} />
                     <Dato label="Marca" value={vehiculo?.marca} />
                     <Dato label="Modelo" value={vehiculo?.modelo} />
                     <Dato label="Ano fabricacion" value={vehiculo?.anioFabricacion} />

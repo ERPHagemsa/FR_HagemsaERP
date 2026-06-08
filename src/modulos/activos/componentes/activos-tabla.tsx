@@ -123,7 +123,7 @@ export function ActivosTabla({ activos }: Props) {
 
   const normalizedQuery = filtrosAplicados.query.trim().toUpperCase();
   const filtrados = activosPorRegistro.filter((activo) => {
-    const placa = activo.vehiculo?.placaRodaje ?? "";
+    const placa = activo.vehiculo?.placa ?? "";
     const marca = activo.vehiculo?.marca ?? "";
     const modelo = activo.vehiculo?.modelo ?? "";
     const fechaModificacion = normalizarFecha(activo.updatedAt);
@@ -207,7 +207,7 @@ export function ActivosTabla({ activos }: Props) {
         [activo.vehiculo?.marca, activo.vehiculo?.modelo]
           .filter(Boolean)
           .join(" ") || activo.descripcion,
-      Placa: activo.vehiculo?.placaRodaje ?? "",
+      Placa: activo.vehiculo?.placa ?? "",
       Tipo: formatear(activo.tipoActivo),
       Ubicacion: activo.ubicacion,
       Estado: formatearEstadoActivo(activo.estadoActivo),
@@ -230,7 +230,7 @@ export function ActivosTabla({ activos }: Props) {
                 .filter(Boolean)
                 .join(" ") || activo.descripcion
             )}</td>
-            <td>${escaparHtml(activo.vehiculo?.placaRodaje ?? "")}</td>
+            <td>${escaparHtml(activo.vehiculo?.placa ?? "")}</td>
             <td>${escaparHtml(formatear(activo.tipoActivo))}</td>
             <td>${escaparHtml(activo.ubicacion)}</td>
             <td>${escaparHtml(formatearEstadoActivo(activo.estadoActivo))}</td>
@@ -450,7 +450,7 @@ export function ActivosTabla({ activos }: Props) {
             <Button asChild size="sm">
               <Link href="/activos/nuevo">
                 <IconPlus />
-                NUEVO
+                Nuevo
               </Link>
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={exportarExcel}>
@@ -623,7 +623,7 @@ export function ActivosTabla({ activos }: Props) {
                     </div>
                   </TableCell>
                   <TableCell className="truncate">
-                    {activo.vehiculo?.placaRodaje ?? "Sin placa"}
+                    {activo.vehiculo?.placa ?? "Sin placa"}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{formatear(activo.tipoActivo)}</Badge>
