@@ -56,7 +56,7 @@ export function ActivosInventarioListado({ activos }: Props) {
     return (
       textoBusqueda.includes(normalizedQuery) &&
       (tipoActivo === "TODOS" || activo.tipoActivo === tipoActivo) &&
-      (estadoActivo === "TODOS" || activo.estadoActivo === estadoActivo) &&
+      coincideEstadoActivo(activo.estadoActivo, estadoActivo) &&
       (estadoOperativo === "TODOS" ||
         vehiculo?.estadoOperativo === estadoOperativo)
     );
@@ -118,10 +118,10 @@ export function ActivosInventarioListado({ activos }: Props) {
             label="Estado"
             value={estadoActivo}
             onChange={setEstadoActivo}
-            values={["TODOS", "ACTIVO", "INACTIVO", "SINIESTRADO"]}
+            values={["TODOS", "ACTIVO", "BAJA"]}
           />
           <FiltroSelect
-            label="Operativo"
+            label="Condicion"
             value={estadoOperativo}
             onChange={setEstadoOperativo}
             values={["TODOS", "OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]}
@@ -226,8 +226,8 @@ function InventarioItem({ activo }: { activo: Activo }) {
         <Dato label="Placa" value={vehiculo?.placaRodaje} />
         <Dato label="Tipo" value={formatear(activo.tipoActivo)} />
         <Dato label="Ubicacion" value={activo.ubicacion} />
-        <Dato label="Estado activo" value={formatear(activo.estadoActivo)} />
-        <Dato label="Operativo" value={formatear(vehiculo?.estadoOperativo)} />
+        <Dato label="Estado activo" value={formatearEstadoActivo(activo.estadoActivo)} />
+        <Dato label="Condicion activo" value={formatear(vehiculo?.estadoOperativo)} />
         <Dato
           label="Calibracion"
           value={formatear(vehiculo?.estadoCalibracion)}
@@ -254,6 +254,19 @@ function Dato({ label, value }: { label: string; value?: string | number | null 
       </p>
     </div>
   );
+}
+
+function coincideEstadoActivo(estadoActivo: string, filtro: string) {
+  if (filtro === "TODOS") return true;
+  if (filtro === "BAJA") return estadoActivo !== "ACTIVO";
+  return estadoActivo === filtro;
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return formatear(value);
 }
 
 function FiltroSelect({

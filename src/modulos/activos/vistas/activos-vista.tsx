@@ -144,7 +144,7 @@ export async function ActivosVista() {
             <CardHeader>
               <CardTitle>Distribucion</CardTitle>
               <CardDescription>
-                Lectura rapida por tipo de activo y estado operativo.
+                Lectura rapida por tipo de activo y condicion del activo.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -183,7 +183,7 @@ export async function ActivosVista() {
                       <TableHead>Tipo</TableHead>
                       <TableHead>Ubicacion</TableHead>
                       <TableHead>Estado</TableHead>
-                      <TableHead>Operativo</TableHead>
+                      <TableHead>Condicion</TableHead>
                       <TableHead>Calibracion</TableHead>
                       <TableHead>Modificado</TableHead>
                     </TableRow>
@@ -217,7 +217,7 @@ export async function ActivosVista() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {formatear(activo.estadoActivo)}
+                            {formatearEstadoActivo(activo.estadoActivo)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -428,4 +428,11 @@ function formatear(value?: string | null) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return formatear(value);
 }

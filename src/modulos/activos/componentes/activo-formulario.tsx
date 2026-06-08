@@ -104,6 +104,12 @@ export function ActivoFormulario({
     React.useState<PlantillaInventario>(
       activo?.vehiculo?.plantillaInventario ?? "EQUIPO_LIVIANO"
     );
+  const [estadoActivoGrupo, setEstadoActivoGrupo] = React.useState<
+    "ACTIVO" | "BAJA"
+  >(activo?.estadoActivo === "ACTIVO" ? "ACTIVO" : "BAJA");
+  const [causaBaja, setCausaBaja] = React.useState<
+    "SINIESTRADO" | "INACTIVO"
+  >(activo?.estadoActivo === "SINIESTRADO" ? "SINIESTRADO" : "INACTIVO");
   const [carroceriasReferencia, setCarroceriasReferencia] = React.useState<
     CarroceriaReferencia[]
   >([]);
@@ -173,6 +179,10 @@ export function ActivoFormulario({
       isMounted = false;
     };
   }, [plantillaSeleccionada, selectedCarroceriaReferenciaId]);
+
+  React.useEffect(() => {
+    actualizarResumen();
+  }, [actualizarResumen, causaBaja, estadoActivoGrupo]);
 
   function setFormValue(name: string, value: string | number | null | undefined) {
     const root = formularioRef.current;
@@ -244,7 +254,7 @@ export function ActivoFormulario({
         ["Descripcion", getValue("descripcion") || activo?.descripcion],
         ["Tipo", getValue("tipoActivo") || activo?.tipoActivo],
         ["Ubicacion", getValue("ubicacion") || activo?.ubicacion],
-        ["Estado", getValue("estadoActivo") || activo?.estadoActivo],
+        ["Estado", formatearEstadoActivo(getValue("estadoActivo") || activo?.estadoActivo)],
       ],
       adquisicion: [
         ["Valor", getValue("valorUnidad") || activo?.valorUnidad],
@@ -254,7 +264,7 @@ export function ActivoFormulario({
         ["Fecha", getValue("fechaFactura") || activo?.fechaFactura],
       ],
       vehiculo: [
-        ["Plantilla", getValue("plantillaInventario") || activo?.vehiculo?.plantillaInventario],
+        ["Clase", getValue("plantillaInventario") || activo?.vehiculo?.plantillaInventario],
         ["Carroceria", getValue("carroceria") || activo?.vehiculo?.carroceria],
         ["Placa", getValue("placaRodaje") || activo?.vehiculo?.placaRodaje],
         ["Marca", getValue("marca") || activo?.vehiculo?.marca],
@@ -271,7 +281,7 @@ export function ActivoFormulario({
         ["Seguridad", getValue("dispositivosSeguridad") || activo?.vehiculo?.dispositivosSeguridad],
       ],
       control: [
-        ["Operativo", getValue("estadoOperativo") || activo?.vehiculo?.estadoOperativo],
+        ["Condicion", getValue("estadoOperativo") || activo?.vehiculo?.estadoOperativo],
         ["Calibracion", getValue("estadoCalibracion") || activo?.vehiculo?.estadoCalibracion],
         ["Observacion", getValue("observacion") || activo?.observacion],
       ],
@@ -355,7 +365,7 @@ export function ActivoFormulario({
 
       if (!plantillaInventario) {
         setActiveTab("vehiculo");
-        throw new Error("Selecciona la plantilla del activo en la pestana Vehiculo.");
+        throw new Error("Selecciona la clase del activo en la pestana Vehiculo.");
       }
 
       const tanqueInvalido = tanquesPendientes.find(
@@ -799,8 +809,8 @@ export function ActivoFormulario({
               {isSaving
                 ? "Guardando..."
                 : isEdit
-                  ? "Actualizar activo"
-                  : "Guardar activo"}
+                  ? "Actualizar"
+                  : "Agregar"}
             </Button>
           </div>
         </CardHeader>
@@ -863,14 +873,49 @@ export function ActivoFormulario({
                     defaultValue={activo?.descripcion}
                     required
                   />
-                  <SelectField
+                  <input
                     name="estadoActivo"
-                    label="Estado activo"
-                    defaultValue={activo?.estadoActivo ?? "ACTIVO"}
-                    values={["ACTIVO", "INACTIVO", "SINIESTRADO"]}
-                    required
+                    type="hidden"
+                    value={estadoActivoGrupo === "ACTIVO" ? "ACTIVO" : causaBaja}
+                    readOnly
                   />
+                  <label className="grid gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      Estado activo <span className="text-destructive">*</span>
+                    </span>
+                    <select
+                      value={estadoActivoGrupo}
+                      required
+                      className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                      onChange={(event) => {
+                        setEstadoActivoGrupo(event.target.value as "ACTIVO" | "BAJA");
+                        actualizarResumen();
+                      }}
+                    >
+                      <option value="ACTIVO">Activo</option>
+                      <option value="BAJA">Baja</option>
+                    </select>
+                  </label>
                 </div>
+                {estadoActivoGrupo === "BAJA" ? (
+                  <div className="grid gap-4 pt-4 md:grid-cols-2">
+                    <SelectField
+                      name="causaBaja"
+                      label="Causa de baja"
+                      defaultValue={causaBaja}
+                      values={["SINIESTRADO", "INACTIVO"]}
+                      onChange={(value) => {
+                        setCausaBaja(value as "SINIESTRADO" | "INACTIVO");
+                        actualizarResumen();
+                      }}
+                      labels={{
+                        SINIESTRADO: "Siniestro",
+                        INACTIVO: "De baja",
+                      }}
+                      required
+                    />
+                  </div>
+                ) : null}
                 <div className="grid gap-4 pt-4 md:grid-cols-2">
                   <SelectField
                     name="tipoActivo"
@@ -943,7 +988,7 @@ export function ActivoFormulario({
                 <div className="grid gap-4 lg:grid-cols-[260px_180px_1fr_1fr]">
                   <label className="grid gap-2">
                     <span className="text-sm font-medium text-foreground">
-                      Plantilla
+                      Clase
                       <span className="ml-1 text-destructive">*</span>
                     </span>
                     <select
@@ -1035,8 +1080,8 @@ export function ActivoFormulario({
                   />
                 </div>
                 <div className="grid gap-4 pt-4 md:grid-cols-2">
-                  <Field name="serieChasis" label="Serie de chasis" defaultValue={activo?.vehiculo?.serieChasis ?? undefined} />
-                  <Field name="serieMotor" label="Serie y marca de motor" defaultValue={activo?.vehiculo?.serieMotor ?? undefined} />
+                  <Field name="serieChasis" label="Serie de chasis" defaultValue={activo?.vehiculo?.serieChasis ?? undefined} required />
+                  <Field name="serieMotor" label="Serie y marca de motor" defaultValue={activo?.vehiculo?.serieMotor ?? undefined} required />
                 </div>
             </TabsContent>
 
@@ -1129,10 +1174,10 @@ export function ActivoFormulario({
               <SectionIntro
                 icon={IconShieldCheck}
                 title="Control operativo"
-                description="Estado operativo, calibracion y observaciones."
+                description="Condicion del activo, calibracion y observaciones."
               />
                 <div className="grid gap-4 md:grid-cols-3">
-                  <SelectField name="estadoOperativo" label="Estado operativo" defaultValue={activo?.vehiculo?.estadoOperativo ?? "OPERATIVO"} values={["OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]} />
+                  <SelectField name="estadoOperativo" label="Condición activo" defaultValue={activo?.vehiculo?.estadoOperativo ?? "OPERATIVO"} values={["OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]} />
                   <SelectField name="estadoCalibracion" label="Estado calibracion" defaultValue={activo?.vehiculo?.estadoCalibracion ?? "PENDIENTE"} values={["CALIBRADA", "NO_CALIBRADA", "PENDIENTE", "OBSERVADA"]} />
                 </div>
                 <div className="pt-4">
@@ -1559,12 +1604,16 @@ function SelectField({
   name,
   values,
   defaultValue,
+  labels,
+  onChange,
   required = false,
 }: {
   label: string;
   name: string;
   values: string[];
   defaultValue: string;
+  labels?: Record<string, string>;
+  onChange?: (value: string) => void;
   required?: boolean;
 }) {
   return (
@@ -1577,13 +1626,14 @@ function SelectField({
         name={name}
         defaultValue={defaultValue}
         required={required}
+        onChange={(event) => onChange?.(event.target.value)}
         className={cn(
           "h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
         )}
       >
         {values.map((value) => (
           <option key={value} value={value}>
-            {value}
+            {labels?.[value] ?? value}
           </option>
         ))}
       </select>
@@ -1663,6 +1713,13 @@ function formatLabel(value: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return value ?? "";
 }
 
 function formatSummaryValue(value: unknown) {
