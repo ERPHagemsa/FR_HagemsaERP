@@ -4,11 +4,11 @@ import { ListChecks } from "lucide-react";
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import { Button } from "@/compartido/componentes/ui/button";
 import { FlotaResumen } from "../componentes/flota-resumen";
-import { obtenerAsignaciones } from "../servicios/flota-api";
+import { obtenerUnidades } from "../servicios/flota-api";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
 
 export async function FlotaVista() {
-  const items: VehiculoFlota[] = await obtenerAsignaciones();
+  const items: VehiculoFlota[] = await obtenerUnidades();
 
   return (
     <>

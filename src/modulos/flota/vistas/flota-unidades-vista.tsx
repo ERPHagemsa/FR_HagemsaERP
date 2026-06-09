@@ -1,10 +1,10 @@
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import { FlotaTabla } from "../componentes/flota-tabla";
-import { obtenerAsignaciones } from "../servicios/flota-api";
+import { obtenerUnidades } from "../servicios/flota-api";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
 
 export async function FlotaUnidadesVista() {
-  const items: VehiculoFlota[] = await obtenerAsignaciones();
+  const items: VehiculoFlota[] = await obtenerUnidades();
 
   return (
     <>

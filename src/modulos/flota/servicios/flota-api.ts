@@ -99,6 +99,7 @@ async function consultarConfiguracionGeneralActiva(
   });
   const baseUrl = URLS_SERVIDOR.configuracionGeneral.replace(/\/+$/, "");
   const url = `${baseUrl}/configuracion-general?${query}`;
+  console.debug("[flota-api] consultarConfiguracionGeneralActiva: url=", url);
   const accessToken = await obtenerAccessToken();
   const { controller, timeout } = crearAbortController(5000);
 
@@ -202,6 +203,136 @@ export async function obtenerAsignaciones(): Promise<VehiculoFlota[]> {
     limpiarTimeout(timeout);
     return [];
   }
+}
+
+// ─── Activos API (unidades desde el endpoint de activos) ──────────────
+
+type ActivoApiResponse = {
+  id: number;
+  codigo: string;
+  tipoActivo: string;
+  descripcion: string;
+  ubicacion: string;
+  estadoActivo: string;
+  estadoRegistro?: boolean;
+  observacion: string | null;
+  moneda: string | null;
+  createdAt: string;
+  updatedAt: string;
+  vehiculo: {
+    placa: string | null;
+    marca: string | null;
+    modelo: string | null;
+    carroceria: string | null;
+    estadoOperativo: string | null;
+    estadoCalibracion: string | null;
+    anioFabricacion: number | null;
+    color: string | null;
+    ejes: number | null;
+    categoria: string | null;
+    serieChasis: string | null;
+    serieMotor: string | null;
+  } | null;
+};
+
+async function consultarActivos(): Promise<ActivoApiResponse[]> {
+  const cfg = obtenerConfiguracionApi("activos");
+  const url = `${cfg.baseUrl.replace(/\/+$/, "")}/activos`;
+  console.debug("[flota-api] consultarActivos: url=", url);
+  const { controller, timeout } = crearAbortController(5000);
+
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+    limpiarTimeout(timeout);
+    if (!res.ok) return [];
+
+    const data = await res.json() as unknown;
+    if (Array.isArray(data)) return data as ActivoApiResponse[];
+    if (data && typeof data === "object") {
+      const obj = data as Record<string, unknown>;
+      if (Array.isArray(obj.activos)) return obj.activos as ActivoApiResponse[];
+      if (Array.isArray(obj.datos)) return obj.datos as ActivoApiResponse[];
+    }
+    return [];
+  } catch {
+    limpiarTimeout(timeout);
+    return [];
+  }
+}
+
+function toVehiculoFlota(activo: ActivoApiResponse): VehiculoFlota {
+  return {
+    id: String(activo.id),
+    codigo: activo.codigo,
+    descripcion: activo.descripcion,
+    tipoActivo: activo.tipoActivo,
+    estadoActivo: activo.estadoActivo,
+    ubicacion: activo.ubicacion,
+    updatedAt: activo.updatedAt,
+    placa: activo.vehiculo?.placa ?? null,
+    placaRodaje: activo.vehiculo?.placa ?? null,
+    marca: activo.vehiculo?.marca ?? null,
+    modelo: activo.vehiculo?.modelo ?? null,
+    carroceria: activo.vehiculo?.carroceria ?? null,
+    estadoRegistro: activo.estadoRegistro != null ? String(activo.estadoRegistro) : null,
+    estadoOperativo: activo.vehiculo?.estadoOperativo ?? null,
+    contrato: null,
+    cuenta: null,
+    estado: null,
+    vehiculo: activo.vehiculo
+      ? {
+          placaRodaje: activo.vehiculo.placa,
+          marca: activo.vehiculo.marca,
+          modelo: activo.vehiculo.modelo,
+          carroceria: activo.vehiculo.carroceria,
+          estadoOperativo: activo.vehiculo.estadoOperativo,
+          estadoCalibracion: activo.vehiculo.estadoCalibracion,
+        }
+      : null,
+  };
+}
+
+export async function obtenerUnidades(): Promise<VehiculoFlota[]> {
+  const [activos, asignaciones] = await Promise.all([
+    consultarActivos(),
+    obtenerAsignaciones(),
+  ]);
+
+  const asignacionesPorPlaca = new Map<string, VehiculoFlota>();
+  for (const asignacion of asignaciones) {
+    const placa = asignacion.placa ?? asignacion.placaRodaje ?? "";
+    if (placa) asignacionesPorPlaca.set(placa.toUpperCase(), asignacion);
+  }
+
+  return activos.map((activo) => {
+    const flota = toVehiculoFlota(activo);
+    const placa = (flota.placa ?? "").toUpperCase();
+    const asignacion = asignacionesPorPlaca.get(placa);
+    if (asignacion) {
+      flota.contrato = asignacion.contrato;
+      flota.cuenta = asignacion.cuenta;
+    }
+    return flota;
+  });
+}
+
+export async function obtenerUnidadPorPlaca(placa: string): Promise<VehiculoFlota | null> {
+  const [activos, asignacion] = await Promise.all([
+    consultarActivos(),
+    obtenerAsignacionPorPlaca(placa),
+  ]);
+
+  const activo = activos.find(
+    (a) => a.vehiculo?.placa?.toUpperCase() === placa.toUpperCase(),
+  );
+  if (!activo) return asignacion;
+
+  const flota = toVehiculoFlota(activo);
+  if (asignacion) {
+    flota.contrato = asignacion.contrato;
+    flota.cuenta = asignacion.cuenta;
+  }
+  return flota;
 }
 
 export async function obtenerAsignacionPorPlaca(

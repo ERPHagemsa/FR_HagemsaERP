@@ -1,7 +1,7 @@
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import DetalleVehiculoClient from "../componentes/detalle-vehiculo-client";
 import {
-  obtenerAsignacionPorPlaca,
+  obtenerUnidadPorPlaca,
   obtenerContratosDisponibles,
 } from "../servicios/flota-api";
 
@@ -10,11 +10,11 @@ type Props = {
 };
 
 export async function VehiculoDetalleVista({ id }: Props) {
+  const placa = decodeURIComponent(id);
   const [vehiculo, contratosDisponibles] = await Promise.all([
-    obtenerAsignacionPorPlaca(id),
+    obtenerUnidadPorPlaca(placa),
     obtenerContratosDisponibles(),
   ]);
-  const placa = decodeURIComponent(id);
 
   return (
     <>
