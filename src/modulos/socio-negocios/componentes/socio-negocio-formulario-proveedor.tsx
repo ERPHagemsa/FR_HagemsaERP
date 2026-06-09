@@ -298,8 +298,8 @@ export function SocioNegocioFormularioProveedor() {
 
   return (
     <>
-      <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
-        <div className="border-b border-border px-5 py-4">
+      <section className="w-full rounded-xl border border-border/70 bg-card text-card-foreground">
+        <div className="border-b border-border/70 px-5 py-4">
           <div className="flex flex-col gap-1">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">Agregar proveedor</h2>
@@ -313,7 +313,7 @@ export function SocioNegocioFormularioProveedor() {
           <form id="agregar-proveedor" ref={formRef} onSubmit={(event) => void registrar(event)}>
             <FieldGroup>
               <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
-                <FieldSet className="rounded-lg border border-border p-4">
+                <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                   <FieldLegend>Identificacion</FieldLegend>
                   <FieldDescription>
                     Ingresa el RUC. El backend consultara SAP y registrara el proveedor localmente.
@@ -360,7 +360,7 @@ export function SocioNegocioFormularioProveedor() {
                   </div>
                 </FieldSet>
 
-                <FieldSet className="rounded-lg border border-border p-4">
+                <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                   <FieldLegend>Datos comerciales</FieldLegend>
                   <FieldDescription>
                     Completa la razon social. SAP puede precargar los datos si encuentra el RUC.
@@ -489,7 +489,7 @@ export function SocioNegocioFormularioProveedor() {
                 </FieldSet>
               </div>
 
-              <FieldSet className="rounded-lg border border-border p-4">
+              <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                 <FieldLegend>Clasificación interna</FieldLegend>
                 <FieldDescription>
                   Datos internos opcionales para asignar el proveedor a un área responsable.

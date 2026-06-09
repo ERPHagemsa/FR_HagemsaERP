@@ -360,8 +360,8 @@ export function SocioNegocioFormularioPersonal() {
 
   return (
     <>
-      <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
-        <div className="border-b border-border px-5 py-4">
+      <section className="w-full rounded-xl border border-border/70 bg-card text-card-foreground">
+        <div className="border-b border-border/70 px-5 py-4">
           <div className="flex flex-col gap-1">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">Agregar personal</h2>
@@ -385,7 +385,7 @@ export function SocioNegocioFormularioPersonal() {
               ) : null}
 
               <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
-                <FieldSet className="rounded-lg border border-border p-4">
+                <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                   <FieldLegend>Identificacion</FieldLegend>
                   <FieldDescription>Documento del empleado.</FieldDescription>
                   <div className="grid gap-4 md:grid-cols-1">
@@ -401,7 +401,7 @@ export function SocioNegocioFormularioPersonal() {
                   </div>
                 </FieldSet>
 
-                <FieldSet className="rounded-lg border border-border p-4">
+                <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                   <FieldLegend>Datos personales</FieldLegend>
                   <FieldDescription>Nombre y datos de contacto del empleado.</FieldDescription>
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -479,7 +479,7 @@ export function SocioNegocioFormularioPersonal() {
                 </FieldSet>
               </div>
 
-              <FieldSet className="rounded-lg border border-border p-4">
+              <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                 <FieldLegend>Datos laborales</FieldLegend>
                 <FieldDescription>Estructura organizacional donde labora el empleado.</FieldDescription>
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -610,7 +610,7 @@ export function SocioNegocioFormularioPersonal() {
                 </div>
               </FieldSet>
 
-              <FieldSet className="rounded-lg border border-border p-4">
+              <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                 <FieldLegend>Relacion contractual</FieldLegend>
                 <FieldDescription>
                   Selecciona la cuenta y el ultimo contrato asociado que corresponda.
