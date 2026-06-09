@@ -15,15 +15,18 @@ import {
 
 import type { DraftCargoAdicional } from "../servicios/cotizaciones-editor.utils";
 import { cargoAdicionalVacio } from "../servicios/cotizaciones-editor.utils";
+import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
+import { CargoCatalogoInput } from "./cargo-catalogo-input";
 
 type Props = {
   cargos: DraftCargoAdicional[];
+  opcionesCatalogo: CatalogoCargoAdicional[];
   erroresCampo?: Record<string, string>;
   disabled?: boolean;
   onChange: (cargos: DraftCargoAdicional[]) => void;
 };
 
-export function EditorCargos({ cargos, erroresCampo = {}, disabled, onChange }: Props) {
+export function EditorCargos({ cargos, opcionesCatalogo, erroresCampo = {}, disabled, onChange }: Props) {
   function agregar() {
     const nuevo = cargoAdicionalVacio();
     nuevo.orden = cargos.length;
@@ -59,13 +62,13 @@ export function EditorCargos({ cargos, erroresCampo = {}, disabled, onChange }: 
                 return (
                   <TableRow key={cargo.claveCliente}>
                     <TableCell>
-                      <Input
-                        className="h-8 text-xs"
+                      <CargoCatalogoInput
                         value={cargo.descripcion}
+                        onChange={(v) => actualizar(cargo.claveCliente, { descripcion: v })}
+                        opciones={opcionesCatalogo}
                         disabled={disabled}
                         placeholder="Ej: Escolta SUTRAN"
                         aria-invalid={Boolean(errDesc)}
-                        onChange={(e) => actualizar(cargo.claveCliente, { descripcion: e.target.value })}
                       />
                       {errDesc ? (
                         <p className="mt-0.5 whitespace-normal text-xs text-destructive">{errDesc}</p>

@@ -25,6 +25,7 @@ import {
   seccionDefectoVacia,
   seccionVacia,
 } from "../servicios/cotizaciones-editor.utils";
+import { useListarCatalogosCargoAdicional } from "../servicios/cotizaciones-queries";
 import { EditorCargos } from "./editor-cargos";
 import { LineaDetalleDrawer } from "./linea-detalle-drawer";
 import {
@@ -72,6 +73,10 @@ export function EditorContenido({
     claveSeccion: string | null;
     linea: DraftLinea;
   } | null>(null);
+
+  // Catalogo de cargos adicionales — cargado una sola vez al nivel del editor.
+  const { data: catalogoData } = useListarCatalogosCargoAdicional({ estado: "ACTIVO", porPagina: 50 });
+  const opcionesCatalogo = catalogoData?.data ?? [];
 
   // ---- Derivados -----------------------------------------------------------
   const seccionDefecto = secciones.find((s) => s.esDefecto);
@@ -489,6 +494,7 @@ export function EditorContenido({
                             </p>
                             <EditorCargos
                               cargos={seccion.cargosAdicionales}
+                              opcionesCatalogo={opcionesCatalogo}
                               erroresCampo={errores.porSeccionCargos[seccion.claveCliente]}
                               disabled={disabled}
                               onChange={(cargos) =>
@@ -565,6 +571,7 @@ export function EditorContenido({
           </div>
           <EditorCargos
             cargos={seccionDefecto?.cargosAdicionales ?? []}
+            opcionesCatalogo={opcionesCatalogo}
             erroresCampo={errores.cargosDefecto}
             disabled={disabled}
             onChange={actualizarCargosDefecto}

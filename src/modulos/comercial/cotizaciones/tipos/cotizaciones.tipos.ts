@@ -223,6 +223,34 @@ export type FiltrosModalidades = {
 };
 
 // ---------------------------------------------------------------------------
+// Catalogo de cargos adicionales
+// ---------------------------------------------------------------------------
+
+export type EstadoCatalogoCargoAdicional = "ACTIVO" | "INACTIVO";
+
+export type CatalogoCargoAdicional = {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  estado: EstadoCatalogoCargoAdicional;
+};
+
+// forma propia (igual que RespuestaPaginadaModalidades, NO el RespuestaPaginada de compartido)
+export type RespuestaPaginadaCatalogosCargoAdicional = {
+  data: CatalogoCargoAdicional[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+};
+
+export type FiltrosCatalogosCargoAdicional = {
+  estado?: EstadoCatalogoCargoAdicional;
+  busqueda?: string;
+  pagina?: number;
+  porPagina?: number;
+};
+
+// ---------------------------------------------------------------------------
 // DTOs de escritura (write model — anidado, lo que acepta el backend)
 // CRITICO: NUNCA enviar idSeccion, precioTotal ni totales (los calcula el backend).
 // `precioUnitario` (requerido) y `cantidad` (opcional, default 1) SI se envian a nivel
