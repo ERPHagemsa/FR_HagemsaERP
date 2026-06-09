@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MoreHorizontal, Pencil, Plus, Power, PowerOff, Search } from "lucide-react"
+import { Pencil, Plus, Power, PowerOff, Search } from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api/formato-error"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -18,13 +18,12 @@ import {
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/compartido/componentes/ui/dropdown-menu"
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/compartido/componentes/ui/card"
 import { Input } from "@/compartido/componentes/ui/input"
 import { Label } from "@/compartido/componentes/ui/label"
 import {
@@ -44,7 +43,6 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
-import { PiePaginacion } from "@/modulos/administracion/componentes/paginacion-tabla"
 import type {
   EstadoModalidad,
   FiltrosModalidades,
@@ -577,56 +575,12 @@ function DialogCambiarEstado({
 }
 
 // ---------------------------------------------------------------------------
-// Acciones por fila
-// ---------------------------------------------------------------------------
-
-function AccionesFila({
-  item,
-  onEditar,
-  onCambiarEstado,
-}: {
-  item: Modalidad
-  onEditar: (item: Modalidad) => void
-  onCambiarEstado: (item: Modalidad) => void
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Acciones">
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuGroup>
-          <DropdownMenuItem onSelect={() => onEditar(item)}>
-            <Pencil className="size-4" />
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {item.estado === "ACTIVA" ? (
-            <DropdownMenuItem onSelect={() => onCambiarEstado(item)}>
-              <PowerOff className="size-4" />
-              Desactivar
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem onSelect={() => onCambiarEstado(item)}>
-              <Power className="size-4" />
-              Activar
-            </DropdownMenuItem>
-          )}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Badge de estado
 // ---------------------------------------------------------------------------
 
 function BadgeEstado({ estado }: { estado: EstadoModalidad }) {
   return (
-    <Badge variant={estado === "ACTIVA" ? "outline" : "secondary"}>
+    <Badge variant={estado === "ACTIVA" ? "default" : "secondary"}>
       {estado === "ACTIVA" ? "Activa" : "Inactiva"}
     </Badge>
   )
@@ -649,7 +603,16 @@ export function CatalogoModalidadesListado({
   const filas = consulta.data?.data ?? []
   const total = consulta.data?.total ?? 0
   const pagina = consulta.data?.pagina ?? filtros.pagina ?? 1
-  const limite = consulta.data?.porPagina ?? filtros.porPagina ?? 10
+  const porPagina = consulta.data?.porPagina ?? filtros.porPagina ?? 10
+
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
+  const desdeVisible = total ? (pagina - 1) * porPagina + 1 : 0
+  const hastaVisible = Math.min(pagina * porPagina, total)
+
+  const [busquedaLocal, setBusquedaLocal] = useState(filtros.busqueda ?? "")
+  const [estadoLocal, setEstadoLocal] = useState<string>(filtros.estado ?? "TODOS")
+  const [tipoLineaLocal, setTipoLineaLocal] = useState<string>(filtros.tipoLinea ?? "TODOS")
+  const [tipoLocal, setTipoLocal] = useState<string>(filtros.tipo ?? "TODOS")
 
   const [dialogCrearAbierto, setDialogCrearAbierto] = useState(false)
   const [itemEditando, setItemEditando] = useState<Modalidad | null>(null)
@@ -659,189 +622,210 @@ export function CatalogoModalidadesListado({
     void consulta.refetch()
   }
 
+  function aplicarFiltros() {
+    onFiltrosChange({
+      busqueda: busquedaLocal.trim() || undefined,
+      estado: estadoLocal === "TODOS" ? undefined : (estadoLocal as EstadoModalidad),
+      tipoLinea: tipoLineaLocal === "TODOS" ? undefined : (tipoLineaLocal as TipoLinea),
+      tipo: tipoLocal === "TODOS" ? undefined : (tipoLocal as TipoModalidad),
+      pagina: 1,
+    })
+  }
+
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-      {/* Cabecera */}
-      <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold">Modalidades</h2>
-          <p className="text-sm text-muted-foreground">
-            Maestro de modalidades disponibles para cotizaciones.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="w-fit">
-            {total} registros
-          </Badge>
-          <Button size="sm" onClick={() => setDialogCrearAbierto(true)}>
-            <Plus className="size-4" />
+    <Card>
+      <CardHeader className="border-b border-border">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Modalidades</CardTitle>
+            <CardDescription>
+              {total} {total === 1 ? "registro" : "registros"} encontrados
+            </CardDescription>
+          </div>
+          <Button onClick={() => setDialogCrearAbierto(true)}>
+            <Plus />
             Nueva modalidad
           </Button>
         </div>
-      </div>
+      </CardHeader>
 
-      {/* Error de carga */}
-      {consulta.error ? (
-        <div className="p-4">
+      <CardContent className="flex flex-col gap-4 pt-5">
+        {/* Error de carga */}
+        {consulta.error ? (
           <Alert variant="destructive">
             <AlertTitle>No se pudo cargar la informacion</AlertTitle>
             <AlertDescription>{extraerMensajeError(consulta.error)}</AlertDescription>
           </Alert>
+        ) : null}
+
+        {/* Filtros */}
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="grid min-w-56 flex-1 gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Busqueda</span>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-9"
+                placeholder="Buscar por codigo o nombre..."
+                value={busquedaLocal}
+                onChange={(e) => setBusquedaLocal(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
+              />
+            </div>
+          </div>
+          <div className="grid min-w-36 gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Estado</span>
+            <Select value={estadoLocal} onValueChange={setEstadoLocal}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                <SelectItem value="ACTIVA">Activa</SelectItem>
+                <SelectItem value="INACTIVA">Inactiva</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid min-w-44 gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Tipo de linea</span>
+            <Select value={tipoLineaLocal} onValueChange={setTipoLineaLocal}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                {TIPOS_LINEA.map((t) => (
+                  <SelectItem key={t.valor} value={t.valor}>
+                    {t.etiqueta}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid min-w-36 gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Tipo</span>
+            <Select value={tipoLocal} onValueChange={setTipoLocal}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TODOS">Todos</SelectItem>
+                {TIPOS_MODALIDAD.map((t) => (
+                  <SelectItem key={t.valor} value={t.valor}>
+                    {t.etiqueta}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button type="button" onClick={aplicarFiltros}>
+            Buscar
+          </Button>
         </div>
-      ) : null}
 
-      {/* Filtros */}
-      <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:flex-wrap">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={filtros.busqueda ?? ""}
-            onChange={(e) =>
-              onFiltrosChange({ busqueda: e.target.value || undefined, pagina: 1 })
-            }
-            placeholder="Buscar por codigo o nombre"
-            className="pl-9"
-          />
-        </div>
-
-        <Select
-          value={filtros.estado ?? "TODOS"}
-          onValueChange={(value) =>
-            onFiltrosChange({
-              estado: value === "TODOS" ? undefined : (value as EstadoModalidad),
-              pagina: 1,
-            })
-          }
-        >
-          <SelectTrigger className="lg:w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="TODOS">Estado: todos</SelectItem>
-            <SelectItem value="ACTIVA">Activa</SelectItem>
-            <SelectItem value="INACTIVA">Inactiva</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filtros.tipoLinea ?? "TODOS"}
-          onValueChange={(value) =>
-            onFiltrosChange({
-              tipoLinea: value === "TODOS" ? undefined : (value as TipoLinea),
-              pagina: 1,
-            })
-          }
-        >
-          <SelectTrigger className="lg:w-52">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="TODOS">Tipo linea: todos</SelectItem>
-            {TIPOS_LINEA.map((t) => (
-              <SelectItem key={t.valor} value={t.valor}>
-                {t.etiqueta}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filtros.tipo ?? "TODOS"}
-          onValueChange={(value) =>
-            onFiltrosChange({
-              tipo: value === "TODOS" ? undefined : (value as TipoModalidad),
-              pagina: 1,
-            })
-          }
-        >
-          <SelectTrigger className="lg:w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="TODOS">Tipo: todos</SelectItem>
-            {TIPOS_MODALIDAD.map((t) => (
-              <SelectItem key={t.valor} value={t.valor}>
-                {t.etiqueta}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Tabla */}
-      {consulta.isLoading ? (
-        <div className="flex flex-col gap-3 p-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      ) : filas.length === 0 ? (
-        <div className="p-6 text-sm text-muted-foreground">
-          No hay modalidades para los filtros aplicados.
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <Table>
+        {/* Tabla */}
+        <div className="overflow-hidden rounded-xl border border-border">
+          <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-10">Acciones</TableHead>
-                <TableHead>Codigo</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Tipo de linea</TableHead>
-                <TableHead>Unidad de cobro</TableHead>
-                <TableHead>Moneda</TableHead>
-                <TableHead>Estado</TableHead>
+                <TableHead className="w-[10%]">Codigo</TableHead>
+                <TableHead className="w-[22%]">Nombre</TableHead>
+                <TableHead className="w-[16%]">Tipo de linea</TableHead>
+                <TableHead className="w-[15%]">Unidad de cobro</TableHead>
+                <TableHead className="w-[9%]">Moneda</TableHead>
+                <TableHead className="w-[12%]">Estado</TableHead>
+                <TableHead className="w-[12%] text-center">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filas.map((item) => (
-                <TableRow key={item.id} className="border-border/80">
-                  <TableCell>
-                    <AccionesFila
-                      item={item}
-                      onEditar={(i) => setItemEditando(i)}
-                      onCambiarEstado={(i) => setItemCambiandoEstado(i)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono text-sm">{item.codigo}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-medium">{item.nombre}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{etiquetaTipo(item.tipoLinea)}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{etiquetaUnidadCobro(item.unidadCobro)}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {etiquetaMoneda(item.moneda)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <BadgeEstado estado={item.estado} />
+              {consulta.isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell colSpan={7}>
+                      <Skeleton className="h-7 w-full" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : filas.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-28 text-center text-muted-foreground">
+                    No hay modalidades para los filtros aplicados.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                filas.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="truncate font-mono text-sm">{item.codigo}</TableCell>
+                    <TableCell className="truncate text-sm font-medium">{item.nombre}</TableCell>
+                    <TableCell className="truncate text-sm">{etiquetaTipo(item.tipoLinea)}</TableCell>
+                    <TableCell className="truncate text-sm">
+                      {etiquetaUnidadCobro(item.unidadCobro)}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {etiquetaMoneda(item.moneda)}
+                    </TableCell>
+                    <TableCell>
+                      <BadgeEstado estado={item.estado} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Button
+                          size="icon-sm"
+                          variant="outline"
+                          onClick={() => setItemEditando(item)}
+                          aria-label="Editar"
+                        >
+                          <Pencil />
+                        </Button>
+                        <Button
+                          size="icon-sm"
+                          variant="outline"
+                          onClick={() => setItemCambiandoEstado(item)}
+                          aria-label={item.estado === "ACTIVA" ? "Desactivar" : "Activar"}
+                        >
+                          {item.estado === "ACTIVA" ? <PowerOff /> : <Power />}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
-      )}
 
-      {/* Paginacion */}
-      {total > 0 ? (
-        <PiePaginacion
-          pagina={pagina}
-          limite={limite}
-          total={total}
-          onPagina={(p) => onFiltrosChange({ pagina: p })}
-          onLimite={(l) => onFiltrosChange({ porPagina: l, pagina: 1 })}
-        />
-      ) : null}
+        {/* Paginacion */}
+        <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+          <div>
+            {total > 0
+              ? `Mostrando ${desdeVisible}-${hastaVisible} de ${total} registros`
+              : "Sin resultados"}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pagina <= 1}
+              onClick={() => onFiltrosChange({ pagina: pagina - 1 })}
+            >
+              Anterior
+            </Button>
+            <span className="min-w-20 text-center">
+              {pagina} / {totalPaginas}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pagina >= totalPaginas}
+              onClick={() => onFiltrosChange({ pagina: pagina + 1 })}
+            >
+              Siguiente
+            </Button>
+          </div>
+        </div>
+      </CardContent>
 
       {/* Dialogs */}
       <DialogCrear
@@ -859,6 +843,6 @@ export function CatalogoModalidadesListado({
         onCerrar={() => setItemCambiandoEstado(null)}
         onActualizado={handleRefetch}
       />
-    </section>
+    </Card>
   )
 }

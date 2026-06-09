@@ -97,7 +97,7 @@ const data = {
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
         { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
-        { title: "Catálogo de cargos adicionales", url: "/comercial/catalogos/cargos-adicionales" },
+        { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
       ],
     },
     {
