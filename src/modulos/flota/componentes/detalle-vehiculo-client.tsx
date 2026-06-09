@@ -27,45 +27,13 @@ import { Button } from "@/compartido/componentes/ui/button";
 import { cn } from "@/compartido/utilidades/utils";
 import { asignarContrato, retirarContrato } from "../servicios/flota-api";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
+import type { ContratoDisponibleFlota } from "../tipos/flota.tipos";
 import { parseRef } from "./flota-normalizadores";
 
-const CONTRATOS_DISPONIBLES = [
-  {
-    id: "11f89182-5df7-4bec-a8f3-6cd8c5b2d55a",
-    codigo: "CON-001",
-    nombre: "Contrato Transporte 2026",
-    cuenta: {
-      id: "0427e686-b641-492a-b803-127d61f1387a",
-      codigo: "CTA-001",
-      nombre: "Cuenta Antamina",
-    },
-  },
-  {
-    id: "11f89182-5df7-4bec-a8f3-6cd8c5b2d55b",
-    codigo: "CON-002",
-    nombre: "Contrato Transporte Anglo",
-    cuenta: {
-      id: "0427e686-b641-492a-b803-127d61f1387b",
-      codigo: "CTA-002",
-      nombre: "Cuenta Anglo",
-    },
-  },
-  {
-    id: "hagemsa-interno",
-    codigo: "HAG-000",
-    nombre: "Hagemsa Interno",
-    cuenta: {
-      id: "hagemsa-interno",
-      codigo: "HAG-000",
-      nombre: "Hagemsa Interno",
-    },
-  },
-];
-
-type ContratoCatalogo = (typeof CONTRATOS_DISPONIBLES)[number];
 type MensajeOperacion = { descripcion: string; tipo: "success" | "error" } | null;
 
 type DetalleVehiculoClientProps = {
+  contratosDisponibles: ContratoDisponibleFlota[];
   initialData: VehiculoFlota | null;
   id: string;
 };
@@ -104,12 +72,14 @@ function EstadoUnidadBadge({ estado }: { estado?: string | null }) {
 }
 
 function ContratoCombobox({
+  contratosDisponibles,
   value,
   onChange,
   disabled,
 }: {
-  value: ContratoCatalogo | null;
-  onChange: (contrato: ContratoCatalogo | null) => void;
+  contratosDisponibles: ContratoDisponibleFlota[];
+  value: ContratoDisponibleFlota | null;
+  onChange: (contrato: ContratoDisponibleFlota | null) => void;
   disabled?: boolean;
 }) {
   const [query, setQuery] = useState("");
@@ -117,14 +87,14 @@ function ContratoCombobox({
   const containerRef = useRef<HTMLDivElement>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
 
-  const filtered = CONTRATOS_DISPONIBLES.filter((contrato) => {
+  const filtered = contratosDisponibles.filter((contrato) => {
     const q = query.trim().toLowerCase();
 
     return (
       !q ||
       contrato.codigo.toLowerCase().includes(q) ||
       contrato.nombre.toLowerCase().includes(q) ||
-      contrato.cuenta.nombre.toLowerCase().includes(q)
+      contrato.cuenta?.nombre?.toLowerCase().includes(q)
     );
   });
 
@@ -156,7 +126,7 @@ function ContratoCombobox({
     };
   }, [open]);
 
-  function selectItem(contrato: ContratoCatalogo) {
+  function selectItem(contrato: ContratoDisponibleFlota) {
     onChange(contrato);
     setQuery("");
     setOpen(false);
@@ -248,7 +218,7 @@ function ContratoCombobox({
                             </span>
                             <span className="truncate">{contrato.nombre}</span>
                             <span className="truncate text-xs text-muted-foreground">
-                              {contrato.cuenta.nombre}
+                              {contrato.cuenta?.nombre || "Sin cuenta asociada"}
                             </span>
                           </div>
                           {isSelected ? (
@@ -269,6 +239,7 @@ function ContratoCombobox({
 }
 
 export default function DetalleVehiculoClient({
+  contratosDisponibles,
   initialData,
   id,
 }: DetalleVehiculoClientProps) {
@@ -279,11 +250,11 @@ export default function DetalleVehiculoClient({
 
   const contratoInicial = parseRef(initialData?.contrato);
   const itemInicial = contratoInicial
-    ? CONTRATOS_DISPONIBLES.find((contrato) => contrato.codigo === contratoInicial.codigo) ??
+    ? contratosDisponibles.find((contrato) => contrato.codigo === contratoInicial.codigo) ??
       null
     : null;
   const [contratoSeleccionado, setContratoSeleccionado] =
-    useState<ContratoCatalogo | null>(itemInicial);
+    useState<ContratoDisponibleFlota | null>(itemInicial);
 
   async function onSave(event: React.FormEvent) {
     event.preventDefault();
@@ -480,13 +451,16 @@ export default function DetalleVehiculoClient({
                 Contrato a asignar
               </label>
               <ContratoCombobox
+                contratosDisponibles={contratosDisponibles}
                 value={contratoSeleccionado}
                 onChange={setContratoSeleccionado}
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
                 {contratoSeleccionado
-                  ? `Cuenta asociada: ${contratoSeleccionado.cuenta.nombre}`
+                  ? `Cuenta asociada: ${
+                      contratoSeleccionado.cuenta?.nombre || "Sin cuenta asociada"
+                    }`
                   : "Selecciona un contrato para habilitar la asignacion."}
               </p>
             </div>

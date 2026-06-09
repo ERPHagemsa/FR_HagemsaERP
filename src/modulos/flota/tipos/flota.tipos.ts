@@ -11,8 +11,8 @@ export type VehiculoFlota = {
   marca?: string | null;
   modelo?: string | null;
   carroceria?: string | null;
-  contrato?: any;
-  cuenta?: any;
+  contrato?: unknown;
+  cuenta?: unknown;
   estadoRegistro?: string | null;
   estado?: string | null;
   estadoOperativo?: string | null;
@@ -24,6 +24,16 @@ export type VehiculoFlota = {
     estadoOperativo?: string | null;
     estadoCalibracion?: string | null;
   } | null;
+};
+
+export type ReferenciaFlota = {
+  id: string;
+  codigo: string;
+  nombre: string;
+};
+
+export type ContratoDisponibleFlota = ReferenciaFlota & {
+  cuenta: ReferenciaFlota | null;
 };
 
 export type ResumenFlota = {

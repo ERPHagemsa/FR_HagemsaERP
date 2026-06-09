@@ -5,14 +5,12 @@ import * as React from "react";
 import {
   BarChart3,
   CheckCircle2,
-  Download,
   Eye,
   Loader2,
   MoreVertical,
   Search,
   XCircle,
 } from "lucide-react";
-import { HugeiconsIcon } from "@hugeicons/react"
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -74,7 +72,6 @@ import {
   placaVehiculo,
   textoBusquedaVehiculo,
 } from "./flota-normalizadores";
-import { ChartUpIcon } from "@hugeicons/core-free-icons";
 
 type Props = {
   loading: boolean;
@@ -415,7 +412,7 @@ function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href={`/flota/${placa}/auditoria`}>
-              <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
+              <BarChart3 />
               Auditar
             </Link>
           </DropdownMenuItem>
