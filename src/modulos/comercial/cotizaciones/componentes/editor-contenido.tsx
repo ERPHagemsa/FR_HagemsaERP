@@ -106,7 +106,10 @@ export function EditorContenido({
   const errores = mapearErroresContenido(secciones, erroresCampo);
 
   function subtotalDeSeccion(s: DraftSeccion): number {
-    return s.lineas.reduce((a, l) => a + totalLinea(l), 0);
+    // Contrato §5.4: subtotal de seccion = Σ lineas + Σ cargos adicionales.
+    const lineas = s.lineas.reduce((a, l) => a + totalLinea(l), 0);
+    const cargos = s.cargosAdicionales.reduce((a, c) => a + (parseFloat(c.monto) || 0), 0);
+    return lineas + cargos;
   }
 
   // ---- Helpers de mutacion (controlado) -----------------------------------
@@ -233,6 +236,15 @@ export function EditorContenido({
     onChange(
       base.map((s) =>
         s.claveCliente === claveDef ? { ...s, cargosAdicionales: cargos } : s
+      )
+    );
+  }
+
+  // Cargos de una seccion concreta (cotizacion agrupada): los cargos son POR SECCION.
+  function actualizarCargosSeccion(claveSeccion: string, cargos: DraftCargoAdicional[]) {
+    onChange(
+      secciones.map((s) =>
+        s.claveCliente === claveSeccion ? { ...s, cargosAdicionales: cargos } : s
       )
     );
   }
@@ -464,6 +476,29 @@ export function EditorContenido({
                         </TableCell>
                       </TableRow>
                     ) : null}
+
+                    {/* Cargos adicionales de la seccion. Los cargos son POR SECCION:
+                        cuando la cotizacion esta agrupada, cada seccion edita los
+                        suyos aca. El caso plano usa el bloque unico de abajo. */}
+                    {hayGrupos ? (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell colSpan={COLUMNAS} className={`pb-4 ${rail}`}>
+                          <div className="ml-1 flex flex-col gap-1.5">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              Cargos adicionales de la seccion
+                            </p>
+                            <EditorCargos
+                              cargos={seccion.cargosAdicionales}
+                              erroresCampo={errores.porSeccionCargos[seccion.claveCliente]}
+                              disabled={disabled}
+                              onChange={(cargos) =>
+                                actualizarCargosSeccion(seccion.claveCliente, cargos)
+                              }
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : null}
                   </React.Fragment>
                 );
               })}
@@ -517,21 +552,25 @@ export function EditorContenido({
         ) : null}
       </div>
 
-      {/* Cargos adicionales — pegados a la grilla, suman al total */}
-      <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/10 p-4">
-        <div className="flex items-baseline justify-between">
-          <p className="text-sm font-medium">Cargos adicionales</p>
-          <p className="text-xs text-muted-foreground">
-            Escolta, viaticos, etc. Suman al total.
-          </p>
+      {/* Cargos adicionales del caso PLANO (sin agrupar): un solo bloque para la
+          seccion por defecto. Cuando hay secciones con nombre, los cargos se editan
+          por seccion dentro de la grilla (arriba), no aca. */}
+      {!hayGrupos ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/10 p-4">
+          <div className="flex items-baseline justify-between">
+            <p className="text-sm font-medium">Cargos adicionales</p>
+            <p className="text-xs text-muted-foreground">
+              Escolta, viaticos, etc. Suman al total.
+            </p>
+          </div>
+          <EditorCargos
+            cargos={seccionDefecto?.cargosAdicionales ?? []}
+            erroresCampo={errores.cargosDefecto}
+            disabled={disabled}
+            onChange={actualizarCargosDefecto}
+          />
         </div>
-        <EditorCargos
-          cargos={seccionDefecto?.cargosAdicionales ?? []}
-          erroresCampo={errores.cargosDefecto}
-          disabled={disabled}
-          onChange={actualizarCargosDefecto}
-        />
-      </div>
+      ) : null}
 
       {/* Barra de totales sticky — impacto financiero siempre a la vista */}
       <div className="sticky bottom-0 z-10 mt-2 rounded-xl border border-border bg-card/95 px-5 py-3 shadow-sm backdrop-blur">

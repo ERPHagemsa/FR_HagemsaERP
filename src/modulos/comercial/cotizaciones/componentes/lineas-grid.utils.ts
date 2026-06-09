@@ -92,7 +92,9 @@ export function formatearMoneda(monto: number, moneda: string): string {
 export type ErroresContenido = {
   porLinea: Record<string, Record<string, string>>; // claveLinea → { campo: mensaje }
   porSeccion: Record<string, Record<string, string>>; // claveSeccion → { nombre: mensaje }
-  cargosDefecto: Record<string, string>; // "cargosAdicionales.{j}.{campo}" → mensaje
+  // claveSeccion → { "cargosAdicionales.{j}.{campo}": mensaje } — cargos POR seccion
+  porSeccionCargos: Record<string, Record<string, string>>;
+  cargosDefecto: Record<string, string>; // "cargosAdicionales.{j}.{campo}" → mensaje (bucket plano)
 };
 
 export function mapearErroresContenido(
@@ -101,10 +103,10 @@ export function mapearErroresContenido(
 ): ErroresContenido {
   const porLinea: Record<string, Record<string, string>> = {};
   const porSeccion: Record<string, Record<string, string>> = {};
+  const porSeccionCargos: Record<string, Record<string, string>> = {};
   const cargosDefecto: Record<string, string> = {};
 
   const seccionDefecto = secciones.find((s) => s.esDefecto);
-  const indiceDefecto = secciones.findIndex((s) => s.esDefecto);
 
   const agregarLinea = (linea: DraftLinea | undefined, campo: string, msg: string) => {
     if (!linea) return;
@@ -135,19 +137,23 @@ export function mapearErroresContenido(
       continue;
     }
 
-    // Cargos del bucket por defecto: "secciones.{indiceDefecto}.cargosAdicionales.{j}.{campo}"
-    if (indiceDefecto >= 0) {
-      const prefijo = `secciones.${indiceDefecto}.`;
-      if (ruta.startsWith(prefijo + "cargosAdicionales.")) {
-        cargosDefecto[ruta.slice(prefijo.length)] = msg;
-        continue;
+    // Cargos por seccion (indice draft): "secciones.{i}.cargosAdicionales.{j}.{campo}"
+    m = ruta.match(/^secciones\.(\d+)\.cargosAdicionales\.(\d+)\.(.+)$/);
+    if (m) {
+      const sec = secciones[Number(m[1])];
+      if (sec) {
+        const clave = `cargosAdicionales.${m[2]}.${m[3]}`;
+        (porSeccionCargos[sec.claveCliente] ??= {})[clave] = msg;
+        if (sec.esDefecto) cargosDefecto[clave] = msg; // bucket plano (bottom block)
       }
+      continue;
     }
     // Cargos en raiz (forma servidor con bucket por defecto): "cargosAdicionales.{j}.{campo}"
     if (ruta.startsWith("cargosAdicionales.")) {
       cargosDefecto[ruta] = msg;
+      if (seccionDefecto) (porSeccionCargos[seccionDefecto.claveCliente] ??= {})[ruta] = msg;
     }
   }
 
-  return { porLinea, porSeccion, cargosDefecto };
+  return { porLinea, porSeccion, porSeccionCargos, cargosDefecto };
 }

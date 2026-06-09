@@ -322,41 +322,57 @@ export function derivarDraft(version: Version): DraftBorrador {
   // 1. Moneda: tomar de version; fallback PEN para shapes viejos
   const moneda: Moneda = version.moneda ?? "PEN";
 
-  // 2. Crear DraftSeccion por cada Seccion del backend
-  const seccionesMap = new Map<string, DraftSeccion>();
+  // 2. Crear DraftSeccion por cada Seccion del backend.
+  // INVARIANTE: existe a lo sumo UN bucket por defecto (ADR-D1/D4). El modelo solo
+  // admite UNA seccion plana (sin nombre) por version; si el backend devuelve varias
+  // sin nombre colapsan en ese unico bucket (lineas + cargos). Las secciones CON
+  // nombre conservan SUS lineas y SUS cargos: los cargos adicionales son POR SECCION
+  // (cada seccion 0..N), nunca globales (API §4/§5.4; tabla cargo_adicional.idSeccion).
+  const seccionesMap = new Map<string, DraftSeccion>(); // id backend → draft seccion
   const secciones: DraftSeccion[] = [];
+  let defecto: DraftSeccion | null = null;
+
+  // Bucket por defecto (seccion plana). Lazy.
+  function asegurarDefecto(orden = 0): DraftSeccion {
+    if (!defecto) {
+      defecto = { ...seccionDefectoVacia(), orden };
+      secciones.push(defecto);
+    }
+    return defecto;
+  }
 
   for (const s of version.secciones) {
-    const esDefecto = s.nombre === null; // ADR-D4
-    const draftSeccion: DraftSeccion = {
-      claveCliente: s.id,
-      esDefecto,
-      nombre: s.nombre ?? "",
-      orden: s.orden,
-      lineas: [],
-      cargosAdicionales: (s.cargosAdicionales ?? []).map(cargoAdicionalReadADraft),
-    };
-    seccionesMap.set(s.id, draftSeccion);
-    secciones.push(draftSeccion);
+    const cargos = (s.cargosAdicionales ?? []).map(cargoAdicionalReadADraft);
+    if (s.nombre === null) {
+      // Caso plano: lineas y cargos van al unico bucket por defecto.
+      const d = asegurarDefecto(s.orden);
+      d.cargosAdicionales.push(...cargos);
+      seccionesMap.set(s.id, d);
+    } else {
+      // Seccion con nombre: conserva SUS lineas y SUS cargos (cargos por seccion).
+      const draftSeccion: DraftSeccion = {
+        claveCliente: s.id,
+        esDefecto: false,
+        nombre: s.nombre,
+        orden: s.orden,
+        lineas: [],
+        cargosAdicionales: cargos,
+      };
+      seccionesMap.set(s.id, draftSeccion);
+      secciones.push(draftSeccion);
+    }
   }
 
   // Ordenar secciones por orden ascendente
   secciones.sort((a, b) => a.orden - b.orden);
 
-  // 3. Agrupar lineas por idSeccion; lineas sin seccion → seccion por defecto
+  // 3. Agrupar lineas por idSeccion; lineas sin seccion → bucket por defecto
   for (const l of version.lineas) {
     const draftLinea = lineaReadADraft(l);
     if (l.idSeccion && seccionesMap.has(l.idSeccion)) {
       seccionesMap.get(l.idSeccion)!.lineas.push(draftLinea);
     } else {
-      // Linea sin seccion: va a la seccion por defecto (crear on-demand si no existe)
-      let seccionDefecto = secciones.find((s) => s.esDefecto);
-      if (!seccionDefecto) {
-        seccionDefecto = seccionDefectoVacia();
-        secciones.unshift(seccionDefecto);
-        seccionesMap.set(seccionDefecto.claveCliente, seccionDefecto);
-      }
-      seccionDefecto.lineas.push(draftLinea);
+      asegurarDefecto().lineas.push(draftLinea);
     }
   }
 
