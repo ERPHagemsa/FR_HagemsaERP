@@ -13,7 +13,14 @@ export default async function ActivoInventarioFisicoDetallePage({
 
   return (
     <>
-      <SiteHeader title="Revision de inventario" />
+      <SiteHeader
+        title="Revision de Inventario"
+        breadcrumbs={[
+          { title: "Activos", href: "/activos" },
+          { title: "Inventario Fisico", href: "/activos/inventario-fisico" },
+          { title: "Revision de Inventario" },
+        ]}
+      />
       <ActivoInventarioFisicoDetalleVista id={Number(id)} />
     </>
   );

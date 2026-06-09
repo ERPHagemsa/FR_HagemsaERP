@@ -1,16 +1,21 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
+import { Button } from "@/compartido/componentes/ui/button"
 import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@/compartido/componentes/ui/toggle-group"
 import { cn } from "@/compartido/utilidades/utils"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Add01Icon } from "@hugeicons/core-free-icons"
 
 import { SocioNegocioFormularioCliente } from "./socio-negocio-formulario-cliente"
 import { SocioNegocioFormularioProveedor } from "./socio-negocio-formulario-proveedor"
 import { SocioNegocioFormularioPersonal } from "./socio-negocio-formulario-personal"
+import { SocioNegocioPageHeader } from "./socio-negocio-page-header"
 import type { TipoSocioDeNegocio } from "../tipos/socio-negocio"
 
 type SocioNegocioFormularioProps = {
@@ -40,21 +45,41 @@ const tiposSocio = [
 }>
 
 export function SocioNegocioFormulario({ tipoInicial }: SocioNegocioFormularioProps) {
+  const router = useRouter()
   const [tipo, setTipo] = useState<TipoSocioDeNegocio>(tipoInicial ?? "CLIENTE")
+  const formId = `agregar-${tipo.toLowerCase()}`
+  const etiquetaAgregar =
+    tipo === "CLIENTE"
+      ? "Agregar cliente"
+      : tipo === "PROVEEDOR"
+        ? "Agregar proveedor"
+        : "Agregar personal"
 
   return (
     <div className="flex w-full flex-col gap-5">
-      <section className="rounded-xl border border-border bg-card p-5 text-card-foreground">
-        <div className="mb-4 flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Paso 1
-            </p>
-            <h2 className="text-lg font-semibold">Tipo de socio de negocio</h2>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Elige el tipo y completa el formulario correspondiente.
-          </p>
+      <SocioNegocioPageHeader
+        title="Nuevo socio de negocio"
+        actions={
+          <>
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              Cancelar
+            </Button>
+            <Button type="submit" form={formId}>
+              <HugeiconsIcon
+                data-icon="inline-start"
+                icon={Add01Icon}
+                strokeWidth={2}
+              />
+              {etiquetaAgregar}
+            </Button>
+          </>
+        }
+      />
+
+      <section className="rounded-xl bg-muted/35 p-4 text-foreground">
+        <div className="mb-4 flex flex-col gap-1">
+          <h2 className="text-base font-semibold">Tipo de socio</h2>
+          <p className="text-sm text-muted-foreground">Elige el tipo de registro que vas a crear.</p>
         </div>
 
         <ToggleGroup
@@ -77,8 +102,8 @@ export function SocioNegocioFormulario({ tipoInicial }: SocioNegocioFormularioPr
                 key={opcion.value}
                 value={opcion.value}
                 className={cn(
-                  "h-auto min-h-24 justify-start whitespace-normal rounded-lg p-4 text-left",
-                  seleccionado && "border-primary bg-muted",
+                  "h-auto min-h-20 justify-start whitespace-normal rounded-lg bg-background p-4 text-left shadow-xs",
+                  seleccionado && "border-primary bg-primary/5",
                 )}
               >
                 <span className="flex flex-col gap-1">

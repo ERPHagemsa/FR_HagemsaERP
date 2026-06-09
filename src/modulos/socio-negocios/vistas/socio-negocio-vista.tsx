@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -16,13 +16,6 @@ import {
 } from "@/compartido/componentes/ui/alert-dialog"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,28 +74,25 @@ import {
   Loading03Icon,
   MoreVerticalCircle01Icon,
   Search01Icon,
-  UserGroupIcon,
   ViewIcon,
 } from "@hugeicons/core-free-icons"
 
 import {
   useDarDeBajaSocioDeNegocioMutation,
   useExportarSociosDeNegocioQuery,
-  useModificarSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
   useSociosDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
 import { PaginationControls } from "../componentes/pagination-controls"
+import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
 import type {
   ConsultarSociosDeNegocioQuery,
-  ModificarSocioDeNegocioRequest,
   ReporteSociosDeNegocioResponse,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 
 type SocioNegocioVistaProps = {
   titulo: string
-  etiqueta: string
   accionPrincipal?: string
   crearHref?: string
   filtros?: ConsultarSociosDeNegocioQuery
@@ -141,85 +131,6 @@ const estadoRegistroIconClassName = {
   ACTIVO: "text-emerald-500",
   ANULADO: "text-destructive",
 } as const
-
-function obtenerVisualMetrica(etiqueta: string, index: number) {
-  const texto = etiqueta.toLowerCase()
-
-  if (texto.includes("activo") || texto.includes("vigente")) {
-    return {
-      icon: CheckmarkCircle01Icon,
-      iconClassName:
-        "bg-background text-emerald-500 ring-border",
-      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName:
-        "border-border bg-background text-foreground shadow-xs",
-      badge: "Operativo",
-      contexto: "Disponibles",
-    }
-  }
-
-  if (
-    texto.includes("inactivo") ||
-    texto.includes("anulado") ||
-    texto.includes("observ") ||
-    texto.includes("baja") ||
-    texto.includes("pendiente")
-  ) {
-    return {
-      icon: Loading03Icon,
-      iconClassName:
-        "bg-background text-amber-500 ring-border",
-      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName:
-        "border-border bg-background text-foreground shadow-xs",
-      badge: "Seguimiento",
-      contexto: "Requieren revision",
-    }
-  }
-
-  if (texto.includes("export") || texto.includes("formato") || texto.includes("campos")) {
-    return {
-      icon: Download01Icon,
-      iconClassName:
-        "bg-background text-sky-500 ring-border",
-      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName:
-        "border-border bg-background text-foreground shadow-xs",
-      badge: "Reporte",
-      contexto: "Exportable",
-    }
-  }
-
-  if (index === 0) {
-    return {
-      icon: UserGroupIcon,
-      iconClassName: "bg-background text-primary ring-border",
-      cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName: "border-border bg-background text-foreground shadow-xs",
-      badge: "Total",
-      contexto: "Consulta actual",
-    }
-  }
-
-  return {
-    icon: ChartUpIcon,
-    iconClassName: "bg-background text-primary ring-border",
-    cardClassName: "border-border bg-card text-card-foreground shadow-sm",
-    descriptionClassName: "text-muted-foreground",
-    detailClassName: "text-muted-foreground",
-    badgeClassName: "border-border bg-background text-foreground shadow-xs",
-    badge: "Control",
-    contexto: "Control operativo",
-  }
-}
 
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
@@ -365,34 +276,6 @@ function obtenerValorFiltro(
   return typeof value === "string" ? value : ""
 }
 
-function obtenerTextoFormulario(formData: FormData, name: string) {
-  return String(formData.get(name) ?? "").trim()
-}
-
-function esTexto(valor: string | null | undefined): valor is string {
-  return Boolean(valor)
-}
-
-function formarNombreCompletoPersonal(formData: FormData) {
-  return [
-    obtenerTextoFormulario(formData, "primerNombre"),
-    obtenerTextoFormulario(formData, "segundoNombre"),
-    obtenerTextoFormulario(formData, "apellidoPaterno"),
-    obtenerTextoFormulario(formData, "apellidoMaterno"),
-  ]
-    .filter(esTexto)
-    .join(" ")
-}
-
-function formarNombreComercialPersonal(formData: FormData) {
-  return [
-    obtenerTextoFormulario(formData, "primerNombre"),
-    obtenerTextoFormulario(formData, "apellidoPaterno"),
-  ]
-    .filter(esTexto)
-    .join(" ")
-}
-
 function obtenerClaseFilaSocio(socio: SocioDeNegocioResponse) {
   const inactivo = socio.estado === "INACTIVO"
   const anulado = socio.estadoRegistro === "ANULADO"
@@ -411,23 +294,6 @@ function obtenerClaseContenidoSocio(socio: SocioDeNegocioResponse) {
     : undefined
 }
 
-function DatoFicha({
-  label,
-  value,
-}: {
-  label: string
-  value?: string | number | null
-}) {
-  return (
-    <div className="min-w-0 rounded-md border border-border bg-background p-3">
-      <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </p>
-      <p className="mt-1 truncate text-sm font-medium">{value || "-"}</p>
-    </div>
-  )
-}
-
 function AccionesSocio({
   socio,
   onActualizado,
@@ -437,30 +303,16 @@ function AccionesSocio({
   const bajaMutation = useDarDeBajaSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
-  const modificarMutation = useModificarSocioDeNegocioMutation(socio.id, {
-    onSuccess: onActualizado,
-  })
   const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
-  const [accion, setAccion] = useState<"baja" | "anular" | "reactivar" | null>(null)
-  const [modificarAbierto, setModificarAbierto] = useState(false)
-  const [fichaAbierta, setFichaAbierta] = useState(false)
+  const [accion, setAccion] = useState<"anular" | "reactivar" | null>(null)
   const [motivo, setMotivo] = useState("")
-  const procesando =
-    bajaMutation.isPending || modificarMutation.isPending || reactivarMutation.isPending
-  const puedeDarBaja = socio.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
+  const procesando = bajaMutation.isPending || reactivarMutation.isPending
   const puedeReactivar = socio.estado === "INACTIVO" || socio.estadoRegistro === "ANULADO"
-  const requiereMotivo = accion === "baja" || accion === "anular"
-  const partesRazonSocial = socio.razonSocial.split(/\s+/).filter(Boolean)
-  const primerNombreInicial = socio.primerNombre || partesRazonSocial[0] || ""
-  const segundoNombreInicial = socio.segundoNombre || ""
-  const apellidoPaternoInicial =
-    socio.apellidoPaterno || partesRazonSocial.at(-2) || ""
-  const apellidoMaternoInicial =
-    socio.apellidoMaterno || partesRazonSocial.at(-1) || ""
+  const requiereMotivo = accion === "anular"
 
-  function abrirAccion(nuevaAccion: "baja" | "anular" | "reactivar") {
+  function abrirAccion(nuevaAccion: "anular" | "reactivar") {
     setMotivo(
       nuevaAccion === "anular"
         ? "Documento registrado incorrectamente"
@@ -471,22 +323,13 @@ function AccionesSocio({
 
   async function confirmarAccion() {
     try {
-      if (accion === "baja") {
-        await bajaMutation.mutateAsync({
-          motivo: motivo.trim(),
-          usuarioId: "admin",
-          estadoRegistro: "ACTIVO",
-        })
-        onMensaje(`${socio.razonSocial} fue dado de baja.`)
-      }
-
       if (accion === "anular") {
         await bajaMutation.mutateAsync({
           motivo: motivo.trim(),
           usuarioId: "admin",
           estadoRegistro: "ANULADO",
         })
-        onMensaje(`${socio.razonSocial} fue anulado.`)
+        onMensaje(`${socio.razonSocial} fue borrado.`)
       }
 
       if (accion === "reactivar") {
@@ -495,43 +338,6 @@ function AccionesSocio({
       }
 
       setAccion(null)
-    } catch (error) {
-      onError(obtenerErrorOperacion(error))
-    }
-  }
-
-  async function modificarSocio(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const formData = new FormData(event.currentTarget)
-    const esPersonal = socio.tipo === "PERSONAL"
-    const razonSocial = esPersonal
-      ? formarNombreCompletoPersonal(formData)
-      : obtenerTextoFormulario(formData, "razonSocial")
-    const nombreComercial = esPersonal
-      ? formarNombreComercialPersonal(formData)
-      : obtenerTextoFormulario(formData, "nombreComercial")
-    const payload: ModificarSocioDeNegocioRequest = {
-      razonSocial,
-      nombreComercial,
-      direccion: obtenerTextoFormulario(formData, "direccion"),
-      contacto: esPersonal ? nombreComercial : obtenerTextoFormulario(formData, "contacto"),
-      correo: obtenerTextoFormulario(formData, "correo"),
-      numeroCelular: obtenerTextoFormulario(formData, "numeroCelular"),
-      usuarioId: "admin",
-    }
-
-    if (esPersonal) {
-      payload.primerNombre = obtenerTextoFormulario(formData, "primerNombre")
-      payload.segundoNombre = obtenerTextoFormulario(formData, "segundoNombre") || undefined
-      payload.apellidoPaterno = obtenerTextoFormulario(formData, "apellidoPaterno")
-      payload.apellidoMaterno = obtenerTextoFormulario(formData, "apellidoMaterno")
-    }
-
-    try {
-      await modificarMutation.mutateAsync(payload)
-      setModificarAbierto(false)
-      onMensaje(`${socio.razonSocial} fue modificado.`)
     } catch (error) {
       onError(obtenerErrorOperacion(error))
     }
@@ -550,9 +356,11 @@ function AccionesSocio({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
-            <DropdownMenuItem onSelect={() => setFichaAbierta(true)}>
-              <HugeiconsIcon data-icon="inline-start" icon={ViewIcon} strokeWidth={2} />
-              Ver ficha
+            <DropdownMenuItem asChild>
+              <Link href={`/socio-negocios/${socio.id}`}>
+                <HugeiconsIcon data-icon="inline-start" icon={ViewIcon} strokeWidth={2} />
+                Ver
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href={`/socio-negocios/historial/${socio.id}`}>
@@ -561,30 +369,38 @@ function AccionesSocio({
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem
+              asChild
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
-              onSelect={() => setModificarAbierto(true)}
             >
-              <HugeiconsIcon data-icon="inline-start" icon={Edit02Icon} strokeWidth={2} />
-              Modificar
+              <Link href={`/socio-negocios/${socio.id}?modo=editar`}>
+                <HugeiconsIcon data-icon="inline-start" icon={Edit02Icon} strokeWidth={2} />
+                Editar
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              asChild
+              disabled={
+                socio.estado !== "ACTIVO" ||
+                socio.estadoRegistro !== "ACTIVO" ||
+                procesando
+              }
+            >
+              <Link href={`/socio-negocios/${socio.id}`}>
+                <HugeiconsIcon
+                  data-icon="inline-start"
+                  icon={ArchiveArrowDownIcon}
+                  strokeWidth={2}
+                />
+                Dar de baja
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={!puedeDarBaja || procesando}
-              onSelect={() => abrirAccion("baja")}
-            >
-              <HugeiconsIcon
-                data-icon="inline-start"
-                icon={ArchiveArrowDownIcon}
-                strokeWidth={2}
-              />
-              Dar de baja
-            </DropdownMenuItem>
             <DropdownMenuItem
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
               onSelect={() => abrirAccion("anular")}
             >
               <HugeiconsIcon data-icon="inline-start" icon={CancelCircleIcon} strokeWidth={2} />
-              Anular
+              Borrar
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!puedeReactivar || procesando}
@@ -601,69 +417,18 @@ function AccionesSocio({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog
-        open={fichaAbierta}
-        onOpenChange={(open) => !open && setFichaAbierta(false)}
-      >
-        <AlertDialogContent className="max-w-4xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Ficha del socio de negocio</AlertDialogTitle>
-            <AlertDialogDescription>
-              Datos vigentes del registro #{socio.count}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="grid gap-4">
-            <div className="grid gap-3 md:grid-cols-4">
-              <DatoFicha label="Count" value={socio.count} />
-              <DatoFicha label="Tipo" value={socio.tipo} />
-              <DatoFicha label="Estado" value={socio.estado} />
-              <DatoFicha label="Registro" value={socio.estadoRegistro} />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <DatoFicha label="Razon social" value={socio.razonSocial} />
-              <DatoFicha label="Nombre comercial" value={socio.nombreComercial} />
-              <DatoFicha label="Codigo SAP" value={socio.codigoInternoSap} />
-              <DatoFicha label="Documento" value={socio.numeroDocumento} />
-              <DatoFicha label="Direccion" value={socio.direccion} />
-              <DatoFicha label="Contacto" value={socio.contacto} />
-              <DatoFicha label="Correo" value={socio.correo} />
-              <DatoFicha label="Celular" value={socio.numeroCelular} />
-              <DatoFicha label="Departamento" value={socio.areaNombre || socio.area} />
-              <DatoFicha label="Cargo" value={socio.cargoNombre || socio.cargo} />
-              <DatoFicha label="Cuenta" value={socio.cuentaNombre || socio.cuenta} />
-              <DatoFicha label="Creacion" value={formatearFecha(socio.fechaCreacion)} />
-            </div>
-          </div>
-
-          <AlertDialogFooter>
-            <Button asChild variant="outline">
-              <Link href={`/socio-negocios/historial/${socio.id}`}>
-                <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
-                Auditar
-              </Link>
-            </Button>
-            <AlertDialogAction onClick={() => setFichaAbierta(false)}>
-              Cerrar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <AlertDialog open={accion !== null} onOpenChange={(open) => !open && setAccion(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {accion === "baja"
-                ? "Dar de baja socio"
-                : accion === "anular"
-                  ? "Anular registro"
-                  : "Reactivar socio"}
+              {accion === "anular" ? "Borrar registro" : "Reactivar socio"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {accion === "reactivar"
                 ? `Confirma la reactivacion de ${socio.razonSocial}.`
-                : `Registra el motivo para ${socio.razonSocial}.`}
+                : accion === "anular"
+                  ? "Tenga en cuenta que esta informacion no se podra recuperar."
+                  : `Registra el motivo para ${socio.razonSocial}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -706,176 +471,19 @@ function AccionesSocio({
                 void confirmarAccion()
               }}
             >
-              {procesando ? "Procesando..." : "Confirmar"}
+              {procesando ? "Procesando..." : accion === "anular" ? "Borrar" : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={modificarAbierto}
-        onOpenChange={(open) => !open && setModificarAbierto(false)}
-      >
-        <AlertDialogContent className="max-w-3xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Modificar socio de negocio</AlertDialogTitle>
-            <AlertDialogDescription>
-              El tipo, documento y codigo SAP no se modifican. Si el documento esta mal,
-              anula el registro por error y crea uno nuevo.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <form id={`modificar-${socio.id}`} onSubmit={(event) => void modificarSocio(event)}>
-            <div className="grid gap-4">
-              <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3 md:grid-cols-3">
-                <Field>
-                  <FieldLabel>Tipo</FieldLabel>
-                  <Input value={socio.tipo} readOnly />
-                </Field>
-                <Field>
-                  <FieldLabel>Documento</FieldLabel>
-                  <Input value={socio.numeroDocumento} readOnly />
-                </Field>
-                <Field>
-                  <FieldLabel>Codigo SAP</FieldLabel>
-                  <Input value={socio.codigoInternoSap || "-"} readOnly />
-                </Field>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                {socio.tipo === "PERSONAL" ? (
-                  <>
-                    <Field>
-                      <FieldLabel htmlFor={`primerNombre-${socio.id}`}>Primer nombre</FieldLabel>
-                      <Input
-                        id={`primerNombre-${socio.id}`}
-                        name="primerNombre"
-                        defaultValue={primerNombreInicial}
-                        required
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor={`segundoNombre-${socio.id}`}>Segundo nombre</FieldLabel>
-                      <Input
-                        id={`segundoNombre-${socio.id}`}
-                        name="segundoNombre"
-                        defaultValue={segundoNombreInicial}
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor={`apellidoPaterno-${socio.id}`}>
-                        Apellido paterno
-                      </FieldLabel>
-                      <Input
-                        id={`apellidoPaterno-${socio.id}`}
-                        name="apellidoPaterno"
-                        defaultValue={apellidoPaternoInicial}
-                        required
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor={`apellidoMaterno-${socio.id}`}>
-                        Apellido materno
-                      </FieldLabel>
-                      <Input
-                        id={`apellidoMaterno-${socio.id}`}
-                        name="apellidoMaterno"
-                        defaultValue={apellidoMaternoInicial}
-                        required
-                      />
-                    </Field>
-                  </>
-                ) : (
-                  <>
-                    <Field className="md:col-span-2">
-                      <FieldLabel htmlFor={`razonSocial-${socio.id}`}>Razon social</FieldLabel>
-                      <Input
-                        id={`razonSocial-${socio.id}`}
-                        name="razonSocial"
-                        defaultValue={socio.razonSocial}
-                        required
-                      />
-                    </Field>
-                    <Field className="md:col-span-2">
-                      <FieldLabel htmlFor={`nombreComercial-${socio.id}`}>
-                        Nombre comercial
-                      </FieldLabel>
-                      <Input
-                        id={`nombreComercial-${socio.id}`}
-                        name="nombreComercial"
-                        defaultValue={socio.nombreComercial}
-                        required
-                      />
-                    </Field>
-                  </>
-                )}
-                <Field className="md:col-span-2">
-                  <FieldLabel htmlFor={`direccion-${socio.id}`}>Direccion</FieldLabel>
-                  <Input
-                    id={`direccion-${socio.id}`}
-                    name="direccion"
-                    defaultValue={socio.direccion}
-                    required
-                  />
-                </Field>
-                {socio.tipo !== "PERSONAL" ? (
-                  <Field>
-                    <FieldLabel htmlFor={`contacto-${socio.id}`}>Contacto</FieldLabel>
-                    <Input
-                      id={`contacto-${socio.id}`}
-                      name="contacto"
-                      defaultValue={socio.contacto}
-                    />
-                  </Field>
-                ) : null}
-                <Field>
-                  <FieldLabel htmlFor={`correo-${socio.id}`}>Correo</FieldLabel>
-                  <Input
-                    id={`correo-${socio.id}`}
-                    name="correo"
-                    type="email"
-                    defaultValue={socio.correo}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor={`numeroCelular-${socio.id}`}>Celular</FieldLabel>
-                  <Input
-                    id={`numeroCelular-${socio.id}`}
-                    name="numeroCelular"
-                    defaultValue={socio.numeroCelular}
-                  />
-                </Field>
-              </div>
-            </div>
-          </form>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={modificarMutation.isPending}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={modificarMutation.isPending}
-              onClick={(event) => {
-                event.preventDefault()
-                const form = document.getElementById(
-                  `modificar-${socio.id}`,
-                ) as HTMLFormElement | null
-                form?.requestSubmit()
-              }}
-            >
-              {modificarMutation.isPending ? "Guardando..." : "Guardar cambios"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }
 
 export function SocioNegocioVista({
   titulo,
-  etiqueta,
-  accionPrincipal = "Nuevo registro",
+  accionPrincipal = "Nuevo",
   crearHref,
   filtros,
 }: SocioNegocioVistaProps) {
@@ -919,32 +527,6 @@ export function SocioNegocioVista({
   const cargando = sociosQuery.isLoading
   const error = sociosQuery.error ? obtenerMensajeError(sociosQuery.error) : null
   const tipoBloqueado = Boolean(filtros?.tipo)
-
-  const metricasVista = useMemo(() => {
-    const activosRegistrados = socios.filter(
-      (socio) => socio.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
-    ).length
-    const inactivos = socios.filter((socio) => socio.estado === "INACTIVO").length
-    const anulados = socios.filter((socio) => socio.estadoRegistro === "ANULADO").length
-
-    return [
-      {
-        etiqueta: "Registros consultados",
-        valor: String(socios.length),
-        detalle: "Resultado recibido segun el filtro aplicado.",
-      },
-      {
-        etiqueta: "Activos registrados",
-        valor: String(activosRegistrados),
-        detalle: "Socios disponibles para operar y sin anulacion.",
-      },
-      {
-        etiqueta: "Inactivos / anulados",
-        valor: String(inactivos + anulados),
-        detalle: `${inactivos} inactivos y ${anulados} anulados en la consulta.`,
-      },
-    ]
-  }, [socios])
 
   async function exportar(formato: ReporteSociosDeNegocioResponse["formato"]) {
     setReporteGenerado(null)
@@ -1012,6 +594,24 @@ export function SocioNegocioVista({
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
+          <SocioNegocioPageHeader
+            title="Listar socio de negocio"
+            actions={
+              crearHref ? (
+                <Button asChild className="w-full sm:w-auto">
+                  <Link href={crearHref}>
+                    <HugeiconsIcon
+                      data-icon="inline-start"
+                      icon={Add01Icon}
+                      strokeWidth={2}
+                    />
+                    {accionPrincipal}
+                  </Link>
+                </Button>
+              ) : null
+            }
+          />
+
           {error ? (
             <Alert variant="destructive">
               <AlertTitle>Error de API</AlertTitle>
@@ -1033,65 +633,15 @@ export function SocioNegocioVista({
             </Alert>
           ) : null}
 
-          <section className="grid gap-3 md:grid-cols-3">
-            {metricasVista.map((metrica, index) => {
-              const visual = obtenerVisualMetrica(metrica.etiqueta, index)
-
-              return (
-                <Card
-                  key={metrica.etiqueta}
-                  className={`overflow-hidden ${visual.cardClassName}`}
-                >
-                  <CardHeader className="flex flex-row items-center justify-between gap-3 pb-3">
-                    <div className="min-w-0">
-                      <CardDescription
-                        className={`truncate text-xs font-medium uppercase tracking-[0.08em] ${visual.descriptionClassName}`}
-                      >
-                        {metrica.etiqueta}
-                      </CardDescription>
-                      <CardTitle className="mt-2 text-3xl font-semibold tabular-nums tracking-normal">
-                        {metrica.valor}
-                      </CardTitle>
-                    </div>
-                    <span
-                      className={`flex size-9 shrink-0 items-center justify-center rounded-md ring-1 ${visual.iconClassName}`}
-                    >
-                      <HugeiconsIcon icon={visual.icon} strokeWidth={2} />
-                    </span>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-3 pt-0">
-                    <p className={`min-h-10 text-sm leading-5 ${visual.detailClassName}`}>
-                      {metrica.detalle}
-                    </p>
-                    <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-                      <span className="text-xs text-muted-foreground">
-                        {visual.contexto}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className={`h-6 shrink-0 gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${visual.badgeClassName}`}
-                      >
-                        <HugeiconsIcon
-                          data-icon="inline-start"
-                          icon={visual.icon}
-                          strokeWidth={2}
-                        />
-                        {visual.badge}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </section>
-
           <section className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <h2 className="text-lg font-semibold">Socios de negocio</h2>
-              <p className="text-sm text-muted-foreground">{etiqueta}</p>
+              <h2 className="text-lg font-semibold">Socios registrados</h2>
+              <p className="text-sm text-muted-foreground">
+                Busca, revisa y gestiona clientes, proveedores y personal.
+              </p>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+            <div className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
               <div className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
                 <form
                   className="flex flex-col gap-2 lg:flex-row lg:items-center"
@@ -1214,18 +764,6 @@ export function SocioNegocioVista({
                   </div>
                 </form>
                 <div className="flex flex-wrap gap-2">
-                {crearHref ? (
-                  <Button asChild size="sm">
-                    <Link href={crearHref}>
-                      <HugeiconsIcon
-                        data-icon="inline-start"
-                        icon={Add01Icon}
-                        strokeWidth={2}
-                      />
-                      {accionPrincipal}
-                    </Link>
-                  </Button>
-                ) : null}
                   <Button
                     variant="outline"
                     size="sm"

@@ -273,7 +273,7 @@ function AccionesConfiguracion({
           motivo: motivo.trim(),
           usuarioModificacion: "admin",
         })
-        onMensaje(`${dato.nombre} fue anulado.`)
+        onMensaje(`${dato.nombre} fue borrado.`)
       }
 
       setAccion(null)
@@ -313,14 +313,14 @@ function AccionesConfiguracion({
           <DropdownMenuGroup>
             <DropdownMenuItem onSelect={() => setFichaAbierta(true)}>
               <Eye className="size-4" />
-              Ver ficha
+              Ver
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!puedeModificar || procesando}
               onSelect={() => setModificarAbierto(true)}
             >
               <Pencil className="size-4" />
-              Modificar
+              Editar
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -342,7 +342,7 @@ function AccionesConfiguracion({
               onSelect={() => abrirAccion("anular")}
             >
               <Trash2 className="size-4" />
-              Anular
+              Borrar
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
@@ -382,7 +382,7 @@ function AccionesConfiguracion({
         <AlertDialogContent>
           <form onSubmit={(event) => void modificarDato(event)}>
             <AlertDialogHeader>
-              <AlertDialogTitle>Modificar maestro</AlertDialogTitle>
+              <AlertDialogTitle>Editar maestro</AlertDialogTitle>
               <AlertDialogDescription>
                 Actualiza nombre y descripcion del registro #{dato.count}.
               </AlertDialogDescription>
@@ -414,20 +414,22 @@ function AccionesConfiguracion({
               {accion === "inhabilitar"
                 ? "Inhabilitar maestro"
                 : accion === "anular"
-                  ? "Anular maestro"
+                  ? "Borrar maestro"
                   : "Reactivar maestro"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {accion === "reactivar"
                 ? "El registro volvera a estar disponible para consumo."
-                : "Ingresa el motivo para registrar la accion en auditoria."}
+                : accion === "anular"
+                  ? "Tenga en cuenta que esta informacion no se podra recuperar. Ingresa el motivo para registrar la accion en auditoria."
+                  : "Ingresa el motivo para registrar la accion en auditoria."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {accion === "inhabilitar" || accion === "anular" ? (
             <Textarea
               value={motivo}
               onChange={(event) => setMotivo(event.target.value)}
-              placeholder={accion === "anular" ? "Motivo de anulacion" : "Motivo de inhabilitacion"}
+              placeholder={accion === "anular" ? "Motivo de borrado" : "Motivo de inhabilitacion"}
               required
             />
           ) : null}
@@ -438,7 +440,13 @@ function AccionesConfiguracion({
               disabled={procesando || ((accion === "inhabilitar" || accion === "anular") && !motivo.trim())}
               onClick={() => void confirmarAccion()}
             >
-              {procesando ? "Procesando..." : "Confirmar"}
+              {procesando
+                ? "Procesando..."
+                : accion === "anular"
+                  ? "Borrar"
+                  : accion === "inhabilitar"
+                    ? "Inhabilitar"
+                    : "Reactivar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

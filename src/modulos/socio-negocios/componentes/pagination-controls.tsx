@@ -72,7 +72,7 @@ export function PaginationControls({
 
   return (
     <div className="flex flex-col gap-4 border-t border-border px-4 py-4 md:flex-row md:items-center md:justify-between">
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex flex-wrap items-center gap-3 text-sm md:justify-start">
         <span className="text-muted-foreground">Registros por pagina:</span>
         <Select
           value={String(registrosPorPagina)}
@@ -94,7 +94,7 @@ export function PaginationControls({
           {meta.total} registros
         </span>
       </div>
-      <Pagination>
+      <Pagination className="md:mx-0 md:ml-auto md:w-auto md:justify-end">
         <PaginationContent>
           <PaginationItem>
             <PaginationPrevious

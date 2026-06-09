@@ -10,7 +10,13 @@ export default async function Page({ params }: Props) {
 
   return (
     <>
-      <SiteHeader title="Editar activo" />
+      <SiteHeader
+        title="Actualizar Activo"
+        breadcrumbs={[
+          { title: "Activos", href: "/activos" },
+          { title: "Actualizar Activo" },
+        ]}
+      />
       <ActivoEditarVista codigo={codigo} />
     </>
   );

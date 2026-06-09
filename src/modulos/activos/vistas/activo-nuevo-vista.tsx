@@ -30,24 +30,23 @@ export async function ActivoNuevoVista({ origenId }: Props) {
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <section className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Activos</p>
-            <h1 className="text-2xl font-semibold">
-              {esAcople ? "Nuevo acople" : "Nuevo activo"}
+      <div className="flex w-full flex-col gap-5">
+        <section className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-normal">
+              {esAcople ? "Replaqueo" : "Nuevo activo"}
             </h1>
             {esAcople ? (
               <p className="mt-1 text-sm text-muted-foreground">
-                Registra la nueva ficha conservando la referencia del activo
-                anterior.
+                Registra la nueva ficha conservando la referencia de la unidad
+                de baja.
               </p>
             ) : null}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {esAcople ? (
               <Button asChild variant="outline">
-                <Link href="/activos/nuevo-acople">Cambiar origen</Link>
+                <Link href="/activos/nuevo-acople">Cambiar unidad</Link>
               </Button>
             ) : null}
             <Button asChild variant="outline">
@@ -68,7 +67,7 @@ export async function ActivoNuevoVista({ origenId }: Props) {
             <Card className="border-destructive/40 bg-destructive/10">
               <CardContent className="py-4 text-sm text-destructive">
                 No se pudo cargar el activo anterior seleccionado. Vuelve a
-                elegirlo desde Nuevo acople.
+                elegirlo desde Replaqueo.
               </CardContent>
             </Card>
           )
@@ -127,11 +126,11 @@ function ActivoOrigenCard({
             <div>
               <CardTitle>Datos del activo anterior</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Estos datos quedan como referencia historica del nuevo acople.
+                Estos datos quedan como referencia historica del replaqueo.
               </p>
             </div>
           </div>
-          <Badge variant="destructive">Registro anulado</Badge>
+          <Badge variant="outline">Unidad de baja</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-5 py-5">
@@ -140,7 +139,7 @@ function ActivoOrigenCard({
           <DatoOrigen etiqueta="Codigo anterior" valor={activo.codigo} />
           <DatoOrigen etiqueta="Unidad anterior" valor={activo.descripcion} />
           <DatoOrigen etiqueta="Ubicacion anterior" valor={activo.ubicacion} />
-          <DatoOrigen etiqueta="Placa anterior" valor={vehiculo?.placaRodaje} />
+          <DatoOrigen etiqueta="Placa anterior" valor={vehiculo?.placa} />
           <DatoOrigen
             etiqueta="Carroceria anterior"
             valor={vehiculo?.carroceria}

@@ -7,11 +7,11 @@ import { toast } from "sonner";
 import {
   IconArrowDown,
   IconArrowUp,
+  IconDownload,
   IconDotsVertical,
   IconEye,
   IconHistory,
   IconPencil,
-  IconPlus,
   IconRefresh,
   IconSearch,
   IconTrash,
@@ -122,7 +122,7 @@ export function ActivosTabla({ activos }: Props) {
 
   const normalizedQuery = filtrosAplicados.query.trim().toUpperCase();
   const filtrados = activosPorRegistro.filter((activo) => {
-    const placa = activo.vehiculo?.placaRodaje ?? "";
+    const placa = activo.vehiculo?.placa ?? "";
     const marca = activo.vehiculo?.marca ?? "";
     const modelo = activo.vehiculo?.modelo ?? "";
     const fechaModificacion = normalizarFecha(activo.updatedAt);
@@ -135,8 +135,7 @@ export function ActivosTabla({ activos }: Props) {
       coincideTexto &&
       (filtrosAplicados.tipoActivo === "TODOS" ||
         activo.tipoActivo === filtrosAplicados.tipoActivo) &&
-      (filtrosAplicados.estadoActivo === "TODOS" ||
-        activo.estadoActivo === filtrosAplicados.estadoActivo) &&
+      coincideEstadoActivo(activo.estadoActivo, filtrosAplicados.estadoActivo) &&
       (filtrosAplicados.estadoOperativo === "TODOS" ||
         activo.vehiculo?.estadoOperativo === filtrosAplicados.estadoOperativo) &&
       (filtrosAplicados.estadoCalibracion === "TODOS" ||
@@ -200,6 +199,89 @@ export function ActivosTabla({ activos }: Props) {
     setFiltrosAplicados(FILTROS_INICIALES);
   }
 
+  function exportarExcel() {
+    const filas = ordenados.map((activo) => ({
+      Codigo: activo.codigo,
+      Unidad:
+        [activo.vehiculo?.marca, activo.vehiculo?.modelo]
+          .filter(Boolean)
+          .join(" ") || activo.descripcion,
+      Placa: activo.vehiculo?.placa ?? "",
+      Tipo: formatear(activo.tipoActivo),
+      Ubicacion: activo.ubicacion,
+      Estado: formatearEstadoActivo(activo.estadoActivo),
+      Condicion: formatear(activo.vehiculo?.estadoOperativo),
+      Calibracion: formatear(activo.vehiculo?.estadoCalibracion),
+      Modificado: formatearFecha(activo.updatedAt),
+    }));
+    const csv = convertirCsv(filas);
+    descargarArchivo(csv, `activos-${fechaArchivo()}.csv`, "text/csv;charset=utf-8");
+  }
+
+  function exportarPdf() {
+    const filas = ordenados
+      .map(
+        (activo) => `
+          <tr>
+            <td>${escaparHtml(activo.codigo)}</td>
+            <td>${escaparHtml(
+              [activo.vehiculo?.marca, activo.vehiculo?.modelo]
+                .filter(Boolean)
+                .join(" ") || activo.descripcion
+            )}</td>
+            <td>${escaparHtml(activo.vehiculo?.placa ?? "")}</td>
+            <td>${escaparHtml(formatear(activo.tipoActivo))}</td>
+            <td>${escaparHtml(activo.ubicacion)}</td>
+            <td>${escaparHtml(formatearEstadoActivo(activo.estadoActivo))}</td>
+            <td>${escaparHtml(formatear(activo.vehiculo?.estadoOperativo))}</td>
+            <td>${escaparHtml(formatearFecha(activo.updatedAt))}</td>
+          </tr>`
+      )
+      .join("");
+    const ventana = window.open("", "_blank");
+    if (!ventana) {
+      toast.error("No se pudo abrir la vista PDF. Revisa el bloqueador de ventanas.");
+      return;
+    }
+
+    ventana.document.write(`<!doctype html>
+      <html>
+        <head>
+          <title>Listado de activos</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+            h1 { font-size: 20px; margin: 0 0 12px; }
+            p { margin: 0 0 16px; color: #4b5563; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            th, td { border: 1px solid #d1d5db; padding: 6px; text-align: left; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>Listado de activos</h1>
+          <p>${ordenados.length} activos exportados - ${new Date().toLocaleString("es-PE")}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Codigo</th>
+                <th>Unidad</th>
+                <th>Placa</th>
+                <th>Tipo</th>
+                <th>Ubicacion</th>
+                <th>Estado</th>
+                <th>Condicion</th>
+                <th>Modificado</th>
+              </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>
+        </body>
+      </html>`);
+    ventana.document.close();
+    ventana.focus();
+    ventana.print();
+  }
+
   async function confirmarBorrado() {
     if (!activoParaBorrar) return;
 
@@ -258,7 +340,7 @@ export function ActivosTabla({ activos }: Props) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Listado de activos</h2>
+        <h2 className="text-lg font-semibold">Consulta de activos</h2>
         <p className="text-sm text-muted-foreground">
           {filtrados.length} de {activosPorRegistro.length} activos consultados
         </p>
@@ -267,12 +349,24 @@ export function ActivosTabla({ activos }: Props) {
       <Card className="overflow-hidden">
         <CardContent className="flex flex-col gap-4 p-0">
         <form
-          className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between"
+          className="flex flex-col border-b border-border"
           onSubmit={(event) => {
             event.preventDefault();
             aplicarFiltros();
           }}
         >
+          <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-4 py-3">
+            <Button type="submit" size="sm">
+              <IconSearch />
+              Aplicar
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={limpiarFiltros}>
+              <IconRefresh />
+              Limpiar
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-3 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-1 flex-wrap items-center gap-2">
             <div className="relative">
               <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -301,18 +395,17 @@ export function ActivosTabla({ activos }: Props) {
               value={filtrosFormulario.estadoActivo}
               onChange={(value) => actualizarFiltro("estadoActivo", value)}
               values={[
-                { value: "TODOS", label: "Estado: todos" },
-                { value: "ACTIVO", label: "Activo" },
-                { value: "INACTIVO", label: "Inactivo" },
-                { value: "SINIESTRADO", label: "Siniestrado" },
+                { value: "TODOS", label: "Estado activo: todos" },
+                { value: "ACTIVO", label: "Estado activo: activo" },
+                { value: "BAJA", label: "Estado activo: baja" },
               ]}
             />
             <FiltroSelect
-              ariaLabel="Estado operativo"
+              ariaLabel="Condicion activo"
               value={filtrosFormulario.estadoOperativo}
               onChange={(value) => actualizarFiltro("estadoOperativo", value)}
               values={[
-                { value: "TODOS", label: "Operativo: todos" },
+                { value: "TODOS", label: "Condicion: todos" },
                 { value: "OPERATIVO", label: "Operativo" },
                 { value: "MANTENIMIENTO", label: "Mantenimiento" },
                 { value: "NO_OPERATIVO", label: "No operativo" },
@@ -337,7 +430,7 @@ export function ActivosTabla({ activos }: Props) {
                 actualizarFiltro("estadoRegistro", value as FiltroRegistro)
               }
               values={[
-                { value: "ACTIVO", label: "Registro: activos" },
+                { value: "ACTIVO", label: "Registro: visibles" },
                 { value: "ANULADO", label: "Registro: anulados" },
                 { value: "TODOS", label: "Registro: todos" },
               ]}
@@ -357,20 +450,15 @@ export function ActivosTabla({ activos }: Props) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" size="sm">
-              <IconSearch />
-              Aplicar
+            <Button type="button" variant="outline" size="sm" onClick={exportarExcel}>
+              <IconDownload />
+              Excel
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={limpiarFiltros}>
-              <IconRefresh />
-              Limpiar
+            <Button type="button" variant="outline" size="sm" onClick={exportarPdf}>
+              <IconDownload />
+              PDF
             </Button>
-            <Button asChild size="sm">
-              <Link href="/activos/nuevo">
-                <IconPlus />
-                Nuevo activo
-              </Link>
-            </Button>
+          </div>
           </div>
         </form>
 
@@ -396,7 +484,7 @@ export function ActivosTabla({ activos }: Props) {
                 <TableHead className="w-[7%]">Tipo</TableHead>
                 <TableHead className="w-[13%]">Ubicacion</TableHead>
                 <TableHead className="w-[8%]">Estado</TableHead>
-                <TableHead className="w-[9%]">Operativo</TableHead>
+                <TableHead className="w-[9%]">Condicion</TableHead>
                 <TableHead className="w-[9%]">Calibracion</TableHead>
                 <TableHead className="w-[9%]">
                   <button
@@ -454,7 +542,7 @@ export function ActivosTabla({ activos }: Props) {
                               <DropdownMenuItem asChild>
                                 <Link href={`/activos/${activo.codigo}/historial`}>
                                   <IconHistory />
-                                  Historial y auditoria
+                                  Auditar
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -484,7 +572,7 @@ export function ActivosTabla({ activos }: Props) {
                               <DropdownMenuItem asChild>
                                 <Link href={`/activos/${activo.codigo}/historial`}>
                                   <IconHistory />
-                                  Historial y auditoria
+                                  Auditar
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
@@ -533,7 +621,7 @@ export function ActivosTabla({ activos }: Props) {
                     </div>
                   </TableCell>
                   <TableCell className="truncate">
-                    {activo.vehiculo?.placaRodaje ?? "Sin placa"}
+                    {activo.vehiculo?.placa ?? "Sin placa"}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{formatear(activo.tipoActivo)}</Badge>
@@ -636,9 +724,8 @@ export function ActivosTabla({ activos }: Props) {
             <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl">
               <h3 className="text-lg font-semibold">Confirmar borrado</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                El activo {activoParaBorrar.codigo} se retirara del maestro
-                visible y no podra usarse en procesos operativos. Deseas
-                continuar?
+                Esta seguro que desea eliminar el activo {activoParaBorrar.codigo},
+                tenga en cuenta que esta informacion ya no se podra recuperar.
               </p>
               <div className="mt-5 flex justify-end gap-2">
                 <Button
@@ -655,7 +742,7 @@ export function ActivosTabla({ activos }: Props) {
                   onClick={confirmarBorrado}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? "Procesando..." : "Borrar activo"}
+                  {isDeleting ? "Procesando..." : "Borrar"}
                 </Button>
               </div>
             </div>
@@ -732,6 +819,12 @@ function normalizarFecha(value: string) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
+function coincideEstadoActivo(estadoActivo: EstadoActivo, filtro: string) {
+  if (filtro === "TODOS") return true;
+  if (filtro === "BAJA") return estadoActivo !== "ACTIVO";
+  return estadoActivo === filtro;
+}
+
 function EstadoBadge({
   value,
   variant,
@@ -741,7 +834,7 @@ function EstadoBadge({
 }) {
   return (
     <Badge className="max-w-44" variant={variant}>
-      <span className="truncate">{formatear(value)}</span>
+      <span className="truncate">{formatearEstadoActivo(value)}</span>
     </Badge>
   );
 }
@@ -768,12 +861,60 @@ function estadoCalibracionVariant(
   return "secondary";
 }
 
-function formatear(value: string) {
+function formatear(value?: string | null) {
+  if (!value) return "-";
   return value
     .toLowerCase()
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return formatear(value);
+}
+
+function convertirCsv(filas: Array<Record<string, string>>) {
+  if (!filas.length) return "";
+  const columnas = Object.keys(filas[0]);
+  const contenido = [
+    columnas.join(","),
+    ...filas.map((fila) =>
+      columnas
+        .map((columna) => `"${String(fila[columna] ?? "").replaceAll('"', '""')}"`)
+        .join(",")
+    ),
+  ].join("\r\n");
+
+  return `\uFEFF${contenido}`;
+}
+
+function descargarArchivo(contenido: string, nombre: string, tipo: string) {
+  const blob = new Blob([contenido], { type: tipo });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nombre;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function fechaArchivo() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function escaparHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function FiltroSelect({

@@ -4,7 +4,13 @@ import { ActivoNuevoAcopleVista } from "@/modulos/activos/vistas/activo-nuevo-ac
 export default function Page() {
   return (
     <>
-      <SiteHeader title="Nuevo acople" />
+      <SiteHeader
+        title="Replaqueo"
+        breadcrumbs={[
+          { title: "Activos", href: "/activos" },
+          { title: "Replaqueo" },
+        ]}
+      />
       <ActivoNuevoAcopleVista />
     </>
   );

@@ -78,6 +78,39 @@ type Props = {
 };
 
 type RegistroResumenData = Record<string, Array<[string, unknown]>>;
+type ActivoTab =
+  | "base"
+  | "adquisicion"
+  | "vehiculo"
+  | "equipamiento"
+  | "dimensiones"
+  | "control"
+  | "combustible"
+  | "documentos";
+
+const TABS_POR_TIPO_ACTIVO: Record<TipoActivo, ActivoTab[]> = {
+  VEHICULO: [
+    "base",
+    "adquisicion",
+    "vehiculo",
+    "equipamiento",
+    "dimensiones",
+    "control",
+    "combustible",
+    "documentos",
+  ],
+  EQUIPO: [
+    "base",
+    "adquisicion",
+    "equipamiento",
+    "dimensiones",
+    "control",
+    "documentos",
+  ],
+  HERRAMIENTA: ["base", "adquisicion", "control", "documentos"],
+  DISPOSITIVO: ["base", "adquisicion", "equipamiento", "control", "documentos"],
+  OTRO: ["base", "adquisicion", "documentos"],
+};
 
 export function ActivoFormulario({
   activo,
@@ -89,6 +122,8 @@ export function ActivoFormulario({
   const router = useRouter();
   const [isSaving, setIsSaving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("base");
+  const [tipoActivoSeleccionado, setTipoActivoSeleccionado] =
+    React.useState<TipoActivo>(activo?.tipoActivo ?? "VEHICULO");
   const [documentosPendientes, setDocumentosPendientes] = React.useState<
     CrearDocumentoActivoPayload[]
   >([]);
@@ -104,6 +139,12 @@ export function ActivoFormulario({
     React.useState<PlantillaInventario>(
       activo?.vehiculo?.plantillaInventario ?? "EQUIPO_LIVIANO"
     );
+  const [estadoActivoGrupo, setEstadoActivoGrupo] = React.useState<
+    "ACTIVO" | "BAJA"
+  >(!activo || activo.estadoActivo === "ACTIVO" ? "ACTIVO" : "BAJA");
+  const [causaBaja, setCausaBaja] = React.useState<
+    "SINIESTRADO" | "INACTIVO"
+  >(activo?.estadoActivo === "SINIESTRADO" ? "SINIESTRADO" : "INACTIVO");
   const [carroceriasReferencia, setCarroceriasReferencia] = React.useState<
     CarroceriaReferencia[]
   >([]);
@@ -130,6 +171,11 @@ export function ActivoFormulario({
   const actualizarResumen = React.useCallback(() => {
     setFormVersion((version) => version + 1);
   }, []);
+  const tabsDisponibles = TABS_POR_TIPO_ACTIVO[tipoActivoSeleccionado];
+  const tieneTab = React.useCallback(
+    (tab: ActivoTab) => tabsDisponibles.includes(tab),
+    [tabsDisponibles]
+  );
 
   React.useEffect(() => {
     let isMounted = true;
@@ -173,6 +219,20 @@ export function ActivoFormulario({
       isMounted = false;
     };
   }, [plantillaSeleccionada, selectedCarroceriaReferenciaId]);
+
+  React.useEffect(() => {
+    actualizarResumen();
+  }, [actualizarResumen, causaBaja, estadoActivoGrupo]);
+
+  React.useEffect(() => {
+    if (!tabsDisponibles.includes(activeTab as ActivoTab)) {
+      setActiveTab("base");
+    }
+
+    if (!tabsDisponibles.includes("combustible") && tanquesPendientes.length) {
+      setTanquesPendientes([]);
+    }
+  }, [activeTab, tabsDisponibles, tanquesPendientes.length]);
 
   function setFormValue(name: string, value: string | number | null | undefined) {
     const root = formularioRef.current;
@@ -227,6 +287,7 @@ export function ActivoFormulario({
     setFormValue("categoria", referencia.categoriaSugerida);
     actualizarResumen();
   }
+
   const resumen = React.useMemo<RegistroResumenData>(() => {
     const root = formularioRef.current;
     const getValue = (name: string) =>
@@ -244,7 +305,7 @@ export function ActivoFormulario({
         ["Descripcion", getValue("descripcion") || activo?.descripcion],
         ["Tipo", getValue("tipoActivo") || activo?.tipoActivo],
         ["Ubicacion", getValue("ubicacion") || activo?.ubicacion],
-        ["Estado", getValue("estadoActivo") || activo?.estadoActivo],
+        ["Estado", formatearEstadoActivo(getValue("estadoActivo") || activo?.estadoActivo)],
       ],
       adquisicion: [
         ["Valor", getValue("valorUnidad") || activo?.valorUnidad],
@@ -254,9 +315,9 @@ export function ActivoFormulario({
         ["Fecha", getValue("fechaFactura") || activo?.fechaFactura],
       ],
       vehiculo: [
-        ["Plantilla", getValue("plantillaInventario") || activo?.vehiculo?.plantillaInventario],
+        ["Clase", getValue("plantillaInventario") || activo?.vehiculo?.plantillaInventario],
         ["Carroceria", getValue("carroceria") || activo?.vehiculo?.carroceria],
-        ["Placa", getValue("placaRodaje") || activo?.vehiculo?.placaRodaje],
+        ["Placa", getValue("placa") || activo?.vehiculo?.placa],
         ["Marca", getValue("marca") || activo?.vehiculo?.marca],
         ["Modelo", getValue("modelo") || activo?.vehiculo?.modelo],
         ["Chasis", getValue("serieChasis") || activo?.vehiculo?.serieChasis],
@@ -271,7 +332,7 @@ export function ActivoFormulario({
         ["Seguridad", getValue("dispositivosSeguridad") || activo?.vehiculo?.dispositivosSeguridad],
       ],
       control: [
-        ["Operativo", getValue("estadoOperativo") || activo?.vehiculo?.estadoOperativo],
+        ["Condicion", getValue("estadoOperativo") || activo?.vehiculo?.estadoOperativo],
         ["Calibracion", getValue("estadoCalibracion") || activo?.vehiculo?.estadoCalibracion],
         ["Observacion", getValue("observacion") || activo?.observacion],
       ],
@@ -325,8 +386,12 @@ export function ActivoFormulario({
       const ubicacion = getValue("ubicacion");
       const tipoActivo = getValue("tipoActivo") as TipoActivo;
       const estadoActivo = getValue("estadoActivo") as EstadoActivo;
-      const plantillaInventario = getValue("plantillaInventario") as PlantillaInventario;
+      const plantillaInventario =
+        (getValue("plantillaInventario") as PlantillaInventario) ||
+        "EQUIPO_LIVIANO";
       const carroceriaReferenciaId = numero("carroceriaReferenciaId");
+      const tabsParaGuardar = TABS_POR_TIPO_ACTIVO[tipoActivo] ?? tabsDisponibles;
+      const puedeGuardarTab = (tab: ActivoTab) => tabsParaGuardar.includes(tab);
 
       if (!isEdit && !codigo) {
         setActiveTab("base");
@@ -353,12 +418,25 @@ export function ActivoFormulario({
         throw new Error("Selecciona el estado del activo en la pestana Base.");
       }
 
-      if (!plantillaInventario) {
+      if (puedeGuardarTab("vehiculo") && !getValue("plantillaInventario")) {
         setActiveTab("vehiculo");
-        throw new Error("Selecciona la plantilla del activo en la pestana Vehiculo.");
+        throw new Error("Selecciona la clase del activo en la pestana Vehiculo.");
       }
 
-      const tanqueInvalido = tanquesPendientes.find(
+      if (puedeGuardarTab("vehiculo") && !getValue("serieChasis")) {
+        setActiveTab("vehiculo");
+        throw new Error("Completa la serie de chasis en la pestana Vehiculo.");
+      }
+
+      if (puedeGuardarTab("vehiculo") && !getValue("serieMotor")) {
+        setActiveTab("vehiculo");
+        throw new Error("Completa la serie y marca de motor en la pestana Vehiculo.");
+      }
+
+      const tanquesAGuardar = puedeGuardarTab("combustible")
+        ? tanquesPendientes
+        : [];
+      const tanqueInvalido = tanquesAGuardar.find(
         (tanque) => !tanque.capacidad || tanque.capacidad <= 0
       );
 
@@ -382,6 +460,81 @@ export function ActivoFormulario({
         );
       }
 
+      const debeGuardarDetalleTecnico =
+        puedeGuardarTab("vehiculo") ||
+        puedeGuardarTab("equipamiento") ||
+        puedeGuardarTab("dimensiones") ||
+        puedeGuardarTab("control");
+
+      const vehiculo = debeGuardarDetalleTecnico
+        ? {
+            plantillaInventario,
+            carroceriaReferenciaId:
+              puedeGuardarTab("vehiculo") &&
+              carroceriaReferenciaId &&
+              carroceriaReferenciaId > 0
+                ? carroceriaReferenciaId
+                : null,
+            placa: puedeGuardarTab("vehiculo") ? texto("placa") : null,
+            anioFabricacion: puedeGuardarTab("vehiculo")
+              ? numero("anioFabricacion")
+              : null,
+            color: puedeGuardarTab("vehiculo") ? texto("color") : null,
+            marca: puedeGuardarTab("vehiculo") ? texto("marca") : null,
+            modelo: puedeGuardarTab("vehiculo") ? texto("modelo") : null,
+            carroceria: puedeGuardarTab("vehiculo") ? texto("carroceria") : null,
+            ejes: puedeGuardarTab("vehiculo") ? numero("ejes") : null,
+            categoria: puedeGuardarTab("vehiculo") ? texto("categoria") : null,
+            serieChasis: puedeGuardarTab("vehiculo") ? texto("serieChasis") : null,
+            serieMotor: puedeGuardarTab("vehiculo") ? texto("serieMotor") : null,
+            radioComunicacion: puedeGuardarTab("equipamiento")
+              ? texto("radioComunicacion")
+              : null,
+            autorradio: puedeGuardarTab("equipamiento") ? texto("autorradio") : null,
+            llantasRepuesto: puedeGuardarTab("equipamiento")
+              ? texto("llantasRepuesto")
+              : null,
+            camara: puedeGuardarTab("equipamiento") ? texto("camara") : null,
+            tablet: puedeGuardarTab("equipamiento") ? texto("tablet") : null,
+            dispositivosSeguridad: puedeGuardarTab("equipamiento")
+              ? texto("dispositivosSeguridad")
+              : null,
+            estadoOperativo: puedeGuardarTab("control")
+              ? ((getValue("estadoOperativo") || "OPERATIVO") as EstadoOperativo)
+              : null,
+            cajaHerramientas: puedeGuardarTab("equipamiento")
+              ? texto("cajaHerramientas")
+              : null,
+            jaulaAntivuelco: puedeGuardarTab("equipamiento")
+              ? texto("jaulaAntivuelco")
+              : null,
+            carriboy: puedeGuardarTab("equipamiento") ? texto("carriboy") : null,
+            baranda: puedeGuardarTab("equipamiento") ? texto("baranda") : null,
+            mamparon: puedeGuardarTab("equipamiento") ? texto("mamparon") : null,
+            ancho: puedeGuardarTab("dimensiones") ? numero("ancho") : null,
+            longitud: puedeGuardarTab("dimensiones") ? numero("longitud") : null,
+            alto: puedeGuardarTab("dimensiones") ? numero("alto") : null,
+            tipoSuspension: puedeGuardarTab("dimensiones")
+              ? texto("tipoSuspension")
+              : null,
+            tipoTornamesa: puedeGuardarTab("dimensiones")
+              ? texto("tipoTornamesa")
+              : null,
+            claseEuro: puedeGuardarTab("dimensiones")
+              ? ((getValue("claseEuro") || null) as ClaseEuro | null)
+              : null,
+            ratioCorona: puedeGuardarTab("dimensiones")
+              ? numero("ratioCorona")
+              : null,
+            tipoTransmision: puedeGuardarTab("dimensiones")
+              ? ((getValue("tipoTransmision") || null) as TipoTransmision | null)
+              : null,
+            estadoCalibracion: puedeGuardarTab("control")
+              ? ((getValue("estadoCalibracion") || "PENDIENTE") as EstadoCalibracion)
+              : null,
+          }
+        : undefined;
+
       const payload = {
         tipoActivo,
         descripcion,
@@ -393,44 +546,7 @@ export function ActivoFormulario({
         proveedor: getValue("proveedor") || null,
         numeroFactura: getValue("numeroFactura") || null,
         fechaFactura: getValue("fechaFactura") || null,
-        vehiculo: {
-          plantillaInventario,
-          carroceriaReferenciaId:
-            carroceriaReferenciaId && carroceriaReferenciaId > 0
-              ? carroceriaReferenciaId
-              : null,
-          placaRodaje: texto("placaRodaje"),
-          anioFabricacion: numero("anioFabricacion"),
-          color: texto("color"),
-          marca: texto("marca"),
-          modelo: texto("modelo"),
-          carroceria: texto("carroceria"),
-          ejes: numero("ejes"),
-          categoria: texto("categoria"),
-          serieChasis: texto("serieChasis"),
-          serieMotor: texto("serieMotor"),
-          radioComunicacion: texto("radioComunicacion"),
-          autorradio: texto("autorradio"),
-          llantasRepuesto: texto("llantasRepuesto"),
-          camara: texto("camara"),
-          tablet: texto("tablet"),
-          dispositivosSeguridad: texto("dispositivosSeguridad"),
-          estadoOperativo: (getValue("estadoOperativo") || "OPERATIVO") as EstadoOperativo,
-          cajaHerramientas: texto("cajaHerramientas"),
-          jaulaAntivuelco: texto("jaulaAntivuelco"),
-          carriboy: texto("carriboy"),
-          baranda: texto("baranda"),
-          mamparon: texto("mamparon"),
-          ancho: numero("ancho"),
-          longitud: numero("longitud"),
-          alto: numero("alto"),
-          tipoSuspension: texto("tipoSuspension"),
-          tipoTornamesa: texto("tipoTornamesa"),
-          claseEuro: (getValue("claseEuro") || null) as ClaseEuro | null,
-          ratioCorona: numero("ratioCorona"),
-          tipoTransmision: (getValue("tipoTransmision") || null) as TipoTransmision | null,
-          estadoCalibracion: (getValue("estadoCalibracion") || "PENDIENTE") as EstadoCalibracion,
-        },
+        ...(vehiculo ? { vehiculo } : {}),
       };
 
       const saved = isEdit
@@ -448,7 +564,7 @@ export function ActivoFormulario({
           ...documentosPendientes.map((documento) =>
             crearDocumentoPorCodigo(saved.codigo, documento)
           ),
-          ...tanquesPendientes.map((tanque) =>
+          ...tanquesAGuardar.map((tanque) =>
             crearTanquePorCodigo(saved.codigo, tanque)
           ),
           ...imagenesPendientes.map((imagen) =>
@@ -456,13 +572,13 @@ export function ActivoFormulario({
           ),
         ]);
 
-        if (activo?.activoOrigenId) {
+        if (activo?.activoOrigenId && payload.vehiculo) {
           await registrarConfiguracionHistoricaPorCodigo(saved.codigo, {
             codigoNuevo: saved.codigo,
             codigoAnterior: activo.codigo,
-            placaAnterior: activo.vehiculo?.placaRodaje ?? null,
+            placaAnterior: activo.vehiculo?.placa ?? null,
             carroceriaAnterior: activo.vehiculo?.carroceria ?? null,
-            placaNueva: payload.vehiculo.placaRodaje ?? null,
+            placaNueva: payload.vehiculo.placa ?? null,
             carroceriaNueva: payload.vehiculo.carroceria ?? null,
             tipoCambio: inferirTipoCambioConfiguracion(activo, payload),
             motivo: construirMotivoConfiguracionHistorica(activo, payload),
@@ -799,8 +915,8 @@ export function ActivoFormulario({
               {isSaving
                 ? "Guardando..."
                 : isEdit
-                  ? "Actualizar activo"
-                  : "Guardar activo"}
+                  ? "Actualizar"
+                  : "Agregar"}
             </Button>
           </div>
         </CardHeader>
@@ -808,35 +924,45 @@ export function ActivoFormulario({
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-5 flex h-auto w-full flex-wrap justify-start gap-1 overflow-visible rounded-2xl">
               <TabsTrigger value="base" className="flex-none">
-                <IconClipboardText className="size-4 text-red-600" />
+                <IconClipboardText className="size-4 text-primary" />
                 Base
               </TabsTrigger>
               <TabsTrigger value="adquisicion" className="flex-none">
-                <IconReceipt2 className="size-4 text-red-600" />
+                <IconReceipt2 className="size-4 text-primary" />
                 Adquisicion
               </TabsTrigger>
-              <TabsTrigger value="vehiculo" className="flex-none">
-                <IconTruck className="size-4 text-red-600" />
-                Vehiculo
-              </TabsTrigger>
-              <TabsTrigger value="equipamiento" className="flex-none">
-                <IconSettings className="size-4 text-red-600" />
-                Equipamiento
-              </TabsTrigger>
-              <TabsTrigger value="dimensiones" className="flex-none">
-                <IconRulerMeasure className="size-4 text-red-600" />
-                Dimensiones
-              </TabsTrigger>
-              <TabsTrigger value="control" className="flex-none">
-                <IconShieldCheck className="size-4 text-red-600" />
-                Control operativo
-              </TabsTrigger>
-              <TabsTrigger value="combustible" className="flex-none">
-                <IconGasStation className="size-4 text-red-600" />
-                Combustible
-              </TabsTrigger>
+              {tieneTab("vehiculo") ? (
+                <TabsTrigger value="vehiculo" className="flex-none">
+                  <IconTruck className="size-4 text-primary" />
+                  Vehiculo
+                </TabsTrigger>
+              ) : null}
+              {tieneTab("equipamiento") ? (
+                <TabsTrigger value="equipamiento" className="flex-none">
+                  <IconSettings className="size-4 text-primary" />
+                  Equipamiento
+                </TabsTrigger>
+              ) : null}
+              {tieneTab("dimensiones") ? (
+                <TabsTrigger value="dimensiones" className="flex-none">
+                  <IconRulerMeasure className="size-4 text-primary" />
+                  Dimensiones
+                </TabsTrigger>
+              ) : null}
+              {tieneTab("control") ? (
+                <TabsTrigger value="control" className="flex-none">
+                  <IconShieldCheck className="size-4 text-primary" />
+                  Control operativo
+                </TabsTrigger>
+              ) : null}
+              {tieneTab("combustible") ? (
+                <TabsTrigger value="combustible" className="flex-none">
+                  <IconGasStation className="size-4 text-primary" />
+                  Combustible
+                </TabsTrigger>
+              ) : null}
               <TabsTrigger value="documentos" className="flex-none">
-                <IconFileDescription className="size-4 text-red-600" />
+                <IconFileDescription className="size-4 text-primary" />
                 Documentos
               </TabsTrigger>
             </TabsList>
@@ -863,20 +989,55 @@ export function ActivoFormulario({
                     defaultValue={activo?.descripcion}
                     required
                   />
-                  <SelectField
+                  <input
                     name="estadoActivo"
-                    label="Estado activo"
-                    defaultValue={activo?.estadoActivo ?? "ACTIVO"}
-                    values={["ACTIVO", "INACTIVO", "SINIESTRADO"]}
-                    required
+                    type="hidden"
+                    value={estadoActivoGrupo === "ACTIVO" ? "ACTIVO" : causaBaja}
+                    readOnly
+                  />
+                  <EstadoActivoSelector
+                    estado={estadoActivoGrupo}
+                    onChange={(value) => {
+                      setEstadoActivoGrupo(value);
+                      actualizarResumen();
+                    }}
                   />
                 </div>
+                {estadoActivoGrupo === "BAJA" ? (
+                  <div className="grid gap-4 pt-4 md:grid-cols-2">
+                    <SelectField
+                      name="causaBaja"
+                      label="Causa de baja"
+                      defaultValue={causaBaja}
+                      values={["SINIESTRADO", "INACTIVO"]}
+                      onChange={(value) => {
+                        setCausaBaja(value as "SINIESTRADO" | "INACTIVO");
+                        actualizarResumen();
+                      }}
+                      labels={{
+                        SINIESTRADO: "Siniestro",
+                        INACTIVO: "De baja",
+                      }}
+                      required
+                    />
+                  </div>
+                ) : null}
                 <div className="grid gap-4 pt-4 md:grid-cols-2">
                   <SelectField
                     name="tipoActivo"
                     label="Tipo de activo"
                     defaultValue={activo?.tipoActivo ?? "VEHICULO"}
                     values={["VEHICULO", "EQUIPO", "HERRAMIENTA", "DISPOSITIVO", "OTRO"]}
+                    onChange={(value) => {
+                      const next = value as TipoActivo;
+                      setTipoActivoSeleccionado(next);
+
+                      if (!TABS_POR_TIPO_ACTIVO[next].includes(activeTab as ActivoTab)) {
+                        setActiveTab("base");
+                      }
+
+                      actualizarResumen();
+                    }}
                     required
                   />
                   <Field
@@ -934,6 +1095,7 @@ export function ActivoFormulario({
               </div>
             </TabsContent>
 
+            {tieneTab("vehiculo") ? (
             <TabsContent forceMount value="vehiculo" className="mt-0 data-[state=inactive]:hidden">
               <SectionIntro
                 icon={IconTruck}
@@ -943,7 +1105,7 @@ export function ActivoFormulario({
                 <div className="grid gap-4 lg:grid-cols-[260px_180px_1fr_1fr]">
                   <label className="grid gap-2">
                     <span className="text-sm font-medium text-foreground">
-                      Plantilla
+                      Clase
                       <span className="ml-1 text-destructive">*</span>
                     </span>
                     <select
@@ -978,7 +1140,7 @@ export function ActivoFormulario({
                       ))}
                     </select>
                   </label>
-                  <Field name="placaRodaje" label="Placa" placeholder="BTZ-750" defaultValue={activo?.vehiculo?.placaRodaje ?? undefined} />
+                  <Field name="placa" label="Placa" placeholder="BTZ-750" defaultValue={activo?.vehiculo?.placa ?? undefined} />
                   <Field name="marca" label="Marca" placeholder="TOYOTA" defaultValue={activo?.vehiculo?.marca ?? undefined} />
                   <Field name="modelo" label="Modelo" placeholder="HILUX" defaultValue={activo?.vehiculo?.modelo ?? undefined} />
                 </div>
@@ -1035,11 +1197,13 @@ export function ActivoFormulario({
                   />
                 </div>
                 <div className="grid gap-4 pt-4 md:grid-cols-2">
-                  <Field name="serieChasis" label="Serie de chasis" defaultValue={activo?.vehiculo?.serieChasis ?? undefined} />
-                  <Field name="serieMotor" label="Serie y marca de motor" defaultValue={activo?.vehiculo?.serieMotor ?? undefined} />
+                  <Field name="serieChasis" label="Serie de chasis" defaultValue={activo?.vehiculo?.serieChasis ?? undefined} required />
+                  <Field name="serieMotor" label="Serie y marca de motor" defaultValue={activo?.vehiculo?.serieMotor ?? undefined} required />
                 </div>
             </TabsContent>
+            ) : null}
 
+            {tieneTab("equipamiento") ? (
             <TabsContent forceMount value="equipamiento" className="mt-0 data-[state=inactive]:hidden">
               <SectionIntro
                 icon={IconSettings}
@@ -1060,7 +1224,9 @@ export function ActivoFormulario({
                   <Field name="mamparon" label="Mamparon" defaultValue={activo?.vehiculo?.mamparon ?? undefined} />
                 </div>
             </TabsContent>
+            ) : null}
 
+            {tieneTab("dimensiones") ? (
             <TabsContent forceMount value="dimensiones" className="mt-0 data-[state=inactive]:hidden">
               <SectionIntro
                 icon={IconRulerMeasure}
@@ -1124,22 +1290,26 @@ export function ActivoFormulario({
                   />
                 </div>
             </TabsContent>
+            ) : null}
 
+            {tieneTab("control") ? (
             <TabsContent forceMount value="control" className="mt-0 data-[state=inactive]:hidden">
               <SectionIntro
                 icon={IconShieldCheck}
                 title="Control operativo"
-                description="Estado operativo, calibracion y observaciones."
+                description="Condicion del activo, calibracion y observaciones."
               />
                 <div className="grid gap-4 md:grid-cols-3">
-                  <SelectField name="estadoOperativo" label="Estado operativo" defaultValue={activo?.vehiculo?.estadoOperativo ?? "OPERATIVO"} values={["OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]} />
+                  <SelectField name="estadoOperativo" label="Condicion activo" defaultValue={activo?.vehiculo?.estadoOperativo ?? "OPERATIVO"} values={["OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]} />
                   <SelectField name="estadoCalibracion" label="Estado calibracion" defaultValue={activo?.vehiculo?.estadoCalibracion ?? "PENDIENTE"} values={["CALIBRADA", "NO_CALIBRADA", "PENDIENTE", "OBSERVADA"]} />
                 </div>
                 <div className="pt-4">
                   <Field name="observacion" label="Observacion" defaultValue={activo?.observacion ?? undefined} />
                 </div>
             </TabsContent>
+            ) : null}
 
+            {tieneTab("combustible") ? (
             <TabsContent forceMount value="combustible" className="mt-0 data-[state=inactive]:hidden">
               <SectionIntro
                 icon={IconGasStation}
@@ -1155,27 +1325,13 @@ export function ActivoFormulario({
                       className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4"
                     >
                       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <label className="grid gap-2">
-                          <span className="text-sm font-medium text-foreground">
-                            Tipo tanque <span className="text-destructive">*</span>
-                          </span>
-                          <select
-                            className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-                            name="tipoTanque"
-                            value={tipoTanque}
-                            onChange={(event) => {
-                              const next =
-                                event.currentTarget.value === "UREA"
-                                  ? "UREA"
-                                  : "DIESEL";
-                              setTipoTanque(next);
-                              actualizarResumen();
-                            }}
-                          >
-                            <option value="DIESEL">Diesel</option>
-                            <option value="UREA">Urea</option>
-                          </select>
-                        </label>
+                        <TipoTanqueSelector
+                          tipoTanque={tipoTanque}
+                          onChange={(next) => {
+                            setTipoTanque(next);
+                            actualizarResumen();
+                          }}
+                        />
                         <Field
                           label="Capacidad"
                           min="0.01"
@@ -1220,6 +1376,7 @@ export function ActivoFormulario({
                   </div>
                 )}
             </TabsContent>
+            ) : null}
 
             <TabsContent forceMount value="documentos" className="mt-0 data-[state=inactive]:hidden">
               <SectionIntro
@@ -1320,6 +1477,7 @@ export function ActivoFormulario({
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         resumen={resumen}
+        tabsDisponibles={tabsDisponibles}
       />
     </div>
   );
@@ -1329,10 +1487,12 @@ function ResumenRegistro({
   activeTab,
   onSelectTab,
   resumen,
+  tabsDisponibles,
 }: {
   activeTab: string;
   onSelectTab: (tab: string) => void;
   resumen: RegistroResumenData;
+  tabsDisponibles: ActivoTab[];
 }) {
   const secciones = [
     {
@@ -1372,12 +1532,12 @@ function ResumenRegistro({
       items: resumen.control,
     },
     {
-      id: "combustible",
+      id: "documentos",
       title: "Pendientes",
-      icon: IconGasStation,
+      icon: IconFileDescription,
       items: resumen.pendientes,
     },
-  ];
+  ].filter((seccion) => tabsDisponibles.includes(seccion.id as ActivoTab));
 
   return (
     <aside className="h-fit rounded-xl border border-border bg-background/40 p-4 xl:sticky xl:top-5">
@@ -1396,12 +1556,12 @@ function ResumenRegistro({
             type="button"
             onClick={() => onSelectTab(seccion.id)}
             className={cn(
-              "rounded-lg border border-border bg-muted/20 p-3 text-left transition hover:border-red-500/50",
-              activeTab === seccion.id && "border-red-500/60 bg-red-500/10"
+              "rounded-lg border border-border bg-muted/20 p-3 text-left transition hover:border-primary/50",
+              activeTab === seccion.id && "border-primary/60 bg-primary/10"
             )}
           >
             <div className="mb-2 flex items-center gap-2">
-              <span className="flex size-7 items-center justify-center rounded-md border border-red-500/30 bg-red-500/10 text-red-600">
+              <span className="flex size-7 items-center justify-center rounded-md border border-primary/30 bg-primary/10 text-primary">
                 <seccion.icon className="size-4" />
               </span>
               <span className="text-sm font-semibold">{seccion.title}</span>
@@ -1437,7 +1597,7 @@ function SectionIntro({
 }) {
   return (
     <div className="mb-5 flex items-start gap-3 border-b border-border pb-4">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-600">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
         <IconComponent className="size-5" />
       </span>
       <div>
@@ -1511,6 +1671,72 @@ function Field({
   );
 }
 
+function TipoTanqueSelector({
+  tipoTanque,
+  onChange,
+}: {
+  tipoTanque: TipoTanqueActivo;
+  onChange: (tipo: TipoTanqueActivo) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label>
+        Tipo tanque <span className="text-destructive">*</span>
+      </Label>
+      <input name="tipoTanque" type="hidden" value={tipoTanque} readOnly />
+      <div className="grid h-9 grid-cols-2 rounded-lg border border-input bg-background p-0.5">
+        {(["DIESEL", "UREA"] as TipoTanqueActivo[]).map((tipo) => (
+          <button
+            key={tipo}
+            type="button"
+            onClick={() => onChange(tipo)}
+            className={cn(
+              "rounded-md px-3 text-sm font-medium text-muted-foreground transition",
+              tipoTanque === tipo && "bg-primary text-primary-foreground"
+            )}
+          >
+            {tipo === "DIESEL" ? "Diesel" : "Urea"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EstadoActivoSelector({
+  estado,
+  onChange,
+}: {
+  estado: "ACTIVO" | "BAJA";
+  onChange: (estado: "ACTIVO" | "BAJA") => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label>
+        Estado activo <span className="text-destructive">*</span>
+      </Label>
+      <div className="grid h-9 grid-cols-2 rounded-lg border border-input bg-background p-0.5">
+        {[
+          { value: "ACTIVO", label: "Activo" },
+          { value: "BAJA", label: "Baja" },
+        ].map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value as "ACTIVO" | "BAJA")}
+            className={cn(
+              "rounded-md px-3 text-sm font-medium text-muted-foreground transition",
+              estado === option.value && "bg-primary text-primary-foreground"
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function UnidadTanqueDisplay({ tipoTanque }: { tipoTanque: TipoTanqueActivo }) {
   const unidad = tipoTanque === "UREA" ? "Litros" : "Galones";
 
@@ -1559,12 +1785,16 @@ function SelectField({
   name,
   values,
   defaultValue,
+  labels,
+  onChange,
   required = false,
 }: {
   label: string;
   name: string;
   values: string[];
   defaultValue: string;
+  labels?: Record<string, string>;
+  onChange?: (value: string) => void;
   required?: boolean;
 }) {
   return (
@@ -1577,13 +1807,14 @@ function SelectField({
         name={name}
         defaultValue={defaultValue}
         required={required}
+        onChange={(event) => onChange?.(event.target.value)}
         className={cn(
           "h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
         )}
       >
         {values.map((value) => (
           <option key={value} value={value}>
-            {value}
+            {labels?.[value] ?? value}
           </option>
         ))}
       </select>
@@ -1593,7 +1824,7 @@ function SelectField({
 
 type DatosConfiguracionActual = {
   vehiculo?: {
-    placaRodaje?: string | null;
+    placa?: string | null;
     carroceria?: string | null;
   };
 };
@@ -1602,8 +1833,8 @@ function inferirTipoCambioConfiguracion(
   origen: Activo,
   nuevo: DatosConfiguracionActual
 ): TipoCambioConfiguracionHistorica {
-  const placaAnterior = normalizarValorHistorico(origen.vehiculo?.placaRodaje);
-  const placaNueva = normalizarValorHistorico(nuevo.vehiculo?.placaRodaje);
+  const placaAnterior = normalizarValorHistorico(origen.vehiculo?.placa);
+  const placaNueva = normalizarValorHistorico(nuevo.vehiculo?.placa);
   const carroceriaAnterior = normalizarValorHistorico(
     origen.vehiculo?.carroceria
   );
@@ -1628,22 +1859,22 @@ function construirMotivoConfiguracionHistorica(
   nuevo: DatosConfiguracionActual
 ) {
   const tipoCambio = inferirTipoCambioConfiguracion(origen, nuevo);
-  const placaAnterior = etiquetaValorHistorico(origen.vehiculo?.placaRodaje);
-  const placaNueva = etiquetaValorHistorico(nuevo.vehiculo?.placaRodaje);
+  const placaAnterior = etiquetaValorHistorico(origen.vehiculo?.placa);
+  const placaNueva = etiquetaValorHistorico(nuevo.vehiculo?.placa);
   const carroceriaAnterior = etiquetaValorHistorico(
     origen.vehiculo?.carroceria
   );
   const carroceriaNueva = etiquetaValorHistorico(nuevo.vehiculo?.carroceria);
 
   if (tipoCambio === "CAMBIO_PLACA") {
-    return `Replaqueo registrado desde nuevo acople: ${placaAnterior} -> ${placaNueva}.`;
+    return `Replaqueo registrado: ${placaAnterior} -> ${placaNueva}.`;
   }
 
   if (tipoCambio === "CAMBIO_CARROCERIA") {
-    return `Cambio de carroceria registrado desde nuevo acople: ${carroceriaAnterior} -> ${carroceriaNueva}.`;
+    return `Cambio de carroceria registrado desde replaqueo: ${carroceriaAnterior} -> ${carroceriaNueva}.`;
   }
 
-  return "Nuevo acople registrado desde activo anulado.";
+  return "Replaqueo registrado desde unidad de baja.";
 }
 
 function normalizarValorHistorico(value: unknown) {
@@ -1663,6 +1894,13 @@ function formatLabel(value: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return value ?? "";
 }
 
 function formatSummaryValue(value: unknown) {

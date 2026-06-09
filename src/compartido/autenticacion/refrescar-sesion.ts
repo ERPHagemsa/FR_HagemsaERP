@@ -16,7 +16,7 @@ import {
 import {
   COOKIE_ACCESS,
   COOKIE_REFRESH,
-  opcionesCookieSesion,
+  setCookiesSesion,
 } from "./cookies-sesion"
 import { extraerIpCliente } from "./extraer-ip-cliente"
 import { decodificarAccessToken, vaACaducar } from "./tokens-jwt"
@@ -67,7 +67,20 @@ function llamarRefreshUnaVez(
         )
         return null
       }
-      return (await respuesta.json()) as RespuestaRefresh
+      // El Auth Service envuelve la respuesta en { datos: ... } (contrato del
+      // ecosistema). A diferencia de auth-service-cliente.ts (que usa axios y
+      // desempaqueta data.datos), aca usamos fetch crudo, asi que hay que
+      // desempaquetar `datos` a mano. Sin esto, accessToken/refreshToken/
+      // refreshExpiresIn quedan undefined y reescribiriamos las cookies vacias.
+      const cuerpo = (await respuesta.json()) as { datos?: RespuestaRefresh }
+      const datos = cuerpo?.datos
+      if (!datos?.accessToken || !datos?.refreshToken) {
+        console.warn(
+          "[refrescar-sesion] Respuesta de refresh con forma inesperada (sin datos.tokens)",
+        )
+        return null
+      }
+      return datos
     } catch (err) {
       console.warn(
         "[refrescar-sesion] Network error contactando al Auth Service",
@@ -127,18 +140,12 @@ export async function refrescarSiNecesario(
   }
 
   const response = NextResponse.next()
-  response.cookies.set({
-    ...opcionesCookieSesion,
-    name: COOKIE_ACCESS,
-    value: datos.accessToken,
-    maxAge: datos.expiresIn,
-  })
-  response.cookies.set({
-    ...opcionesCookieSesion,
-    name: COOKIE_REFRESH,
-    value: datos.refreshToken,
-    maxAge: datos.refreshExpiresIn,
-  })
+  // Mismo criterio de maxAge que el login y el fallback /api/auth/refresh
+  // (ver setCookiesSesion): la cookie de access vive lo que el refresh (~30d),
+  // NO lo que el access token (~1h). Si la atara al access, tras el primer
+  // refresh la cookie caducaria en 1h y un hueco de inactividad desloguearia al
+  // usuario aunque el refresh token siguiera vigente.
+  setCookiesSesion(response.cookies, datos)
 
   return { tipo: "refrescado", response }
 }

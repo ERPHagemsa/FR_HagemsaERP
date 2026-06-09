@@ -41,7 +41,7 @@ export function ActivosInventarioListado({ activos }: Props) {
       activo.codigo,
       activo.descripcion,
       activo.ubicacion,
-      vehiculo?.placaRodaje,
+      vehiculo?.placa,
       vehiculo?.marca,
       vehiculo?.modelo,
       vehiculo?.serieChasis,
@@ -56,7 +56,7 @@ export function ActivosInventarioListado({ activos }: Props) {
     return (
       textoBusqueda.includes(normalizedQuery) &&
       (tipoActivo === "TODOS" || activo.tipoActivo === tipoActivo) &&
-      (estadoActivo === "TODOS" || activo.estadoActivo === estadoActivo) &&
+      coincideEstadoActivo(activo.estadoActivo, estadoActivo) &&
       (estadoOperativo === "TODOS" ||
         vehiculo?.estadoOperativo === estadoOperativo)
     );
@@ -83,7 +83,7 @@ export function ActivosInventarioListado({ activos }: Props) {
     <Card className="overflow-hidden">
       <CardHeader className="border-b border-border">
         <div className="flex items-center gap-3">
-          <span className="h-8 w-1 rounded-full bg-red-600" />
+          <span className="h-8 w-1 rounded-full bg-primary" />
           <div>
             <CardTitle>Listado detallado de inventario</CardTitle>
             <CardDescription>
@@ -118,10 +118,10 @@ export function ActivosInventarioListado({ activos }: Props) {
             label="Estado"
             value={estadoActivo}
             onChange={setEstadoActivo}
-            values={["TODOS", "ACTIVO", "INACTIVO", "SINIESTRADO"]}
+            values={["TODOS", "ACTIVO", "BAJA"]}
           />
           <FiltroSelect
-            label="Operativo"
+            label="Condicion"
             value={estadoOperativo}
             onChange={setEstadoOperativo}
             values={["TODOS", "OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]}
@@ -192,11 +192,11 @@ function InventarioItem({ activo }: { activo: Activo }) {
   const vehiculo = activo.vehiculo;
 
   return (
-    <article className="rounded-xl border border-border bg-card/60 p-4 transition-colors hover:border-red-500/40">
+    <article className="rounded-xl border border-border bg-card/60 p-4 transition-colors hover:border-primary/40">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="border-red-500/30 bg-red-500/10 text-red-600" variant="outline">
+            <Badge className="border-primary/30 bg-primary/10 text-primary" variant="outline">
               ID inventario
             </Badge>
             <span
@@ -213,7 +213,7 @@ function InventarioItem({ activo }: { activo: Activo }) {
           asChild
           size="sm"
           variant="outline"
-          className="border-red-500/30 text-red-600 hover:bg-red-500/10 hover:text-red-700"
+          className="border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
         >
           <Link href={`/activos/${activo.codigo}`}>
             <IconEye />
@@ -223,11 +223,11 @@ function InventarioItem({ activo }: { activo: Activo }) {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Dato label="Placa" value={vehiculo?.placaRodaje} />
+        <Dato label="Placa" value={vehiculo?.placa} />
         <Dato label="Tipo" value={formatear(activo.tipoActivo)} />
         <Dato label="Ubicacion" value={activo.ubicacion} />
-        <Dato label="Estado activo" value={formatear(activo.estadoActivo)} />
-        <Dato label="Operativo" value={formatear(vehiculo?.estadoOperativo)} />
+        <Dato label="Estado activo" value={formatearEstadoActivo(activo.estadoActivo)} />
+        <Dato label="Condicion activo" value={formatear(vehiculo?.estadoOperativo)} />
         <Dato
           label="Calibracion"
           value={formatear(vehiculo?.estadoCalibracion)}
@@ -254,6 +254,19 @@ function Dato({ label, value }: { label: string; value?: string | number | null 
       </p>
     </div>
   );
+}
+
+function coincideEstadoActivo(estadoActivo: string, filtro: string) {
+  if (filtro === "TODOS") return true;
+  if (filtro === "BAJA") return estadoActivo !== "ACTIVO";
+  return estadoActivo === filtro;
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return formatear(value);
 }
 
 function FiltroSelect({

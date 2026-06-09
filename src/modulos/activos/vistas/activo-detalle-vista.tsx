@@ -55,11 +55,11 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <section className="flex flex-col gap-4 rounded-xl border border-border bg-card px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <div>
+      <div className="flex w-full flex-col gap-5">
+        <section className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-medium text-muted-foreground">{activo.codigo}</p>
-            <h1 className="text-2xl font-semibold">{activo.descripcion}</h1>
+            <h1 className="text-2xl font-semibold tracking-normal">{activo.descripcion}</h1>
             <p className="text-sm text-muted-foreground">{activo.ubicacion}</p>
             <p className="mt-2 max-w-full truncate font-mono text-xs text-muted-foreground" title={String(activo.id)}>
               ID inventario: {activo.id}
@@ -92,8 +92,8 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
         <AvisoResultado accion={accion} />
 
         <div className="grid gap-4 md:grid-cols-3">
-          <EstadoCard titulo="Estado activo" valor={activo.estadoActivo} />
-          <EstadoCard titulo="Operativo" valor={vehiculo?.estadoOperativo ?? "SIN_DETALLE"} />
+          <EstadoCard titulo="Estado activo" valor={formatearEstadoActivo(activo.estadoActivo)} />
+          <EstadoCard titulo="Condicion activo" valor={vehiculo?.estadoOperativo ?? "SIN_DETALLE"} />
           <EstadoCard titulo="Calibracion" valor={vehiculo?.estadoCalibracion ?? "SIN_DETALLE"} />
         </div>
 
@@ -122,7 +122,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Tipo activo" value={activo.tipoActivo} />
                     <Dato label="Descripcion" value={activo.descripcion} />
                     <Dato label="Ubicacion" value={activo.ubicacion} />
-                    <Dato label="Estado activo" value={activo.estadoActivo} />
+                    <Dato label="Estado activo" value={formatearEstadoActivo(activo.estadoActivo)} />
                     <Dato label="Observacion" value={activo.observacion} />
                   </FichaGrid>
                 </TabsContent>
@@ -139,8 +139,8 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
 
                 <TabsContent value="vehiculo" className="pt-5">
                   <FichaGrid>
-                    <Dato label="Plantilla" value={vehiculo?.plantillaInventario} />
-                    <Dato label="Placa" value={vehiculo?.placaRodaje} />
+                    <Dato label="Clase" value={vehiculo?.plantillaInventario} />
+                    <Dato label="Placa" value={vehiculo?.placa} />
                     <Dato label="Marca" value={vehiculo?.marca} />
                     <Dato label="Modelo" value={vehiculo?.modelo} />
                     <Dato label="Ano fabricacion" value={vehiculo?.anioFabricacion} />
@@ -184,7 +184,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
 
                 <TabsContent value="control" className="pt-5">
                   <FichaGrid>
-                    <Dato label="Estado operativo" value={vehiculo?.estadoOperativo} />
+                    <Dato label="Condicion activo" value={vehiculo?.estadoOperativo} />
                     <Dato label="Estado calibracion" value={vehiculo?.estadoCalibracion} />
                     <Dato label="Factor correccion" value={vehiculo?.factorCorreccion} />
                     <Dato label="Capacidad tanque galones" value={vehiculo?.capacidadTanqueGalones} />
@@ -330,6 +330,13 @@ function formatearTipoConfiguracion(value: string) {
   };
 
   return labels[value] ?? value.replaceAll("_", " ").toLowerCase();
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return value ?? "-";
 }
 
 function Dato({

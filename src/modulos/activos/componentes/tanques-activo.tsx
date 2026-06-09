@@ -10,6 +10,7 @@ import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
+import { cn } from "@/compartido/utilidades";
 import {
   Table,
   TableBody,
@@ -29,8 +30,6 @@ type Props = {
   tanques: TanqueActivo[];
   editable?: boolean;
 };
-
-const tiposTanque: TipoTanqueActivo[] = ["DIESEL", "UREA"];
 
 export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
   const router = useRouter();
@@ -133,27 +132,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
           className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4"
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-foreground">
-                Tipo tanque <span className="text-destructive">*</span>
-              </span>
-              <select
-                className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-                name="tipoTanque"
-                value={tipoTanque}
-                onChange={(event) => {
-                  const next =
-                    event.currentTarget.value === "UREA" ? "UREA" : "DIESEL";
-                  setTipoTanque(next);
-                }}
-              >
-                {tiposTanque.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {formatear(tipo)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <TipoTanqueSelector tipoTanque={tipoTanque} onChange={setTipoTanque} />
 
             <Field
               label="Capacidad"
@@ -207,7 +186,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
                   <Badge
                     className={
                       tanque.tipoTanque === "DIESEL"
-                        ? "bg-red-600 text-white"
+                        ? "bg-primary text-primary-foreground"
                         : "bg-sky-600 text-white"
                     }
                   >
@@ -265,7 +244,7 @@ function ResumenTanque({
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <span className="flex size-9 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-600">
+        <span className="flex size-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
           <IconGasStation className="size-5" />
         </span>
         <p className="font-semibold">{label}</p>
@@ -294,6 +273,38 @@ function Field({
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
       <Input id={`tanque-${name}`} name={name} required={required} {...props} />
+    </div>
+  );
+}
+
+function TipoTanqueSelector({
+  tipoTanque,
+  onChange,
+}: {
+  tipoTanque: TipoTanqueActivo;
+  onChange: (tipo: TipoTanqueActivo) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label>
+        Tipo tanque <span className="text-destructive">*</span>
+      </Label>
+      <input name="tipoTanque" type="hidden" value={tipoTanque} readOnly />
+      <div className="grid h-9 grid-cols-2 rounded-lg border border-input bg-background p-0.5">
+        {(["DIESEL", "UREA"] as TipoTanqueActivo[]).map((tipo) => (
+          <button
+            key={tipo}
+            type="button"
+            onClick={() => onChange(tipo)}
+            className={cn(
+              "rounded-md px-3 text-sm font-medium text-muted-foreground transition",
+              tipoTanque === tipo && "bg-primary text-primary-foreground"
+            )}
+          >
+            {tipo === "DIESEL" ? "Diesel" : "Urea"}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

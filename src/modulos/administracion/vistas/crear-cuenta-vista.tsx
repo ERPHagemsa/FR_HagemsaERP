@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft } from "lucide-react"
 
+import { SiteHeader } from "@/compartido/componentes/site-header"
+
 import { extraerMensajeError } from "@/compartido/api"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
@@ -59,12 +61,21 @@ export function CrearCuentaVista() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Nuevo"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Cuentas", href: "/admin/cuentas" },
+          { title: "Nuevo" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       <Button
         asChild
         variant="ghost"
         size="sm"
-        className="rounded-none -ml-2 w-fit text-muted-foreground"
+        className="rounded-md -ml-2 w-fit text-muted-foreground"
       >
         <Link href="/admin/cuentas">
           <ArrowLeft />
@@ -74,7 +85,7 @@ export function CrearCuentaVista() {
 
       <div className="max-w-2xl space-y-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Nueva cuenta</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Nuevo</h1>
           <p className="text-sm text-muted-foreground">
             Crea una nueva cuenta. Después podrás asignarle roles desde el
             detalle.
@@ -88,7 +99,7 @@ export function CrearCuentaVista() {
                 <FieldLabel htmlFor="email">Correo</FieldLabel>
                 <Input
                   id="email"
-                  className="rounded-none"
+                  className="rounded-md"
                   type="email"
                   autoComplete="off"
                   value={email}
@@ -101,7 +112,7 @@ export function CrearCuentaVista() {
                 <FieldLabel htmlFor="nombreUsuario">Nombre de usuario</FieldLabel>
                 <Input
                   id="nombreUsuario"
-                  className="rounded-none"
+                  className="rounded-md"
                   type="text"
                   autoComplete="off"
                   value={nombreUsuario}
@@ -117,7 +128,7 @@ export function CrearCuentaVista() {
                 <FieldLabel htmlFor="nombreCompleto">Nombre completo</FieldLabel>
                 <Input
                   id="nombreCompleto"
-                  className="rounded-none"
+                  className="rounded-md"
                   type="text"
                   value={nombreCompleto}
                   onChange={(e) => setNombreCompleto(e.target.value)}
@@ -131,13 +142,13 @@ export function CrearCuentaVista() {
                   value={tipoCuenta}
                   onValueChange={(v) => setTipoCuenta(v as TipoCuenta)}
                 >
-                  <SelectTrigger id="tipoCuenta" className="rounded-none w-full">
+                  <SelectTrigger id="tipoCuenta" className="rounded-md w-full">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-none">
-                    <SelectItem value="interno" className="rounded-none">Interno</SelectItem>
-                    <SelectItem value="cliente" className="rounded-none">Cliente</SelectItem>
-                    <SelectItem value="proveedor" className="rounded-none">Proveedor</SelectItem>
+                  <SelectContent className="rounded-md">
+                    <SelectItem value="interno" className="rounded-md">Interno</SelectItem>
+                    <SelectItem value="cliente" className="rounded-md">Cliente</SelectItem>
+                    <SelectItem value="proveedor" className="rounded-md">Proveedor</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
@@ -147,7 +158,7 @@ export function CrearCuentaVista() {
                 </FieldLabel>
                 <Input
                   id="documentoIdentidad"
-                  className="rounded-none"
+                  className="rounded-md"
                   type="text"
                   value={documentoIdentidad}
                   onChange={(e) => setDocumentoIdentidad(e.target.value)}
@@ -163,15 +174,16 @@ export function CrearCuentaVista() {
           </div>
 
           <div className="mt-4 flex justify-end gap-2">
-            <Button asChild variant="ghost" type="button" className="rounded-none">
+            <Button asChild variant="ghost" type="button" className="rounded-md">
               <Link href="/admin/cuentas">Cancelar</Link>
             </Button>
-            <Button type="submit" className="rounded-none" disabled={crearMutation.isPending}>
-              {crearMutation.isPending ? "Creando..." : "Crear cuenta"}
+            <Button type="submit" className="rounded-md" disabled={crearMutation.isPending}>
+              {crearMutation.isPending ? "Agregando..." : "Agregar"}
             </Button>
           </div>
         </form>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

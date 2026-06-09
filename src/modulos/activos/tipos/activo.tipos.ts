@@ -54,7 +54,7 @@ export type VehiculoDetalle = {
   certificadoMatpel: string | null;
   certificadoBonificacion: string | null;
   certificadoOperatividad: string | null;
-  placaRodaje: string | null;
+  placa: string | null;
   anioFabricacion: number | null;
   color: string | null;
   marca: string | null;
@@ -284,6 +284,7 @@ export type CrearTanqueActivoPayload = {
 };
 
 export type EstadoInventarioFisico =
+  | "CREADO"
   | "ABIERTO"
   | "EN_REVISION"
   | "CERRADO"
@@ -310,7 +311,7 @@ export type InventarioFisicoDetalle = {
   carroceria: string | null;
   estadoOperativo: string | null;
   estadoCalibracion: string | null;
-  placaRodaje: string | null;
+  placa: string | null;
   ubicacionEsperada: string | null;
   ubicacionEncontrada: string | null;
   observacion: string | null;
@@ -337,9 +338,10 @@ export type InventarioFisico = {
 };
 
 export type CrearInventarioFisicoPayload = {
-  codigo?: string;
-  nombre?: string;
-  descripcion?: string;
+  codigo: string;
+  fechaApertura: string;
+  descripcion: string;
+  observacion?: string;
   usuarioApertura?: string;
 };
 

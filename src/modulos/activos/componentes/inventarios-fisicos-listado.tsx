@@ -14,6 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Input } from "@/compartido/componentes/ui/input";
+import { Label } from "@/compartido/componentes/ui/label";
 import {
   Table,
   TableBody,
@@ -35,13 +37,31 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
   const [inventarios, setInventarios] = React.useState(inventariosIniciales);
   const [error, setError] = React.useState<string | null>(null);
   const [creando, setCreando] = React.useState(false);
+  const [mostrarApertura, setMostrarApertura] = React.useState(false);
+  const [formulario, setFormulario] = React.useState({
+    codigo: "",
+    fechaApertura: toDateInputValue(new Date()),
+    descripcion: "",
+    observacion: "",
+  });
 
-  async function aperturar() {
+  async function aperturar(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError(null);
+
+    if (!formulario.codigo.trim() || !formulario.fechaApertura || !formulario.descripcion.trim()) {
+      setError("Completa codigo, fecha de apertura y descripcion.");
+      return;
+    }
+
     setCreando(true);
 
     try {
       const inventario = await aperturarInventarioFisico({
+        codigo: formulario.codigo.trim().toUpperCase(),
+        fechaApertura: formulario.fechaApertura,
+        descripcion: formulario.descripcion.trim(),
+        observacion: formulario.observacion.trim() || undefined,
         usuarioApertura: "activos.web",
       });
       setInventarios((actual) => [inventario, ...actual]);
@@ -76,7 +96,11 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
         />
         <ResumenCard
           titulo="Abiertos"
-          valor={inventarios.filter((item) => item.estado !== "CERRADO").length}
+          valor={
+            inventarios.filter(
+              (item) => item.estado !== "CERRADO" && item.estado !== "ANULADO"
+            ).length
+          }
           detalle="Pendientes de cierre"
         />
         <ResumenCard
@@ -98,12 +122,13 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
           <div>
             <CardTitle>Inventarios aperturados</CardTitle>
             <CardDescription>
-              Cada apertura toma una foto de los activos vigentes del maestro.
+              La apertura crea la cabecera; la revision fisica se registra luego
+              desde la accion Inventariar.
             </CardDescription>
           </div>
-          <Button onClick={aperturar} disabled={creando}>
+          <Button onClick={() => setMostrarApertura(true)} disabled={creando}>
             <Plus className="size-4" />
-            {creando ? "Aperturando..." : "Aperturar inventario"}
+            Aperturar inventario
           </Button>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -121,7 +146,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
                   <TableHead>Inventario</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Fecha apertura</TableHead>
-                  <TableHead>Activos</TableHead>
+                  <TableHead>Inventariados</TableHead>
                   <TableHead>Pendientes</TableHead>
                   <TableHead>Faltantes</TableHead>
                   <TableHead className="text-right">Accion</TableHead>
@@ -174,7 +199,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
                         <Button asChild variant="outline" size="sm">
                           <Link href={`/activos/inventario-fisico/${inventario.id}`}>
                             <Eye className="size-4" />
-                            Revisar
+                            Inventariar
                           </Link>
                         </Button>
                       </TableCell>
@@ -196,6 +221,94 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
           </div>
         </CardContent>
       </Card>
+      {mostrarApertura ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
+          <form
+            onSubmit={aperturar}
+            className="w-full max-w-lg rounded-xl border border-border bg-card p-5 shadow-xl"
+          >
+            <h3 className="text-lg font-semibold">Aperturar inventario</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Registra los datos de apertura. El inventario iniciara en estado
+              Creado y sin activos inventariados.
+            </p>
+            <div className="mt-5 grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="inventario-codigo">Codigo</Label>
+                <Input
+                  id="inventario-codigo"
+                  value={formulario.codigo}
+                  onChange={(event) =>
+                    setFormulario((actual) => ({
+                      ...actual,
+                      codigo: event.target.value,
+                    }))
+                  }
+                  placeholder="INV-2026-06"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="inventario-fecha">Fecha de apertura</Label>
+                <Input
+                  id="inventario-fecha"
+                  type="date"
+                  value={formulario.fechaApertura}
+                  onChange={(event) =>
+                    setFormulario((actual) => ({
+                      ...actual,
+                      fechaApertura: event.target.value,
+                    }))
+                  }
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="inventario-descripcion">Descripcion</Label>
+                <Input
+                  id="inventario-descripcion"
+                  value={formulario.descripcion}
+                  onChange={(event) =>
+                    setFormulario((actual) => ({
+                      ...actual,
+                      descripcion: event.target.value,
+                    }))
+                  }
+                  placeholder="Inventario fisico junio 2026"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="inventario-observacion">Observacion</Label>
+                <Input
+                  id="inventario-observacion"
+                  value={formulario.observacion}
+                  onChange={(event) =>
+                    setFormulario((actual) => ({
+                      ...actual,
+                      observacion: event.target.value,
+                    }))
+                  }
+                  placeholder="Comentario opcional"
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setMostrarApertura(false)}
+                disabled={creando}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creando}>
+                {creando ? "Aperturando..." : "Guardar"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -250,4 +363,8 @@ function formatearFecha(fecha?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(value);
+}
+
+function toDateInputValue(fecha: Date) {
+  return fecha.toISOString().slice(0, 10);
 }

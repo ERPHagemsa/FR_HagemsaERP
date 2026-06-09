@@ -4,6 +4,8 @@ import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Pencil, Plus, Search, Trash2 } from "lucide-react"
 
+import { SiteHeader } from "@/compartido/componentes/site-header"
+
 import { extraerMensajeError } from "@/compartido/api"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
@@ -104,12 +106,12 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button className="rounded-none">
+        <Button className="rounded-md">
           <Plus />
-          Nuevo permiso
+          Nuevo
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Crear permiso</DialogTitle>
           <DialogDescription>
@@ -127,7 +129,7 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
               onChange={(e) => setCodigo(e.target.value.toLowerCase())}
               placeholder="wms:inventario:read"
               maxLength={100}
-              className="rounded-none font-mono"
+              className="rounded-md font-mono"
             />
           </Field>
           <Field>
@@ -138,7 +140,7 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
               onChange={(e) => setDescripcion(e.target.value)}
               placeholder="Permite leer el inventario del WMS"
               maxLength={500}
-              className="rounded-none"
+              className="rounded-md"
             />
           </Field>
           <Field>
@@ -151,7 +153,7 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
               onChange={(e) => setModulo(e.target.value)}
               placeholder="wms"
               maxLength={50}
-              className="rounded-none"
+              className="rounded-md"
             />
           </Field>
           {error ? (
@@ -165,16 +167,16 @@ function DialogCrearPermiso({ onActualizado }: PropsDialogCrearPermiso) {
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
-            className="rounded-none"
+            className="rounded-md"
           >
             Cancelar
           </Button>
           <Button
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
-            className="rounded-none"
+            className="rounded-md"
           >
-            {mutation.isPending ? "Creando..." : "Crear"}
+            {mutation.isPending ? "Agregando..." : "Agregar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -228,13 +230,13 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
   return (
     <Dialog open={abierto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon-sm" title="Editar descripción" className="rounded-none">
+        <Button variant="ghost" size="icon-sm" title="Editar descripción" className="rounded-md">
           <Pencil />
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
-          <DialogTitle>Editar permiso</DialogTitle>
+          <DialogTitle>Actualizar permiso</DialogTitle>
           <DialogDescription>
             Solo la descripcion es editable. El codigo y el modulo son
             inmutables — para cambiarlos hay que crear un permiso nuevo.
@@ -243,7 +245,7 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
         <FieldGroup>
           <Field>
             <FieldLabel>Codigo</FieldLabel>
-            <Input value={permiso.codigo} readOnly className="rounded-none font-mono" />
+            <Input value={permiso.codigo} readOnly className="rounded-md font-mono" />
           </Field>
           <Field>
             <FieldLabel htmlFor="editar-descripcion-permiso">
@@ -254,7 +256,7 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
               value={descripcion}
               onChange={(e) => setDescripcion(e.target.value)}
               maxLength={500}
-              className="rounded-none"
+              className="rounded-md"
             />
           </Field>
           {error ? (
@@ -268,16 +270,16 @@ function DialogEditarPermiso({ permiso, onActualizado }: PropsDialogEditarPermis
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
-            className="rounded-none"
+            className="rounded-md"
           >
             Cancelar
           </Button>
           <Button
             onClick={() => void confirmar()}
             disabled={mutation.isPending}
-            className="rounded-none"
+            className="rounded-md"
           >
-            {mutation.isPending ? "Guardando..." : "Guardar"}
+            {mutation.isPending ? "Actualizando..." : "Actualizar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -332,12 +334,12 @@ function DialogEliminarPermiso({
           variant="ghost"
           size="icon-sm"
           title="Eliminar permiso"
-          className="rounded-none text-muted-foreground hover:text-destructive"
+          className="rounded-md text-muted-foreground hover:text-destructive"
         >
           <Trash2 />
         </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-none">
+      <DialogContent className="rounded-md">
         <DialogHeader>
           <DialogTitle>Eliminar permiso</DialogTitle>
           <DialogDescription>
@@ -358,7 +360,7 @@ function DialogEliminarPermiso({
               value={confirmacion}
               onChange={(e) => setConfirmacion(e.target.value)}
               autoComplete="off"
-              className="rounded-none font-mono"
+              className="rounded-md font-mono"
             />
           </Field>
           {error ? (
@@ -372,7 +374,7 @@ function DialogEliminarPermiso({
             variant="ghost"
             onClick={() => setAbierto(false)}
             disabled={mutation.isPending}
-            className="rounded-none"
+            className="rounded-md"
           >
             Cancelar
           </Button>
@@ -380,7 +382,7 @@ function DialogEliminarPermiso({
             variant="destructive"
             onClick={() => void confirmar()}
             disabled={mutation.isPending || confirmacion !== permiso.codigo}
-            className="rounded-none"
+            className="rounded-md"
           >
             {mutation.isPending ? "Eliminando..." : "Eliminar"}
           </Button>
@@ -410,14 +412,22 @@ export function PermisosVista() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <>
+      <SiteHeader
+        title="Permisos"
+        breadcrumbs={[
+          { title: "IAM y administración" },
+          { title: "Permisos" },
+        ]}
+      />
+      <div className="flex flex-col gap-6 p-6">
       {/* Cabecera */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-semibold tracking-tight">Permisos</h1>
             {data ? (
-              <Badge variant="secondary" className="rounded-none tabular-nums">
+              <Badge variant="secondary" className="rounded-md tabular-nums">
                 {total}
               </Badge>
             ) : null}
@@ -436,7 +446,7 @@ export function PermisosVista() {
           placeholder="Buscar por código, descripción o módulo…"
           value={busqueda}
           onChange={(e) => cambiarBusqueda(e.target.value)}
-          className="rounded-none pl-9"
+          className="rounded-md pl-9"
         />
       </div>
 
@@ -457,13 +467,13 @@ export function PermisosVista() {
                 Array.from({ length: 8 }).map((_, i) => (
                   <TableRow key={i} className="hover:bg-transparent [&>td]:py-1.5">
                     <TableCell>
-                      <Skeleton className="h-4 w-40 rounded-none" />
+                      <Skeleton className="h-4 w-40 rounded-md" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="h-4 w-16 rounded-none" />
+                      <Skeleton className="h-4 w-16 rounded-md" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="h-4 w-56 rounded-none" />
+                      <Skeleton className="h-4 w-56 rounded-md" />
                     </TableCell>
                     <TableCell />
                   </TableRow>
@@ -481,12 +491,12 @@ export function PermisosVista() {
                 data.datos.map((permiso) => (
                   <TableRow key={permiso.id} className="[&>td]:py-1.5">
                     <TableCell>
-                      <code className="rounded-none bg-muted px-1.5 py-0.5 font-mono text-xs">
+                      <code className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-xs">
                         {permiso.codigo}
                       </code>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="rounded-none font-normal">
+                      <Badge variant="outline" className="rounded-md font-normal">
                         {permiso.modulo || "otros"}
                       </Badge>
                     </TableCell>
@@ -536,6 +546,7 @@ export function PermisosVista() {
           />
         ) : null}
       </div>
-    </div>
+      </div>
+    </>
   )
 }
