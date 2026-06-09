@@ -5,7 +5,6 @@ import { Button } from "@/compartido/componentes/ui/button";
 
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
 import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
-import { CotizacionCabecera } from "../componentes/cotizacion-cabecera";
 import { CotizacionEditor } from "../componentes/cotizacion-editor";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 
@@ -53,9 +52,6 @@ export async function CotizacionEditarVista({ id }: Props) {
             </Button>
           </div>
         </section>
-
-        {/* Cabecera de la cotizacion */}
-        <CotizacionCabecera cotizacion={cotizacion} />
 
         {/* Editor */}
         <section className="flex flex-col gap-3">
