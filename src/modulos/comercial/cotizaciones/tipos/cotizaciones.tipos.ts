@@ -243,6 +243,25 @@ export type RespuestaPaginadaCatalogosCargoAdicional = {
   porPagina: number;
 };
 
+// ---------------------------------------------------------------------------
+// DTOs de escritura — Modalidades
+// ---------------------------------------------------------------------------
+
+export type PayloadCrearModalidad = {
+  codigo: string;
+  nombre: string;
+  tipoLinea: TipoLinea;
+  unidadCobro: UnidadCobro;
+  descripcion?: string;
+  tipo?: TipoModalidad;
+  tarifaBaseReferencial?: number;
+  moneda?: Moneda;
+  margenObjetivo?: number;
+  requiereAprobacion?: boolean;
+};
+
+export type PayloadActualizarModalidad = Partial<PayloadCrearModalidad>;
+
 export type FiltrosCatalogosCargoAdicional = {
   estado?: EstadoCatalogoCargoAdicional;
   busqueda?: string;
