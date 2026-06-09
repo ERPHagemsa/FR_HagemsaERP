@@ -12,6 +12,7 @@ import {
   Search,
   XCircle,
 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react"
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -73,6 +74,7 @@ import {
   placaVehiculo,
   textoBusquedaVehiculo,
 } from "./flota-normalizadores";
+import { ChartUpIcon } from "@hugeicons/core-free-icons";
 
 type Props = {
   loading: boolean;
@@ -233,7 +235,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
             </div>
           </form>
 
-          <div className="flex flex-wrap gap-2">
+          {/* <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm">
               <Download />
               Excel
@@ -242,7 +244,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
               <Download />
               PDF
             </Button>
-          </div>
+          </div> */}
         </div>
 
         {loading ? (
@@ -413,7 +415,7 @@ function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href={`/flota/${placa}/auditoria`}>
-              <BarChart3 />
+              <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
               Auditar
             </Link>
           </DropdownMenuItem>
