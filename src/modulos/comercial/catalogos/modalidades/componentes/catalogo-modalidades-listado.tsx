@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Pencil, Plus, Power, PowerOff, Search } from "lucide-react"
+import { CircleCheck, CircleX, Pencil, Plus, Search } from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api/formato-error"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -53,6 +53,11 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/compartido/componentes/ui/tooltip"
 import type {
   EstadoModalidad,
   FiltrosModalidades,
@@ -786,22 +791,34 @@ export function CatalogoModalidadesListado({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-center gap-1.5">
-                        <Button
-                          size="icon-sm"
-                          variant="outline"
-                          onClick={() => setItemEditando(item)}
-                          aria-label="Editar"
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button
-                          size="icon-sm"
-                          variant="outline"
-                          onClick={() => setItemCambiandoEstado(item)}
-                          aria-label={item.estado === "ACTIVA" ? "Desactivar" : "Activar"}
-                        >
-                          {item.estado === "ACTIVA" ? <PowerOff /> : <Power />}
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon-sm"
+                              variant="outline"
+                              onClick={() => setItemEditando(item)}
+                              aria-label="Editar"
+                            >
+                              <Pencil />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="icon-sm"
+                              variant="outline"
+                              onClick={() => setItemCambiandoEstado(item)}
+                              aria-label={item.estado === "ACTIVA" ? "Desactivar" : "Activar"}
+                            >
+                              {item.estado === "ACTIVA" ? <CircleCheck /> : <CircleX />}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {item.estado === "ACTIVA" ? "Desactivar" : "Activar"}
+                          </TooltipContent>
+                        </Tooltip>
                       </div>
                     </TableCell>
                   </TableRow>
