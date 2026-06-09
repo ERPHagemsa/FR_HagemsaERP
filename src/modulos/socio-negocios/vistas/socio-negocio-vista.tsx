@@ -85,7 +85,9 @@ import {
 } from "../servicios/socio-negocios-queries"
 import { PaginationControls } from "../componentes/pagination-controls"
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
+import { condicionesLaborales } from "../tipos/socio-negocio"
 import type {
+  CondicionLaboral,
   ConsultarSociosDeNegocioQuery,
   ReporteSociosDeNegocioResponse,
   SocioDeNegocioResponse,
@@ -131,6 +133,14 @@ const estadoRegistroIconClassName = {
   ACTIVO: "text-emerald-500",
   ANULADO: "text-destructive",
 } as const
+
+function etiquetaCondicionLaboral(condicion?: CondicionLaboral | null) {
+  return (
+    condicionesLaborales.find((item) => item.valor === condicion)?.etiqueta ??
+    condicion ??
+    "-"
+  )
+}
 
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
@@ -557,6 +567,10 @@ export function SocioNegocioVista({
         siguiente[key] = value as ConsultarSociosDeNegocioQuery[K]
       }
 
+      if (key === "tipo" && value !== "PERSONAL") {
+        delete siguiente.condicionLaboral
+      }
+
       return limpiarFiltros({
         ...siguiente,
         ...(filtros?.tipo ? { tipo: filtros.tipo } : {}),
@@ -744,6 +758,32 @@ export function SocioNegocioVista({
                       </SelectContent>
                     </Select>
                   </Field>
+                  <Field className="lg:w-56">
+                    <Select
+                      value={filtrosFormulario.condicionLaboral ?? "TODOS"}
+                      disabled={filtrosFormulario.tipo !== "PERSONAL"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "condicionLaboral",
+                          value as ConsultarSociosDeNegocioQuery["condicionLaboral"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Condicion laboral" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Condicion: todas</SelectItem>
+                          {condicionesLaborales.map((condicion) => (
+                            <SelectItem key={condicion.valor} value={condicion.valor}>
+                              {condicion.etiqueta}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
                   <div className="flex gap-2">
                     <Button type="submit" size="sm" disabled={sociosQuery.isFetching}>
                       <HugeiconsIcon
@@ -817,6 +857,7 @@ export function SocioNegocioVista({
                       <TableHead>Codigo SAP</TableHead>
                       <TableHead>Socio</TableHead>
                       <TableHead>Tipo</TableHead>
+                      <TableHead>Condicion laboral</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Registro</TableHead>
                       <TableHead>Documento</TableHead>
@@ -870,6 +911,13 @@ export function SocioNegocioVista({
                           >
                             {socio.tipo}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={claseContenido}>
+                            {socio.tipo === "PERSONAL"
+                              ? etiquetaCondicionLaboral(socio.condicionLaboral)
+                              : "-"}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <span className={claseContenido}>

@@ -4,6 +4,38 @@ export type EstadoSocioDeNegocio = "ACTIVO" | "INACTIVO"
 
 export type EstadoRegistro = "ACTIVO" | "ANULADO"
 
+export type CondicionLaboral =
+  | "LABORANDO"
+  | "VACACIONES"
+  | "LICENCIA"
+  | "PERMISO"
+  | "DESCANSO_MEDICO"
+  | "SUSPENDIDO"
+  | "CAPACITACION"
+  | "COMISION_SERVICIO"
+  | "DESCANSO"
+  | "SUBSIDIO"
+  | "MATERNIDAD_PATERNIDAD"
+  | "REUBICADO"
+
+export const condicionesLaborales: Array<{
+  valor: CondicionLaboral
+  etiqueta: string
+}> = [
+  { valor: "LABORANDO", etiqueta: "Laborando" },
+  { valor: "VACACIONES", etiqueta: "Vacaciones" },
+  { valor: "LICENCIA", etiqueta: "Licencia" },
+  { valor: "PERMISO", etiqueta: "Permiso" },
+  { valor: "DESCANSO_MEDICO", etiqueta: "Descanso medico" },
+  { valor: "SUSPENDIDO", etiqueta: "Suspendido" },
+  { valor: "CAPACITACION", etiqueta: "Capacitacion" },
+  { valor: "COMISION_SERVICIO", etiqueta: "Comision de servicio" },
+  { valor: "DESCANSO", etiqueta: "Descanso" },
+  { valor: "SUBSIDIO", etiqueta: "Subsidio" },
+  { valor: "MATERNIDAD_PATERNIDAD", etiqueta: "Maternidad / paternidad" },
+  { valor: "REUBICADO", etiqueta: "Reubicado" },
+]
+
 export type FormatoExportacionSocios = "EXCEL" | "PDF"
 
 export type TipoDatoMaestroIntegracion =
@@ -109,6 +141,7 @@ export interface SocioDeNegocioResponse {
   areaNombre: string
   contratoId?: string
   contratoNombre?: string
+  condicionLaboral?: CondicionLaboral
   cuentaId: string
   cuentaNombre: string
   motivoBaja: string
@@ -221,6 +254,7 @@ export interface RegistrarPersonalRequest extends RegistrarSocioDeNegocioBase {
   cargoNombre: string
   contratoId?: string
   contratoNombre?: string
+  condicionLaboral?: CondicionLaboral
 }
 
 /** Request unificado (compatible con el backend) */
@@ -252,6 +286,7 @@ export interface ModificarSocioDeNegocioRequest {
   contratoNombre?: string
   cuentaId?: string
   cuentaNombre?: string
+  condicionLaboral?: CondicionLaboral
   usuarioId: string
 }
 
@@ -292,6 +327,7 @@ export interface ConsultarSociosDeNegocioQuery {
   contratoNombre?: string
   cuentaId?: string
   cuentaNombre?: string
+  condicionLaboral?: CondicionLaboral
   page?: ValorPaginacion
   pageSize?: ValorPaginacion
   sortBy?: SortBySocioDeNegocio
@@ -335,6 +371,7 @@ export interface ExportarSociosDeNegocioQuery {
   contratoNombre?: string
   cuentaId?: string
   cuentaNombre?: string
+  condicionLaboral?: CondicionLaboral
   sortBy?: string
   sortOrder?: SortOrder
 }
