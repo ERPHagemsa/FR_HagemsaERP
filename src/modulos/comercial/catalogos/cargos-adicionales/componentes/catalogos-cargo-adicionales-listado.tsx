@@ -18,6 +18,16 @@ import {
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/compartido/componentes/ui/sheet"
+import { Separator } from "@/compartido/componentes/ui/separator"
+import {
   Card,
   CardContent,
   CardDescription,
@@ -100,58 +110,63 @@ function DialogCrear({
   }
 
   return (
-    <AlertDialog open={abierto} onOpenChange={handleOpenChange}>
-      <AlertDialogContent>
-        <form onSubmit={(e) => void handleSubmit(e)}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Nuevo cargo adicional</AlertDialogTitle>
-            <AlertDialogDescription>
+    <Sheet open={abierto} onOpenChange={handleOpenChange}>
+      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex h-full flex-col">
+          <SheetHeader className="border-b border-border">
+            <SheetTitle>Nuevo cargo adicional</SheetTitle>
+            <SheetDescription>
               Ingresa el nombre y la descripcion opcional del cargo adicional.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
-          {errorCrear ? (
-            <div className="py-2">
-              <Alert variant="destructive">
-                <AlertTitle>No se pudo crear el cargo</AlertTitle>
-                <AlertDescription>{errorCrear}</AlertDescription>
-              </Alert>
-            </div>
-          ) : null}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex flex-col gap-5">
+              {errorCrear ? (
+                <Alert variant="destructive">
+                  <AlertTitle>No se pudo crear el cargo</AlertTitle>
+                  <AlertDescription>{errorCrear}</AlertDescription>
+                </Alert>
+              ) : null}
 
-          <div className="flex flex-col gap-3 py-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="crear-nombre">Nombre</Label>
-              <Input
-                id="crear-nombre"
-                name="nombre"
-                placeholder="Ej. Seguro de carga"
-                required
-                autoFocus
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="crear-descripcion">Descripcion (opcional)</Label>
-              <Textarea
-                id="crear-descripcion"
-                name="descripcion"
-                placeholder="Descripcion del cargo adicional"
-                rows={3}
-              />
+              <div className="grid gap-1.5">
+                <Label htmlFor="crear-nombre">
+                  Nombre <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="crear-nombre"
+                  name="nombre"
+                  placeholder="Ej. Seguro de carga"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="crear-descripcion">Descripcion (opcional)</Label>
+                <Textarea
+                  id="crear-descripcion"
+                  name="descripcion"
+                  placeholder="Descripcion del cargo adicional"
+                  rows={4}
+                />
+              </div>
             </div>
           </div>
 
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={crear.isPending} type="button">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction type="submit" disabled={crear.isPending}>
+          <Separator />
+          <SheetFooter className="flex-row justify-end gap-2">
+            <SheetClose asChild>
+              <Button type="button" variant="outline" disabled={crear.isPending}>
+                Cancelar
+              </Button>
+            </SheetClose>
+            <Button type="submit" disabled={crear.isPending}>
               {crear.isPending ? "Creando..." : "Crear"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+            </Button>
+          </SheetFooter>
         </form>
-      </AlertDialogContent>
-    </AlertDialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -199,59 +214,64 @@ function DialogEditar({
   }
 
   return (
-    <AlertDialog open={item !== null} onOpenChange={handleOpenChange}>
-      <AlertDialogContent>
-        <form onSubmit={(e) => void handleSubmit(e)}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Editar cargo adicional</AlertDialogTitle>
-            <AlertDialogDescription>
+    <Sheet open={item !== null} onOpenChange={handleOpenChange} key={item?.id}>
+      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex h-full flex-col">
+          <SheetHeader className="border-b border-border">
+            <SheetTitle>Editar cargo adicional</SheetTitle>
+            <SheetDescription>
               Actualiza el nombre y la descripcion del cargo adicional.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
-          {errorEditar ? (
-            <div className="py-2">
-              <Alert variant="destructive">
-                <AlertTitle>No se pudo actualizar el cargo</AlertTitle>
-                <AlertDescription>{errorEditar}</AlertDescription>
-              </Alert>
-            </div>
-          ) : null}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex flex-col gap-5">
+              {errorEditar ? (
+                <Alert variant="destructive">
+                  <AlertTitle>No se pudo actualizar el cargo</AlertTitle>
+                  <AlertDescription>{errorEditar}</AlertDescription>
+                </Alert>
+              ) : null}
 
-          <div className="flex flex-col gap-3 py-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="editar-nombre">Nombre</Label>
-              <Input
-                id="editar-nombre"
-                name="nombre"
-                defaultValue={item?.nombre ?? ""}
-                required
-                autoFocus
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="editar-descripcion">Descripcion (opcional)</Label>
-              <Textarea
-                id="editar-descripcion"
-                name="descripcion"
-                defaultValue={item?.descripcion ?? ""}
-                placeholder="Descripcion del cargo adicional"
-                rows={3}
-              />
+              <div className="grid gap-1.5">
+                <Label htmlFor="editar-nombre">
+                  Nombre <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="editar-nombre"
+                  name="nombre"
+                  defaultValue={item?.nombre ?? ""}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="editar-descripcion">Descripcion (opcional)</Label>
+                <Textarea
+                  id="editar-descripcion"
+                  name="descripcion"
+                  defaultValue={item?.descripcion ?? ""}
+                  placeholder="Descripcion del cargo adicional"
+                  rows={4}
+                />
+              </div>
             </div>
           </div>
 
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={actualizar.isPending} type="button">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction type="submit" disabled={actualizar.isPending}>
+          <Separator />
+          <SheetFooter className="flex-row justify-end gap-2">
+            <SheetClose asChild>
+              <Button type="button" variant="outline" disabled={actualizar.isPending}>
+                Cancelar
+              </Button>
+            </SheetClose>
+            <Button type="submit" disabled={actualizar.isPending}>
               {actualizar.isPending ? "Guardando..." : "Guardar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
+            </Button>
+          </SheetFooter>
         </form>
-      </AlertDialogContent>
-    </AlertDialog>
+      </SheetContent>
+    </Sheet>
   )
 }
 

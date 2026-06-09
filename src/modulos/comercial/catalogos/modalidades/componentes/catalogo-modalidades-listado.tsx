@@ -18,6 +18,16 @@ import {
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/compartido/componentes/ui/sheet"
+import { Separator } from "@/compartido/componentes/ui/separator"
+import {
   Card,
   CardContent,
   CardDescription,
@@ -367,39 +377,42 @@ function DialogCrear({
   const payloadValido = payloadDesdeFormulario(form) !== null
 
   return (
-    <AlertDialog open={abierto} onOpenChange={handleOpenChange}>
-      <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Nueva modalidad</AlertDialogTitle>
-          <AlertDialogDescription>
+    <Sheet open={abierto} onOpenChange={handleOpenChange}>
+      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
+        <SheetHeader className="border-b border-border">
+          <SheetTitle>Nueva modalidad</SheetTitle>
+          <SheetDescription>
             Completa los datos para crear una nueva modalidad.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        {errorCrear ? (
-          <div className="py-2">
-            <Alert variant="destructive">
+        <div className="flex-1 overflow-y-auto px-6">
+          {errorCrear ? (
+            <Alert variant="destructive" className="mt-4">
               <AlertTitle>No se pudo crear la modalidad</AlertTitle>
               <AlertDescription>{errorCrear}</AlertDescription>
             </Alert>
-          </div>
-        ) : null}
+          ) : null}
 
-        <CamposFormulario form={form} onChange={handleCampo} />
+          <CamposFormulario form={form} onChange={handleCampo} />
+        </div>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={crear.isPending} type="button">
-            Cancelar
-          </AlertDialogCancel>
-          <AlertDialogAction
+        <Separator />
+        <SheetFooter className="flex-row justify-end gap-2">
+          <SheetClose asChild>
+            <Button type="button" variant="outline" disabled={crear.isPending}>
+              Cancelar
+            </Button>
+          </SheetClose>
+          <Button
             onClick={handleConfirmar}
             disabled={crear.isPending || !payloadValido}
           >
             {crear.isPending ? "Creando..." : "Crear"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 
@@ -419,9 +432,18 @@ function DialogEditar({
   const [form, setForm] = useState<EstadoFormulario>(
     item ? formularioDesdeModalidad(item) : FORMULARIO_VACIO,
   )
+  const [claveActual, setClaveActual] = useState<string | null>(item?.id ?? null)
   const [errorEditar, setErrorEditar] = useState<string | null>(null)
 
-  // Sincronizar cuando se abre con un item diferente
+  // Re-sincronizar el formulario cuando entra otra modalidad (o cambia el item),
+  // sin useEffect: ajuste de estado durante el render, patron recomendado por React.
+  const idEntrante = item?.id ?? null
+  if (idEntrante !== claveActual) {
+    setClaveActual(idEntrante)
+    setForm(item ? formularioDesdeModalidad(item) : FORMULARIO_VACIO)
+    setErrorEditar(null)
+  }
+
   const actualizar = useActualizarModalidadMutation(item?.id ?? "", {
     onSuccess: () => {
       setErrorEditar(null)
@@ -453,48 +475,43 @@ function DialogEditar({
     }
   }
 
-  // Re-inicializar formulario cuando cambia el item
-  const itemId = item?.id
   const payloadValido = payloadDesdeFormulario(form) !== null
 
   return (
-    <AlertDialog
-      open={item !== null}
-      onOpenChange={handleOpenChange}
-      key={itemId}
-    >
-      <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
-        <AlertDialogHeader>
-          <AlertDialogTitle>Editar modalidad</AlertDialogTitle>
-          <AlertDialogDescription>
-            Actualiza los datos de la modalidad.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+    <Sheet open={item !== null} onOpenChange={handleOpenChange}>
+      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
+        <SheetHeader className="border-b border-border">
+          <SheetTitle>Editar modalidad</SheetTitle>
+          <SheetDescription>Actualiza los datos de la modalidad.</SheetDescription>
+        </SheetHeader>
 
-        {errorEditar ? (
-          <div className="py-2">
-            <Alert variant="destructive">
+        <div className="flex-1 overflow-y-auto px-6">
+          {errorEditar ? (
+            <Alert variant="destructive" className="mt-4">
               <AlertTitle>No se pudo actualizar la modalidad</AlertTitle>
               <AlertDescription>{errorEditar}</AlertDescription>
             </Alert>
-          </div>
-        ) : null}
+          ) : null}
 
-        <CamposFormulario form={form} onChange={handleCampo} />
+          <CamposFormulario form={form} onChange={handleCampo} />
+        </div>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={actualizar.isPending} type="button">
-            Cancelar
-          </AlertDialogCancel>
-          <AlertDialogAction
+        <Separator />
+        <SheetFooter className="flex-row justify-end gap-2">
+          <SheetClose asChild>
+            <Button type="button" variant="outline" disabled={actualizar.isPending}>
+              Cancelar
+            </Button>
+          </SheetClose>
+          <Button
             onClick={handleConfirmar}
             disabled={actualizar.isPending || !payloadValido}
           >
             {actualizar.isPending ? "Guardando..." : "Guardar"}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 
