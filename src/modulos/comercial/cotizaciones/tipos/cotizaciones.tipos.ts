@@ -372,7 +372,10 @@ export type AccionesPermitidas = {
 };
 
 // Estado-machine UI gating: centraliza que acciones estan disponibles por estado.
-// editar ademas exige que la version vigente no este congelada (validar en el consumidor).
+// Refinamientos por version vigente (validar en el consumidor):
+//   - editar/enviar: exigen vigente NO congelada (es la editable).
+//   - nuevaVersion: exige vigente SI congelada (solo se ramifica una version ya
+//     enviada; en EN_REVISION la vigente es borrador sin enviar -> queda off).
 export function accionesPermitidas(estado: EstadoCotizacion): AccionesPermitidas {
   switch (estado) {
     case "BORRADOR":
