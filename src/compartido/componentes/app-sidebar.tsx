@@ -94,6 +94,7 @@ const data = {
         { title: "Prospectos", url: "/comercial/prospectos" },
         { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
         { title: "Cotizaciones", url: "/comercial/cotizaciones" },
+        { title: "Catálogo de cargos adicionales", url: "/comercial/catalogos/cargos-adicionales" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
       ],
