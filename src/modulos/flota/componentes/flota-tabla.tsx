@@ -66,6 +66,7 @@ import {
   cuentaVehiculo,
   estadoActivoVehiculo,
   estadoOperativoVehiculo,
+  estadoRegistroVehiculo,
   formatear,
   marcaVehiculo,
   modeloVehiculo,
@@ -81,12 +82,14 @@ type Props = {
 type FiltrosFlota = {
   busqueda: string;
   estadoActivo: string;
+  estadoRegistro: string;
   estadoOperativo: string;
 };
 
 const filtrosIniciales: FiltrosFlota = {
   busqueda: "",
   estadoActivo: "TODOS",
+  estadoRegistro: "TODOS",
   estadoOperativo: "TODOS",
 };
 
@@ -97,6 +100,13 @@ const estadoIconClassName = {
   neutral: "text-muted-foreground",
 } as const;
 
+const variantBadge = {
+  default: "default" as const,
+  secondary: "secondary" as const,
+  destructive: "destructive" as const,
+  outline: "outline" as const,
+};
+
 export function FlotaTabla({ loading, vehiculos }: Props) {
   const [filtrosFormulario, setFiltrosFormulario] =
     React.useState<FiltrosFlota>(filtrosIniciales);
@@ -104,6 +114,12 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
     React.useState<FiltrosFlota>(filtrosIniciales);
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(20);
+
+  function coincideEstadoActivo(estado: string | null, filtro: string) {
+    if (filtro === "TODOS") return true;
+    if (filtro === "BAJA") return estado !== "ACTIVO";
+    return estado === filtro;
+  }
 
   const filtrados = React.useMemo(() => {
     const normalizedQuery = filtrosAplicados.busqueda.trim().toUpperCase();
@@ -113,8 +129,9 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
 
       return (
         coincideTexto &&
-        (filtrosAplicados.estadoActivo === "TODOS" ||
-          estadoActivoVehiculo(vehiculo) === filtrosAplicados.estadoActivo) &&
+        coincideEstadoActivo(estadoActivoVehiculo(vehiculo), filtrosAplicados.estadoActivo) &&
+        (filtrosAplicados.estadoRegistro === "TODOS" ||
+          estadoRegistroVehiculo(vehiculo) === filtrosAplicados.estadoRegistro) &&
         (filtrosAplicados.estadoOperativo === "TODOS" ||
           estadoOperativoVehiculo(vehiculo) === filtrosAplicados.estadoOperativo)
       );
@@ -179,12 +196,12 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                 </InputGroupAddon>
                 <InputGroupInput
                   value={filtrosFormulario.busqueda}
-                  placeholder="Buscar unidad"
+                  placeholder="Buscar por placa, modelo, contrato..."
                   onChange={(event) => actualizarFiltro("busqueda", event.target.value)}
                 />
               </InputGroup>
             </Field>
-            <Field className="lg:w-44">
+            <Field className="lg:w-40">
               <Select
                 value={filtrosFormulario.estadoActivo}
                 onValueChange={(value) => actualizarFiltro("estadoActivo", value)}
@@ -196,9 +213,24 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                   <SelectGroup>
                     <SelectItem value="TODOS">Estado: todos</SelectItem>
                     <SelectItem value="ACTIVO">Activo</SelectItem>
-                    <SelectItem value="INACTIVO">Inactivo</SelectItem>
-                    <SelectItem value="SINIESTRADO">Siniestrado</SelectItem>
-                    <SelectItem value="ELIMINADO">Eliminado</SelectItem>
+                    <SelectItem value="BAJA">Baja</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field className="lg:w-44">
+              <Select
+                value={filtrosFormulario.estadoRegistro}
+                onValueChange={(value) => actualizarFiltro("estadoRegistro", value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Registro" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="TODOS">Registro: todos</SelectItem>
+                    <SelectItem value="ACTIVO">Registro: activos</SelectItem>
+                    <SelectItem value="ANULADO">Registro: anulados</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -209,11 +241,11 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                 onValueChange={(value) => actualizarFiltro("estadoOperativo", value)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Operativo" />
+                  <SelectValue placeholder="Condicion" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="TODOS">Operativo: todos</SelectItem>
+                    <SelectItem value="TODOS">Condicion: todos</SelectItem>
                     <SelectItem value="OPERATIVO">Operativo</SelectItem>
                     <SelectItem value="MANTENIMIENTO">Mantenimiento</SelectItem>
                     <SelectItem value="NO_OPERATIVO">No operativo</SelectItem>
@@ -271,7 +303,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                   <TableHead>Contrato</TableHead>
                   <TableHead>Cuenta</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Operativo</TableHead>
+                  <TableHead>Condicion</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -311,10 +343,16 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                       />
                     </TableCell>
                     <TableCell>
-                      <EstadoBadge value={estadoActivoVehiculo(vehiculo)} />
+                      <EstadoBadge
+                        value={estadoActivoVehiculo(vehiculo)}
+                        variant={estadoActivoVariant(estadoActivoVehiculo(vehiculo))}
+                      />
                     </TableCell>
                     <TableCell>
-                      <EstadoBadge value={estadoOperativoVehiculo(vehiculo)} />
+                      <EstadoBadge
+                        value={estadoOperativoVehiculo(vehiculo)}
+                        variant={estadoOperativoVariant(estadoOperativoVehiculo(vehiculo))}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -437,54 +475,56 @@ function ReferenciaFlota({
   );
 }
 
-function EstadoBadge({ value }: { value: string | null }) {
-  const tipo = obtenerTipoEstado(value);
-
+function EstadoBadge({
+  value,
+  variant = "outline",
+}: {
+  value: string | null;
+  variant?: "default" | "secondary" | "destructive" | "outline";
+}) {
   return (
     <Badge
-      variant={tipo === "danger" ? "destructive" : "outline"}
+      variant={variant}
       className="h-6 gap-1.5 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
     >
-      {tipo === "danger" ? (
-        <XCircle className={estadoIconClassName[tipo]} />
-      ) : (
-        <CheckCircle2 className={estadoIconClassName[tipo]} />
-      )}
       {formatear(value)}
     </Badge>
   );
 }
 
-function obtenerTipoEstado(value: string | null) {
-  if (value === "ACTIVO" || value === "OPERATIVO" || value === "CALIBRADA") {
-    return "success";
-  }
+function EstadoRegistroBadge({ value }: { value: string | null }) {
+  const anulado = value === "ANULADO";
 
-  if (value === "MANTENIMIENTO") {
-    return "warning";
-  }
+  return (
+    <Badge
+      variant={anulado ? "destructive" : "secondary"}
+      className="h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium shadow-xs"
+    >
+      {formatear(value)}
+    </Badge>
+  );
+}
 
-  if (
-    value === "SINIESTRADO" ||
-    value === "ELIMINADO" ||
-    value === "NO_OPERATIVO" ||
-    value === "NO_CALIBRADA" ||
-    value === "OBSERVADA"
-  ) {
-    return "danger";
-  }
+function estadoActivoVariant(value: string | null) {
+  if (value === "ACTIVO") return "default" as const;
+  return "secondary" as const;
+}
 
-  return "neutral";
+function estadoOperativoVariant(value: string | null) {
+  if (value === "OPERATIVO") return "default" as const;
+  if (value === "NO_OPERATIVO") return "destructive" as const;
+  return "secondary" as const;
 }
 
 function obtenerClaseFila(vehiculo: VehiculoFlota) {
   const estadoActivo = estadoActivoVehiculo(vehiculo);
   const estadoOperativo = estadoOperativoVehiculo(vehiculo);
+  const registro = estadoRegistroVehiculo(vehiculo);
 
   return cn(
     "border-border/80",
     estadoActivo === "INACTIVO" && "bg-muted/45 hover:bg-muted/65",
-    estadoActivo === "ELIMINADO" &&
+    registro === "ANULADO" &&
       "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/10",
     estadoOperativo === "MANTENIMIENTO" && "bg-amber-500/5 hover:bg-amber-500/10",
   );

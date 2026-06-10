@@ -59,7 +59,11 @@ export function carroceriaVehiculo(vehiculo: VehiculoFlota) {
 }
 
 export function estadoActivoVehiculo(vehiculo: VehiculoFlota) {
-  return normalizarEstado(vehiculo.estadoRegistro ?? vehiculo.estadoActivo ?? vehiculo.estado);
+  return normalizarEstado(vehiculo.estadoActivo ?? vehiculo.estado);
+}
+
+export function estadoRegistroVehiculo(vehiculo: VehiculoFlota) {
+  return normalizarEstado(vehiculo.estadoRegistro);
 }
 
 export function estadoOperativoVehiculo(vehiculo: VehiculoFlota) {

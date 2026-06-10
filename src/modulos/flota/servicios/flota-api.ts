@@ -267,6 +267,7 @@ function toVehiculoFlota(activo: ActivoApiResponse): VehiculoFlota {
     descripcion: activo.descripcion,
     tipoActivo: activo.tipoActivo,
     estadoActivo: activo.estadoActivo,
+    estadoRegistro: activo.estadoRegistro === false ? "ANULADO" : "ACTIVO",
     ubicacion: activo.ubicacion,
     updatedAt: activo.updatedAt,
     placa: activo.vehiculo?.placa ?? null,
@@ -274,7 +275,6 @@ function toVehiculoFlota(activo: ActivoApiResponse): VehiculoFlota {
     marca: activo.vehiculo?.marca ?? null,
     modelo: activo.vehiculo?.modelo ?? null,
     carroceria: activo.vehiculo?.carroceria ?? null,
-    estadoRegistro: activo.estadoRegistro != null ? String(activo.estadoRegistro) : null,
     estadoOperativo: activo.vehiculo?.estadoOperativo ?? null,
     contrato: null,
     cuenta: null,
@@ -305,15 +305,15 @@ export async function obtenerUnidades(): Promise<VehiculoFlota[]> {
   }
 
   return activos.map((activo) => {
-    const flota = toVehiculoFlota(activo);
-    const placa = (flota.placa ?? "").toUpperCase();
-    const asignacion = asignacionesPorPlaca.get(placa);
-    if (asignacion) {
-      flota.contrato = asignacion.contrato;
-      flota.cuenta = asignacion.cuenta;
-    }
-    return flota;
-  });
+      const flota = toVehiculoFlota(activo);
+      const placa = (flota.placa ?? "").toUpperCase();
+      const asignacion = asignacionesPorPlaca.get(placa);
+      if (asignacion) {
+        flota.contrato = asignacion.contrato;
+        flota.cuenta = asignacion.cuenta;
+      }
+      return flota;
+    });
 }
 
 export async function obtenerUnidadPorPlaca(placa: string): Promise<VehiculoFlota | null> {
