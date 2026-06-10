@@ -1,5 +1,7 @@
 // Tipos del modulo Comercial / Cotizaciones (Epica 2, BC03).
-// Solo declaraciones de tipo — sin imports de runtime (zod va en cotizaciones.schemas.ts).
+// Solo declaraciones de tipo — sin imports de runtime.
+// Nota: cotizaciones.schemas.ts cubre solo validaciones de SC/transiciones (enviar, nueva-version, perdida).
+// La validacion del borrador vive en validarBorrador (cotizaciones-editor.utils.ts).
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -16,15 +18,6 @@ export type TipoLinea =
   | "AGENCIAMIENTO"
   | "PERSONAL"
   | "SERVICIO_AUXILIAR";
-
-export type TipoCargo =
-  | "DESMOVILIZACION"
-  | "MOVILIZACION"
-  | "ESCOLTA"
-  | "HOSPEDAJE"
-  | "VIATICOS"
-  | "RECARGO"
-  | "OTRO";
 
 export type Moneda = "PEN" | "USD";
 
@@ -87,12 +80,30 @@ export type PersonalHijo = {
   rol: string;
 };
 
-export type Cargo = {
+// --- LeadTime (nivel version) ---
+export type LeadTime = {
   id: string;
-  tipoCargo: TipoCargo;
-  concepto: string;
-  monto: number;
-  esContingente: boolean;
+  descripcion: string;
+  diasMin: number;
+  diasMax: number | null; // null = plazo exacto; presente = rango (diasMax >= diasMin)
+  orden: number;
+};
+
+// --- CargoAdicional (nivel SECCION) ---
+export type CargoAdicional = {
+  id: string;
+  descripcion: string;
+  monto: number; // >= 0; SI suma al subtotal de la seccion
+  orden: number;
+};
+
+// --- Standby (reshape, SOLO nivel version) ---
+// Contrato 2026-06-06: sin campo unidad. monto = tarifa diaria (el standby siempre es por dia).
+export type Standby = {
+  id: string;
+  descripcion: string;   // antes recurso
+  monto: number;         // tarifa diaria
+  porLinea: boolean;     // true = tarifa por linea por dia
   orden: number;
 };
 
@@ -101,15 +112,7 @@ export type Seccion = {
   nombre: string | null;
   orden: number;
   subtotal: number;
-};
-
-export type Standby = {
-  id: string;
-  recurso: string;
-  tarifaDia: number;
-  moneda: Moneda;
-  orden: number;
-  idSeccion: string | null;
+  cargosAdicionales: CargoAdicional[]; // nuevos: suman al subtotal
 };
 
 export type Linea = {
@@ -118,12 +121,10 @@ export type Linea = {
   tipoLinea: TipoLinea;
   orden: number;
   descripcion: string; // nombre/identificacion de la linea (antes `concepto`)
-  moneda: Moneda;
   cantidad: number;
   precioUnitario: number;
   precioTotal: number; // calculado por el backend: precioUnitario × cantidad (solo lectura)
   idSeccion: string | null;
-  cargos: Cargo[];
   carga?: CargaHijo;
   equipo?: EquipoHijo;
   almacenaje?: AlmacenajeHijo;
@@ -132,18 +133,19 @@ export type Linea = {
 
 export type Version = {
   numeroVersion: number;
+  moneda: Moneda;        // unica moneda de la version (antes era por linea)
   congelada: boolean;
   motivo: string | null;
   montoTotal: number | null; // suma de precioTotal de las lineas activas; calculado por el backend
   validezDias: number | null;
   fechaVencimiento: string | null;
   fechaEnvio: string | null;
-  leadTimeDias: number | null;
   condiciones: string | null;
   notas: string | null;
   secciones: Seccion[];
   lineas: Linea[];
-  standbyTarifas: Standby[];
+  standbys: Standby[];   // antes standbyTarifas; SOLO nivel version
+  leadTimes: LeadTime[]; // nuevo; SOLO nivel version
 };
 
 export type Cotizacion = {
@@ -221,17 +223,80 @@ export type FiltrosModalidades = {
 };
 
 // ---------------------------------------------------------------------------
+// Catalogo de cargos adicionales
+// ---------------------------------------------------------------------------
+
+export type EstadoCatalogoCargoAdicional = "ACTIVO" | "INACTIVO";
+
+export type CatalogoCargoAdicional = {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  estado: EstadoCatalogoCargoAdicional;
+};
+
+// forma propia (igual que RespuestaPaginadaModalidades, NO el RespuestaPaginada de compartido)
+export type RespuestaPaginadaCatalogosCargoAdicional = {
+  data: CatalogoCargoAdicional[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+};
+
+// ---------------------------------------------------------------------------
+// DTOs de escritura — Modalidades
+// ---------------------------------------------------------------------------
+
+export type PayloadCrearModalidad = {
+  codigo: string;
+  nombre: string;
+  tipoLinea: TipoLinea;
+  unidadCobro: UnidadCobro;
+  descripcion?: string;
+  tipo?: TipoModalidad;
+  tarifaBaseReferencial?: number;
+  moneda?: Moneda;
+  margenObjetivo?: number;
+  requiereAprobacion?: boolean;
+};
+
+export type PayloadActualizarModalidad = Partial<PayloadCrearModalidad>;
+
+export type FiltrosCatalogosCargoAdicional = {
+  estado?: EstadoCatalogoCargoAdicional;
+  busqueda?: string;
+  pagina?: number;
+  porPagina?: number;
+};
+
+// ---------------------------------------------------------------------------
 // DTOs de escritura (write model — anidado, lo que acepta el backend)
 // CRITICO: NUNCA enviar idSeccion, precioTotal ni totales (los calcula el backend).
 // `precioUnitario` (requerido) y `cantidad` (opcional, default 1) SI se envian a nivel
 // de linea; el backend calcula `precioTotal = precioUnitario × cantidad`.
 // ---------------------------------------------------------------------------
 
-export type PayloadCargo = {
-  tipoCargo: TipoCargo;
-  concepto: string;
+// --- PayloadLeadTime (nivel version) ---
+export type PayloadLeadTime = {
+  descripcion: string;
+  diasMin: number;
+  diasMax?: number; // omitido = plazo exacto
+  orden?: number;
+};
+
+// --- PayloadCargoAdicional (nivel seccion) ---
+export type PayloadCargoAdicional = {
+  descripcion: string;
   monto: number;
-  esContingente?: boolean;
+  orden?: number;
+};
+
+// --- PayloadStandby (nivel version; NUNCA en seccion) ---
+// Contrato 2026-06-06: sin campo unidad (backend usa forbidNonWhitelisted).
+export type PayloadStandby = {
+  descripcion: string;
+  monto: number;         // tarifa diaria
+  porLinea?: boolean;    // default false; true = por linea por dia
   orden?: number;
 };
 
@@ -266,42 +331,38 @@ export type PayloadPersonalHijo = {
 
 // Linea sin idSeccion ni totales. `precioUnitario` (requerido, >=0) y `cantidad`
 // (entero >=1, default 1) SI se envian — el backend calcula precioTotal = precioUnitario × cantidad.
+// NUNCA enviar moneda ni cargos en linea — moneda es de version, cargos son de seccion.
 export type PayloadLinea = {
   idModalidad: string;
   tipoLinea: TipoLinea;
   descripcion: string;
-  moneda: Moneda;
   precioUnitario: number;
   cantidad?: number;
   carga?: PayloadCargaHijo;
   equipo?: PayloadEquipoHijo;
   almacenaje?: PayloadAlmacenajeHijo;
   personal?: PayloadPersonalHijo;
-  cargos?: PayloadCargo[];
 };
 
-// Standby sin idSeccion
-export type PayloadStandby = {
-  recurso: string;
-  tarifaDia: number;
-  moneda: Moneda;
-  orden?: number;
-};
-
-// Seccion con sus lineas y standby anidados
+// Seccion con lineas y cargosAdicionales anidados
+// NUNCA incluir standbys en una seccion
 export type PayloadSeccion = {
   nombre?: string;
   orden?: number;
   lineas?: PayloadLinea[];
-  standbyTarifas?: PayloadStandby[];
+  cargosAdicionales?: PayloadCargoAdicional[];
 };
 
-// Borrador: secciones + lineas raiz + standby raiz
-// lineas[] raiz = items SIN seccion; standbyTarifas[] raiz = standby SIN seccion
+// Borrador: moneda + secciones + lineas raiz + standbys raiz + leadTimes raiz
+// lineas[] raiz = items SIN seccion explícita
+// standbys[] raiz = standbys de la version (informativo, no suman al total)
+// leadTimes[] raiz = plazos de entrega de la version
 export type PayloadBorrador = {
+  moneda?: Moneda;       // default PEN en el backend
   secciones?: PayloadSeccion[];
   lineas?: PayloadLinea[];
-  standbyTarifas?: PayloadStandby[];
+  standbys?: PayloadStandby[];   // SOLO root (antes standbyTarifas)
+  leadTimes?: PayloadLeadTime[]; // SOLO root
 };
 
 // SC y transiciones — union discriminada por origenTipo
@@ -358,7 +419,10 @@ export type AccionesPermitidas = {
 };
 
 // Estado-machine UI gating: centraliza que acciones estan disponibles por estado.
-// editar ademas exige que la version vigente no este congelada (validar en el consumidor).
+// Refinamientos por version vigente (validar en el consumidor):
+//   - editar/enviar: exigen vigente NO congelada (es la editable).
+//   - nuevaVersion: exige vigente SI congelada (solo se ramifica una version ya
+//     enviada; en EN_REVISION la vigente es borrador sin enviar -> queda off).
 export function accionesPermitidas(estado: EstadoCotizacion): AccionesPermitidas {
   switch (estado) {
     case "BORRADOR":

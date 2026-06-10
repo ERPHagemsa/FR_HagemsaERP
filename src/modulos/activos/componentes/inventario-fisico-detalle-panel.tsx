@@ -40,13 +40,14 @@ import type {
   InventarioFisicoDetalle,
 } from "../tipos/activo.tipos";
 
-const ESTADOS_REVISION: EstadoRevisionInventario[] = [
-  "PENDIENTE",
+const RESULTADOS_REVISION: EstadoRevisionInventario[] = [
   "ENCONTRADO",
   "FALTANTE",
   "OBSERVADO",
   "NO_APLICA",
 ];
+
+type FiltroRevision = "TODOS" | "PENDIENTE" | "REGISTRADO" | "FALTANTE";
 
 export function InventarioFisicoDetallePanel({
   inventarioInicial,
@@ -57,8 +58,7 @@ export function InventarioFisicoDetallePanel({
 }) {
   const [inventario, setInventario] = React.useState(inventarioInicial);
   const [busqueda, setBusqueda] = React.useState("");
-  const [estadoFiltro, setEstadoFiltro] =
-    React.useState<EstadoRevisionInventario | "TODOS">("TODOS");
+  const [estadoFiltro, setEstadoFiltro] = React.useState<FiltroRevision>("TODOS");
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
   const [error, setError] = React.useState<string | null>(null);
@@ -90,7 +90,10 @@ export function InventarioFisicoDetallePanel({
       );
 
     const coincideEstado =
-      estadoFiltro === "TODOS" || detalle.estadoRevision === estadoFiltro;
+      estadoFiltro === "TODOS" ||
+      (estadoFiltro === "REGISTRADO"
+        ? detalle.estadoRevision !== "PENDIENTE"
+        : detalle.estadoRevision === estadoFiltro);
 
     return coincideBusqueda && coincideEstado;
   });
@@ -110,17 +113,18 @@ export function InventarioFisicoDetallePanel({
   }, [busqueda, estadoFiltro, detallesBase.length, registrosPorPagina]);
 
   const resumen = {
-    total: detallesBase.length,
+    candidatos: detallesBase.length,
+    inventariados: inventario.detalles.length,
     pendientes: detallesBase.filter(
       (detalle) => detalle.estadoRevision === "PENDIENTE"
     ).length,
-    encontrados: detallesBase.filter(
-      (detalle) => detalle.estadoRevision === "ENCONTRADO"
+    registrados: inventario.detalles.filter(
+      (detalle) => detalle.estadoRevision !== "PENDIENTE"
     ).length,
-    faltantes: detallesBase.filter(
+    faltantes: inventario.detalles.filter(
       (detalle) => detalle.estadoRevision === "FALTANTE"
     ).length,
-    observados: detallesBase.filter(
+    observados: inventario.detalles.filter(
       (detalle) => detalle.estadoRevision === "OBSERVADO"
     ).length,
   };
@@ -190,7 +194,8 @@ export function InventarioFisicoDetallePanel({
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge variant="outline">{formatear(inventario.estado)}</Badge>
-            <Badge variant="outline">{resumen.total} activos</Badge>
+            <Badge variant="outline">{resumen.inventariados} inventariados</Badge>
+            <Badge variant="outline">{resumen.candidatos} candidatos</Badge>
             <Badge variant="outline">{resumen.pendientes} pendientes</Badge>
           </div>
         </div>
@@ -201,7 +206,7 @@ export function InventarioFisicoDetallePanel({
               Volver
             </Link>
           </Button>
-          {inventario.estado !== "CERRADO" ? (
+          {inventario.estado !== "CERRADO" && inventario.estado !== "ANULADO" ? (
             <Button onClick={cerrarInventario} disabled={cerrando}>
               <ClipboardCheck className="size-4" />
               {cerrando ? "Cerrando..." : "Cerrar inventario"}
@@ -217,11 +222,11 @@ export function InventarioFisicoDetallePanel({
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-5">
-        <ResumenCard label="Total" value={resumen.total} />
+        <ResumenCard label="Candidatos" value={resumen.candidatos} />
+        <ResumenCard label="Inventariados" value={resumen.inventariados} />
         <ResumenCard label="Pendientes" value={resumen.pendientes} />
-        <ResumenCard label="Encontrados" value={resumen.encontrados} />
+        <ResumenCard label="Registrados" value={resumen.registrados} />
         <ResumenCard label="Faltantes" value={resumen.faltantes} danger />
-        <ResumenCard label="Observados" value={resumen.observados} />
       </div>
 
       <Card>
@@ -244,17 +249,15 @@ export function InventarioFisicoDetallePanel({
               value={estadoFiltro}
               onChange={(event) =>
                 setEstadoFiltro(
-                  event.target.value as EstadoRevisionInventario | "TODOS"
+                  event.target.value as FiltroRevision
                 )
               }
               className="h-10 rounded-full border border-input bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="TODOS">Todos los estados</option>
-              {ESTADOS_REVISION.map((estado) => (
-                <option key={estado} value={estado}>
-                  {formatear(estado)}
-                </option>
-              ))}
+              <option value="TODOS">Todos</option>
+              <option value="PENDIENTE">Pendiente</option>
+              <option value="REGISTRADO">Registrado</option>
+              <option value="FALTANTE">Faltante</option>
             </select>
           </div>
 
@@ -276,7 +279,7 @@ export function InventarioFisicoDetallePanel({
                   <DetalleRow
                     key={obtenerDetalleKey(detalle)}
                     detalle={detalle}
-                    disabled={inventario.estado === "CERRADO"}
+                    disabled={inventario.estado === "CERRADO" || inventario.estado === "ANULADO"}
                     onGuardar={guardarDetalle}
                   />
                 ))} 
@@ -298,7 +301,7 @@ export function InventarioFisicoDetallePanel({
             <div className="flex flex-col gap-3 border-t border-border pt-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
               <div>
                 Mostrando {desdeVisible}-{hastaVisible} de{" "}
-                {detallesFiltrados.length} activos
+                {detallesFiltrados.length} candidatos
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <label className="flex items-center gap-2">
@@ -437,7 +440,8 @@ function DetalleRow({
           disabled={disabled}
           className="h-9 rounded-full border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
         >
-          {ESTADOS_REVISION.map((item) => (
+          <option value="PENDIENTE">Seleccionar resultado</option>
+          {RESULTADOS_REVISION.map((item) => (
             <option key={item} value={item}>
               {formatear(item)}
             </option>
@@ -474,7 +478,7 @@ function DetalleRow({
           variant="outline"
           size="sm"
           onClick={guardar}
-          disabled={disabled || guardando}
+          disabled={disabled || guardando || estado === "PENDIENTE"}
         >
           <Save className="size-4" />
           {guardando ? "Guardando" : "Guardar"}

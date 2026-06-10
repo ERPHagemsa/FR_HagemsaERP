@@ -13,7 +13,7 @@ type ConfiguracionServicioApi = {
 }
 
 const API_GATEWAY_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL
-const REQUEST_TIMEOUT_MS = 5000
+const REQUEST_TIMEOUT_MS = 60000
 
 export const serviciosApi = {
   activos: {

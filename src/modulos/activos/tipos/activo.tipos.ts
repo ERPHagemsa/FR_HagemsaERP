@@ -284,6 +284,7 @@ export type CrearTanqueActivoPayload = {
 };
 
 export type EstadoInventarioFisico =
+  | "CREADO"
   | "ABIERTO"
   | "EN_REVISION"
   | "CERRADO"
@@ -337,9 +338,10 @@ export type InventarioFisico = {
 };
 
 export type CrearInventarioFisicoPayload = {
-  codigo?: string;
-  nombre?: string;
-  descripcion?: string;
+  codigo: string;
+  fechaApertura: string;
+  descripcion: string;
+  observacion?: string;
   usuarioApertura?: string;
 };
 

@@ -9,7 +9,7 @@ type PageProps = {
 
 export default async function Page({ searchParams }: PageProps) {
   const params = await searchParams;
-  const title = params?.origenId ? "Nuevo Acople" : "Nuevo Activo";
+  const title = params?.origenId ? "Replaqueo" : "Nuevo Activo";
 
   return (
     <>

@@ -34,13 +34,13 @@ export async function ActivoHistorialVista({ codigo }: Props) {
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <section className="flex flex-col gap-4 rounded-xl border border-border bg-card px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <div>
+      <div className="flex w-full flex-col gap-5">
+        <section className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-medium text-muted-foreground">
               {activo.codigo}
             </p>
-            <h1 className="text-2xl font-semibold">
+            <h1 className="text-2xl font-semibold tracking-normal">
               Historial y auditoria
             </h1>
             <p className="text-sm text-muted-foreground">

@@ -51,7 +51,7 @@ export async function consultarSolicitudCliente(id: string): Promise<SolicitudCl
   return data;
 }
 
-// POST /solicitudes-cliente/:id/cotizaciones — body { secciones?, lineas?, standbyTarifas? } → 201 { idCotizacion }
+// POST /solicitudes-cliente/:id/cotizaciones — body { secciones?, lineas?, standbys? } → 201 { idCotizacion }
 // La cotizacion nace POBLADA (mismo body que PATCH /borrador). Requiere >=1 linea
 // activa entre secciones + raiz; un body sin lineas devuelve 422.
 export async function agregarCotizacion(

@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
 
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
 import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
-import { CotizacionCabecera } from "../componentes/cotizacion-cabecera";
 import { CotizacionEditor } from "../componentes/cotizacion-editor";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 
@@ -33,37 +33,40 @@ export async function CotizacionEditarVista({ id }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        {/* Encabezado */}
-        <section className="flex flex-col gap-4 rounded-xl border border-border bg-card px-5 py-4 md:flex-row md:items-start md:justify-between">
-          <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-muted-foreground">Cotizaciones / Editor de borrador</p>
-            <div className="flex items-center gap-2">
-              <p className="font-mono text-xs text-muted-foreground">{cotizacion.id}</p>
-              <EstadoCotizacionBadge estado={cotizacion.estado} />
+    <main className="min-h-screen bg-background text-foreground">
+      {/* === Statusbar sticky: volver + identidad + estado + navegacion === */}
+      <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 px-5 py-3 lg:px-8 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center gap-3">
+            <Button asChild variant="ghost" size="icon" className="shrink-0">
+              <Link href={`/comercial/cotizaciones/${id}`} aria-label="Volver al detalle">
+                <ArrowLeft />
+              </Link>
+            </Button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-semibold">
+                  Editor de borrador · Version {cotizacion.versionVigente}
+                </h1>
+                <EstadoCotizacionBadge estado={cotizacion.estado} />
+              </div>
+              <p className="truncate font-mono text-xs text-muted-foreground">{cotizacion.id}</p>
             </div>
           </div>
+
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" size="sm">
               <Link href={`/comercial/cotizaciones/${id}`}>Ver detalle</Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" size="sm">
               <Link href="/comercial/cotizaciones">Volver al listado</Link>
             </Button>
           </div>
-        </section>
+        </div>
+      </div>
 
-        {/* Cabecera de la cotizacion */}
-        <CotizacionCabecera cotizacion={cotizacion} />
-
-        {/* Editor */}
-        <section className="flex flex-col gap-3">
-          <h2 className="text-base font-semibold">
-            Version {cotizacion.versionVigente} — Editor de borrador
-          </h2>
-          <CotizacionEditor cotizacion={cotizacion} />
-        </section>
+      <div className="mx-auto w-full max-w-[1400px] px-5 py-5 lg:px-8">
+        <CotizacionEditor cotizacion={cotizacion} />
       </div>
     </main>
   );

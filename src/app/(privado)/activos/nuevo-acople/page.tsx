@@ -5,10 +5,10 @@ export default function Page() {
   return (
     <>
       <SiteHeader
-        title="Nuevo Acople"
+        title="Replaqueo"
         breadcrumbs={[
           { title: "Activos", href: "/activos" },
-          { title: "Nuevo Acople" },
+          { title: "Replaqueo" },
         ]}
       />
       <ActivoNuevoAcopleVista />

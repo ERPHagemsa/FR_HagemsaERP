@@ -12,7 +12,6 @@ import {
   IconEye,
   IconHistory,
   IconPencil,
-  IconPlus,
   IconRefresh,
   IconSearch,
   IconTrash,
@@ -341,7 +340,7 @@ export function ActivosTabla({ activos }: Props) {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Listado de activos</h2>
+        <h2 className="text-lg font-semibold">Consulta de activos</h2>
         <p className="text-sm text-muted-foreground">
           {filtrados.length} de {activosPorRegistro.length} activos consultados
         </p>
@@ -350,12 +349,24 @@ export function ActivosTabla({ activos }: Props) {
       <Card className="overflow-hidden">
         <CardContent className="flex flex-col gap-4 p-0">
         <form
-          className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between"
+          className="flex flex-col border-b border-border"
           onSubmit={(event) => {
             event.preventDefault();
             aplicarFiltros();
           }}
         >
+          <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-4 py-3">
+            <Button type="submit" size="sm">
+              <IconSearch />
+              Aplicar
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={limpiarFiltros}>
+              <IconRefresh />
+              Limpiar
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-3 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-1 flex-wrap items-center gap-2">
             <div className="relative">
               <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -384,9 +395,9 @@ export function ActivosTabla({ activos }: Props) {
               value={filtrosFormulario.estadoActivo}
               onChange={(value) => actualizarFiltro("estadoActivo", value)}
               values={[
-                { value: "TODOS", label: "Estado: todos" },
-                { value: "ACTIVO", label: "Activo" },
-                { value: "BAJA", label: "Baja" },
+                { value: "TODOS", label: "Estado activo: todos" },
+                { value: "ACTIVO", label: "Estado activo: activo" },
+                { value: "BAJA", label: "Estado activo: baja" },
               ]}
             />
             <FiltroSelect
@@ -419,7 +430,7 @@ export function ActivosTabla({ activos }: Props) {
                 actualizarFiltro("estadoRegistro", value as FiltroRegistro)
               }
               values={[
-                { value: "ACTIVO", label: "Registro: activos" },
+                { value: "ACTIVO", label: "Registro: visibles" },
                 { value: "ANULADO", label: "Registro: anulados" },
                 { value: "TODOS", label: "Registro: todos" },
               ]}
@@ -439,20 +450,6 @@ export function ActivosTabla({ activos }: Props) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" size="sm">
-              <IconSearch />
-              Aplicar
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={limpiarFiltros}>
-              <IconRefresh />
-              Limpiar
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/activos/nuevo">
-                <IconPlus />
-                Nuevo
-              </Link>
-            </Button>
             <Button type="button" variant="outline" size="sm" onClick={exportarExcel}>
               <IconDownload />
               Excel
@@ -461,6 +458,7 @@ export function ActivosTabla({ activos }: Props) {
               <IconDownload />
               PDF
             </Button>
+          </div>
           </div>
         </form>
 

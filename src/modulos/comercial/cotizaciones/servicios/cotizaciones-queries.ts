@@ -3,6 +3,7 @@
 import { useConsulta, useMutar } from "@/compartido/api";
 
 import type {
+  FiltrosCatalogosCargoAdicional,
   FiltrosCotizaciones,
   FiltrosModalidades,
   PayloadBorrador,
@@ -20,6 +21,7 @@ import {
   marcarPerdida,
   nuevaVersion,
 } from "./cotizaciones-api";
+import { listarCatalogosCargoAdicional } from "./catalogos-cargo-adicional-api";
 import { listarModalidades } from "./modalidades-api";
 
 // ---------------------------------------------------------------------------
@@ -98,6 +100,19 @@ export function useCancelarCotizacionMutation(id: string) {
 export function useListarModalidades(filtros: FiltrosModalidades = {}) {
   return useConsulta(
     () => listarModalidades(filtros),
+    [JSON.stringify(filtros)]
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Catalogo de cargos adicionales (lectura, cache unico en el editor)
+// ---------------------------------------------------------------------------
+
+export function useListarCatalogosCargoAdicional(
+  filtros: FiltrosCatalogosCargoAdicional = {}
+) {
+  return useConsulta(
+    () => listarCatalogosCargoAdicional(filtros),
     [JSON.stringify(filtros)]
   );
 }

@@ -41,6 +41,7 @@ import {
 } from "@/compartido/componentes/ui/table"
 
 import { PaginationControls } from "../componentes/pagination-controls"
+import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
 import {
   useHistorialSocioDeNegocioQuery,
   useHistorialSociosDeNegocioQuery,
@@ -284,6 +285,15 @@ export function SocioNegocioHistorialVista() {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
+          <SocioNegocioPageHeader
+            title="Historial de socios"
+            actions={
+              <Button asChild variant="outline">
+                <Link href="/socio-negocios/listar">Volver al listado</Link>
+              </Button>
+            }
+          />
+
           {error ? (
             <Alert variant="destructive">
               <AlertTitle>Error de API</AlertTitle>
@@ -291,7 +301,7 @@ export function SocioNegocioHistorialVista() {
             </Alert>
           ) : null}
 
-          <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+          <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
             <div className="border-b border-border px-4 py-3">
               <h2 className="text-lg font-semibold">Movimientos del modulo</h2>
               <p className="text-sm text-muted-foreground">
@@ -474,6 +484,25 @@ export function SocioNegocioHistorialDetalleVista({ id }: { id: string }) {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
+          <SocioNegocioPageHeader
+            title={titulo}
+            meta={
+              <>
+                {datosReferencia?.count ? (
+                  <Badge variant="outline">#{String(datosReferencia.count)}</Badge>
+                ) : null}
+                {datosReferencia?.tipo ? (
+                  <Badge variant="secondary">{String(datosReferencia.tipo)}</Badge>
+                ) : null}
+              </>
+            }
+            actions={
+              <Button asChild variant="outline">
+                <Link href="/socio-negocios/listar">Volver al listado</Link>
+              </Button>
+            }
+          />
+
           {error ? (
             <Alert variant="destructive">
               <AlertTitle>Error de API</AlertTitle>
@@ -481,25 +510,14 @@ export function SocioNegocioHistorialDetalleVista({ id }: { id: string }) {
             </Alert>
           ) : null}
 
-          <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-border px-4 py-4 lg:flex-row lg:items-start lg:justify-between">
+          <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
+            <div className="border-b border-border px-4 py-4">
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-semibold">{titulo}</h2>
-                  {datosReferencia?.count ? (
-                    <Badge variant="outline">#{String(datosReferencia.count)}</Badge>
-                  ) : null}
-                  {datosReferencia?.tipo ? (
-                    <Badge variant="secondary">{String(datosReferencia.tipo)}</Badge>
-                  ) : null}
-                </div>
+                <h2 className="text-base font-semibold">Movimientos del socio</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Auditoria de datos anteriores y nuevos para el registro seleccionado.
                 </p>
               </div>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/socio-negocios/listar">Volver al listado</Link>
-              </Button>
             </div>
 
             <div className="grid gap-3 border-b border-border p-4 md:grid-cols-4">

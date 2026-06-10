@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -80,14 +80,15 @@ import {
 import {
   useDarDeBajaSocioDeNegocioMutation,
   useExportarSociosDeNegocioQuery,
-  useModificarSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
   useSociosDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
 import { PaginationControls } from "../componentes/pagination-controls"
+import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
+import { condicionesLaborales } from "../tipos/socio-negocio"
 import type {
+  CondicionLaboral,
   ConsultarSociosDeNegocioQuery,
-  ModificarSocioDeNegocioRequest,
   ReporteSociosDeNegocioResponse,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
@@ -132,6 +133,14 @@ const estadoRegistroIconClassName = {
   ACTIVO: "text-emerald-500",
   ANULADO: "text-destructive",
 } as const
+
+function etiquetaCondicionLaboral(condicion?: CondicionLaboral | null) {
+  return (
+    condicionesLaborales.find((item) => item.valor === condicion)?.etiqueta ??
+    condicion ??
+    "-"
+  )
+}
 
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
@@ -277,34 +286,6 @@ function obtenerValorFiltro(
   return typeof value === "string" ? value : ""
 }
 
-function obtenerTextoFormulario(formData: FormData, name: string) {
-  return String(formData.get(name) ?? "").trim()
-}
-
-function esTexto(valor: string | null | undefined): valor is string {
-  return Boolean(valor)
-}
-
-function formarNombreCompletoPersonal(formData: FormData) {
-  return [
-    obtenerTextoFormulario(formData, "primerNombre"),
-    obtenerTextoFormulario(formData, "segundoNombre"),
-    obtenerTextoFormulario(formData, "apellidoPaterno"),
-    obtenerTextoFormulario(formData, "apellidoMaterno"),
-  ]
-    .filter(esTexto)
-    .join(" ")
-}
-
-function formarNombreComercialPersonal(formData: FormData) {
-  return [
-    obtenerTextoFormulario(formData, "primerNombre"),
-    obtenerTextoFormulario(formData, "apellidoPaterno"),
-  ]
-    .filter(esTexto)
-    .join(" ")
-}
-
 function obtenerClaseFilaSocio(socio: SocioDeNegocioResponse) {
   const inactivo = socio.estado === "INACTIVO"
   const anulado = socio.estadoRegistro === "ANULADO"
@@ -332,26 +313,14 @@ function AccionesSocio({
   const bajaMutation = useDarDeBajaSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
-  const modificarMutation = useModificarSocioDeNegocioMutation(socio.id, {
-    onSuccess: onActualizado,
-  })
   const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
   const [accion, setAccion] = useState<"anular" | "reactivar" | null>(null)
-  const [modificarAbierto, setModificarAbierto] = useState(false)
   const [motivo, setMotivo] = useState("")
-  const procesando =
-    bajaMutation.isPending || modificarMutation.isPending || reactivarMutation.isPending
+  const procesando = bajaMutation.isPending || reactivarMutation.isPending
   const puedeReactivar = socio.estado === "INACTIVO" || socio.estadoRegistro === "ANULADO"
   const requiereMotivo = accion === "anular"
-  const partesRazonSocial = socio.razonSocial.split(/\s+/).filter(Boolean)
-  const primerNombreInicial = socio.primerNombre || partesRazonSocial[0] || ""
-  const segundoNombreInicial = socio.segundoNombre || ""
-  const apellidoPaternoInicial =
-    socio.apellidoPaterno || partesRazonSocial.at(-2) || ""
-  const apellidoMaternoInicial =
-    socio.apellidoMaterno || partesRazonSocial.at(-1) || ""
 
   function abrirAccion(nuevaAccion: "anular" | "reactivar") {
     setMotivo(
@@ -384,43 +353,6 @@ function AccionesSocio({
     }
   }
 
-  async function modificarSocio(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const formData = new FormData(event.currentTarget)
-    const esPersonal = socio.tipo === "PERSONAL"
-    const razonSocial = esPersonal
-      ? formarNombreCompletoPersonal(formData)
-      : obtenerTextoFormulario(formData, "razonSocial")
-    const nombreComercial = esPersonal
-      ? formarNombreComercialPersonal(formData)
-      : obtenerTextoFormulario(formData, "nombreComercial")
-    const payload: ModificarSocioDeNegocioRequest = {
-      razonSocial,
-      nombreComercial,
-      direccion: obtenerTextoFormulario(formData, "direccion"),
-      contacto: esPersonal ? nombreComercial : obtenerTextoFormulario(formData, "contacto"),
-      correo: obtenerTextoFormulario(formData, "correo"),
-      numeroCelular: obtenerTextoFormulario(formData, "numeroCelular"),
-      usuarioId: "admin",
-    }
-
-    if (esPersonal) {
-      payload.primerNombre = obtenerTextoFormulario(formData, "primerNombre")
-      payload.segundoNombre = obtenerTextoFormulario(formData, "segundoNombre") || undefined
-      payload.apellidoPaterno = obtenerTextoFormulario(formData, "apellidoPaterno")
-      payload.apellidoMaterno = obtenerTextoFormulario(formData, "apellidoMaterno")
-    }
-
-    try {
-      await modificarMutation.mutateAsync(payload)
-      setModificarAbierto(false)
-      onMensaje(`${socio.razonSocial} fue editado.`)
-    } catch (error) {
-      onError(obtenerErrorOperacion(error))
-    }
-  }
-
   return (
     <>
       <DropdownMenu>
@@ -447,11 +379,13 @@ function AccionesSocio({
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem
+              asChild
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
-              onSelect={() => setModificarAbierto(true)}
             >
-              <HugeiconsIcon data-icon="inline-start" icon={Edit02Icon} strokeWidth={2} />
-              Editar
+              <Link href={`/socio-negocios/${socio.id}?modo=editar`}>
+                <HugeiconsIcon data-icon="inline-start" icon={Edit02Icon} strokeWidth={2} />
+                Editar
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem
               asChild
@@ -553,162 +487,6 @@ function AccionesSocio({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={modificarAbierto}
-        onOpenChange={(open) => !open && setModificarAbierto(false)}
-      >
-        <AlertDialogContent className="max-w-3xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Editar socio de negocio</AlertDialogTitle>
-            <AlertDialogDescription>
-              El tipo, documento y codigo SAP no se modifican. Si el documento esta mal,
-              borra el registro por error y crea uno nuevo.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <form id={`modificar-${socio.id}`} onSubmit={(event) => void modificarSocio(event)}>
-            <div className="grid gap-4">
-              <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3 md:grid-cols-3">
-                <Field>
-                  <FieldLabel>Tipo</FieldLabel>
-                  <Input value={socio.tipo} readOnly />
-                </Field>
-                <Field>
-                  <FieldLabel>Documento</FieldLabel>
-                  <Input value={socio.numeroDocumento} readOnly />
-                </Field>
-                <Field>
-                  <FieldLabel>Codigo SAP</FieldLabel>
-                  <Input value={socio.codigoInternoSap || "-"} readOnly />
-                </Field>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                {socio.tipo === "PERSONAL" ? (
-                  <>
-                    <Field>
-                      <FieldLabel htmlFor={`primerNombre-${socio.id}`}>Primer nombre</FieldLabel>
-                      <Input
-                        id={`primerNombre-${socio.id}`}
-                        name="primerNombre"
-                        defaultValue={primerNombreInicial}
-                        required
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor={`segundoNombre-${socio.id}`}>Segundo nombre</FieldLabel>
-                      <Input
-                        id={`segundoNombre-${socio.id}`}
-                        name="segundoNombre"
-                        defaultValue={segundoNombreInicial}
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor={`apellidoPaterno-${socio.id}`}>
-                        Apellido paterno
-                      </FieldLabel>
-                      <Input
-                        id={`apellidoPaterno-${socio.id}`}
-                        name="apellidoPaterno"
-                        defaultValue={apellidoPaternoInicial}
-                        required
-                      />
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor={`apellidoMaterno-${socio.id}`}>
-                        Apellido materno
-                      </FieldLabel>
-                      <Input
-                        id={`apellidoMaterno-${socio.id}`}
-                        name="apellidoMaterno"
-                        defaultValue={apellidoMaternoInicial}
-                        required
-                      />
-                    </Field>
-                  </>
-                ) : (
-                  <>
-                    <Field className="md:col-span-2">
-                      <FieldLabel htmlFor={`razonSocial-${socio.id}`}>Razon social</FieldLabel>
-                      <Input
-                        id={`razonSocial-${socio.id}`}
-                        name="razonSocial"
-                        defaultValue={socio.razonSocial}
-                        required
-                      />
-                    </Field>
-                    <Field className="md:col-span-2">
-                      <FieldLabel htmlFor={`nombreComercial-${socio.id}`}>
-                        Nombre comercial
-                      </FieldLabel>
-                      <Input
-                        id={`nombreComercial-${socio.id}`}
-                        name="nombreComercial"
-                        defaultValue={socio.nombreComercial}
-                        required
-                      />
-                    </Field>
-                  </>
-                )}
-                <Field className="md:col-span-2">
-                  <FieldLabel htmlFor={`direccion-${socio.id}`}>Direccion</FieldLabel>
-                  <Input
-                    id={`direccion-${socio.id}`}
-                    name="direccion"
-                    defaultValue={socio.direccion}
-                    required
-                  />
-                </Field>
-                {socio.tipo !== "PERSONAL" ? (
-                  <Field>
-                    <FieldLabel htmlFor={`contacto-${socio.id}`}>Contacto</FieldLabel>
-                    <Input
-                      id={`contacto-${socio.id}`}
-                      name="contacto"
-                      defaultValue={socio.contacto}
-                    />
-                  </Field>
-                ) : null}
-                <Field>
-                  <FieldLabel htmlFor={`correo-${socio.id}`}>Correo</FieldLabel>
-                  <Input
-                    id={`correo-${socio.id}`}
-                    name="correo"
-                    type="email"
-                    defaultValue={socio.correo}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor={`numeroCelular-${socio.id}`}>Celular</FieldLabel>
-                  <Input
-                    id={`numeroCelular-${socio.id}`}
-                    name="numeroCelular"
-                    defaultValue={socio.numeroCelular}
-                  />
-                </Field>
-              </div>
-            </div>
-          </form>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={modificarMutation.isPending}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={modificarMutation.isPending}
-              onClick={(event) => {
-                event.preventDefault()
-                const form = document.getElementById(
-                  `modificar-${socio.id}`,
-                ) as HTMLFormElement | null
-                form?.requestSubmit()
-              }}
-            >
-              {modificarMutation.isPending ? "Guardando..." : "Guardar cambios"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }
@@ -789,6 +567,10 @@ export function SocioNegocioVista({
         siguiente[key] = value as ConsultarSociosDeNegocioQuery[K]
       }
 
+      if (key === "tipo" && value !== "PERSONAL") {
+        delete siguiente.condicionLaboral
+      }
+
       return limpiarFiltros({
         ...siguiente,
         ...(filtros?.tipo ? { tipo: filtros.tipo } : {}),
@@ -826,25 +608,23 @@ export function SocioNegocioVista({
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
-          <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-normal">
-                Listar socio de negocio
-              </h1>
-            </div>
-            {crearHref ? (
-              <Button asChild className="w-full sm:w-auto">
-                <Link href={crearHref}>
-                  <HugeiconsIcon
-                    data-icon="inline-start"
-                    icon={Add01Icon}
-                    strokeWidth={2}
-                  />
-                  {accionPrincipal}
-                </Link>
-              </Button>
-            ) : null}
-          </div>
+          <SocioNegocioPageHeader
+            title="Listar socio de negocio"
+            actions={
+              crearHref ? (
+                <Button asChild className="w-full sm:w-auto">
+                  <Link href={crearHref}>
+                    <HugeiconsIcon
+                      data-icon="inline-start"
+                      icon={Add01Icon}
+                      strokeWidth={2}
+                    />
+                    {accionPrincipal}
+                  </Link>
+                </Button>
+              ) : null
+            }
+          />
 
           {error ? (
             <Alert variant="destructive">
@@ -869,13 +649,13 @@ export function SocioNegocioVista({
 
           <section className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <h2 className="text-lg font-semibold">Consulta de socios</h2>
+              <h2 className="text-lg font-semibold">Socios registrados</h2>
               <p className="text-sm text-muted-foreground">
-                Filtra, exporta y revisa los registros disponibles.
+                Busca, revisa y gestiona clientes, proveedores y personal.
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+            <div className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
               <div className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
                 <form
                   className="flex flex-col gap-2 lg:flex-row lg:items-center"
@@ -978,6 +758,32 @@ export function SocioNegocioVista({
                       </SelectContent>
                     </Select>
                   </Field>
+                  <Field className="lg:w-56">
+                    <Select
+                      value={filtrosFormulario.condicionLaboral ?? "TODOS"}
+                      disabled={filtrosFormulario.tipo !== "PERSONAL"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "condicionLaboral",
+                          value as ConsultarSociosDeNegocioQuery["condicionLaboral"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Condicion laboral" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Condicion: todas</SelectItem>
+                          {condicionesLaborales.map((condicion) => (
+                            <SelectItem key={condicion.valor} value={condicion.valor}>
+                              {condicion.etiqueta}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
                   <div className="flex gap-2">
                     <Button type="submit" size="sm" disabled={sociosQuery.isFetching}>
                       <HugeiconsIcon
@@ -1051,6 +857,7 @@ export function SocioNegocioVista({
                       <TableHead>Codigo SAP</TableHead>
                       <TableHead>Socio</TableHead>
                       <TableHead>Tipo</TableHead>
+                      <TableHead>Condicion laboral</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Registro</TableHead>
                       <TableHead>Documento</TableHead>
@@ -1104,6 +911,13 @@ export function SocioNegocioVista({
                           >
                             {socio.tipo}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={claseContenido}>
+                            {socio.tipo === "PERSONAL"
+                              ? etiquetaCondicionLaboral(socio.condicionLaboral)
+                              : "-"}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <span className={claseContenido}>

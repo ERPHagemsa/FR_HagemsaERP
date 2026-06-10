@@ -23,26 +23,27 @@ import { obtenerActivos } from "../servicios/activos-api";
 import type { Activo } from "../tipos/activo.tipos";
 
 export async function ActivoNuevoAcopleVista() {
-  const resultado = await obtenerActivos({ estadoRegistro: false })
-    .then((activos) => ({ activos, error: null }))
+  const resultado = await obtenerActivos({ estadoRegistro: true })
+    .then((activos) => ({
+      activos: activos.filter((activo) => activo.estadoActivo !== "ACTIVO"),
+      error: null,
+    }))
     .catch((error) => ({
       activos: [] as Activo[],
       error:
         error instanceof Error
           ? error.message
-          : "No se pudo cargar activos anulados.",
+          : "No se pudo cargar activos de baja.",
     }));
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <section className="flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">Activos</p>
-            <h1 className="text-2xl font-semibold">Nuevo acople</h1>
+      <div className="flex w-full flex-col gap-5">
+        <section className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-normal">Replaqueo</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Registro para repotenciacion, cambio de carroceria, cambio de placa
-              o remolcamiento.
+              Registro para cambio de placa usando una unidad dada de baja como referencia.
             </p>
           </div>
           <Button asChild variant="outline">
@@ -58,31 +59,30 @@ export async function ActivoNuevoAcopleVista() {
                   <GitCompareArrows className="size-5" aria-hidden="true" />
                 </span>
                 <div>
-                  <CardTitle>Unidades anuladas disponibles</CardTitle>
+                  <CardTitle>Unidades de baja disponibles</CardTitle>
                   <CardDescription>
                     Selecciona el activo anterior que sera referencia para el
-                    nuevo acople, repotenciacion o cambio de carroceria.
+                    replaqueo.
                   </CardDescription>
                 </div>
               </div>
               <Badge variant="outline">
-                {resultado.activos.length} anulado
-                {resultado.activos.length === 1 ? "" : "s"}
+                {resultado.activos.length} de baja
               </Badge>
             </div>
             <div className="mt-4 rounded-xl border border-border bg-muted/20 px-4 py-3">
               <p className="text-sm text-muted-foreground">
-                Este flujo parte de un registro anulado y crea una nueva ficha
-                operativa conservando trazabilidad historica.
+                Este flujo parte de una unidad en baja y crea una nueva ficha
+                operativa conservando trazabilidad historica del cambio de placa.
               </p>
             </div>
           </CardHeader>
           <CardContent className="pt-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold">Listado de anulados</p>
+                <p className="text-sm font-semibold">Listado de unidades de baja</p>
                 <CardDescription>
-                  Usa Crear acople sobre la unidad anterior correspondiente.
+                  Usa Crear replaqueo sobre la unidad anterior correspondiente.
                 </CardDescription>
               </div>
               <Button asChild variant="outline">
@@ -109,13 +109,13 @@ export async function ActivoNuevoAcopleVista() {
                   </TableHeader>
                   <TableBody>
                     {resultado.activos.map((activo) => (
-                      <TableRow key={activo.id} className="bg-destructive/5">
+                      <TableRow key={activo.id}>
                         <TableCell>
-                          <div className="font-semibold line-through text-muted-foreground">
+                          <div className="font-semibold">
                             {activo.codigo}
                           </div>
-                          <div className="mt-1 text-xs text-destructive">
-                            Registro anulado
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Unidad de baja
                           </div>
                         </TableCell>
                         <TableCell>
@@ -133,7 +133,9 @@ export async function ActivoNuevoAcopleVista() {
                           {formatearTexto(activo.vehiculo?.carroceria)}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="destructive">Anulado</Badge>
+                          <Badge variant="outline">
+                            {formatearEstadoActivo(activo.estadoActivo)}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button asChild size="sm">
@@ -142,7 +144,7 @@ export async function ActivoNuevoAcopleVista() {
                                 String(activo.id)
                               )}`}
                             >
-                              Crear acople
+                              Crear replaqueo
                             </Link>
                           </Button>
                         </TableCell>
@@ -153,7 +155,7 @@ export async function ActivoNuevoAcopleVista() {
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-                No hay activos anulados disponibles para crear un nuevo acople.
+                No hay activos de baja disponibles para crear un replaqueo.
               </div>
             )}
           </CardContent>
@@ -165,4 +167,10 @@ export async function ActivoNuevoAcopleVista() {
 
 function formatearTexto(valor?: string | null) {
   return valor?.trim() ? valor : "-";
+}
+
+function formatearEstadoActivo(estado: Activo["estadoActivo"]) {
+  if (estado === "SINIESTRADO") return "Baja / Siniestro";
+  if (estado === "INACTIVO") return "Baja / De baja";
+  return "Activo";
 }
