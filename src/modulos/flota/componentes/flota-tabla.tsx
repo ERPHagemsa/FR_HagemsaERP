@@ -346,6 +346,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                       <EstadoBadge
                         value={estadoActivoVehiculo(vehiculo)}
                         variant={estadoActivoVariant(estadoActivoVehiculo(vehiculo))}
+                        formatter={formatearEstadoActivo}
                       />
                     </TableCell>
                     <TableCell>
@@ -475,19 +476,33 @@ function ReferenciaFlota({
   );
 }
 
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "INACTIVO" || value === "SINIESTRADO") return "Baja / De baja";
+  return formatear(value);
+}
+
+function formatearRegistro(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "ANULADO") return "Anulado";
+  return formatear(value);
+}
+
 function EstadoBadge({
   value,
   variant = "outline",
+  formatter = formatear,
 }: {
   value: string | null;
   variant?: "default" | "secondary" | "destructive" | "outline";
+  formatter?: (v: string | null) => string;
 }) {
   return (
     <Badge
       variant={variant}
       className="h-6 gap-1.5 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
     >
-      {formatear(value)}
+      {formatter(value)}
     </Badge>
   );
 }
@@ -500,7 +515,7 @@ function EstadoRegistroBadge({ value }: { value: string | null }) {
       variant={anulado ? "destructive" : "secondary"}
       className="h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium shadow-xs"
     >
-      {formatear(value)}
+      {formatearRegistro(value)}
     </Badge>
   );
 }
@@ -523,7 +538,7 @@ function obtenerClaseFila(vehiculo: VehiculoFlota) {
 
   return cn(
     "border-border/80",
-    estadoActivo === "INACTIVO" && "bg-muted/45 hover:bg-muted/65",
+    estadoActivo === "BAJA" && "bg-muted/45 hover:bg-muted/65",
     registro === "ANULADO" &&
       "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/10",
     estadoOperativo === "MANTENIMIENTO" && "bg-amber-500/5 hover:bg-amber-500/10",
