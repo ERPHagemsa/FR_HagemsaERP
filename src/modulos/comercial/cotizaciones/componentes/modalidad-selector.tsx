@@ -52,7 +52,7 @@ export function ModalidadSelector({
         ) : null}
         {modalidades.map((m) => (
           <SelectItem key={m.id} value={m.id}>
-            {m.codigo} — {m.nombre}
+            {m.nombre}
           </SelectItem>
         ))}
       </SelectContent>
