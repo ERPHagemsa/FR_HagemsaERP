@@ -99,24 +99,14 @@ async function consultarConfiguracionGeneralActiva(
   });
   const baseUrl = URLS_SERVIDOR.configuracionGeneral.replace(/\/+$/, "");
   const url = `${baseUrl}/configuracion-general?${query}`;
-  console.debug("[flota-api] consultarConfiguracionGeneralActiva: url=", url);
   const accessToken = await obtenerAccessToken();
   const { controller, timeout } = crearAbortController(5000);
 
   try {
-    // Diagnostic: log whether we have an access token available for the server-side call.
-    try {
-      console.debug("[flota-api] consultarConfiguracionGeneralActiva: tieneAccessToken=", Boolean(accessToken));
-    } catch {}
-
     const headers: Record<string, string> = {};
     if (accessToken) {
       headers.Authorization = `Bearer ${accessToken}`;
-      // Also forward the access cookie: some ERP endpoints validate cookie session server-side.
       headers.Cookie = `hagemsa_access=${accessToken}`;
-      try {
-        console.debug("[flota-api] consultarConfiguracionGeneralActiva: enviando Cookie hagemsa_access");
-      } catch {}
     }
 
     const res = await fetch(url, {
@@ -132,32 +122,16 @@ async function consultarConfiguracionGeneralActiva(
       texto = "";
     }
 
-    if (!res.ok) {
-      console.error("[flota-api] consultarConfiguracionGeneralActiva fallo:", {
-        url,
-        status: res.status,
-        statusText: res.statusText,
-        body: texto,
-      });
-      return [];
-    }
+    if (!res.ok) return [];
 
     let json: PaginatedResponse<ConfiguracionGeneralResponse> | null = null;
     try {
       json = texto.length ? (JSON.parse(texto) as PaginatedResponse<ConfiguracionGeneralResponse>) : null;
-    } catch (e) {
-      console.error("[flota-api] consultarConfiguracionGeneralActiva: fallo parseando JSON", { url, texto });
+    } catch {
       return [];
     }
 
-    if (!json || !Array.isArray(json.datos) || json.datos.length === 0) {
-      console.warn("[flota-api] consultarConfiguracionGeneralActiva: respuesta vacia o datos no son array", {
-        url,
-        status: res.status,
-        bodyText: texto,
-      });
-      return [];
-    }
+    if (!json || !Array.isArray(json.datos) || json.datos.length === 0) return [];
 
     return json.datos;
   } catch {
@@ -174,17 +148,7 @@ export async function obtenerContratosDisponibles(): Promise<ContratoDisponibleF
   const cuentasPorId = new Map(
     cuentas.map((cuenta) => [cuenta.id, toReferenciaFlota(cuenta)]),
   );
-  try {
-    console.debug("[flota-api] obtenerContratosDisponibles: counts", {
-      contratos: contratos.length,
-      cuentas: cuentas.length,
-    });
-  } catch {}
-
   const mapped = contratos.map((contrato) => toContratoDisponibleFlota(contrato, cuentasPorId));
-  try {
-    console.debug("[flota-api] obtenerContratosDisponibles: mappedCount", mapped.length);
-  } catch {}
 
   return mapped;
 }
@@ -238,7 +202,6 @@ type ActivoApiResponse = {
 async function consultarActivos(): Promise<ActivoApiResponse[]> {
   const cfg = obtenerConfiguracionApi("activos");
   const url = `${cfg.baseUrl.replace(/\/+$/, "")}/activos`;
-  console.debug("[flota-api] consultarActivos: url=", url);
   const { controller, timeout } = crearAbortController(5000);
 
   try {
