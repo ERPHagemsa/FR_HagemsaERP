@@ -38,9 +38,11 @@ import {
   useRegistrarSocioDeNegocioMutation,
 } from "../servicios/socio-negocios-queries"
 import type {
+  CondicionLaboral,
   MaestroConfiguracionGeneralIntegracion,
   RegistrarPersonalRequest,
 } from "../tipos/socio-negocio"
+import { condicionesLaborales } from "../tipos/socio-negocio"
 
 const USUARIO_RESPONSABLE_ID = "admin"
 
@@ -286,6 +288,7 @@ export function SocioNegocioFormularioPersonal() {
     const cargoId = texto(formData, "cargo")
     const contratoId = texto(formData, "contrato")
     const cuentaId = texto(formData, "cuenta")
+    const condicionLaboral = texto(formData, "condicionLaboral") as CondicionLaboral
     const primerNombre = texto(formData, "primerNombre")
     const segundoNombre = texto(formData, "segundoNombre")
     const apellidoPaterno = texto(formData, "apellidoPaterno")
@@ -344,6 +347,7 @@ export function SocioNegocioFormularioPersonal() {
         cargoNombre: cargoMaestro.nombre,
         contratoId: contratoMaestro?.id,
         contratoNombre: contratoMaestro?.nombre,
+        condicionLaboral: condicionLaboral || "LABORANDO",
         cuentaId: cuentaMaestro?.id,
         cuentaNombre: cuentaMaestro?.nombre,
         usuarioId: USUARIO_RESPONSABLE_ID,
@@ -360,8 +364,8 @@ export function SocioNegocioFormularioPersonal() {
 
   return (
     <>
-      <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
-        <div className="border-b border-border px-5 py-4">
+      <section className="w-full rounded-xl border border-border/70 bg-card text-card-foreground">
+        <div className="border-b border-border/70 px-5 py-4">
           <div className="flex flex-col gap-1">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">Agregar personal</h2>
@@ -385,7 +389,7 @@ export function SocioNegocioFormularioPersonal() {
               ) : null}
 
               <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
-                <FieldSet className="rounded-lg border border-border p-4">
+                <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                   <FieldLegend>Identificacion</FieldLegend>
                   <FieldDescription>Documento del empleado.</FieldDescription>
                   <div className="grid gap-4 md:grid-cols-1">
@@ -401,7 +405,7 @@ export function SocioNegocioFormularioPersonal() {
                   </div>
                 </FieldSet>
 
-                <FieldSet className="rounded-lg border border-border p-4">
+                <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                   <FieldLegend>Datos personales</FieldLegend>
                   <FieldDescription>Nombre y datos de contacto del empleado.</FieldDescription>
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -479,10 +483,10 @@ export function SocioNegocioFormularioPersonal() {
                 </FieldSet>
               </div>
 
-              <FieldSet className="rounded-lg border border-border p-4">
+              <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                 <FieldLegend>Datos laborales</FieldLegend>
                 <FieldDescription>Estructura organizacional donde labora el empleado.</FieldDescription>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                   {distritos.length > 0 ? (
                     <Field>
                       <FieldLabel htmlFor="distrito">Distrito *</FieldLabel>
@@ -607,10 +611,28 @@ export function SocioNegocioFormularioPersonal() {
                     />
                   </Field>
 
+                  <Field>
+                    <FieldLabel htmlFor="condicionLaboral">Condicion laboral</FieldLabel>
+                    <Select name="condicionLaboral" defaultValue="LABORANDO">
+                      <SelectTrigger id="condicionLaboral" className="w-full">
+                        <SelectValue placeholder="Selecciona condicion" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {condicionesLaborales.map((condicion) => (
+                            <SelectItem key={condicion.valor} value={condicion.valor}>
+                              {condicion.etiqueta}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
                 </div>
               </FieldSet>
 
-              <FieldSet className="rounded-lg border border-border p-4">
+              <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                 <FieldLegend>Relacion contractual</FieldLegend>
                 <FieldDescription>
                   Selecciona la cuenta y el ultimo contrato asociado que corresponda.

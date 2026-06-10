@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -16,7 +17,7 @@ import {
   armarPayloadBorrador,
   validarBorrador,
 } from "../servicios/cotizaciones-editor.utils";
-import { useActualizarBorradorMutation, useConsultarCotizacion } from "../servicios/cotizaciones-queries";
+import { useActualizarBorradorMutation } from "../servicios/cotizaciones-queries";
 import { EditorBorradorCampos } from "./editor-borrador-campos";
 
 type Props = {
@@ -24,6 +25,8 @@ type Props = {
 };
 
 export function CotizacionEditor({ cotizacion }: Props) {
+  const router = useRouter();
+
   // Encontrar la version vigente editable
   const versionVigente = cotizacion.versiones.find(
     (v) => v.numeroVersion === cotizacion.versionVigente && !v.congelada
@@ -32,20 +35,18 @@ export function CotizacionEditor({ cotizacion }: Props) {
   // Inicializar draft desde la version vigente (o vacio si no existe aun)
   const [draft, setDraft] = React.useState<DraftBorrador>(() => {
     if (versionVigente) return derivarDraft(versionVigente);
-    return { secciones: [], lineasSinSeccion: [], standbySinSeccion: [] };
+    return { moneda: "PEN", secciones: [], standbys: [], leadTimes: [] };
   });
+
+  // Snapshot del estado persistido al montar, para el indicador dirty mientras
+  // se edita. Al guardar se navega al detalle (no se re-sella in situ).
+  const [snapshotGuardado] = React.useState(() => JSON.stringify(draft));
+  const sucio = snapshotGuardado !== JSON.stringify(draft);
 
   const [erroresCampo, setErroresCampo] = React.useState<Record<string, string>>({});
   const [guardando, setGuardando] = React.useState(false);
 
-  // useConsultarCotizacion para el refetch post-204
-  const { refetch } = useConsultarCotizacion(cotizacion.id);
   const guardarMutation = useActualizarBorradorMutation(cotizacion.id);
-
-  // Draft se inicializa al montar y se re-deriva explicitamente en onGuardar
-  // tras el refetch exitoso. No se usa useEffect para sincronizacion adicional
-  // porque este componente vive bajo un Server Component que lo re-monta si la
-  // ruta cambia.
 
   async function onGuardar() {
     setErroresCampo({});
@@ -64,20 +65,13 @@ export function CotizacionEditor({ cotizacion }: Props) {
 
     try {
       await guardarMutation.mutateAsync(payload);
-      // 204 exitoso: refetch para traer totales recalculados e idSeccion re-asignados
-      const { data: cotizacionActualizada } = await refetch();
-      if (cotizacionActualizada) {
-        const vActualizada = cotizacionActualizada.versiones.find(
-          (v) => v.numeroVersion === cotizacionActualizada.versionVigente && !v.congelada
-        );
-        if (vActualizada) {
-          setDraft(derivarDraft(vActualizada));
-        }
-      }
       toast.success("Borrador guardado correctamente.");
+      // 204 exitoso: volvemos al detalle, que como RSC re-fetchea la cotizacion
+      // con totales recalculados e idSeccion reasignados. No reseteamos guardando:
+      // navegamos fuera y el componente se desmonta.
+      router.push(`/comercial/cotizaciones/${cotizacion.id}`);
     } catch (err) {
       aplicarErrorApi(err);
-    } finally {
       setGuardando(false);
     }
   }
@@ -114,6 +108,7 @@ export function CotizacionEditor({ cotizacion }: Props) {
       setDraft={setDraft}
       erroresCampo={erroresCampo}
       guardando={guardando}
+      sucio={sucio}
       onGuardar={() => void onGuardar()}
       textoFooter="El borrador reemplaza el contenido anterior al guardarse."
       textoBoton="Guardar borrador"

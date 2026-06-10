@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { type FormEvent, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import {
@@ -15,10 +15,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/compartido/componentes/ui/alert-dialog"
-import {
-  Avatar,
-  AvatarFallback,
-} from "@/compartido/componentes/ui/avatar"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
@@ -26,6 +22,15 @@ import {
   FieldDescription,
   FieldLabel,
 } from "@/compartido/componentes/ui/field"
+import { Input } from "@/compartido/componentes/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
 import { cn } from "@/compartido/utilidades/utils"
@@ -34,13 +39,21 @@ import {
   ArchiveArrowDownIcon,
   ArrowLeft01Icon,
   ChartUpIcon,
+  Edit02Icon,
 } from "@hugeicons/core-free-icons"
 
 import {
   useDarDeBajaSocioDeNegocioMutation,
+  useModificarSocioDeNegocioMutation,
   useSocioDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
-import type { SocioDeNegocioResponse } from "../tipos/socio-negocio"
+import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
+import { condicionesLaborales } from "../tipos/socio-negocio"
+import type {
+  CondicionLaboral,
+  ModificarSocioDeNegocioRequest,
+  SocioDeNegocioResponse,
+} from "../tipos/socio-negocio"
 
 function formatearFecha(fecha?: string | Date | null) {
   if (!fecha) return "-"
@@ -55,11 +68,16 @@ function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
 }
 
-function iniciales(nombre: string) {
-  const partes = nombre.trim().split(/\s+/).filter(Boolean)
-  if (partes.length === 0) return "SN"
-  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase()
-  return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase()
+function obtenerTextoFormulario(formData: FormData, name: string) {
+  return String(formData.get(name) ?? "").trim()
+}
+
+function etiquetaCondicionLaboral(condicion?: CondicionLaboral | null) {
+  return (
+    condicionesLaborales.find((item) => item.valor === condicion)?.etiqueta ??
+    condicion ??
+    "-"
+  )
 }
 
 function DatoVer({
@@ -70,7 +88,7 @@ function DatoVer({
   value?: string | number | null
 }) {
   return (
-    <div>
+    <div className="min-w-0 rounded-lg bg-muted/35 p-3">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 break-words">{value || "-"}</dd>
     </div>
@@ -103,6 +121,7 @@ function EstadoResumen({ socio }: { socio: SocioDeNegocioResponse }) {
 
 export function SocioNegocioDetalleVista({ id }: { id: string }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const socioQuery = useSocioDeNegocioQuery(id)
   const socio = socioQuery.data
   const [motivo, setMotivo] = useState("")
@@ -114,9 +133,17 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       void socioQuery.refetch()
     },
   })
+  const modificarMutation = useModificarSocioDeNegocioMutation(id, {
+    onSuccess: () => {
+      void socioQuery.refetch()
+    },
+  })
 
   const puedeDarBaja =
     socio?.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
+  const modoEdicion =
+    searchParams.get("modo") === "editar" && socio?.estadoRegistro !== "ANULADO"
+  const formEditarId = `editar-socio-${id}`
 
   async function darDeBaja() {
     if (!motivo.trim() || !socio) return
@@ -132,6 +159,39 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       setMensaje(`${socio.razonSocial} fue dado de baja.`)
       setMotivo("")
       setDialogoBajaAbierto(false)
+    } catch (err) {
+      setError(obtenerMensajeError(err))
+    }
+  }
+
+  async function guardarCambios(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!socio) return
+
+    const formData = new FormData(event.currentTarget)
+    const payload: ModificarSocioDeNegocioRequest = {
+      razonSocial: obtenerTextoFormulario(formData, "razonSocial"),
+      nombreComercial: obtenerTextoFormulario(formData, "nombreComercial"),
+      direccion: obtenerTextoFormulario(formData, "direccion"),
+      contacto: obtenerTextoFormulario(formData, "contacto"),
+      correo: obtenerTextoFormulario(formData, "correo"),
+      numeroCelular: obtenerTextoFormulario(formData, "numeroCelular"),
+      usuarioId: "admin",
+    }
+
+    if (socio.tipo === "PERSONAL") {
+      payload.condicionLaboral = obtenerTextoFormulario(
+        formData,
+        "condicionLaboral",
+      ) as CondicionLaboral
+    }
+
+    try {
+      setError(null)
+      setMensaje(null)
+      await modificarMutation.mutateAsync(payload)
+      setMensaje(`${socio.razonSocial} fue editado.`)
+      router.replace(`/socio-negocios/${id}`)
     } catch (err) {
       setError(obtenerMensajeError(err))
     }
@@ -189,80 +249,214 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
 
           {socio ? (
             <>
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex min-w-0 items-center gap-4">
-                  <Avatar size="lg" className="rounded-lg after:rounded-lg">
-                    <AvatarFallback className="rounded-lg bg-primary/10 font-medium text-primary">
-                      {iniciales(socio.razonSocial)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <h1
-                        className={cn(
-                          "break-words text-2xl font-semibold tracking-tight",
-                          socio.estadoRegistro === "ANULADO" &&
-                            "text-muted-foreground line-through",
-                        )}
-                      >
-                        {socio.razonSocial}
-                      </h1>
-                      <EstadoResumen socio={socio} />
-                    </div>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {socio.codigoInternoSap || "Sin codigo SAP"} · {socio.numeroDocumento}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => router.back()}>
-                    <HugeiconsIcon
-                      data-icon="inline-start"
-                      icon={ArrowLeft01Icon}
-                      strokeWidth={2}
-                    />
-                    Volver
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/socio-negocios/historial/${id}`}>
-                      <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
-                      Auditar
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={!puedeDarBaja || bajaMutation.isPending}
-                    onClick={() => setDialogoBajaAbierto(true)}
+              <SocioNegocioPageHeader
+                title={
+                  <span
+                    className={cn(
+                      socio.estadoRegistro === "ANULADO" &&
+                        "text-muted-foreground line-through",
+                    )}
                   >
-                    <HugeiconsIcon
-                      data-icon="inline-start"
-                      icon={ArchiveArrowDownIcon}
-                      strokeWidth={2}
-                    />
-                    Dar de baja
-                  </Button>
-                </div>
-              </div>
+                    {socio.razonSocial}
+                  </span>
+                }
+                description={`${socio.codigoInternoSap || "Sin codigo SAP"} · Documento ${socio.numeroDocumento}`}
+                meta={<EstadoResumen socio={socio} />}
+                actions={
+                  <>
+                    {modoEdicion ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.replace(`/socio-negocios/${id}`)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="submit"
+                          form={formEditarId}
+                          size="sm"
+                          disabled={modificarMutation.isPending}
+                        >
+                          {modificarMutation.isPending ? "Guardando..." : "Guardar cambios"}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button variant="outline" size="sm" onClick={() => router.back()}>
+                          <HugeiconsIcon
+                            data-icon="inline-start"
+                            icon={ArrowLeft01Icon}
+                            strokeWidth={2}
+                          />
+                          Volver
+                        </Button>
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/socio-negocios/${id}?modo=editar`}>
+                            <HugeiconsIcon
+                              data-icon="inline-start"
+                              icon={Edit02Icon}
+                              strokeWidth={2}
+                            />
+                            Editar
+                          </Link>
+                        </Button>
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/socio-negocios/historial/${id}`}>
+                            <HugeiconsIcon
+                              data-icon="inline-start"
+                              icon={ChartUpIcon}
+                              strokeWidth={2}
+                            />
+                            Auditar
+                          </Link>
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          disabled={!puedeDarBaja || bajaMutation.isPending}
+                          onClick={() => setDialogoBajaAbierto(true)}
+                        >
+                          <HugeiconsIcon
+                            data-icon="inline-start"
+                            icon={ArchiveArrowDownIcon}
+                            strokeWidth={2}
+                          />
+                          Dar de baja
+                        </Button>
+                      </>
+                    )}
+                  </>
+                }
+              />
 
-              <dl className="grid grid-cols-1 gap-x-8 gap-y-4 rounded-lg border p-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                <DatoVer label="Nombre comercial" value={socio.nombreComercial} />
-                <DatoVer label="Tipo" value={socio.tipo} />
-                <DatoVer label="Count" value={socio.count} />
-                <DatoVer label="Direccion" value={socio.direccion} />
-                <DatoVer label="Contacto" value={socio.contacto} />
-                <DatoVer label="Correo" value={socio.correo} />
-                <DatoVer label="Celular" value={socio.numeroCelular} />
-                <DatoVer label="Departamento" value={socio.areaNombre || socio.area} />
-                <DatoVer label="Cargo" value={socio.cargoNombre || socio.cargo} />
-                <DatoVer label="Cuenta" value={socio.cuentaNombre || socio.cuenta} />
-                <DatoVer label="Creacion" value={formatearFecha(socio.fechaCreacion)} />
-                <DatoVer label="Usuario creacion" value={socio.usuarioCreacion} />
-                <DatoVer label="Fecha baja" value={formatearFecha(socio.fechaBaja)} />
-                <DatoVer label="Motivo baja" value={socio.motivoBaja} />
-                <DatoVer label="ID" value={socio.id} />
-              </dl>
+              {modoEdicion ? (
+                <form
+                  id={formEditarId}
+                  className="grid gap-5"
+                  onSubmit={(event) => void guardarCambios(event)}
+                >
+                  <section className="rounded-xl bg-muted/30 p-4">
+                    <h2 className="text-base font-semibold">Datos que no se modifican</h2>
+                    <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
+                      <DatoVer label="Tipo" value={socio.tipo} />
+                      <DatoVer label="Documento" value={socio.numeroDocumento} />
+                      <DatoVer label="Codigo SAP" value={socio.codigoInternoSap || "-"} />
+                    </div>
+                  </section>
+
+                  <section className="grid gap-4 rounded-xl bg-card p-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <h2 className="text-base font-semibold">Datos editables</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Actualiza solo la informacion operativa del socio.
+                      </p>
+                    </div>
+                    <Field className="md:col-span-2">
+                      <FieldLabel htmlFor={`razonSocial-${id}`}>Razon social</FieldLabel>
+                      <Input
+                        id={`razonSocial-${id}`}
+                        name="razonSocial"
+                        defaultValue={socio.razonSocial}
+                        required
+                      />
+                    </Field>
+                    <Field className="md:col-span-2">
+                      <FieldLabel htmlFor={`nombreComercial-${id}`}>Nombre comercial</FieldLabel>
+                      <Input
+                        id={`nombreComercial-${id}`}
+                        name="nombreComercial"
+                        defaultValue={socio.nombreComercial}
+                        required
+                      />
+                    </Field>
+                    <Field className="md:col-span-2">
+                      <FieldLabel htmlFor={`direccion-${id}`}>Direccion</FieldLabel>
+                      <Input
+                        id={`direccion-${id}`}
+                        name="direccion"
+                        defaultValue={socio.direccion}
+                        required
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`contacto-${id}`}>Contacto</FieldLabel>
+                      <Input
+                        id={`contacto-${id}`}
+                        name="contacto"
+                        defaultValue={socio.contacto}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`correo-${id}`}>Correo</FieldLabel>
+                      <Input
+                        id={`correo-${id}`}
+                        name="correo"
+                        type="email"
+                        defaultValue={socio.correo}
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor={`numeroCelular-${id}`}>Celular</FieldLabel>
+                      <Input
+                        id={`numeroCelular-${id}`}
+                        name="numeroCelular"
+                        defaultValue={socio.numeroCelular}
+                      />
+                    </Field>
+                    {socio.tipo === "PERSONAL" ? (
+                      <Field>
+                        <FieldLabel htmlFor={`condicionLaboral-${id}`}>
+                          Condicion laboral
+                        </FieldLabel>
+                        <Select
+                          name="condicionLaboral"
+                          defaultValue={socio.condicionLaboral ?? "LABORANDO"}
+                        >
+                          <SelectTrigger id={`condicionLaboral-${id}`} className="w-full">
+                            <SelectValue placeholder="Selecciona condicion" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {condicionesLaborales.map((condicion) => (
+                                <SelectItem key={condicion.valor} value={condicion.valor}>
+                                  {condicion.etiqueta}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    ) : null}
+                  </section>
+                </form>
+              ) : (
+                <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                  <DatoVer label="Nombre comercial" value={socio.nombreComercial} />
+                  <DatoVer label="Tipo" value={socio.tipo} />
+                  {socio.tipo === "PERSONAL" ? (
+                    <DatoVer
+                      label="Condicion laboral"
+                      value={etiquetaCondicionLaboral(socio.condicionLaboral)}
+                    />
+                  ) : null}
+                  <DatoVer label="Count" value={socio.count} />
+                  <DatoVer label="Direccion" value={socio.direccion} />
+                  <DatoVer label="Contacto" value={socio.contacto} />
+                  <DatoVer label="Correo" value={socio.correo} />
+                  <DatoVer label="Celular" value={socio.numeroCelular} />
+                  <DatoVer label="Departamento" value={socio.areaNombre || socio.area} />
+                  <DatoVer label="Cargo" value={socio.cargoNombre || socio.cargo} />
+                  <DatoVer label="Cuenta" value={socio.cuentaNombre || socio.cuenta} />
+                  <DatoVer label="Creacion" value={formatearFecha(socio.fechaCreacion)} />
+                  <DatoVer label="Usuario creacion" value={socio.usuarioCreacion} />
+                  <DatoVer label="Fecha baja" value={formatearFecha(socio.fechaBaja)} />
+                  <DatoVer label="Motivo baja" value={socio.motivoBaja} />
+                  <DatoVer label="ID" value={socio.id} />
+                </dl>
+              )}
 
               {!puedeDarBaja ? (
                 <Alert>

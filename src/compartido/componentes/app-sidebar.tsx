@@ -62,7 +62,7 @@ const data = {
         { title: "Listado de activos", url: "/activos/inventario" },
         { title: "Inventario fisico", url: "/activos/inventario-fisico" },
         { title: "Nuevo activo", url: "/activos/nuevo" },
-        { title: "Nuevo acople", url: "/activos/nuevo-acople" },
+        { title: "Replaqueo", url: "/activos/nuevo-acople" },
         { title: "Estados", url: "#" },
         { title: "Documentos", url: "#" },
       ],
@@ -96,6 +96,8 @@ const data = {
         { title: "Cotizaciones", url: "/comercial/cotizaciones" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
+        { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
+        { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
       ],
     },
     {

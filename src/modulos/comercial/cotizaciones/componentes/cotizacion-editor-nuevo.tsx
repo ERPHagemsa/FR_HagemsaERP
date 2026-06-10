@@ -26,10 +26,7 @@ type Props = {
 };
 
 function contarLineas(draft: DraftBorrador): number {
-  return (
-    draft.lineasSinSeccion.length +
-    draft.secciones.reduce((acc, s) => acc + s.lineas.length, 0)
-  );
+  return draft.secciones.reduce((acc, s) => acc + s.lineas.length, 0);
 }
 
 // Editor en MODO CREACION: arma un borrador en memoria y lo persiste con el
@@ -39,9 +36,10 @@ function contarLineas(draft: DraftBorrador): number {
 export function CotizacionEditorNuevo({ solicitudClienteId }: Props) {
   const router = useRouter();
   const [draft, setDraft] = React.useState<DraftBorrador>({
+    moneda: "PEN",
     secciones: [],
-    lineasSinSeccion: [],
-    standbySinSeccion: [],
+    standbys: [],
+    leadTimes: [],
   });
   const [erroresCampo, setErroresCampo] = React.useState<Record<string, string>>({});
   const [guardando, setGuardando] = React.useState(false);
@@ -75,7 +73,9 @@ export function CotizacionEditorNuevo({ solicitudClienteId }: Props) {
       });
       toast.success("Cotizacion creada en BORRADOR.");
       // No reseteamos guardando: navegamos fuera y el componente se desmonta.
-      router.push(`/comercial/cotizaciones/${idCotizacion}/editar`);
+      // Al crear vamos al DETALLE (no al editor): el alta ya quedó persistida;
+      // editar el borrador es una acción posterior y explícita desde el detalle.
+      router.push(`/comercial/cotizaciones/${idCotizacion}`);
     } catch (err) {
       aplicarErrorApi(err);
       setGuardando(false);

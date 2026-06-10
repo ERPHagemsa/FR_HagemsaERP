@@ -61,9 +61,14 @@ export function CotizacionAcciones({ cotizacion }: Props) {
   const { id, estado, versionVigente, versiones } = cotizacion;
   const acciones = accionesPermitidas(estado);
 
-  // editar ademas exige version vigente no congelada
+  // editar/enviar exigen version vigente NO congelada (es la editable).
+  // nuevaVersion exige lo contrario: solo se ramifica una version ya enviada
+  // (congelada). En EN_REVISION la vigente es un borrador sin enviar -> no se
+  // habilita (ya hay una version editable; se edita esa, no se crea otra).
   const versionActual = versiones.find((v) => v.numeroVersion === versionVigente);
   const puedeEditar = acciones.editar && versionActual !== undefined && !versionActual.congelada;
+  const puedeNuevaVersion =
+    acciones.nuevaVersion && versionActual !== undefined && versionActual.congelada;
 
   const motivoTerminal = obtenerMotivoTerminal(estado);
 
@@ -108,8 +113,8 @@ export function CotizacionAcciones({ cotizacion }: Props) {
           />
         )}
 
-        {/* Nueva version */}
-        {acciones.nuevaVersion ? (
+        {/* Nueva version: solo desde una version ya enviada (congelada) */}
+        {puedeNuevaVersion ? (
           <DialogNuevaVersion
             idCotizacion={id}
             onExito={() => alExito("Nueva version creada correctamente")}
@@ -118,7 +123,12 @@ export function CotizacionAcciones({ cotizacion }: Props) {
           <AccionBotonDeshabilitado
             label="Nueva version"
             icono={<GitBranch data-icon="inline-start" />}
-            tooltip={motivoTerminal ?? "No se puede crear una nueva version en este estado"}
+            tooltip={
+              motivoTerminal ??
+              (versionActual !== undefined && !versionActual.congelada
+                ? "La version vigente aun no se ha enviado. Enviala antes de crear una nueva version."
+                : "No se puede crear una nueva version en este estado")
+            }
             variant="outline"
           />
         )}

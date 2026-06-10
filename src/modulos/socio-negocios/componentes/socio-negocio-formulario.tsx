@@ -15,6 +15,7 @@ import { Add01Icon } from "@hugeicons/core-free-icons"
 import { SocioNegocioFormularioCliente } from "./socio-negocio-formulario-cliente"
 import { SocioNegocioFormularioProveedor } from "./socio-negocio-formulario-proveedor"
 import { SocioNegocioFormularioPersonal } from "./socio-negocio-formulario-personal"
+import { SocioNegocioPageHeader } from "./socio-negocio-page-header"
 import type { TipoSocioDeNegocio } from "../tipos/socio-negocio"
 
 type SocioNegocioFormularioProps = {
@@ -56,29 +57,29 @@ export function SocioNegocioFormulario({ tipoInicial }: SocioNegocioFormularioPr
 
   return (
     <div className="flex w-full flex-col gap-5">
-      <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-semibold tracking-normal">
-          Nuevo socio de negocio
-        </h1>
-        <div className="flex w-full justify-end gap-3 sm:w-auto">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancelar
-          </Button>
-          <Button type="submit" form={formId}>
-            <HugeiconsIcon
-              data-icon="inline-start"
-              icon={Add01Icon}
-              strokeWidth={2}
-            />
-            {etiquetaAgregar}
-          </Button>
-        </div>
-      </div>
+      <SocioNegocioPageHeader
+        title="Nuevo socio de negocio"
+        actions={
+          <>
+            <Button type="button" variant="outline" onClick={() => router.back()}>
+              Cancelar
+            </Button>
+            <Button type="submit" form={formId}>
+              <HugeiconsIcon
+                data-icon="inline-start"
+                icon={Add01Icon}
+                strokeWidth={2}
+              />
+              {etiquetaAgregar}
+            </Button>
+          </>
+        }
+      />
 
-      <section className="rounded-lg border border-border bg-card p-4 text-card-foreground">
+      <section className="rounded-xl bg-muted/35 p-4 text-foreground">
         <div className="mb-4 flex flex-col gap-1">
           <h2 className="text-base font-semibold">Tipo de socio</h2>
-          <p className="text-sm text-muted-foreground">Selecciona una opcion para completar el registro.</p>
+          <p className="text-sm text-muted-foreground">Elige el tipo de registro que vas a crear.</p>
         </div>
 
         <ToggleGroup
@@ -101,8 +102,8 @@ export function SocioNegocioFormulario({ tipoInicial }: SocioNegocioFormularioPr
                 key={opcion.value}
                 value={opcion.value}
                 className={cn(
-                  "h-auto min-h-20 justify-start whitespace-normal rounded-lg p-4 text-left",
-                  seleccionado && "border-primary bg-muted",
+                  "h-auto min-h-20 justify-start whitespace-normal rounded-lg bg-background p-4 text-left shadow-xs",
+                  seleccionado && "border-primary bg-primary/5",
                 )}
               >
                 <span className="flex flex-col gap-1">

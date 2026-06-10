@@ -55,11 +55,11 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <section className="flex flex-col gap-4 rounded-xl border border-border bg-card px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <div>
+      <div className="flex w-full flex-col gap-5">
+        <section className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
             <p className="text-sm font-medium text-muted-foreground">{activo.codigo}</p>
-            <h1 className="text-2xl font-semibold">{activo.descripcion}</h1>
+            <h1 className="text-2xl font-semibold tracking-normal">{activo.descripcion}</h1>
             <p className="text-sm text-muted-foreground">{activo.ubicacion}</p>
             <p className="mt-2 max-w-full truncate font-mono text-xs text-muted-foreground" title={String(activo.id)}>
               ID inventario: {activo.id}

@@ -122,6 +122,18 @@ function obtenerErrorDialogo(error: unknown): ErrorDialogo {
   }
 }
 
+function esSapNoEncontrado(error: unknown) {
+  return (
+    error instanceof ApiError &&
+    error.status === 404 &&
+    error.codigo === "COMUN_RECURSO_NO_ENCONTRADO"
+  )
+}
+
+function esMensajeSapNoEncontrado(mensaje: string | null) {
+  return mensaje?.startsWith("No se encontro") ?? false
+}
+
 export function SocioNegocioFormularioProveedor() {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
@@ -244,6 +256,13 @@ export function SocioNegocioFormularioProveedor() {
       )
       setSapMensaje("Datos encontrados en SAP como proveedor. Revisa y confirma el registro.")
     } catch (err: unknown) {
+      if (esSapNoEncontrado(err)) {
+        setSapMensaje(
+          "No se encontro este proveedor en SAP. Puedes completar el formulario y el backend generara el codigo.",
+        )
+        return
+      }
+
       setErrorDialogo(obtenerErrorDialogo(err))
     } finally {
       setBuscandoSap(false)
@@ -298,8 +317,8 @@ export function SocioNegocioFormularioProveedor() {
 
   return (
     <>
-      <section className="w-full rounded-xl border border-border bg-card text-card-foreground">
-        <div className="border-b border-border px-5 py-4">
+      <section className="w-full rounded-xl border border-border/70 bg-card text-card-foreground">
+        <div className="border-b border-border/70 px-5 py-4">
           <div className="flex flex-col gap-1">
             <div className="min-w-0">
               <h2 className="text-lg font-semibold">Agregar proveedor</h2>
@@ -312,8 +331,22 @@ export function SocioNegocioFormularioProveedor() {
         <div className="px-5 py-5">
           <form id="agregar-proveedor" ref={formRef} onSubmit={(event) => void registrar(event)}>
             <FieldGroup>
+              {sapMensaje ? (
+                <Alert
+                  variant={esMensajeSapNoEncontrado(sapMensaje) ? "destructive" : "default"}
+                  className={
+                    esMensajeSapNoEncontrado(sapMensaje)
+                      ? "border-destructive/60 bg-destructive/10"
+                      : undefined
+                  }
+                >
+                  <AlertTitle>Consulta SAP</AlertTitle>
+                  <AlertDescription>{sapMensaje}</AlertDescription>
+                </Alert>
+              ) : null}
+
               <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
-                <FieldSet className="rounded-lg border border-border p-4">
+                <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                   <FieldLegend>Identificacion</FieldLegend>
                   <FieldDescription>
                     Ingresa el RUC. El backend consultara SAP y registrara el proveedor localmente.
@@ -360,7 +393,7 @@ export function SocioNegocioFormularioProveedor() {
                   </div>
                 </FieldSet>
 
-                <FieldSet className="rounded-lg border border-border p-4">
+                <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                   <FieldLegend>Datos comerciales</FieldLegend>
                   <FieldDescription>
                     Completa la razon social. SAP puede precargar los datos si encuentra el RUC.
@@ -489,7 +522,7 @@ export function SocioNegocioFormularioProveedor() {
                 </FieldSet>
               </div>
 
-              <FieldSet className="rounded-lg border border-border p-4">
+              <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                 <FieldLegend>Clasificación interna</FieldLegend>
                 <FieldDescription>
                   Datos internos opcionales para asignar el proveedor a un área responsable.
@@ -540,13 +573,6 @@ export function SocioNegocioFormularioProveedor() {
                   "La operacion guardara el registro con fecha y usuario responsable."
                 )}
               </p>
-
-              {sapMensaje ? (
-                <Alert>
-                  <AlertTitle>Consulta SAP</AlertTitle>
-                  <AlertDescription>{sapMensaje}</AlertDescription>
-                </Alert>
-              ) : null}
 
               {registrarMutation.isSuccess ? (
                 <Alert>

@@ -141,7 +141,7 @@ export function ActivoFormulario({
     );
   const [estadoActivoGrupo, setEstadoActivoGrupo] = React.useState<
     "ACTIVO" | "BAJA"
-  >(activo?.estadoActivo === "ACTIVO" ? "ACTIVO" : "BAJA");
+  >(!activo || activo.estadoActivo === "ACTIVO" ? "ACTIVO" : "BAJA");
   const [causaBaja, setCausaBaja] = React.useState<
     "SINIESTRADO" | "INACTIVO"
   >(activo?.estadoActivo === "SINIESTRADO" ? "SINIESTRADO" : "INACTIVO");
@@ -995,23 +995,13 @@ export function ActivoFormulario({
                     value={estadoActivoGrupo === "ACTIVO" ? "ACTIVO" : causaBaja}
                     readOnly
                   />
-                  <label className="grid gap-2">
-                    <span className="text-sm font-medium text-foreground">
-                      Estado activo <span className="text-destructive">*</span>
-                    </span>
-                    <select
-                      value={estadoActivoGrupo}
-                      required
-                      className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-                      onChange={(event) => {
-                        setEstadoActivoGrupo(event.target.value as "ACTIVO" | "BAJA");
-                        actualizarResumen();
-                      }}
-                    >
-                      <option value="ACTIVO">Activo</option>
-                      <option value="BAJA">Baja</option>
-                    </select>
-                  </label>
+                  <EstadoActivoSelector
+                    estado={estadoActivoGrupo}
+                    onChange={(value) => {
+                      setEstadoActivoGrupo(value);
+                      actualizarResumen();
+                    }}
+                  />
                 </div>
                 {estadoActivoGrupo === "BAJA" ? (
                   <div className="grid gap-4 pt-4 md:grid-cols-2">
@@ -1713,6 +1703,40 @@ function TipoTanqueSelector({
   );
 }
 
+function EstadoActivoSelector({
+  estado,
+  onChange,
+}: {
+  estado: "ACTIVO" | "BAJA";
+  onChange: (estado: "ACTIVO" | "BAJA") => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label>
+        Estado activo <span className="text-destructive">*</span>
+      </Label>
+      <div className="grid h-9 grid-cols-2 rounded-lg border border-input bg-background p-0.5">
+        {[
+          { value: "ACTIVO", label: "Activo" },
+          { value: "BAJA", label: "Baja" },
+        ].map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            onClick={() => onChange(option.value as "ACTIVO" | "BAJA")}
+            className={cn(
+              "rounded-md px-3 text-sm font-medium text-muted-foreground transition",
+              estado === option.value && "bg-primary text-primary-foreground"
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function UnidadTanqueDisplay({ tipoTanque }: { tipoTanque: TipoTanqueActivo }) {
   const unidad = tipoTanque === "UREA" ? "Litros" : "Galones";
 
@@ -1843,14 +1867,14 @@ function construirMotivoConfiguracionHistorica(
   const carroceriaNueva = etiquetaValorHistorico(nuevo.vehiculo?.carroceria);
 
   if (tipoCambio === "CAMBIO_PLACA") {
-    return `Replaqueo registrado desde nuevo acople: ${placaAnterior} -> ${placaNueva}.`;
+    return `Replaqueo registrado: ${placaAnterior} -> ${placaNueva}.`;
   }
 
   if (tipoCambio === "CAMBIO_CARROCERIA") {
-    return `Cambio de carroceria registrado desde nuevo acople: ${carroceriaAnterior} -> ${carroceriaNueva}.`;
+    return `Cambio de carroceria registrado desde replaqueo: ${carroceriaAnterior} -> ${carroceriaNueva}.`;
   }
 
-  return "Nuevo acople registrado desde activo anulado.";
+  return "Replaqueo registrado desde unidad de baja.";
 }
 
 function normalizarValorHistorico(value: unknown) {

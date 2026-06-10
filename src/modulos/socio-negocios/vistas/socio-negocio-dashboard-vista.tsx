@@ -52,8 +52,11 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table"
 
+import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
 import { useResumenSociosDeNegocioQuery } from "../servicios/socio-negocios-queries"
+import { condicionesLaborales } from "../tipos/socio-negocio"
 import type {
+  CondicionLaboral,
   EstadoRegistro,
   EstadoSocioDeNegocio,
   ResumenSociosDeNegocioResponse,
@@ -98,6 +101,14 @@ function formatearFecha(fecha?: string) {
   const valor = new Date(fecha)
   if (Number.isNaN(valor.getTime())) return fecha
   return new Intl.DateTimeFormat("es-PE", { dateStyle: "medium" }).format(valor)
+}
+
+function etiquetaCondicionLaboral(condicion?: CondicionLaboral | null) {
+  return (
+    condicionesLaborales.find((item) => item.valor === condicion)?.etiqueta ??
+    condicion ??
+    "-"
+  )
 }
 
 function totalPorEstado(
@@ -181,7 +192,7 @@ function MetricCard({
   value: number
 }) {
   return (
-    <Card className="border-border shadow-sm">
+    <Card className="border-border/60 bg-muted/25 shadow-none">
       <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
         <div className="min-w-0">
           <CardDescription className="text-xs font-medium uppercase tracking-[0.08em]">
@@ -191,7 +202,7 @@ function MetricCard({
             {loading ? "-" : value}
           </CardTitle>
         </div>
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border/60">
           <HugeiconsIcon icon={icon} strokeWidth={2} />
         </span>
       </CardHeader>
@@ -214,7 +225,7 @@ function ActionCard({
   title: string
 }) {
   return (
-    <Card className="border-border shadow-sm">
+    <Card className="border-border/60 shadow-none">
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -263,6 +274,7 @@ function TablaRecientes({
           <TableRow className="bg-muted/70 hover:bg-muted/70">
             <TableHead>Socio</TableHead>
             <TableHead>Tipo</TableHead>
+            <TableHead>Condicion laboral</TableHead>
             <TableHead>Documento</TableHead>
             <TableHead>Referencia</TableHead>
             <TableHead>Estado</TableHead>
@@ -282,6 +294,11 @@ function TablaRecientes({
               </TableCell>
               <TableCell>
                 <Badge variant="outline">{socio.tipo}</Badge>
+              </TableCell>
+              <TableCell>
+                {socio.tipo === "PERSONAL"
+                  ? etiquetaCondicionLaboral(socio.condicionLaboral)
+                  : "-"}
               </TableCell>
               <TableCell>{socio.numeroDocumento}</TableCell>
               <TableCell>
@@ -336,6 +353,26 @@ export function SocioNegocioDashboardVista() {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
+          <SocioNegocioPageHeader
+            title="Socio de negocio"
+            actions={
+              <>
+                <Button asChild variant="outline">
+                  <Link href="/socio-negocios/listar">
+                    <HugeiconsIcon data-icon="inline-start" icon={UserGroupIcon} strokeWidth={2} />
+                    Listar
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/socio-negocios/nuevo?tipo=CLIENTE">
+                    <HugeiconsIcon data-icon="inline-start" icon={Add01Icon} strokeWidth={2} />
+                    Nuevo
+                  </Link>
+                </Button>
+              </>
+            }
+          />
+
           {resumenQuery.error ? (
             <Alert variant="destructive">
               <AlertTitle>Error de API</AlertTitle>
@@ -400,7 +437,7 @@ export function SocioNegocioDashboardVista() {
               </section>
 
               <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-                <Card className="border-border shadow-sm">
+                <Card className="border-border/60 shadow-none">
                   <CardHeader>
                     <CardTitle>Distribucion por tipo</CardTitle>
                     <CardDescription>Composicion actual del maestro.</CardDescription>
@@ -440,7 +477,7 @@ export function SocioNegocioDashboardVista() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-border shadow-sm">
+                <Card className="border-border/60 shadow-none">
                   <CardHeader>
                     <CardTitle>Control por estado</CardTitle>
                     <CardDescription>Activos, inactivos y anulados por tipo.</CardDescription>
@@ -472,7 +509,7 @@ export function SocioNegocioDashboardVista() {
                 </Card>
               </section>
 
-              <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
+              <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
                 <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-base font-semibold">Ultimos socios agregados</h2>
@@ -495,7 +532,7 @@ export function SocioNegocioDashboardVista() {
             </section>
 
             <aside className="flex flex-col gap-4">
-              <Card className="border-border shadow-sm">
+              <Card className="border-border/60 shadow-none">
                 <CardHeader>
                   <CardTitle>Accesos rapidos</CardTitle>
                   <CardDescription>Operaciones frecuentes.</CardDescription>
@@ -504,13 +541,13 @@ export function SocioNegocioDashboardVista() {
                   <Button asChild>
                     <Link href="/socio-negocios/nuevo?tipo=CLIENTE">
                       <HugeiconsIcon data-icon="inline-start" icon={Add01Icon} strokeWidth={2} />
-                      Registrar socio
+                      Nuevo
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
                     <Link href="/socio-negocios/listar">
                       <HugeiconsIcon data-icon="inline-start" icon={UserGroupIcon} strokeWidth={2} />
-                      Ver listado
+                      Listar
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
@@ -528,7 +565,7 @@ export function SocioNegocioDashboardVista() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border shadow-sm">
+              <Card className="border-border/60 shadow-none">
                 <CardHeader>
                   <CardTitle>Estado operativo</CardTitle>
                   <CardDescription>Relacion entre activos e inactivos.</CardDescription>
@@ -569,7 +606,7 @@ export function SocioNegocioDashboardVista() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border shadow-sm">
+              <Card className="border-border/60 shadow-none">
                 <CardHeader>
                   <CardTitle>Bajas recientes</CardTitle>
                   <CardDescription>Registros enviados a inactivo.</CardDescription>
@@ -581,6 +618,11 @@ export function SocioNegocioDashboardVista() {
                     bajasRecientes.slice(0, 4).map((socio) => (
                       <div key={socio.id} className="rounded-md border border-border p-3">
                         <p className="truncate text-sm font-medium">{socio.razonSocial}</p>
+                        {socio.tipo === "PERSONAL" ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Condicion laboral: {etiquetaCondicionLaboral(socio.condicionLaboral)}
+                          </p>
+                        ) : null}
                         <p className="mt-1 text-xs text-muted-foreground">
                           {formatearFecha(socio.fechaBaja)} - {socio.motivoBaja || "Sin motivo"}
                         </p>
