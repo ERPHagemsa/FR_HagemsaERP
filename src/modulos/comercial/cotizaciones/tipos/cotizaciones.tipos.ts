@@ -89,11 +89,15 @@ export type LeadTime = {
   orden: number;
 };
 
-// --- CargoAdicional (nivel SECCION) ---
+// --- CargoAdicional (nivel SECCION o LINEA) ---
+// monto: calculado por el backend (cantidad × precioUnitario); SOLO LECTURA — nunca se envia.
 export type CargoAdicional = {
   id: string;
   descripcion: string;
-  monto: number; // >= 0; SI suma al subtotal de la seccion
+  unidadCobro: UnidadCobro;
+  cantidad: number;   // > 0
+  precioUnitario: number; // >= 0
+  monto: number;     // backend-calculated; READ-ONLY
   orden: number;
 };
 
@@ -129,6 +133,7 @@ export type Linea = {
   equipo?: EquipoHijo;
   almacenaje?: AlmacenajeHijo;
   personal?: PersonalHijo;
+  cargosAdicionales?: CargoAdicional[]; // cargos a nivel de linea (optional — legacy safe)
 };
 
 export type Version = {
@@ -284,10 +289,14 @@ export type PayloadLeadTime = {
   orden?: number;
 };
 
-// --- PayloadCargoAdicional (nivel seccion) ---
+// --- PayloadCargoAdicional (nivel seccion o linea) ---
+// NUNCA incluir monto — el backend lo calcula (cantidad × precioUnitario).
+// El tipo estructuralmente excluye monto para que el compilador rechace cualquier asignacion accidental.
 export type PayloadCargoAdicional = {
   descripcion: string;
-  monto: number;
+  unidadCobro: UnidadCobro;
+  cantidad: number;
+  precioUnitario: number;
   orden?: number;
 };
 
@@ -331,7 +340,8 @@ export type PayloadPersonalHijo = {
 
 // Linea sin idSeccion ni totales. `precioUnitario` (requerido, >=0) y `cantidad`
 // (entero >=1, default 1) SI se envian — el backend calcula precioTotal = precioUnitario × cantidad.
-// NUNCA enviar moneda ni cargos en linea — moneda es de version, cargos son de seccion.
+// NUNCA enviar moneda en linea — moneda es de version.
+// cargosAdicionales a nivel linea: ahora permitidos (contrato bc03).
 export type PayloadLinea = {
   idModalidad: string;
   tipoLinea: TipoLinea;
@@ -342,6 +352,7 @@ export type PayloadLinea = {
   equipo?: PayloadEquipoHijo;
   almacenaje?: PayloadAlmacenajeHijo;
   personal?: PayloadPersonalHijo;
+  cargosAdicionales?: PayloadCargoAdicional[];
 };
 
 // Seccion con lineas y cargosAdicionales anidados

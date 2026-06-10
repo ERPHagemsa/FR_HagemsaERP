@@ -293,10 +293,22 @@ function SeccionBloque({
         <div className="border-t border-border px-3 py-2">
           <p className="mb-1 text-xs text-muted-foreground">Cargos adicionales</p>
           <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs text-muted-foreground">
+                <th className="py-1 text-left font-medium">Descripcion</th>
+                <th className="py-1 text-left font-medium">Unidad</th>
+                <th className="py-1 text-right font-medium">Cant.</th>
+                <th className="py-1 text-right font-medium">P. unitario</th>
+                <th className="py-1 text-right font-medium">Monto</th>
+              </tr>
+            </thead>
             <tbody>
               {cargos.map((c) => (
                 <tr key={c.id} className="border-b border-border/50 last:border-0">
                   <td className="py-1">{c.descripcion}</td>
+                  <td className="py-1 text-muted-foreground">{c.unidadCobro ?? "—"}</td>
+                  <td className="py-1 text-right tabular-nums">{c.cantidad ?? "—"}</td>
+                  <td className="py-1 text-right tabular-nums">{c.precioUnitario !== undefined ? formatearMonto(c.precioUnitario) : "—"}</td>
                   <td className="py-1 text-right tabular-nums">{formatearMonto(c.monto)} {moneda}</td>
                 </tr>
               ))}
@@ -328,32 +340,66 @@ function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
         {lineas
           .slice()
           .sort((a, b) => a.orden - b.orden)
-          .map((linea) => (
-            <React.Fragment key={linea.id}>
-              <tr className="border-b border-border/60 last:border-0">
-                <td className="px-3 py-2 font-medium">{linea.descripcion}</td>
-                <td className="px-3 py-2">
-                  <Badge variant="outline" className="text-xs">
-                    {formatearTipoLinea(linea.tipoLinea)}
-                  </Badge>
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">{linea.cantidad}</td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatearMonto(linea.precioUnitario)}
-                </td>
-                <td className="px-3 py-2 text-right font-medium tabular-nums">
-                  {formatearMonto(linea.precioTotal)} {moneda}
-                </td>
-              </tr>
-              {tieneDetalle(linea) ? (
+          .map((linea) => {
+            const cargosLinea = linea.cargosAdicionales ?? [];
+            return (
+              <React.Fragment key={linea.id}>
                 <tr className="border-b border-border/60 last:border-0">
-                  <td colSpan={5} className="px-3 pb-2">
-                    <DetalleLinea linea={linea} />
+                  <td className="px-3 py-2 font-medium">{linea.descripcion}</td>
+                  <td className="px-3 py-2">
+                    <Badge variant="outline" className="text-xs">
+                      {formatearTipoLinea(linea.tipoLinea)}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums">{linea.cantidad}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {formatearMonto(linea.precioUnitario)}
+                  </td>
+                  <td className="px-3 py-2 text-right font-medium tabular-nums">
+                    {formatearMonto(linea.precioTotal)} {moneda}
                   </td>
                 </tr>
-              ) : null}
-            </React.Fragment>
-          ))}
+                {tieneDetalle(linea) ? (
+                  <tr className="border-b border-border/60 last:border-0">
+                    <td colSpan={5} className="px-3 pb-2">
+                      <DetalleLinea linea={linea} />
+                    </td>
+                  </tr>
+                ) : null}
+                {cargosLinea.length > 0 ? (
+                  <tr className="border-b border-border/60 last:border-0">
+                    <td colSpan={5} className="px-3 pb-2 pt-1">
+                      <div className="rounded-md bg-muted/20 px-3 py-2">
+                        <p className="mb-1 text-xs font-medium text-muted-foreground">Cargos de la linea</p>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-muted-foreground">
+                              <th className="py-0.5 text-left font-medium">Descripcion</th>
+                              <th className="py-0.5 text-left font-medium">Unidad</th>
+                              <th className="py-0.5 text-right font-medium">Cant.</th>
+                              <th className="py-0.5 text-right font-medium">P. unitario</th>
+                              <th className="py-0.5 text-right font-medium">Monto</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {cargosLinea.map((c) => (
+                              <tr key={c.id} className="border-t border-border/30">
+                                <td className="py-0.5">{c.descripcion}</td>
+                                <td className="py-0.5 text-muted-foreground">{c.unidadCobro ?? "—"}</td>
+                                <td className="py-0.5 text-right tabular-nums">{c.cantidad ?? "—"}</td>
+                                <td className="py-0.5 text-right tabular-nums">{c.precioUnitario !== undefined ? formatearMonto(c.precioUnitario) : "—"}</td>
+                                <td className="py-0.5 text-right tabular-nums">{formatearMonto(c.monto)} {moneda}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </td>
+                  </tr>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
       </tbody>
     </table>
   );
