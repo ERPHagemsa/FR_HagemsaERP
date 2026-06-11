@@ -38,6 +38,14 @@ export async function CotizacionDetalleVista({ id }: Props) {
                 <ArrowLeft />
               </Link>
             </Button>
+            {cotizacion.solicitudClienteId ? (
+              <Button asChild variant="outline" size="sm" className="shrink-0 text-xs">
+                <Link href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}>
+                  <ArrowLeft />
+                  Volver a la solicitud
+                </Link>
+              </Button>
+            ) : null}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-semibold">
