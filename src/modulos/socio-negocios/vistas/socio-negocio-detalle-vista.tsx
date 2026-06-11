@@ -23,6 +23,14 @@ import {
   FieldLabel,
 } from "@/compartido/componentes/ui/field"
 import { Input } from "@/compartido/componentes/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
 import { cn } from "@/compartido/utilidades/utils"
@@ -40,7 +48,9 @@ import {
   useSocioDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
+import { condicionesLaborales } from "../tipos/socio-negocio"
 import type {
+  CondicionLaboral,
   ModificarSocioDeNegocioRequest,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
@@ -60,6 +70,14 @@ function obtenerMensajeError(error: unknown) {
 
 function obtenerTextoFormulario(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim()
+}
+
+function etiquetaCondicionLaboral(condicion?: CondicionLaboral | null) {
+  return (
+    condicionesLaborales.find((item) => item.valor === condicion)?.etiqueta ??
+    condicion ??
+    "-"
+  )
 }
 
 function DatoVer({
@@ -159,6 +177,13 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       correo: obtenerTextoFormulario(formData, "correo"),
       numeroCelular: obtenerTextoFormulario(formData, "numeroCelular"),
       usuarioId: "admin",
+    }
+
+    if (socio.tipo === "PERSONAL") {
+      payload.condicionLaboral = obtenerTextoFormulario(
+        formData,
+        "condicionLaboral",
+      ) as CondicionLaboral
     }
 
     try {
@@ -381,12 +406,42 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                         defaultValue={socio.numeroCelular}
                       />
                     </Field>
+                    {socio.tipo === "PERSONAL" ? (
+                      <Field>
+                        <FieldLabel htmlFor={`condicionLaboral-${id}`}>
+                          Condicion laboral
+                        </FieldLabel>
+                        <Select
+                          name="condicionLaboral"
+                          defaultValue={socio.condicionLaboral ?? "LABORANDO"}
+                        >
+                          <SelectTrigger id={`condicionLaboral-${id}`} className="w-full">
+                            <SelectValue placeholder="Selecciona condicion" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {condicionesLaborales.map((condicion) => (
+                                <SelectItem key={condicion.valor} value={condicion.valor}>
+                                  {condicion.etiqueta}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    ) : null}
                   </section>
                 </form>
               ) : (
                 <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                   <DatoVer label="Nombre comercial" value={socio.nombreComercial} />
                   <DatoVer label="Tipo" value={socio.tipo} />
+                  {socio.tipo === "PERSONAL" ? (
+                    <DatoVer
+                      label="Condicion laboral"
+                      value={etiquetaCondicionLaboral(socio.condicionLaboral)}
+                    />
+                  ) : null}
                   <DatoVer label="Count" value={socio.count} />
                   <DatoVer label="Direccion" value={socio.direccion} />
                   <DatoVer label="Contacto" value={socio.contacto} />

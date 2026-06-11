@@ -38,9 +38,11 @@ import {
   useRegistrarSocioDeNegocioMutation,
 } from "../servicios/socio-negocios-queries"
 import type {
+  CondicionLaboral,
   MaestroConfiguracionGeneralIntegracion,
   RegistrarPersonalRequest,
 } from "../tipos/socio-negocio"
+import { condicionesLaborales } from "../tipos/socio-negocio"
 
 const USUARIO_RESPONSABLE_ID = "admin"
 
@@ -286,6 +288,7 @@ export function SocioNegocioFormularioPersonal() {
     const cargoId = texto(formData, "cargo")
     const contratoId = texto(formData, "contrato")
     const cuentaId = texto(formData, "cuenta")
+    const condicionLaboral = texto(formData, "condicionLaboral") as CondicionLaboral
     const primerNombre = texto(formData, "primerNombre")
     const segundoNombre = texto(formData, "segundoNombre")
     const apellidoPaterno = texto(formData, "apellidoPaterno")
@@ -344,6 +347,7 @@ export function SocioNegocioFormularioPersonal() {
         cargoNombre: cargoMaestro.nombre,
         contratoId: contratoMaestro?.id,
         contratoNombre: contratoMaestro?.nombre,
+        condicionLaboral: condicionLaboral || "LABORANDO",
         cuentaId: cuentaMaestro?.id,
         cuentaNombre: cuentaMaestro?.nombre,
         usuarioId: USUARIO_RESPONSABLE_ID,
@@ -482,7 +486,7 @@ export function SocioNegocioFormularioPersonal() {
               <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                 <FieldLegend>Datos laborales</FieldLegend>
                 <FieldDescription>Estructura organizacional donde labora el empleado.</FieldDescription>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                   {distritos.length > 0 ? (
                     <Field>
                       <FieldLabel htmlFor="distrito">Distrito *</FieldLabel>
@@ -605,6 +609,24 @@ export function SocioNegocioFormularioPersonal() {
                             : "Selecciona primero el area"
                       }
                     />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="condicionLaboral">Condicion laboral</FieldLabel>
+                    <Select name="condicionLaboral" defaultValue="LABORANDO">
+                      <SelectTrigger id="condicionLaboral" className="w-full">
+                        <SelectValue placeholder="Selecciona condicion" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {condicionesLaborales.map((condicion) => (
+                            <SelectItem key={condicion.valor} value={condicion.valor}>
+                              {condicion.etiqueta}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
                   </Field>
 
                 </div>

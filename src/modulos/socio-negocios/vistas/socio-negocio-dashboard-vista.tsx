@@ -54,7 +54,9 @@ import {
 
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
 import { useResumenSociosDeNegocioQuery } from "../servicios/socio-negocios-queries"
+import { condicionesLaborales } from "../tipos/socio-negocio"
 import type {
+  CondicionLaboral,
   EstadoRegistro,
   EstadoSocioDeNegocio,
   ResumenSociosDeNegocioResponse,
@@ -99,6 +101,14 @@ function formatearFecha(fecha?: string) {
   const valor = new Date(fecha)
   if (Number.isNaN(valor.getTime())) return fecha
   return new Intl.DateTimeFormat("es-PE", { dateStyle: "medium" }).format(valor)
+}
+
+function etiquetaCondicionLaboral(condicion?: CondicionLaboral | null) {
+  return (
+    condicionesLaborales.find((item) => item.valor === condicion)?.etiqueta ??
+    condicion ??
+    "-"
+  )
 }
 
 function totalPorEstado(
@@ -264,6 +274,7 @@ function TablaRecientes({
           <TableRow className="bg-muted/70 hover:bg-muted/70">
             <TableHead>Socio</TableHead>
             <TableHead>Tipo</TableHead>
+            <TableHead>Condicion laboral</TableHead>
             <TableHead>Documento</TableHead>
             <TableHead>Referencia</TableHead>
             <TableHead>Estado</TableHead>
@@ -283,6 +294,11 @@ function TablaRecientes({
               </TableCell>
               <TableCell>
                 <Badge variant="outline">{socio.tipo}</Badge>
+              </TableCell>
+              <TableCell>
+                {socio.tipo === "PERSONAL"
+                  ? etiquetaCondicionLaboral(socio.condicionLaboral)
+                  : "-"}
               </TableCell>
               <TableCell>{socio.numeroDocumento}</TableCell>
               <TableCell>
@@ -602,6 +618,11 @@ export function SocioNegocioDashboardVista() {
                     bajasRecientes.slice(0, 4).map((socio) => (
                       <div key={socio.id} className="rounded-md border border-border p-3">
                         <p className="truncate text-sm font-medium">{socio.razonSocial}</p>
+                        {socio.tipo === "PERSONAL" ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Condicion laboral: {etiquetaCondicionLaboral(socio.condicionLaboral)}
+                          </p>
+                        ) : null}
                         <p className="mt-1 text-xs text-muted-foreground">
                           {formatearFecha(socio.fechaBaja)} - {socio.motivoBaja || "Sin motivo"}
                         </p>

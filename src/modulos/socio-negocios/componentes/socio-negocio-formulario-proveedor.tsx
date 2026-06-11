@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, useRef, useState } from "react"
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -79,7 +79,7 @@ function buscarMaestroPorReferencia(
   nombre?: string,
 ) {
   if (id) {
-    const porId = datos.find((dato) => dato.id === id)
+    const porId = datos.find((dato) => [dato.id, dato.idExterno, dato.codigo].includes(id))
     if (porId) return porId
   }
 
@@ -87,6 +87,49 @@ function buscarMaestroPorReferencia(
   return nombreNormalizado
     ? datos.find((dato) => normalizarTexto(dato.nombre) === nombreNormalizado)
     : undefined
+}
+
+function obtenerRutaContrato(
+  contratos: MaestroConfiguracionGeneralIntegracion[],
+  contrato: MaestroConfiguracionGeneralIntegracion,
+) {
+  const ruta = [contrato.id]
+  let contratoActual = contrato
+
+  while (contratoActual.contratoPadreId) {
+    const contratoPadre = contratos.find((dato) =>
+      clavesMaestro(dato).includes(contratoActual.contratoPadreId ?? ""),
+    )
+
+    if (!contratoPadre) break
+
+    ruta.unshift(contratoPadre.id)
+    contratoActual = contratoPadre
+  }
+
+  return ruta
+}
+
+function buscarCuentaDelContrato(
+  cuentas: MaestroConfiguracionGeneralIntegracion[],
+  contratos: MaestroConfiguracionGeneralIntegracion[],
+  contrato?: MaestroConfiguracionGeneralIntegracion,
+) {
+  let contratoActual = contrato
+
+  while (contratoActual?.contratoPadreId) {
+    const cuenta = cuentas.find((dato) =>
+      clavesMaestro(dato).includes(contratoActual?.contratoPadreId ?? ""),
+    )
+
+    if (cuenta) return cuenta
+
+    contratoActual = contratos.find((dato) =>
+      clavesMaestro(dato).includes(contratoActual?.contratoPadreId ?? ""),
+    )
+  }
+
+  return undefined
 }
 
 function obtenerErrorDialogo(error: unknown): ErrorDialogo {
@@ -122,6 +165,18 @@ function obtenerErrorDialogo(error: unknown): ErrorDialogo {
   }
 }
 
+function esSapNoEncontrado(error: unknown) {
+  return (
+    error instanceof ApiError &&
+    error.status === 404 &&
+    error.codigo === "COMUN_RECURSO_NO_ENCONTRADO"
+  )
+}
+
+function esMensajeSapNoEncontrado(mensaje: string | null) {
+  return mensaje?.startsWith("No se encontro") ?? false
+}
+
 export function SocioNegocioFormularioProveedor() {
   const router = useRouter()
   const formRef = useRef<HTMLFormElement>(null)
@@ -148,10 +203,22 @@ export function SocioNegocioFormularioProveedor() {
     tipoDatoMaestro: "CONTRATO",
   })
 
-  const cuentas = (cuentasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
-  const areas = (areasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
-  const cargos = (cargosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
-  const contratos = (contratosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
+  const cuentas = useMemo(
+    () => (cuentasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO"),
+    [cuentasQuery.data],
+  )
+  const areas = useMemo(
+    () => (areasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO"),
+    [areasQuery.data],
+  )
+  const cargos = useMemo(
+    () => (cargosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO"),
+    [cargosQuery.data],
+  )
+  const contratos = useMemo(
+    () => (contratosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO"),
+    [contratosQuery.data],
+  )
   const cuentaSeleccionadaMaestro = buscarMaestro(cuentas, cuentaSeleccionada)
   const contratoPadreInicialKeys = clavesMaestro(cuentaSeleccionadaMaestro)
   const contratosNivel2 =
@@ -201,6 +268,30 @@ export function SocioNegocioFormularioProveedor() {
     cargosQuery.isLoading ||
     contratosQuery.isLoading
 
+  useEffect(() => {
+    if (!sapEncontrado) return
+
+    const contratoMaestro = buscarMaestroPorReferencia(
+      contratos,
+      sapEncontrado.contratoId,
+      sapEncontrado.contratoNombre,
+    )
+    const cuentaMaestro =
+      buscarMaestroPorReferencia(cuentas, sapEncontrado.cuentaId, sapEncontrado.cuentaNombre) ??
+      buscarCuentaDelContrato(cuentas, contratos, contratoMaestro)
+
+    setAreaSeleccionada(
+      buscarMaestroPorReferencia(areas, sapEncontrado.areaId, sapEncontrado.areaNombre)?.id,
+    )
+    setCargoSeleccionado(
+      buscarMaestroPorReferencia(cargos, sapEncontrado.cargoId, sapEncontrado.cargoNombre)?.id,
+    )
+    setCuentaSeleccionada(cuentaMaestro?.id)
+    setContratosSeleccionados(
+      cuentaMaestro && contratoMaestro ? obtenerRutaContrato(contratos, contratoMaestro) : [],
+    )
+  }, [areas, cargos, contratos, cuentas, sapEncontrado])
+
   async function buscarEnSap() {
     setErrorDialogo(null)
     setSapMensaje(null)
@@ -233,17 +324,15 @@ export function SocioNegocioFormularioProveedor() {
       }
 
       setSapEncontrado(datos)
-      setAreaSeleccionada(
-        buscarMaestroPorReferencia(areas, datos.areaId, datos.areaNombre)?.id,
-      )
-      setCargoSeleccionado(
-        buscarMaestroPorReferencia(cargos, datos.cargoId, datos.cargoNombre)?.id,
-      )
-      setCuentaSeleccionada(
-        buscarMaestroPorReferencia(cuentas, datos.cuentaId, datos.cuentaNombre)?.id,
-      )
       setSapMensaje("Datos encontrados en SAP como proveedor. Revisa y confirma el registro.")
     } catch (err: unknown) {
+      if (esSapNoEncontrado(err)) {
+        setSapMensaje(
+          "No se encontro este proveedor en SAP. Puedes completar el formulario y el backend generara el codigo.",
+        )
+        return
+      }
+
       setErrorDialogo(obtenerErrorDialogo(err))
     } finally {
       setBuscandoSap(false)
@@ -312,6 +401,20 @@ export function SocioNegocioFormularioProveedor() {
         <div className="px-5 py-5">
           <form id="agregar-proveedor" ref={formRef} onSubmit={(event) => void registrar(event)}>
             <FieldGroup>
+              {sapMensaje ? (
+                <Alert
+                  variant={esMensajeSapNoEncontrado(sapMensaje) ? "destructive" : "default"}
+                  className={
+                    esMensajeSapNoEncontrado(sapMensaje)
+                      ? "border-destructive/60 bg-destructive/10"
+                      : undefined
+                  }
+                >
+                  <AlertTitle>Consulta SAP</AlertTitle>
+                  <AlertDescription>{sapMensaje}</AlertDescription>
+                </Alert>
+              ) : null}
+
               <div className="grid w-full gap-5 xl:grid-cols-[360px_1fr] 2xl:grid-cols-[420px_1fr]">
                 <FieldSet className="rounded-xl border border-border/60 bg-muted/25 p-4">
                   <FieldLegend>Identificacion</FieldLegend>
@@ -540,13 +643,6 @@ export function SocioNegocioFormularioProveedor() {
                   "La operacion guardara el registro con fecha y usuario responsable."
                 )}
               </p>
-
-              {sapMensaje ? (
-                <Alert>
-                  <AlertTitle>Consulta SAP</AlertTitle>
-                  <AlertDescription>{sapMensaje}</AlertDescription>
-                </Alert>
-              ) : null}
 
               {registrarMutation.isSuccess ? (
                 <Alert>

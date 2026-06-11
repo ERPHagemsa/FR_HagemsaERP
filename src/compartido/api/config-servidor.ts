@@ -22,6 +22,14 @@ export const URLS_SERVIDOR = {
     process.env.NEXT_PUBLIC_CONFIGURACION_GENERAL_API_URL ??
     process.env.NEXT_PUBLIC_API_GATEWAY_URL ??
     "http://localhost:8080/api",
+  // URL base del backend de Socio de Negocios (bc01). El Route Handler
+  // /api/socio-negocios/* inyecta el bearer token antes de reenviar.
+  socioNegocios:
+    process.env.SOCIO_NEGOCIOS_API_URL ??
+    process.env.API_GATEWAY_URL ??
+    process.env.NEXT_PUBLIC_SOCIO_NEGOCIOS_API_URL ??
+    process.env.NEXT_PUBLIC_API_GATEWAY_URL ??
+    "http://localhost:8080/api",
 } as const
 
 export type ServicioBackendServidor = keyof typeof URLS_SERVIDOR
