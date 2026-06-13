@@ -432,7 +432,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
 }
 
 function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
-  const placa = encodeURIComponent(placaVehiculo(vehiculo) ?? "");
+  const id = encodeURIComponent(vehiculo.id ?? "");
 
   return (
     <DropdownMenu>
@@ -444,13 +444,13 @@ function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href={`/flota/${placa}`}>
+            <Link href={`/flota/${id}`}>
               <Eye />
               Ver
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href={`/flota/${placa}/auditoria`}>
+            <Link href={`/flota/${id}/auditoria`}>
               <BarChart3 />
               Auditar
             </Link>

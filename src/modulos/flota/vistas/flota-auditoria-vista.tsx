@@ -47,11 +47,11 @@ type HistorialFlotaItem = {
 };
 
 type Props = {
-  placa: string;
+  id: string;
   historial: HistorialFlotaItem[];
 };
 
-export function FlotaAuditoriaVista({ placa, historial }: Props) {
+export function FlotaAuditoriaVista({ id, historial }: Props) {
   const [pagina, setPagina] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
@@ -87,7 +87,7 @@ export function FlotaAuditoriaVista({ placa, historial }: Props) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <h1 className="text-2xl font-semibold tracking-normal">
-                  Auditoria de unidad {placa}
+                  Auditoria de unidad {id}
                 </h1>
                 <Badge
                   variant="outline"
@@ -109,7 +109,7 @@ export function FlotaAuditoriaVista({ placa, historial }: Props) {
                 </Link>
               </Button>
               <Button asChild size="sm">
-                <Link href={`/flota/${encodeURIComponent(placa)}`}>
+                <Link href={`/flota/${encodeURIComponent(id)}`}>
                   <Eye />
                   Ver unidad
                 </Link>

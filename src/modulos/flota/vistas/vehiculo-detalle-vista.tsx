@@ -1,7 +1,7 @@
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import DetalleVehiculoClient from "../componentes/detalle-vehiculo-client";
 import {
-  obtenerUnidadPorPlaca,
+  obtenerUnidadPorId,
   obtenerContratosDisponibles,
 } from "../servicios/flota-api";
 
@@ -10,16 +10,16 @@ type Props = {
 };
 
 export async function VehiculoDetalleVista({ id }: Props) {
-  const placa = decodeURIComponent(id);
+  const unidadId = decodeURIComponent(id);
   const [vehiculo, contratosDisponibles] = await Promise.all([
-    obtenerUnidadPorPlaca(placa),
+    obtenerUnidadPorId(unidadId),
     obtenerContratosDisponibles(),
   ]);
 
   return (
     <>
       <SiteHeader
-        title={`Unidad ${placa}`}
+        title={`Unidad ${unidadId}`}
         breadcrumbs={[
           { title: "Flota y Disponibilidad", href: "/flota" },
           { title: "Listar unidades", href: "/flota/unidades" },
@@ -31,7 +31,7 @@ export async function VehiculoDetalleVista({ id }: Props) {
           <DetalleVehiculoClient
             contratosDisponibles={contratosDisponibles}
             initialData={vehiculo}
-            id={placa}
+            id={unidadId}
           />
         </div>
       </main>

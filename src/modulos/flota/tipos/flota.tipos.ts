@@ -11,6 +11,10 @@ export type VehiculoFlota = {
   marca?: string | null;
   modelo?: string | null;
   carroceria?: string | null;
+  serieChasis?: string | null;
+  serieMotor?: string | null;
+  anioFabricacion?: number | null;
+  color?: string | null;
   contrato?: unknown;
   cuenta?: unknown;
   estadoRegistro?: string | null;

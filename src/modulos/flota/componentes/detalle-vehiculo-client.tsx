@@ -262,9 +262,9 @@ export default function DetalleVehiculoClient({
 
     setLoading(true);
     setMensaje(null);
-    const placa = vehiculo.placa ?? vehiculo.placaRodaje ?? id;
+    const unidadId = vehiculo.id ?? id;
     const result = await asignarContrato(
-      placa,
+      unidadId,
       contratoSeleccionado,
       contratoSeleccionado.cuenta,
     );
@@ -296,8 +296,8 @@ export default function DetalleVehiculoClient({
 
     setLoading(true);
     setMensaje(null);
-    const placa = vehiculo.placa ?? vehiculo.placaRodaje ?? id;
-    const result = await retirarContrato(placa);
+    const unidadId = vehiculo.id ?? id;
+    const result = await retirarContrato(unidadId);
 
     if (result.success) {
       setVehiculo((actual) =>
@@ -333,7 +333,7 @@ export default function DetalleVehiculoClient({
     );
   }
 
-  const placa = vehiculo.placa ?? vehiculo.placaRodaje ?? id;
+  const unidadId = vehiculo.id ?? id;
   const contratoActual = parseRef(vehiculo.contrato);
   const cuentaActual = parseRef(vehiculo.cuenta);
   const tieneContrato = Boolean(contratoActual?.id);
@@ -359,7 +359,7 @@ export default function DetalleVehiculoClient({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h1 className="break-words text-2xl font-semibold tracking-normal">
-                Unidad {placa}
+                Unidad {unidadId}
               </h1>
               <EstadoUnidadBadge estado={vehiculo.estadoOperativo} />
             </div>
@@ -375,7 +375,7 @@ export default function DetalleVehiculoClient({
             Volver
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/flota/${encodeURIComponent(placa)}/auditoria`}>
+            <Link href={`/flota/${encodeURIComponent(unidadId)}/auditoria`}>
               <BarChart3 />
               Auditar
             </Link>
@@ -405,12 +405,16 @@ export default function DetalleVehiculoClient({
       </div>
 
       <dl className="grid grid-cols-1 gap-x-8 gap-y-4 rounded-lg border border-border bg-card p-5 text-sm sm:grid-cols-2 lg:grid-cols-4">
-        <DatoVer label="Placa" value={placa} />
+        <DatoVer label="Placa" value={vehiculo.placa || vehiculo.placaRodaje || "-"} />
         <DatoVer label="Codigo" value={vehiculo.codigo} />
         <DatoVer label="Tipo activo" value={vehiculo.tipoActivo} />
         <DatoVer label="Estado registro" value={vehiculo.estadoRegistro ?? vehiculo.estadoActivo} />
         <DatoVer label="Marca" value={vehiculo.marca ?? vehiculo.vehiculo?.marca} />
         <DatoVer label="Modelo" value={vehiculo.modelo ?? vehiculo.vehiculo?.modelo} />
+        <DatoVer label="Año Fab." value={vehiculo.anioFabricacion} />
+        <DatoVer label="Color" value={vehiculo.color} />
+        <DatoVer label="Serie Chasis" value={vehiculo.serieChasis} />
+        <DatoVer label="Serie Motor" value={vehiculo.serieMotor} />
         <DatoVer label="Carroceria" value={vehiculo.carroceria ?? vehiculo.vehiculo?.carroceria} />
         <DatoVer label="Ubicacion" value={vehiculo.ubicacion} />
       </dl>
