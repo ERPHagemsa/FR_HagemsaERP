@@ -27,6 +27,7 @@ type Props = {
   codigo: string;
   imagenes: ImagenActivo[];
   editable?: boolean;
+  embedded?: boolean;
 };
 
 const tiposImagen: TipoImagenActivo[] = [
@@ -46,7 +47,12 @@ function isRenderableImageUrl(url: string) {
   );
 }
 
-export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
+export function ImagenesActivo({
+  codigo,
+  imagenes,
+  editable = true,
+  embedded = false,
+}: Props) {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -141,15 +147,8 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
     }
   }
 
-  return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <CardTitle className="flex items-center gap-2">
-          <IconPhotoPlus className="size-5 text-primary" />
-          Imagenes del activo
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-5 pt-5">
+  const contenido = (
+    <div className="grid gap-5">
         {editable ? (
         <form onSubmit={onSubmit} className="grid gap-4">
           <div className="grid gap-4 lg:grid-cols-[180px_1fr_1fr_120px_auto] lg:items-end">
@@ -283,7 +282,30 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
             Este activo aun no tiene imagenes registradas.
           </div>
         )}
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <section className="mt-6 border-t border-border pt-5">
+        <h3 className="mb-4 flex items-center gap-2 text-base font-semibold">
+          <IconPhotoPlus className="size-5 text-primary" />
+          Imagenes del activo
+        </h3>
+        {contenido}
+      </section>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="border-b border-border">
+        <CardTitle className="flex items-center gap-2">
+          <IconPhotoPlus className="size-5 text-primary" />
+          Imagenes del activo
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-5">{contenido}</CardContent>
     </Card>
   );
 }

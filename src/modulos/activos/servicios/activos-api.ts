@@ -21,6 +21,7 @@ import type {
   InventarioFisico,
   PlantillaInventario,
   RegistrarRevisionInventarioFisicoPayload,
+  SnapshotHistoricoActivoInventario,
   TanqueActivo,
 } from "../tipos/activo.tipos";
 
@@ -427,6 +428,20 @@ export async function obtenerInventarioFisicoPorId(
   const { data } = await clienteActivos.get<InventarioFisico>(
     `/activos/inventarios-fisicos/${id}`
   );
+  return data;
+}
+
+export async function obtenerSnapshotsHistoricosActivoInventario(
+  activoId: number,
+  excludeInventarioId?: number
+): Promise<SnapshotHistoricoActivoInventario[]> {
+  const query =
+    excludeInventarioId !== undefined
+      ? `?excludeInventarioId=${encodeURIComponent(excludeInventarioId)}`
+      : "";
+  const { data } = await clienteActivos.get<
+    SnapshotHistoricoActivoInventario[]
+  >(`/activos/inventarios-fisicos/activos/${activoId}/snapshots${query}`);
   return data;
 }
 

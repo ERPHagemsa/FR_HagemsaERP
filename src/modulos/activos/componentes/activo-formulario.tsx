@@ -74,6 +74,7 @@ type Props = {
   modo?: "crear" | "editar";
   documentos?: DocumentoActivo[];
   imagenes?: ImagenActivo[];
+  returnTo?: string;
   tanques?: TanqueActivo[];
 };
 
@@ -117,9 +118,13 @@ export function ActivoFormulario({
   modo = "crear",
   documentos = [],
   imagenes = [],
+  returnTo,
   tanques = [],
 }: Props) {
   const router = useRouter();
+  const [returnToGuardado, setReturnToGuardado] = React.useState<string | null>(
+    null
+  );
   const [isSaving, setIsSaving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("base");
   const [tipoActivoSeleccionado, setTipoActivoSeleccionado] =
@@ -168,6 +173,7 @@ export function ActivoFormulario({
   const imageFileInputRef = React.useRef<HTMLInputElement>(null);
   const formularioRef = React.useRef<HTMLDivElement>(null);
   const isEdit = modo === "editar";
+  const returnToEfectivo = returnTo ?? returnToGuardado ?? undefined;
   const actualizarResumen = React.useCallback(() => {
     setFormVersion((version) => version + 1);
   }, []);
@@ -219,6 +225,32 @@ export function ActivoFormulario({
       isMounted = false;
     };
   }, [plantillaSeleccionada, selectedCarroceriaReferenciaId]);
+
+  React.useEffect(() => {
+    if (returnTo || !isEdit) {
+      return;
+    }
+
+    const guardado = window.sessionStorage.getItem(
+      "activos:returnToAfterEdit"
+    );
+
+    if (guardado?.startsWith("/") && !guardado.startsWith("//")) {
+      setReturnToGuardado(guardado);
+      return;
+    }
+
+    if (document.referrer) {
+      const referrer = new URL(document.referrer);
+
+      if (
+        referrer.origin === window.location.origin &&
+        referrer.pathname.startsWith("/activos/inventario-fisico/")
+      ) {
+        setReturnToGuardado(`${referrer.pathname}${referrer.search}`);
+      }
+    }
+  }, [isEdit, returnTo]);
 
   React.useEffect(() => {
     actualizarResumen();
@@ -547,6 +579,7 @@ export function ActivoFormulario({
         numeroFactura: getValue("numeroFactura") || null,
         fechaFactura: getValue("fechaFactura") || null,
         ...(vehiculo ? { vehiculo } : {}),
+        ...(isEdit ? construirMetadataCambio(returnToEfectivo) : {}),
       };
 
       const saved = isEdit
@@ -588,7 +621,15 @@ export function ActivoFormulario({
         }
       }
 
-      router.push(`/activos/${saved.codigo}?${isEdit ? "updated" : "created"}=1`);
+      const destino = returnToEfectivo
+        ? agregarQueryParam(returnToEfectivo, isEdit ? "updated" : "created", "1")
+        : `/activos/${saved.codigo}?${isEdit ? "updated" : "created"}=1`;
+
+      if (returnToEfectivo) {
+        window.sessionStorage.removeItem("activos:returnToAfterEdit");
+      }
+
+      router.push(destino);
       router.refresh();
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo guardar el activo"));
@@ -908,7 +949,11 @@ export function ActivoFormulario({
             {isEdit ? "Modificar activo" : "Registrar activo"}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={() => router.push("/activos")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push(returnToEfectivo ?? "/activos")}
+            >
               Cancelar
             </Button>
             <Button type="button" disabled={isSaving} onClick={onSubmit}>
@@ -1894,6 +1939,34 @@ function formatLabel(value: string) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function agregarQueryParam(url: string, key: string, value: string) {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+}
+
+function construirMetadataCambio(returnTo?: string) {
+  if (!returnTo?.startsWith("/activos/inventario-fisico/")) {
+    return {
+      origenCambio: "MAESTRO_ACTIVOS" as const,
+      referenciaTipo: "ACTIVO",
+      motivoCambio: "Actualizacion desde maestro de activos.",
+      usuarioCambio: "activos.web",
+    };
+  }
+
+  const inventarioId = Number(
+    returnTo.match(/^\/activos\/inventario-fisico\/(\d+)/)?.[1]
+  );
+
+  return {
+    origenCambio: "INVENTARIO_FISICO" as const,
+    referenciaTipo: "INVENTARIO_FISICO",
+    referenciaId: Number.isFinite(inventarioId) ? inventarioId : undefined,
+    motivoCambio: "Correccion durante revision fisica del inventario.",
+    usuarioCambio: "activos.web",
+  };
 }
 
 function formatearEstadoActivo(value?: string | null) {

@@ -6,10 +6,17 @@ export const revalidate = 0;
 
 export default async function ActivoInventarioFisicoDetallePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
+  const activo =
+    typeof query.activo === "string" && query.activo.trim()
+      ? query.activo.trim()
+      : undefined;
 
   return (
     <>
@@ -21,7 +28,7 @@ export default async function ActivoInventarioFisicoDetallePage({
           { title: "Revision de Inventario" },
         ]}
       />
-      <ActivoInventarioFisicoDetalleVista id={Number(id)} />
+      <ActivoInventarioFisicoDetalleVista id={Number(id)} activo={activo} />
     </>
   );
 }
