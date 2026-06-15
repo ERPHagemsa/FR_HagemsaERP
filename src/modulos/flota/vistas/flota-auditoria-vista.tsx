@@ -110,7 +110,7 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
                 </Link>
               </Button>
               <Button asChild size="sm">
-                <Link href={`/flota/${encodeURIComponent(id)}`}>
+                <Link href={`/flota/unidades/${encodeURIComponent(id)}`}>
                   <Eye />
                   Ver unidad
                 </Link>

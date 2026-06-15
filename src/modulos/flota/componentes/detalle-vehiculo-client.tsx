@@ -375,7 +375,7 @@ export default function DetalleVehiculoClient({
             Volver
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href={`/flota/${encodeURIComponent(unidadId)}/auditoria`}>
+            <Link href={`/flota/unidades/${encodeURIComponent(unidadId)}/auditoria`}>
               <BarChart3 />
               Auditar
             </Link>

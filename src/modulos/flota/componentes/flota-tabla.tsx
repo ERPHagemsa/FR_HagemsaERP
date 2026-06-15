@@ -444,13 +444,13 @@ function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href={`/flota/${id}`}>
+            <Link href={`/flota/unidades/${id}`}>
               <Eye />
               Ver
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href={`/flota/${id}/auditoria`}>
+            <Link href={`/flota/unidades/${id}/auditoria`}>
               <BarChart3 />
               Auditar
             </Link>

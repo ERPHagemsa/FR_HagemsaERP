@@ -257,7 +257,7 @@ export async function asignarContrato(
 
     if (res.ok) {
       revalidatePath("/flota");
-      revalidatePath(`/flota/${encodeURIComponent(unidadId)}`);
+      revalidatePath(`/flota/unidades/${encodeURIComponent(unidadId)}`);
       return {
         success: true,
         mensaje: `Contrato ${contrato?.codigo ?? ""} asignado exitosamente`,
@@ -292,7 +292,7 @@ export async function retirarContrato(unidadId: string): Promise<RespuestaOperac
 
     if (res.ok) {
       revalidatePath("/flota");
-      revalidatePath(`/flota/${encodeURIComponent(unidadId)}`);
+      revalidatePath(`/flota/unidades/${encodeURIComponent(unidadId)}`);
       return { success: true, mensaje: "Contrato retirado exitosamente" };
     }
 
