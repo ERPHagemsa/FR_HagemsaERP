@@ -1,7 +1,8 @@
 export type ServicioApi =
   | "activos"
   | "combustible"
-  | "socioNegocios"
+  | "socioNegocios" 
+  | "flota"
   | "configuracionGeneral"
   | "comercial"
 
@@ -54,6 +55,14 @@ export const serviciosApi = {
       "https://api-bc03-comercial.hagemsa.com/api/v1",
     nombre: "comercial",
     timeoutMs: REQUEST_TIMEOUT_MS,
+  },
+  flota: {
+    baseUrl:
+      process.env.NEXT_PUBLIC_FLOTA_API_URL ??
+      API_GATEWAY_URL ??
+      "http://localhost:8084/api",
+    nombre: "flota",
+    timeoutMs: 8000,
   },
 } satisfies Record<ServicioApi, ConfiguracionServicioApi>
 

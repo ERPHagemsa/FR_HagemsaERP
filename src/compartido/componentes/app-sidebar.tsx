@@ -115,11 +115,12 @@ const data = {
     },
     {
       title: "Flota y Disponibilidad",
+      url: "/flota",
       icon: <Car />,
       items: [
-        { title: "Unidades", url: "#" },
+        { title: "Unidades", url: "/flota/unidades" },
         { title: "Conductores", url: "#" },
-        { title: "Disponibilidad", url: "/flota" },
+        { title: "Disponibilidad", url: "#" },
         { title: "Prestamos", url: "#" },
       ],
     },

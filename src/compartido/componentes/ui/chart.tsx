@@ -69,6 +69,7 @@ function ChartContainer({
           className
         )}
         {...props}
+        suppressHydrationWarning
       >
         <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer

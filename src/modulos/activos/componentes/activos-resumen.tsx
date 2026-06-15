@@ -82,9 +82,9 @@ function ResumenCard({
         <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <Icon className="size-5" />
         </div>
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-3xl">{value}</CardTitle>
-        <CardDescription>{detail}</CardDescription>
+        <CardDescription className="text-sm">{label}</CardDescription>
+        <CardTitle className="text-4xl font-semibold mt-1">{value}</CardTitle>
+        <CardDescription className="text-xs text-muted-foreground mt-1">{detail}</CardDescription>
       </CardHeader>
     </Card>
   );

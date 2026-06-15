@@ -118,6 +118,10 @@ export type ActivoHistorial = {
   valorNuevo: string | null;
   motivo: string | null;
   usuario: string | null;
+  origenCambio: string | null;
+  referenciaTipo: string | null;
+  referenciaId: number | null;
+  referenciaCodigo: string | null;
   createdAt: string;
 };
 
@@ -180,7 +184,22 @@ export type CrearActivoPayload = {
   };
 };
 
-export type ActualizarActivoPayload = Omit<CrearActivoPayload, "codigo">;
+export type OrigenCambioActivo =
+  | "MAESTRO_ACTIVOS"
+  | "INVENTARIO_FISICO"
+  | "REPLAQUEO"
+  | "CICLO_VIDA"
+  | "DOCUMENTOS"
+  | "SISTEMA";
+
+export type ActualizarActivoPayload = Omit<CrearActivoPayload, "codigo"> & {
+  origenCambio?: OrigenCambioActivo;
+  referenciaTipo?: string;
+  referenciaId?: number;
+  referenciaCodigo?: string;
+  motivoCambio?: string;
+  usuarioCambio?: string;
+};
 
 export type TipoImagenActivo =
   | "FRONTAL"
@@ -314,11 +333,51 @@ export type InventarioFisicoDetalle = {
   placa: string | null;
   ubicacionEsperada: string | null;
   ubicacionEncontrada: string | null;
+  snapshotActivo: Record<string, unknown> | null;
+  snapshotFecha: string | null;
   observacion: string | null;
   usuarioRevision: string | null;
   fechaRevision: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type InventarioFisicoHistorial = {
+  id: number;
+  inventarioId: number;
+  detalleId: number | null;
+  activoId: number | null;
+  accion: string;
+  campo: string | null;
+  valorAnterior: string | null;
+  valorNuevo: string | null;
+  motivo: string | null;
+  usuario: string | null;
+  referenciaTipo: string | null;
+  referenciaId: number | null;
+  referenciaCodigo: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+};
+
+export type SnapshotHistoricoActivoInventario = {
+  inventarioId: number;
+  codigoInventario: string;
+  nombreInventario: string;
+  descripcionInventario: string | null;
+  fechaApertura: string;
+  fechaCierre: string | null;
+  estadoInventario: EstadoInventarioFisico;
+  detalleId: number;
+  activoId: number;
+  codigoActivo: string;
+  estadoRevision: EstadoRevisionInventario;
+  ubicacionEsperada: string | null;
+  ubicacionEncontrada: string | null;
+  observacion: string | null;
+  snapshotActivo: Record<string, unknown> | null;
+  snapshotFecha: string | null;
+  fechaRevision: string | null;
 };
 
 export type InventarioFisico = {
@@ -335,6 +394,7 @@ export type InventarioFisico = {
   createdAt: string;
   updatedAt: string;
   detalles: InventarioFisicoDetalle[];
+  historial: InventarioFisicoHistorial[];
 };
 
 export type CrearInventarioFisicoPayload = {

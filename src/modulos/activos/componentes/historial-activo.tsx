@@ -31,6 +31,8 @@ type GrupoAuditoria = {
   resumen: string;
   usuario: string;
   motivo: string;
+  origen: string;
+  referencia: string;
   detalles: DetalleAuditoria[];
 };
 
@@ -101,6 +103,10 @@ export function HistorialActivo({ historial, configuraciones = [] }: Props) {
 
                 <div className="border-t border-border px-4 py-3">
                   <div className="mb-3 grid gap-1 text-sm text-muted-foreground">
+                    <span>
+                      Origen: {grupo.origen}
+                      {grupo.referencia !== "-" ? ` (${grupo.referencia})` : ""}
+                    </span>
                     <span>Motivo: {grupo.motivo}</span>
                   </div>
                   <div className="overflow-hidden rounded-lg border border-border">
@@ -211,6 +217,8 @@ function construirGruposAuditoria(
     resumen: construirResumenConfiguracion(item),
     usuario: item.usuarioRegistro ?? "-",
     motivo: item.motivo ?? "-",
+    origen: "Configuracion historica",
+    referencia: "-",
     detalles: construirDetallesConfiguracion(item),
   }));
 
@@ -226,6 +234,10 @@ function construirGruposAuditoria(
       item.createdAt,
       item.usuario ?? "",
       item.motivo ?? "",
+      item.origenCambio ?? "",
+      item.referenciaTipo ?? "",
+      item.referenciaId ?? "",
+      item.referenciaCodigo ?? "",
     ].join("|");
     gruposPorLlave.set(llave, [...(gruposPorLlave.get(llave) ?? []), item]);
   }
@@ -242,6 +254,8 @@ function construirGruposAuditoria(
         resumen: construirResumenHistorial(items),
         usuario: primero.usuario ?? "-",
         motivo: primero.motivo ?? "-",
+        origen: formatearOrigenCambio(primero.origenCambio),
+        referencia: construirReferenciaOrigen(primero),
         detalles: items.map((item) => construirDetalleHistorial(item)),
       };
     }
@@ -492,6 +506,35 @@ function formatearTipoConfiguracion(value: ActivoConfiguracionHistorica["tipoCam
   };
 
   return labels[value] ?? formatearTexto(value);
+}
+
+function formatearOrigenCambio(value?: string | null) {
+  const labels: Record<string, string> = {
+    MAESTRO_ACTIVOS: "Maestro de activos",
+    INVENTARIO_FISICO: "Inventario fisico",
+    REPLAQUEO: "Replaqueo",
+    CICLO_VIDA: "Ciclo de vida",
+    DOCUMENTOS: "Documentos",
+    SISTEMA: "Sistema / integracion",
+  };
+
+  return value ? labels[value] ?? formatearTexto(value) : "-";
+}
+
+function construirReferenciaOrigen(item: ActivoHistorial) {
+  if (item.referenciaCodigo) {
+    return item.referenciaCodigo;
+  }
+
+  if (item.referenciaTipo && item.referenciaId) {
+    return `${formatearTexto(item.referenciaTipo)} #${item.referenciaId}`;
+  }
+
+  if (item.referenciaId) {
+    return `Referencia #${item.referenciaId}`;
+  }
+
+  return "-";
 }
 
 const CAMPOS_HISTORIAL: Record<string, string> = {
