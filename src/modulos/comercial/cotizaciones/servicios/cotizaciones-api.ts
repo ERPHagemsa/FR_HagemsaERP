@@ -84,3 +84,21 @@ export async function marcarPerdida(
 export async function cancelarCotizacion(id: string): Promise<void> {
   await clienteComercial.patch(`/cotizaciones/${id}/cancelar`);
 }
+
+// ---------------------------------------------------------------------------
+// Documento PDF
+// ---------------------------------------------------------------------------
+
+// GET /cotizaciones/:id/pdf → 200 binario application/pdf
+// Sin `version` imprime la version vigente; con `version=N` imprime esa version.
+// Devuelve el Blob crudo — el consumidor decide abrirlo (objectURL) o descargarlo.
+export async function obtenerPdfCotizacion(
+  id: string,
+  version?: number
+): Promise<Blob> {
+  const { data } = await clienteComercial.get<Blob>(`/cotizaciones/${id}/pdf`, {
+    params: version !== undefined ? { version } : undefined,
+    responseType: "blob",
+  });
+  return data;
+}

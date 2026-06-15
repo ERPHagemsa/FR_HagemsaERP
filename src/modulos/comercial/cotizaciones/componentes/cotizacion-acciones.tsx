@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { Edit, Send, GitBranch, Trophy, XCircle, X } from "lucide-react";
+import { Edit, Send, GitBranch, Trophy, XCircle, X, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -50,6 +50,7 @@ import {
   useMarcarPerdidaMutation,
   useCancelarCotizacionMutation,
 } from "../servicios/cotizaciones-queries";
+import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import { normalizarErrorAccion } from "../servicios/cotizaciones-error-handler";
 
 type Props = {
@@ -82,6 +83,9 @@ export function CotizacionAcciones({ cotizacion }: Props) {
   return (
     <TooltipProvider>
       <div className="flex flex-wrap gap-2">
+        {/* Imprimir PDF (disponible en cualquier estado; imprime la version vigente) */}
+        <BotonImprimirPdf idCotizacion={id} version={versionVigente} />
+
         {/* Editar borrador */}
         <AccionBoton
           label="Editar"
@@ -179,6 +183,33 @@ export function CotizacionAcciones({ cotizacion }: Props) {
         )}
       </div>
     </TooltipProvider>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Boton: Imprimir PDF (version vigente)
+// La logica popup-safe de abrir el blob vive en useImprimirPdf (reutilizada
+// tambien por el notebook para imprimir una version puntual).
+// ---------------------------------------------------------------------------
+
+type BotonImprimirPdfProps = {
+  idCotizacion: string;
+  version: number | null;
+};
+
+function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
+  const { imprimir, generando } = useImprimirPdf(idCotizacion);
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => imprimir(version ?? undefined)}
+      disabled={generando}
+    >
+      <Printer data-icon="inline-start" />
+      {generando ? "Generando..." : "PDF"}
+    </Button>
   );
 }
 

@@ -123,6 +123,7 @@ export async function CotizacionDetalleVista({ id }: Props) {
 
         {/* === Notebook de versiones === */}
         <CotizacionVersionesNotebook
+          idCotizacion={cotizacion.id}
           versiones={cotizacion.versiones}
           versionVigente={cotizacion.versionVigente}
         />
