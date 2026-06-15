@@ -125,7 +125,9 @@ src/modulos/activos/tipos/activo.tipos.ts
 
 ## Integracion con backends
 
-Cada modulo frontend consume su propio backend o microservicio. En desarrollo local se usan variables `NEXT_PUBLIC_*` para apuntar al puerto correspondiente.
+Cada modulo frontend consume su propio backend o microservicio. Las APIs que
+requieren JWT, como Socio de Negocios, usan variables server-only y pasan por
+un Route Handler que inyecta el bearer token.
 
 Archivo recomendado:
 
@@ -138,7 +140,7 @@ Variables actuales y futuras:
 ```env
 NEXT_PUBLIC_ACTIVOS_API_URL=http://localhost:3000
 NEXT_PUBLIC_COMBUSTIBLE_API_URL=http://localhost:3003
-NEXT_PUBLIC_SOCIO_NEGOCIOS_API_URL=http://localhost:3005
+SOCIO_NEGOCIOS_API_URL=http://localhost:3005
 NEXT_PUBLIC_FLOTA_API_URL=http://localhost:3004
 ```
 

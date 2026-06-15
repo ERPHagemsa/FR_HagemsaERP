@@ -5,6 +5,14 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Input } from "@/compartido/componentes/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -13,10 +21,22 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 
+import type { UnidadCobro } from "../tipos/cotizaciones.tipos";
 import type { DraftCargoAdicional } from "../servicios/cotizaciones-editor.utils";
-import { cargoAdicionalVacio } from "../servicios/cotizaciones-editor.utils";
+import { cargoAdicionalVacio, montoCargo } from "../servicios/cotizaciones-editor.utils";
 import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
 import { CargoCatalogoInput } from "./cargo-catalogo-input";
+
+const UNIDADES_COBRO: { valor: UnidadCobro; etiqueta: string }[] = [
+  { valor: "VIAJE", etiqueta: "Viaje" },
+  { valor: "DIA", etiqueta: "Dia" },
+  { valor: "M2", etiqueta: "M2" },
+  { valor: "SERVICIO", etiqueta: "Servicio" },
+  { valor: "HORA", etiqueta: "Hora" },
+  { valor: "TONELADA", etiqueta: "Tonelada" },
+  { valor: "CONTENEDOR", etiqueta: "Contenedor" },
+  { valor: "OTRO", etiqueta: "Otro" },
+];
 
 type Props = {
   cargos: DraftCargoAdicional[];
@@ -50,17 +70,24 @@ export function EditorCargos({ cargos, opcionesCatalogo, erroresCampo = {}, disa
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
-                <TableHead className="w-full">Descripcion</TableHead>
-                <TableHead>Monto</TableHead>
+                <TableHead className="min-w-[180px]">Descripcion</TableHead>
+                <TableHead className="w-36">Unidad de cobro</TableHead>
+                <TableHead className="w-24">Cantidad</TableHead>
+                <TableHead className="w-28">Precio unitario</TableHead>
+                <TableHead className="w-28 text-right">Monto</TableHead>
                 <TableHead className="w-px" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {cargos.map((cargo, idx) => {
                 const errDesc = erroresCampo[`cargosAdicionales.${idx}.descripcion`];
-                const errMonto = erroresCampo[`cargosAdicionales.${idx}.monto`];
+                const errUnidad = erroresCampo[`cargosAdicionales.${idx}.unidadCobro`];
+                const errCantidad = erroresCampo[`cargosAdicionales.${idx}.cantidad`];
+                const errPrecio = erroresCampo[`cargosAdicionales.${idx}.precioUnitario`];
+                const monto = montoCargo(cargo);
                 return (
                   <TableRow key={cargo.claveCliente}>
+                    {/* Descripcion con autocomplete de catalogo */}
                     <TableCell>
                       <CargoCatalogoInput
                         value={cargo.descripcion}
@@ -74,21 +101,80 @@ export function EditorCargos({ cargos, opcionesCatalogo, erroresCampo = {}, disa
                         <p className="mt-0.5 whitespace-normal text-xs text-destructive">{errDesc}</p>
                       ) : null}
                     </TableCell>
+
+                    {/* Unidad de cobro */}
+                    <TableCell>
+                      <Select
+                        value={cargo.unidadCobro}
+                        disabled={disabled}
+                        onValueChange={(v) =>
+                          actualizar(cargo.claveCliente, { unidadCobro: v as UnidadCobro })
+                        }
+                      >
+                        <SelectTrigger
+                          className="h-8 w-full text-xs"
+                          aria-invalid={Boolean(errUnidad)}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {UNIDADES_COBRO.map((u) => (
+                              <SelectItem key={u.valor} value={u.valor} className="text-xs">
+                                {u.etiqueta}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      {errUnidad ? (
+                        <p className="mt-0.5 whitespace-normal text-xs text-destructive">{errUnidad}</p>
+                      ) : null}
+                    </TableCell>
+
+                    {/* Cantidad */}
                     <TableCell>
                       <Input
-                        className="h-8 w-28 text-xs"
+                        className="h-8 w-20 text-xs"
+                        type="number"
+                        min={0}
+                        step="1"
+                        value={cargo.cantidad}
+                        disabled={disabled}
+                        aria-invalid={Boolean(errCantidad)}
+                        onChange={(e) => actualizar(cargo.claveCliente, { cantidad: e.target.value })}
+                      />
+                      {errCantidad ? (
+                        <p className="mt-0.5 whitespace-normal text-xs text-destructive">{errCantidad}</p>
+                      ) : null}
+                    </TableCell>
+
+                    {/* Precio unitario */}
+                    <TableCell>
+                      <Input
+                        className="h-8 w-24 text-xs"
                         type="number"
                         min={0}
                         step="0.01"
-                        value={cargo.monto}
+                        value={cargo.precioUnitario}
                         disabled={disabled}
-                        aria-invalid={Boolean(errMonto)}
-                        onChange={(e) => actualizar(cargo.claveCliente, { monto: e.target.value })}
+                        aria-invalid={Boolean(errPrecio)}
+                        onChange={(e) => actualizar(cargo.claveCliente, { precioUnitario: e.target.value })}
                       />
-                      {errMonto ? (
-                        <p className="mt-0.5 whitespace-normal text-xs text-destructive">{errMonto}</p>
+                      {errPrecio ? (
+                        <p className="mt-0.5 whitespace-normal text-xs text-destructive">{errPrecio}</p>
                       ) : null}
                     </TableCell>
+
+                    {/* Monto calculado (READ-ONLY — cantidad × precioUnitario) */}
+                    <TableCell className="text-right font-mono text-xs text-muted-foreground tabular-nums">
+                      {monto.toLocaleString("es-PE", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </TableCell>
+
+                    {/* Eliminar */}
                     <TableCell className="text-right">
                       <Button
                         type="button"
@@ -99,7 +185,7 @@ export function EditorCargos({ cargos, opcionesCatalogo, erroresCampo = {}, disa
                         onClick={() => eliminar(cargo.claveCliente)}
                         aria-label="Eliminar cargo adicional"
                       >
-                        <Trash2Icon />
+                        <Trash2Icon data-icon="inline-start" />
                       </Button>
                     </TableCell>
                   </TableRow>

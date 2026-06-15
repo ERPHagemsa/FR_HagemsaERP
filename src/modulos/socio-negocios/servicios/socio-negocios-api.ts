@@ -26,7 +26,7 @@ import type {
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 
-const BASE_ENDPOINT = "/socios-de-negocio"
+const BASE_ENDPOINT = "/socio-negocios/socios-de-negocio"
 
 function crearQueryString(
   query?:

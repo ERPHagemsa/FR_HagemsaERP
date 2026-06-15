@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, useRef, useState } from "react"
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -79,7 +79,7 @@ function buscarMaestroPorReferencia(
   nombre?: string,
 ) {
   if (id) {
-    const porId = datos.find((dato) => dato.id === id)
+    const porId = datos.find((dato) => [dato.id, dato.idExterno, dato.codigo].includes(id))
     if (porId) return porId
   }
 
@@ -87,6 +87,49 @@ function buscarMaestroPorReferencia(
   return nombreNormalizado
     ? datos.find((dato) => normalizarTexto(dato.nombre) === nombreNormalizado)
     : undefined
+}
+
+function obtenerRutaContrato(
+  contratos: MaestroConfiguracionGeneralIntegracion[],
+  contrato: MaestroConfiguracionGeneralIntegracion,
+) {
+  const ruta = [contrato.id]
+  let contratoActual = contrato
+
+  while (contratoActual.contratoPadreId) {
+    const contratoPadre = contratos.find((dato) =>
+      clavesMaestro(dato).includes(contratoActual.contratoPadreId ?? ""),
+    )
+
+    if (!contratoPadre) break
+
+    ruta.unshift(contratoPadre.id)
+    contratoActual = contratoPadre
+  }
+
+  return ruta
+}
+
+function buscarCuentaDelContrato(
+  cuentas: MaestroConfiguracionGeneralIntegracion[],
+  contratos: MaestroConfiguracionGeneralIntegracion[],
+  contrato?: MaestroConfiguracionGeneralIntegracion,
+) {
+  let contratoActual = contrato
+
+  while (contratoActual?.contratoPadreId) {
+    const cuenta = cuentas.find((dato) =>
+      clavesMaestro(dato).includes(contratoActual?.contratoPadreId ?? ""),
+    )
+
+    if (cuenta) return cuenta
+
+    contratoActual = contratos.find((dato) =>
+      clavesMaestro(dato).includes(contratoActual?.contratoPadreId ?? ""),
+    )
+  }
+
+  return undefined
 }
 
 function obtenerErrorDialogo(error: unknown): ErrorDialogo {
@@ -160,10 +203,22 @@ export function SocioNegocioFormularioCliente() {
     tipoDatoMaestro: "CONTRATO",
   })
 
-  const cuentas = (cuentasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
-  const areas = (areasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
-  const cargos = (cargosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
-  const contratos = (contratosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO")
+  const cuentas = useMemo(
+    () => (cuentasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO"),
+    [cuentasQuery.data],
+  )
+  const areas = useMemo(
+    () => (areasQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO"),
+    [areasQuery.data],
+  )
+  const cargos = useMemo(
+    () => (cargosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO"),
+    [cargosQuery.data],
+  )
+  const contratos = useMemo(
+    () => (contratosQuery.data ?? []).filter((dato) => dato.estado === "ACTIVO"),
+    [contratosQuery.data],
+  )
   const cuentaSeleccionadaMaestro = buscarMaestro(cuentas, cuentaSeleccionada)
   const contratoPadreInicialKeys = clavesMaestro(cuentaSeleccionadaMaestro)
   const contratosNivel2 =
@@ -213,6 +268,30 @@ export function SocioNegocioFormularioCliente() {
     cargosQuery.isLoading ||
     contratosQuery.isLoading
 
+  useEffect(() => {
+    if (!sapEncontrado) return
+
+    const contratoMaestro = buscarMaestroPorReferencia(
+      contratos,
+      sapEncontrado.contratoId,
+      sapEncontrado.contratoNombre,
+    )
+    const cuentaMaestro =
+      buscarMaestroPorReferencia(cuentas, sapEncontrado.cuentaId, sapEncontrado.cuentaNombre) ??
+      buscarCuentaDelContrato(cuentas, contratos, contratoMaestro)
+
+    setAreaSeleccionada(
+      buscarMaestroPorReferencia(areas, sapEncontrado.areaId, sapEncontrado.areaNombre)?.id,
+    )
+    setCargoSeleccionado(
+      buscarMaestroPorReferencia(cargos, sapEncontrado.cargoId, sapEncontrado.cargoNombre)?.id,
+    )
+    setCuentaSeleccionada(cuentaMaestro?.id)
+    setContratosSeleccionados(
+      cuentaMaestro && contratoMaestro ? obtenerRutaContrato(contratos, contratoMaestro) : [],
+    )
+  }, [areas, cargos, contratos, cuentas, sapEncontrado])
+
   async function buscarEnSap() {
     setErrorDialogo(null)
     setSapMensaje(null)
@@ -245,15 +324,6 @@ export function SocioNegocioFormularioCliente() {
       }
 
       setSapEncontrado(datos)
-      setAreaSeleccionada(
-        buscarMaestroPorReferencia(areas, datos.areaId, datos.areaNombre)?.id,
-      )
-      setCargoSeleccionado(
-        buscarMaestroPorReferencia(cargos, datos.cargoId, datos.cargoNombre)?.id,
-      )
-      setCuentaSeleccionada(
-        buscarMaestroPorReferencia(cuentas, datos.cuentaId, datos.cuentaNombre)?.id,
-      )
       setSapMensaje("Datos encontrados en SAP como cliente. Revisa y confirma el registro.")
     } catch (err: unknown) {
       if (esSapNoEncontrado(err)) {

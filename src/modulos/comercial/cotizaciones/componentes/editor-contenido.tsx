@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { LayersIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { CornerDownRightIcon, LayersIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
+import { FieldSet, FieldLegend } from "@/compartido/componentes/ui/field";
 
 import type {
   DraftCargoAdicional,
@@ -22,6 +23,7 @@ import type {
 } from "../servicios/cotizaciones-editor.utils";
 import {
   lineaVacia,
+  montoCargo,
   seccionDefectoVacia,
   seccionVacia,
 } from "../servicios/cotizaciones-editor.utils";
@@ -103,7 +105,12 @@ export function EditorContenido({
     0
   );
   const totalCargos = secciones.reduce(
-    (acc, s) => acc + s.cargosAdicionales.reduce((a, c) => a + (parseFloat(c.monto) || 0), 0),
+    (acc, s) =>
+      acc +
+      // Cargos de seccion
+      s.cargosAdicionales.reduce((a, c) => a + montoCargo(c), 0) +
+      // Cargos de cada linea de la seccion
+      s.lineas.reduce((la, l) => la + l.cargosAdicionales.reduce((a, c) => a + montoCargo(c), 0), 0),
     0
   );
   const total = subtotalLineas + totalCargos;
@@ -111,10 +118,14 @@ export function EditorContenido({
   const errores = mapearErroresContenido(secciones, erroresCampo);
 
   function subtotalDeSeccion(s: DraftSeccion): number {
-    // Contrato §5.4: subtotal de seccion = Σ lineas + Σ cargos adicionales.
+    // Contrato §5.4: subtotal de seccion = Σ lineas + Σ cargos seccion + Σ cargos lineas.
     const lineas = s.lineas.reduce((a, l) => a + totalLinea(l), 0);
-    const cargos = s.cargosAdicionales.reduce((a, c) => a + (parseFloat(c.monto) || 0), 0);
-    return lineas + cargos;
+    const cargosSeccion = s.cargosAdicionales.reduce((a, c) => a + montoCargo(c), 0);
+    const cargosLineas = s.lineas.reduce(
+      (la, l) => la + l.cargosAdicionales.reduce((a, c) => a + montoCargo(c), 0),
+      0
+    );
+    return lineas + cargosSeccion + cargosLineas;
   }
 
   // ---- Helpers de mutacion (controlado) -----------------------------------
@@ -352,7 +363,14 @@ export function EditorContenido({
                     {seccion.lineas.map((linea) => {
                       const errLinea = errores.porLinea[linea.claveCliente] ?? {};
                       return (
-                        <TableRow key={linea.claveCliente} className="group align-middle">
+                        <React.Fragment key={linea.claveCliente}>
+                        {/* Sin borde inferior si la linea tiene cargos: asi se
+                            "pega" a su sub-fila de cargos (sin divisoria entre ambas). */}
+                        <TableRow
+                          className={`group align-middle ${
+                            linea.cargosAdicionales.length > 0 ? "border-b-0" : ""
+                          }`}
+                        >
                           <TableCell
                             className={`text-center text-xs text-muted-foreground tabular-nums ${rail}`}
                           >
@@ -459,6 +477,35 @@ export function EditorContenido({
                             </div>
                           </TableCell>
                         </TableRow>
+
+                        {/* Sub-fila read-only: cargos del item (nivel linea).
+                            La edicion vive en el drawer; aca solo se muestran. */}
+                        {linea.cargosAdicionales.length > 0 ? (
+                          <TableRow className="hover:bg-transparent">
+                            <TableCell className={rail} />
+                            <TableCell colSpan={COLUMNAS - 1} className="py-1">
+                              <div className="flex flex-col gap-0.5">
+                                {linea.cargosAdicionales.map((c) => (
+                                  <div
+                                    key={c.claveCliente}
+                                    className="flex items-center gap-2 text-xs text-muted-foreground"
+                                  >
+                                    <CornerDownRightIcon className="size-3 shrink-0 opacity-50" />
+                                    <span className="truncate">
+                                      {c.descripcion || "Sin descripcion"}
+                                    </span>
+                                    <span className="ml-auto shrink-0 font-mono tabular-nums">
+                                      {parseFloat(c.cantidad) || 0} ×{" "}
+                                      {parseFloat(c.precioUnitario) || 0} ={" "}
+                                      {formatearMoneda(montoCargo(c), moneda)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : null}
+                        </React.Fragment>
                       );
                     })}
 
@@ -562,13 +609,15 @@ export function EditorContenido({
           seccion por defecto. Cuando hay secciones con nombre, los cargos se editan
           por seccion dentro de la grilla (arriba), no aca. */}
       {!hayGrupos ? (
-        <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/10 p-4">
-          <div className="flex items-baseline justify-between">
-            <p className="text-sm font-medium">Cargos adicionales</p>
-            <p className="text-xs text-muted-foreground">
-              Escolta, viaticos, etc. Suman al total.
-            </p>
-          </div>
+        <FieldSet className="gap-2 rounded-xl border border-border bg-muted/10 px-4 pb-4 pt-1">
+          {/* Mismo prefijo de variante para pisar el `text-sm` del primitivo
+              (ver gotcha de twMerge en linea-detalle-drawer). */}
+          <FieldLegend
+            variant="label"
+            className="px-1.5 font-semibold uppercase tracking-wide text-muted-foreground data-[variant=label]:text-xs"
+          >
+            Cargos adicionales para la cotizacion
+          </FieldLegend>
           <EditorCargos
             cargos={seccionDefecto?.cargosAdicionales ?? []}
             opcionesCatalogo={opcionesCatalogo}
@@ -576,7 +625,7 @@ export function EditorContenido({
             disabled={disabled}
             onChange={actualizarCargosDefecto}
           />
-        </div>
+        </FieldSet>
       ) : null}
 
       {/* Barra de totales sticky — impacto financiero siempre a la vista */}
@@ -610,6 +659,7 @@ export function EditorContenido({
         abierto={drawerAbierto}
         linea={lineaDrawer}
         moneda={moneda}
+        opcionesCatalogo={opcionesCatalogo}
         erroresCampo={lineaExistente ? errores.porLinea[lineaExistente.claveCliente] : undefined}
         disabled={disabled}
         onCerrar={cerrarDrawer}

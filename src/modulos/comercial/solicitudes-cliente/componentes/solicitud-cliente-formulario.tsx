@@ -13,7 +13,7 @@ import {
   obtenerErroresPorCampo,
   useConsulta,
 } from "@/compartido/api";
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Pencil } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
 import { Calendar } from "@/compartido/componentes/ui/calendar";
@@ -23,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { FieldLegend, FieldSet } from "@/compartido/componentes/ui/field";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
   Popover,
@@ -81,34 +82,72 @@ function aISODate(fecha: Date): string {
 }
 
 // ---------------------------------------------------------------------------
-// Componente principal
+// Tipos del contexto compartido del formulario
+// (NO incluye el formularioRef para no contaminar la prop de render)
 // ---------------------------------------------------------------------------
 
-export function SolicitudClienteFormulario() {
-  const router = useRouter();
+export interface ContextoCamposNuevaSolicitud {
+  isSaving: boolean;
+  erroresCampo: Record<string, string>;
+  origenIdValue: string;
+  origenTipoValue: OrigenTipo;
+  origenNombreValue: string;
+  tipoDocumentoValue: string;
+  numeroDocumentoValue: string;
+  contactoOrigenIdValue: string;
+  fechaRequeridaValue: Date | undefined;
+  cargandoContactos: boolean;
+  errorContactos: unknown;
+  contactos: Array<{ id: string; nombre: string; esPrincipal: boolean; cargo?: string | null }>;
+  setContactoElegido: (id: string) => void;
+  setFechaRequeridaValue: (fecha: Date | undefined) => void;
+  limpiarErrorCampo: (name: string) => void;
+  limpiarOrigen: () => void;
+  onIdentidadResuelta: (identidad: {
+    origenTipo: OrigenTipo;
+    origenId: string;
+    nombre?: string;
+    tipoDocumento?: string;
+    numeroDocumento?: string;
+  }) => void;
+  onSubmit: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// Hook: encapsula toda la logica del formulario de nueva SC
+// ---------------------------------------------------------------------------
+
+export interface UseFormularioNuevaSolicitudOpciones {
+  /** Callback que se llama con el id de la SC creada. El caller decide que hacer (navegar, cerrar panel, etc.). */
+  onExito: (id: string) => void;
+}
+
+export interface RetornoFormularioNuevaSolicitud {
+  /** Ref del <form> — cada consumidor la adjunta a su propia etiqueta <form ref={formularioRef}>. */
+  formularioRef: React.RefObject<HTMLFormElement | null>;
+  /** Contexto de campos (sin ref) — pasalo directamente a CamposNuevaSolicitud. */
+  campos: ContextoCamposNuevaSolicitud;
+}
+
+export function useFormularioNuevaSolicitud({
+  onExito,
+}: UseFormularioNuevaSolicitudOpciones): RetornoFormularioNuevaSolicitud {
   const formularioRef = React.useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [erroresCampo, setErroresCampo] = React.useState<Record<string, string>>({});
-  // Estado controlado para campos que el panel resolver-identidad puede pre-rellenar
   const [origenIdValue, setOrigenIdValue] = React.useState("");
   const [origenTipoValue, setOrigenTipoValue] = React.useState<OrigenTipo>("PROSPECTO");
-  // Nombre del origen resuelto (solo para mostrar la confirmacion en pantalla)
   const [origenNombreValue, setOrigenNombreValue] = React.useState("");
-  // Para flujo CLIENTE — pre-rellenados por el panel o ingresados manualmente
   const [tipoDocumentoValue, setTipoDocumentoValue] = React.useState("");
   const [numeroDocumentoValue, setNumeroDocumentoValue] = React.useState("");
-  // PROSPECTO: contacto elegido a mano (null = usar el principal por defecto)
   const [contactoElegido, setContactoElegido] = React.useState<string | null>(null);
-  // Fecha requerida — controlada (el Calendar maneja un Date, no un input nativo)
-  const [fechaRequeridaValue, setFechaRequeridaValue] = React.useState<
-    Date | undefined
-  >(undefined);
+  const [fechaRequeridaValue, setFechaRequeridaValue] = React.useState<Date | undefined>(undefined);
 
   const registrarMutation = useRegistrarSCMutation();
 
-  // Flujo PROSPECTO: trae los contactos del prospecto para no pedir el UUID a mano.
   const origenEsProspectoValido =
     origenTipoValue === "PROSPECTO" && esUuid(origenIdValue);
+
   const {
     data: prospecto,
     isLoading: cargandoContactos,
@@ -118,8 +157,8 @@ export function SolicitudClienteFormulario() {
     [origenIdValue],
     { enabled: origenEsProspectoValido }
   );
+
   const contactos = origenEsProspectoValido ? prospecto?.contactos ?? [] : [];
-  // Por defecto el contacto principal (o el único); el usuario puede cambiarlo.
   const contactoPorDefecto =
     contactos.find((c) => c.esPrincipal)?.id ??
     (contactos.length === 1 ? contactos[0].id : "");
@@ -134,7 +173,80 @@ export function SolicitudClienteFormulario() {
     });
   }
 
-  async function onSubmit() {
+  function limpiarOrigen() {
+    setOrigenIdValue("");
+    setOrigenTipoValue("PROSPECTO");
+    setOrigenNombreValue("");
+    setContactoElegido(null);
+    setTipoDocumentoValue("");
+    setNumeroDocumentoValue("");
+    setErroresCampo((prev) => {
+      const siguiente = { ...prev };
+      delete siguiente["origenId"];
+      delete siguiente["contactoOrigenId"];
+      return siguiente;
+    });
+  }
+
+  function onIdentidadResuelta({
+    origenTipo,
+    origenId,
+    nombre,
+    tipoDocumento,
+    numeroDocumento,
+  }: {
+    origenTipo: OrigenTipo;
+    origenId: string;
+    nombre?: string;
+    tipoDocumento?: string;
+    numeroDocumento?: string;
+  }) {
+    setOrigenTipoValue(origenTipo);
+    setOrigenIdValue(origenId);
+    setOrigenNombreValue(nombre ?? "");
+    setContactoElegido(null);
+    if (tipoDocumento) setTipoDocumentoValue(tipoDocumento);
+    if (numeroDocumento) setNumeroDocumentoValue(numeroDocumento);
+    limpiarErrorCampo("origenId");
+    limpiarErrorCampo("contactoOrigenId");
+  }
+
+  function aplicarErrorApi(err: unknown) {
+    if (esError409(err)) {
+      if (origenTipoValue === "PROSPECTO") {
+        setErroresCampo((prev) => ({
+          ...prev,
+          contactoOrigenId: "El contacto seleccionado no pertenece al origen indicado.",
+        }));
+        toast.error("El contacto seleccionado no pertenece al origen indicado.");
+      } else {
+        toast.error("El cliente indicado esta inactivo y no puede usarse como origen.");
+      }
+      return;
+    }
+    if (esError404(err)) {
+      toast.error("El prospecto o cliente indicado no existe.");
+      return;
+    }
+    if (esErrorValidacion(err)) {
+      toast.error(extraerMensajeError(err, "No se pudo registrar la solicitud"));
+      return;
+    }
+    const erroresPorCampoApi = obtenerErroresPorCampo(err);
+    const camposConError = Object.keys(erroresPorCampoApi);
+    if (camposConError.length > 0) {
+      const nuevosMensajes: Record<string, string> = {};
+      for (const campo of camposConError) {
+        nuevosMensajes[campo] = erroresPorCampoApi[campo].mensaje;
+      }
+      setErroresCampo(nuevosMensajes);
+      toast.error("Revisa los campos marcados en el formulario.");
+      return;
+    }
+    toast.error(extraerMensajeError(err, "No se pudo registrar la solicitud"));
+  }
+
+  async function onSubmitAsync() {
     const root = formularioRef.current;
     if (!root) return;
 
@@ -180,9 +292,7 @@ export function SolicitudClienteFormulario() {
 
       try {
         const respuesta = await registrarMutation.mutateAsync(resultado.data);
-        // Registrar y cotizar son actos separados: la SC nace en PENDIENTE sin
-        // cotizacion. Llevamos al detalle de la SC, desde donde se agrega la cotizacion.
-        router.push(`/comercial/solicitudes-cliente/${respuesta.id}`);
+        onExito(respuesta.id);
       } catch (err) {
         aplicarErrorApi(err);
       }
@@ -193,55 +303,167 @@ export function SolicitudClienteFormulario() {
     }
   }
 
-  function aplicarErrorApi(err: unknown) {
-    // 409: PROSPECTO → contacto invalido; CLIENTE → cliente inactivo
-    if (esError409(err)) {
-      if (origenTipoValue === "PROSPECTO") {
-        setErroresCampo((prev) => ({
-          ...prev,
-          contactoOrigenId: "El contacto seleccionado no pertenece al origen indicado.",
-        }));
-        toast.error("El contacto seleccionado no pertenece al origen indicado.");
-      } else {
-        toast.error("El cliente indicado esta inactivo y no puede usarse como origen.");
-      }
-      return;
-    }
-
-    // 404: el origen indicado no existe
-    if (esError404(err)) {
-      toast.error("El prospecto o cliente indicado no existe.");
-      return;
-    }
-
-    // 422: regla de negocio — mostrar verbatim
-    if (esErrorValidacion(err)) {
-      toast.error(extraerMensajeError(err, "No se pudo registrar la solicitud"));
-      return;
-    }
-
-    // 400: errores de campo inline
-    const erroresPorCampoApi = obtenerErroresPorCampo(err);
-    const camposConError = Object.keys(erroresPorCampoApi);
-    if (camposConError.length > 0) {
-      const nuevosMensajes: Record<string, string> = {};
-      for (const campo of camposConError) {
-        nuevosMensajes[campo] = erroresPorCampoApi[campo].mensaje;
-      }
-      setErroresCampo(nuevosMensajes);
-      toast.error("Revisa los campos marcados en el formulario.");
-      return;
-    }
-
-    toast.error(extraerMensajeError(err, "No se pudo registrar la solicitud"));
+  function onSubmit() {
+    void onSubmitAsync();
   }
+
+  const campos: ContextoCamposNuevaSolicitud = {
+    isSaving,
+    erroresCampo,
+    origenIdValue,
+    origenTipoValue,
+    origenNombreValue,
+    tipoDocumentoValue,
+    numeroDocumentoValue,
+    contactoOrigenIdValue,
+    fechaRequeridaValue,
+    cargandoContactos,
+    errorContactos,
+    contactos,
+    setContactoElegido: (id: string) => setContactoElegido(id),
+    setFechaRequeridaValue,
+    limpiarErrorCampo,
+    limpiarOrigen,
+    onIdentidadResuelta,
+    onSubmit,
+  };
+
+  return { formularioRef, campos };
+}
+
+// ---------------------------------------------------------------------------
+// CamposNuevaSolicitud — presentacional, reutilizable en pagina y Sheet
+// ---------------------------------------------------------------------------
+
+export function CamposNuevaSolicitud({
+  campos,
+}: {
+  campos: ContextoCamposNuevaSolicitud;
+}) {
+  const {
+    isSaving,
+    erroresCampo,
+    origenIdValue,
+    origenTipoValue,
+    origenNombreValue,
+    tipoDocumentoValue,
+    numeroDocumentoValue,
+    contactoOrigenIdValue,
+    fechaRequeridaValue,
+    cargandoContactos,
+    errorContactos,
+    contactos,
+    setContactoElegido,
+    setFechaRequeridaValue,
+    limpiarErrorCampo,
+    limpiarOrigen,
+    onIdentidadResuelta,
+  } = campos;
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Seccion: datos del origen */}
+      <SeccionTitulo
+        titulo="Datos del origen"
+        descripcion="Prospecto o cliente que origina la solicitud."
+      />
+
+      {origenIdValue ? (
+        <OrigenSeleccionado
+          origenTipoValue={origenTipoValue}
+          origenNombreValue={origenNombreValue}
+          tipoDocumentoValue={tipoDocumentoValue}
+          numeroDocumentoValue={numeroDocumentoValue}
+          contactoOrigenIdValue={contactoOrigenIdValue}
+          cargandoContactos={cargandoContactos}
+          errorContactos={errorContactos}
+          contactos={contactos}
+          erroresCampo={erroresCampo}
+          isSaving={isSaving}
+          setContactoElegido={setContactoElegido}
+          limpiarErrorCampo={limpiarErrorCampo}
+          limpiarOrigen={limpiarOrigen}
+        />
+      ) : (
+        <>
+          <ResolverIdentidadPanel onIdentidadResuelta={onIdentidadResuelta} />
+          {erroresCampo["origenId"] ? (
+            <p className="text-xs text-destructive">
+              Selecciona un origen valido buscando por documento.
+            </p>
+          ) : null}
+        </>
+      )}
+
+      <CampoSelect
+        label="Canal de entrada"
+        name="canalEntrada"
+        requerido
+        opciones={[
+          { valor: "CORREO", etiqueta: "Correo electronico" },
+          { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
+          { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
+          { valor: "OTRO", etiqueta: "Otro" },
+        ]}
+        defaultValue="CORREO"
+        error={erroresCampo["canalEntrada"]}
+        disabled={isSaving}
+      />
+
+      {/* Seccion: descripcion del servicio */}
+      <SeccionTitulo
+        titulo="Servicio solicitado"
+        descripcion="Detalle del servicio requerido por el cliente."
+      />
+      <CampoTextarea
+        label="Descripcion"
+        name="descripcionServicio"
+        requerido
+        placeholder="Describe el servicio requerido..."
+        error={erroresCampo["descripcionServicio"]}
+        disabled={isSaving}
+        onChange={() => limpiarErrorCampo("descripcionServicio")}
+      />
+      <CampoFecha
+        label="Fecha requerida"
+        value={fechaRequeridaValue}
+        onSelect={(fecha) => {
+          setFechaRequeridaValue(fecha);
+          limpiarErrorCampo("fechaRequerida");
+        }}
+        error={erroresCampo["fechaRequerida"]}
+        disabled={isSaving}
+      />
+      <CampoTextarea
+        label="Observaciones"
+        name="observaciones"
+        placeholder="Observaciones adicionales..."
+        error={erroresCampo["observaciones"]}
+        disabled={isSaving}
+      />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SolicitudClienteFormulario — wrapper para la pagina /nueva (sin cambios de comportamiento)
+// ---------------------------------------------------------------------------
+
+export function SolicitudClienteFormulario() {
+  const router = useRouter();
+
+  const { formularioRef, campos } = useFormularioNuevaSolicitud({
+    onExito: (id) => {
+      router.push(`/comercial/solicitudes-cliente/${id}`);
+    },
+  });
 
   return (
     <form
       ref={formularioRef}
       onSubmit={(e) => {
         e.preventDefault();
-        void onSubmit();
+        campos.onSubmit();
       }}
     >
       <Card>
@@ -249,156 +471,15 @@ export function SolicitudClienteFormulario() {
           <CardTitle>Registrar solicitud de cliente</CardTitle>
         </CardHeader>
         <CardContent className="px-5 pt-5 pb-0">
-          <div className="grid gap-y-8 lg:grid-cols-2">
-            {/* Columna 1: datos del origen */}
-            <div className="flex flex-col gap-4 lg:pr-10">
-              <SeccionTitulo
-                titulo="Datos del origen"
-                descripcion="Prospecto o cliente que origina la solicitud."
-              />
-              <ResolverIdentidadPanel
-                onIdentidadResuelta={({ origenTipo, origenId, nombre, tipoDocumento, numeroDocumento }) => {
-                  setOrigenTipoValue(origenTipo);
-                  setOrigenIdValue(origenId);
-                  setOrigenNombreValue(nombre ?? "");
-                  setContactoElegido(null);
-                  if (tipoDocumento) setTipoDocumentoValue(tipoDocumento);
-                  if (numeroDocumento) setNumeroDocumentoValue(numeroDocumento);
-                  limpiarErrorCampo("origenId");
-                  limpiarErrorCampo("contactoOrigenId");
-                }}
-              />
-
-              {/* Origen seleccionado (derivado de la busqueda por documento) */}
-              {origenIdValue ? (
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">Origen: </span>
-                  <span className="font-medium">
-                    {origenTipoValue === "PROSPECTO" ? "Prospecto" : "Cliente"}
-                  </span>
-                  {origenNombreValue ? (
-                    <span className="text-muted-foreground"> — {origenNombreValue}</span>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Aun no seleccionaste un origen. Busca por documento arriba.
-                </p>
-              )}
-              {erroresCampo["origenId"] ? (
-                <p className="text-xs text-destructive">
-                  Selecciona un origen valido buscando por documento.
-                </p>
-              ) : null}
-              {origenTipoValue === "PROSPECTO" && origenIdValue ? (
-                <div className="grid gap-2">
-                  <Label htmlFor="contactoOrigenId">
-                    Contacto del prospecto
-                    <span className="ml-1 text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={contactoOrigenIdValue || undefined}
-                    onValueChange={(v) => {
-                      setContactoElegido(v);
-                      limpiarErrorCampo("contactoOrigenId");
-                    }}
-                    disabled={isSaving || cargandoContactos || contactos.length === 0}
-                  >
-                    <SelectTrigger
-                      id="contactoOrigenId"
-                      aria-invalid={Boolean(erroresCampo["contactoOrigenId"])}
-                      className="w-full"
-                    >
-                      <SelectValue
-                        placeholder={
-                          cargandoContactos
-                            ? "Cargando contactos..."
-                            : contactos.length === 0
-                              ? "El prospecto no tiene contactos activos"
-                              : "Selecciona un contacto"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contactos.map((contacto) => (
-                        <SelectItem key={contacto.id} value={contacto.id}>
-                          {contacto.nombre}
-                          {contacto.esPrincipal ? " (principal)" : ""}
-                          {contacto.cargo ? ` — ${contacto.cargo}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errorContactos ? (
-                    <p className="text-xs text-destructive">
-                      No se pudieron cargar los contactos del prospecto.
-                    </p>
-                  ) : null}
-                  {erroresCampo["contactoOrigenId"] ? (
-                    <p className="text-xs text-destructive">
-                      {erroresCampo["contactoOrigenId"]}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-              <CampoSelect
-                label="Canal de entrada"
-                name="canalEntrada"
-                requerido
-                opciones={[
-                  { valor: "CORREO", etiqueta: "Correo electronico" },
-                  { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
-                  { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
-                  { valor: "OTRO", etiqueta: "Otro" },
-                ]}
-                defaultValue="CORREO"
-                error={erroresCampo["canalEntrada"]}
-                disabled={isSaving}
-              />
-            </div>
-
-            {/* Columna 2: descripcion del servicio */}
-            <div className="flex flex-col gap-4 lg:border-l lg:border-border lg:pl-10">
-              <SeccionTitulo
-                titulo="Descripcion del servicio"
-                descripcion="Detalle del servicio requerido por el cliente."
-              />
-              <CampoTextarea
-                label="Descripcion del servicio"
-                name="descripcionServicio"
-                requerido
-                placeholder="Describe el servicio requerido..."
-                error={erroresCampo["descripcionServicio"]}
-                disabled={isSaving}
-                onChange={() => limpiarErrorCampo("descripcionServicio")}
-              />
-              <CampoFecha
-                label="Fecha requerida"
-                value={fechaRequeridaValue}
-                onSelect={(fecha) => {
-                  setFechaRequeridaValue(fecha);
-                  limpiarErrorCampo("fechaRequerida");
-                }}
-                error={erroresCampo["fechaRequerida"]}
-                disabled={isSaving}
-              />
-              <CampoTextarea
-                label="Observaciones"
-                name="observaciones"
-                placeholder="Observaciones adicionales..."
-                error={erroresCampo["observaciones"]}
-                disabled={isSaving}
-              />
-            </div>
-          </div>
+          <CamposNuevaSolicitud campos={campos} />
 
           {/* Footer */}
           <div className="-mx-5 mt-5 flex items-center justify-end gap-2 border-t border-border bg-muted/40 px-5 py-4">
-            <Button type="button" variant="outline" asChild disabled={isSaving}>
-              <Link href="/comercial/cotizaciones">Cancelar</Link>
+            <Button type="button" variant="outline" asChild disabled={campos.isSaving}>
+              <Link href="/comercial/solicitudes-cliente">Cancelar</Link>
             </Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? "Registrando..." : "Registrar solicitud"}
+            <Button type="submit" disabled={campos.isSaving}>
+              {campos.isSaving ? "Registrando..." : "Registrar solicitud"}
             </Button>
           </div>
         </CardContent>
@@ -411,6 +492,133 @@ export function SolicitudClienteFormulario() {
 // Sub-componentes de formulario
 // ---------------------------------------------------------------------------
 
+function OrigenSeleccionado({
+  origenTipoValue,
+  origenNombreValue,
+  tipoDocumentoValue,
+  numeroDocumentoValue,
+  contactoOrigenIdValue,
+  cargandoContactos,
+  errorContactos,
+  contactos,
+  erroresCampo,
+  isSaving,
+  setContactoElegido,
+  limpiarErrorCampo,
+  limpiarOrigen,
+}: {
+  origenTipoValue: OrigenTipo;
+  origenNombreValue: string;
+  tipoDocumentoValue: string;
+  numeroDocumentoValue: string;
+  contactoOrigenIdValue: string;
+  cargandoContactos: boolean;
+  errorContactos: unknown;
+  contactos: Array<{ id: string; nombre: string; esPrincipal: boolean; cargo?: string | null }>;
+  erroresCampo: Record<string, string>;
+  isSaving: boolean;
+  setContactoElegido: (id: string) => void;
+  limpiarErrorCampo: (name: string) => void;
+  limpiarOrigen: () => void;
+}) {
+  const leyenda =
+    origenTipoValue === "PROSPECTO" ? "Prospecto seleccionado" : "Cliente seleccionado";
+
+  return (
+    <FieldSet className="gap-3 rounded-lg border border-border px-4 pb-4 pt-1">
+      <FieldLegend
+        variant="label"
+        className="px-1.5 font-semibold uppercase tracking-wide text-muted-foreground data-[variant=label]:text-xs"
+      >
+        {leyenda}
+      </FieldLegend>
+
+      {/* Header: nombre + boton Cambiar */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-medium text-muted-foreground">Razon social</p>
+          <p className="text-sm font-medium text-foreground">
+            {origenNombreValue ? origenNombreValue : (
+              <span className="text-muted-foreground">Sin razon social registrada</span>
+            )}
+          </p>
+          {tipoDocumentoValue && numeroDocumentoValue ? (
+            <div className="mt-1 flex flex-col gap-0.5">
+              <p className="text-xs font-medium text-muted-foreground">Documento</p>
+              <p className="text-sm text-foreground">
+                {tipoDocumentoValue} {numeroDocumentoValue}
+              </p>
+            </div>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={limpiarOrigen}
+          className="shrink-0"
+        >
+          <Pencil className="size-3.5" />
+          Cambiar
+        </Button>
+      </div>
+
+      {/* Select de contacto — solo para PROSPECTO */}
+      {origenTipoValue === "PROSPECTO" ? (
+        <div className="grid gap-2">
+          <Label htmlFor="contactoOrigenId">
+            Contacto del prospecto
+            <span className="ml-1 text-destructive">*</span>
+          </Label>
+          <Select
+            value={contactoOrigenIdValue || undefined}
+            onValueChange={(v) => {
+              setContactoElegido(v);
+              limpiarErrorCampo("contactoOrigenId");
+            }}
+            disabled={isSaving || cargandoContactos || contactos.length === 0}
+          >
+            <SelectTrigger
+              id="contactoOrigenId"
+              aria-invalid={Boolean(erroresCampo["contactoOrigenId"])}
+              className="w-full"
+            >
+              <SelectValue
+                placeholder={
+                  cargandoContactos
+                    ? "Cargando contactos..."
+                    : contactos.length === 0
+                      ? "El prospecto no tiene contactos activos"
+                      : "Selecciona un contacto"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {contactos.map((contacto) => (
+                <SelectItem key={contacto.id} value={contacto.id}>
+                  {contacto.nombre}
+                  {contacto.esPrincipal ? " (principal)" : ""}
+                  {contacto.cargo ? ` — ${contacto.cargo}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errorContactos ? (
+            <p className="text-xs text-destructive">
+              No se pudieron cargar los contactos del prospecto.
+            </p>
+          ) : null}
+          {erroresCampo["contactoOrigenId"] ? (
+            <p className="text-xs text-destructive">
+              {erroresCampo["contactoOrigenId"]}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+    </FieldSet>
+  );
+}
+
 function SeccionTitulo({
   titulo,
   descripcion,
@@ -419,7 +627,7 @@ function SeccionTitulo({
   descripcion?: string;
 }) {
   return (
-    <div className="mb-5 border-b border-border pb-4">
+    <div className="border-b border-border pb-4">
       <p className="text-sm font-semibold text-foreground">{titulo}</p>
       {descripcion ? (
         <p className="mt-1 text-xs text-muted-foreground">{descripcion}</p>
