@@ -19,7 +19,7 @@ export async function VehiculoDetalleVista({ id }: Props) {
   return (
     <>
       <SiteHeader
-        title={`Unidad ${unidadId}`}
+        title={`Unidad ${vehiculo?.placa ?? vehiculo?.placaRodaje ?? unidadId}`}
         breadcrumbs={[
           { title: "Flota y Disponibilidad", href: "/flota" },
           { title: "Listar unidades", href: "/flota/unidades" },

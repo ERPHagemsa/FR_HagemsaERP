@@ -359,7 +359,7 @@ export default function DetalleVehiculoClient({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h1 className="break-words text-2xl font-semibold tracking-normal">
-                Unidad {unidadId}
+                {vehiculo.placa ?? vehiculo.placaRodaje ?? unidadId}
               </h1>
               <EstadoUnidadBadge estado={vehiculo.estadoOperativo} />
             </div>
