@@ -6,6 +6,8 @@
 // cuando ya estamos dentro de un prospecto (mostrarProspecto=false).
 
 import Link from "next/link";
+import * as React from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import {
@@ -80,10 +82,14 @@ export function HistorialFeed({ entradas, mostrarProspecto = true }: Props) {
 }
 
 // ---------------------------------------------------------------------------
-// Celda de cambios: resume datosAnteriores/datosNuevos segun la accion
+// Celda de cambios: resume datosAnteriores/datosNuevos segun la accion.
+// Por defecto muestra solo un resumen compacto; el detalle completo se despliega
+// inline con "Ver detalle" para que la fila no ocupe alto ni ancho de mas.
 // ---------------------------------------------------------------------------
 
 function CambiosCelda({ entrada }: { entrada: EntradaHistorial }) {
+  const [expandido, setExpandido] = React.useState(false);
+
   if (entrada.accion === "ELIMINACION") {
     return (
       <span className="text-sm text-muted-foreground">
@@ -98,14 +104,24 @@ function CambiosCelda({ entrada }: { entrada: EntradaHistorial }) {
       return <span className="text-sm text-muted-foreground">Alta del prospecto.</span>;
     }
     return (
-      <ul className="flex flex-col gap-0.5 text-sm">
-        {campos.map(([campo, valor]) => (
-          <li key={campo}>
-            <span className="text-muted-foreground">{campo}:</span>{" "}
-            <span className="font-medium">{formatearValor(valor)}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="flex max-w-[34rem] flex-col gap-1 text-sm">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="text-muted-foreground">
+            Alta · {campos.length} {campos.length === 1 ? "campo" : "campos"}
+          </span>
+          <BotonVerDetalle expandido={expandido} onToggle={() => setExpandido((v) => !v)} />
+        </div>
+        {expandido ? (
+          <ul className="flex flex-col gap-0.5">
+            {campos.map(([campo, valor]) => (
+              <li key={campo} className="break-words">
+                <span className="text-muted-foreground">{campo}:</span>{" "}
+                <span className="font-medium">{formatearValor(campo, valor)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     );
   }
 
@@ -115,20 +131,31 @@ function CambiosCelda({ entrada }: { entrada: EntradaHistorial }) {
     return <span className="text-sm text-muted-foreground">Sin detalle.</span>;
   }
   return (
-    <ul className="flex flex-col gap-0.5 text-sm">
-      {claves.map((campo) => (
-        <li key={campo}>
-          <span className="text-muted-foreground">{campo}:</span>{" "}
-          <span className="line-through opacity-70">
-            {formatearValor(entrada.datosAnteriores?.[campo])}
-          </span>{" "}
-          <span aria-hidden>→</span>{" "}
-          <span className="font-medium">
-            {formatearValor(entrada.datosNuevos?.[campo])}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <div className="flex max-w-[34rem] flex-col gap-1 text-sm">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-muted-foreground">
+          {claves.length} {claves.length === 1 ? "cambio" : "cambios"}
+          {!expandido ? <span className="opacity-70">: {claves.join(", ")}</span> : null}
+        </span>
+        <BotonVerDetalle expandido={expandido} onToggle={() => setExpandido((v) => !v)} />
+      </div>
+      {expandido ? (
+        <ul className="flex flex-col gap-0.5">
+          {claves.map((campo) => (
+            <li key={campo} className="break-words">
+              <span className="text-muted-foreground">{campo}:</span>{" "}
+              <span className="line-through opacity-70">
+                {formatearValor(campo, entrada.datosAnteriores?.[campo])}
+              </span>{" "}
+              <span aria-hidden>→</span>{" "}
+              <span className="font-medium">
+                {formatearValor(campo, entrada.datosNuevos?.[campo])}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 
@@ -136,9 +163,44 @@ function CambiosCelda({ entrada }: { entrada: EntradaHistorial }) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatearValor(valor: unknown): string {
+function BotonVerDetalle({
+  expandido,
+  onToggle,
+}: {
+  expandido: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="inline-flex shrink-0 items-center gap-0.5 text-xs font-medium text-primary hover:underline"
+    >
+      {expandido ? (
+        <ChevronDown className="size-3" />
+      ) : (
+        <ChevronRight className="size-3" />
+      )}
+      {expandido ? "Ver menos" : "Ver detalle"}
+    </button>
+  );
+}
+
+// Formatea un valor de auditoria para mostrarlo legible (nunca JSON crudo).
+// Arrays -> conteo con el nombre del campo ("2 contactos"); objetos -> resumen
+// de claves; escalares -> su string. El `campo` da contexto al conteo.
+function formatearValor(campo: string, valor: unknown): string {
   if (valor === null || valor === undefined || valor === "") return "—";
-  if (typeof valor === "object") return JSON.stringify(valor);
+  if (Array.isArray(valor)) {
+    if (valor.length === 0) return "—";
+    const noun =
+      valor.length === 1 && campo.endsWith("s") ? campo.slice(0, -1) : campo;
+    return `${valor.length} ${noun}`;
+  }
+  if (typeof valor === "object") {
+    const claves = Object.keys(valor as Record<string, unknown>);
+    return claves.length ? `{ ${claves.join(", ")} }` : "—";
+  }
   return String(valor);
 }
 
