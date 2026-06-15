@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
-import { Eye, Plus, RefreshCw, Search } from "lucide-react";
+import { Eye, FilePlusCorner, Plus, RefreshCw, Search } from "lucide-react";
 
+import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -13,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { toast } from "sonner";
 import { Input } from "@/compartido/componentes/ui/input";
 import {
   Select,
@@ -29,15 +31,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/compartido/componentes/ui/tooltip";
 import { cn } from "@/compartido/utilidades";
 
 import type {
-  EstadoSolicitudCliente,
   FiltrosSolicitudesCliente,
   SolicitudClienteResumen,
   TipoOrigen,
 } from "../tipos/solicitud-cliente.tipos";
 import { EstadoSolicitudBadge } from "./estado-solicitud-badge";
+import { SolicitudClienteNuevaSheet } from "./solicitud-cliente-nueva-sheet";
 
 type Props = {
   items: SolicitudClienteResumen[];
@@ -45,13 +52,14 @@ type Props = {
   total: number;
 };
 
-const ESTADOS_SC: Array<{ valor: EstadoSolicitudCliente | "TODOS"; etiqueta: string }> = [
-  { valor: "TODOS", etiqueta: "Todos" },
-  { valor: "PENDIENTE", etiqueta: "Pendiente" },
+// Opciones del control segmentado de estado (pool de trabajo).
+// "TODOS" es el valor interno para "sin filtro de estado".
+type OpcionSegmento = { valor: string; etiqueta: string };
+
+const SEGMENTOS_ESTADO: OpcionSegmento[] = [
+  { valor: "PENDIENTE", etiqueta: "Por cotizar" },
   { valor: "EN_COTIZACION", etiqueta: "En cotizacion" },
-  { valor: "COTIZADA", etiqueta: "Cotizada" },
-  { valor: "CERRADA", etiqueta: "Cerrada" },
-  { valor: "DESCARTADA", etiqueta: "Descartada" },
+  { valor: "TODOS", etiqueta: "Todas" },
 ];
 
 const ORIGENES: Array<{ valor: TipoOrigen | "TODOS"; etiqueta: string }> = [
@@ -64,12 +72,16 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const [crearAbierto, setCrearAbierto] = React.useState(false);
+
   const pagina = filtros.pagina ?? 1;
   const porPagina = filtros.porPagina ?? 10;
 
   const [busquedaLocal, setBusquedaLocal] = React.useState(filtros.busqueda ?? "");
-  const [estadoLocal, setEstadoLocal] = React.useState(filtros.estado ?? "TODOS");
   const [origenLocal, setOrigenLocal] = React.useState(filtros.origenTipo ?? "TODOS");
+
+  // El estado activo del segmento se deriva directamente del filtro recibido por props.
+  const estadoSegmento = filtros.estado ?? "TODOS";
 
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
   const desdeVisible = total ? (pagina - 1) * porPagina + 1 : 0;
@@ -89,7 +101,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   function aplicarFiltros() {
     router.push(
       construirUrl({
-        estado: estadoLocal,
+        estado: estadoSegmento,
         origenTipo: origenLocal,
         busqueda: busquedaLocal,
         pagina: 1,
@@ -98,9 +110,20 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
     );
   }
 
+  function cambiarSegmento(valor: string) {
+    router.push(
+      construirUrl({
+        estado: valor,
+        origenTipo: filtros.origenTipo,
+        busqueda: filtros.busqueda,
+        pagina: 1,
+        porPagina: filtros.porPagina,
+      })
+    );
+  }
+
   function limpiarFiltros() {
     setBusquedaLocal("");
-    setEstadoLocal("TODOS");
     setOrigenLocal("TODOS");
     router.push(pathname);
   }
@@ -130,16 +153,36 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
               {total} {total === 1 ? "solicitud" : "solicitudes"} encontradas
             </CardDescription>
           </div>
-          <Button asChild>
-            <Link href="/comercial/solicitudes-cliente/nueva">
-              <Plus data-icon="inline-start" />
-              Nueva solicitud
-            </Link>
+          <Button onClick={() => setCrearAbierto(true)}>
+            <Plus data-icon="inline-start" />
+            Nueva solicitud
           </Button>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-5">
-        {/* Filtros */}
+        {/* Control segmentado de estado — pool de trabajo */}
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-muted p-1 self-start">
+          {SEGMENTOS_ESTADO.map((seg) => {
+            const activo = estadoSegmento === seg.valor;
+            return (
+              <button
+                key={seg.valor}
+                type="button"
+                onClick={() => cambiarSegmento(seg.valor)}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  activo
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {seg.etiqueta}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Filtros secundarios */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid min-w-64 flex-1 gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">
@@ -156,14 +199,6 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
               />
             </div>
           </div>
-          <FiltroSelect
-            className="min-w-40 flex-1"
-            label="Estado"
-            value={estadoLocal}
-            valores={ESTADOS_SC.map((e) => e.valor)}
-            etiquetas={ESTADOS_SC.map((e) => e.etiqueta)}
-            onChange={setEstadoLocal}
-          />
           <FiltroSelect
             className="min-w-36 flex-1"
             label="Origen"
@@ -196,12 +231,13 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[26%]">Solicitante</TableHead>
-                <TableHead className="w-[26%]">Descripcion del servicio</TableHead>
-                <TableHead className="w-[12%]">Origen</TableHead>
-                <TableHead className="w-[14%]">Estado</TableHead>
-                <TableHead className="w-[10%] text-center">Cotizaciones</TableHead>
-                <TableHead className="w-[12%] text-right">Accion</TableHead>
+                <TableHead className="w-[20%]">Solicitante</TableHead>
+                <TableHead className="w-[20%]">Descripcion del servicio</TableHead>
+                <TableHead className="w-[9%]">Origen</TableHead>
+                <TableHead className="w-[12%]">Estado</TableHead>
+                <TableHead className="w-[11%]">Tomado por</TableHead>
+                <TableHead className="w-[8%] text-center">Cotizaciones</TableHead>
+                <TableHead className="w-[20%] text-right">Accion</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -211,7 +247,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
               {!items.length ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-28 text-center text-muted-foreground"
                   >
                     {hayFiltros
@@ -256,11 +292,22 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
           </div>
         </div>
       </CardContent>
+
+      <SolicitudClienteNuevaSheet
+        abierto={crearAbierto}
+        onCerrar={() => setCrearAbierto(false)}
+        onCreado={() => {
+          router.refresh();
+          toast.success("Solicitud registrada");
+        }}
+      />
     </Card>
   );
 }
 
 function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
+  const esPendiente = item.estado === "PENDIENTE";
+
   return (
     <TableRow>
       <TableCell className="text-sm">
@@ -280,18 +327,50 @@ function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
       <TableCell>
         <EstadoSolicitudBadge estado={item.estado} />
       </TableCell>
+      {/* Columna "Tomado por": derivada de totalCotizaciones.
+          Cuando el backend agregue el ejecutivo al resumen, acá se mostrará el nombre real. */}
+      <TableCell>
+        {item.totalCotizaciones === 0 ? (
+          <Badge variant="outline">Disponible</Badge>
+        ) : (
+          <Badge variant="secondary">Tomada</Badge>
+        )}
+      </TableCell>
       <TableCell className="text-center">
         <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
           {item.totalCotizaciones}
         </span>
       </TableCell>
+      {/* Accion adaptativa por estado (botones solo-icono con tooltip):
+          - PENDIENTE: boton "Cotizar" (primario) + boton "Ver detalle"
+          - Otros estados: solo boton "Ver detalle" */}
       <TableCell className="text-right">
-        <Button asChild size="icon-sm" variant="outline">
-          <Link href={`/comercial/solicitudes-cliente/${item.id}`}>
-            <Eye />
-            <span className="sr-only">Ver</span>
-          </Link>
-        </Button>
+        <div className="flex items-center justify-end gap-1.5">
+          {esPendiente ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild size="icon-sm" variant="default">
+                  <Link href={`/comercial/solicitudes-cliente/${item.id}/cotizar`}>
+                    <FilePlusCorner />
+                    <span className="sr-only">Cotizar</span>
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Cotizar</TooltipContent>
+            </Tooltip>
+          ) : null}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button asChild size="icon-sm" variant="outline">
+                <Link href={`/comercial/solicitudes-cliente/${item.id}`}>
+                  <Eye />
+                  <span className="sr-only">Ver detalle</span>
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Ver detalle</TooltipContent>
+          </Tooltip>
+        </div>
       </TableCell>
     </TableRow>
   );
@@ -330,4 +409,3 @@ function FiltroSelect({
     </div>
   );
 }
-

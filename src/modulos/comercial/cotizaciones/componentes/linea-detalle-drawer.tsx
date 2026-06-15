@@ -22,9 +22,23 @@ import {
   SheetTitle,
 } from "@/compartido/componentes/ui/sheet";
 import { Separator } from "@/compartido/componentes/ui/separator";
+import { FieldSet, FieldLegend } from "@/compartido/componentes/ui/field";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/compartido/componentes/ui/dialog";
+import { SlidersHorizontalIcon } from "lucide-react";
 
 import type { TipoLinea } from "../tipos/cotizaciones.tipos";
+import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
 import type { DraftLinea } from "../servicios/cotizaciones-editor.utils";
+import { montoCargo } from "../servicios/cotizaciones-editor.utils";
+import { EditorCargos } from "./editor-cargos";
 import { ModalidadSelector } from "./modalidad-selector";
 import { TIPOS_LINEA, formatearMoneda } from "./lineas-grid.utils";
 
@@ -32,6 +46,7 @@ type Props = {
   abierto: boolean;
   linea: DraftLinea | null;
   moneda: string;
+  opcionesCatalogo: CatalogoCargoAdicional[];
   erroresCampo?: Record<string, string>;
   disabled?: boolean;
   onCerrar: () => void;
@@ -49,6 +64,7 @@ export function LineaDetalleDrawer({
   abierto,
   linea,
   moneda,
+  opcionesCatalogo,
   erroresCampo = {},
   disabled,
   onCerrar,
@@ -58,6 +74,7 @@ export function LineaDetalleDrawer({
   const [claveActual, setClaveActual] = React.useState<string | null>(
     linea?.claveCliente ?? null
   );
+  const [cargosAbierto, setCargosAbierto] = React.useState(false);
 
   // Re-sincronizar el borrador cuando entra otra linea (o null), sin useEffect:
   // patron de ajuste de estado durante el render recomendado por React.
@@ -81,7 +98,7 @@ export function LineaDetalleDrawer({
           pisarlo hay que usar EL MISMO prefijo de variante; un `sm:max-w-*` plano
           no lo deduplica twMerge y pierde por especificidad. */}
       {/* <SheetContent side="right" className="w-full gap-0 sm:max-w-3xl"> */}
-      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
+      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-xl">
         <SheetHeader className="border-b border-border">
           <SheetTitle>Detalle de la linea</SheetTitle>
           <SheetDescription>
@@ -91,41 +108,41 @@ export function LineaDetalleDrawer({
 
         <div className="flex-1 overflow-y-auto p-6">
           <div className="flex flex-col gap-5">
-            {/* Tipo de linea — fila propia */}
-            <Campo label="Tipo de linea" obligatorio>
-              <Select
-                value={borrador.tipoLinea}
-                disabled={disabled}
-                // Al cambiar el tipo, la modalidad anterior deja de aplicar
-                // (las modalidades se filtran por tipo): la limpiamos.
-                onValueChange={(v) =>
-                  set({ tipoLinea: v as TipoLinea, idModalidad: "" })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPOS_LINEA.map((t) => (
-                    <SelectItem key={t.valor} value={t.valor}>
-                      {t.etiqueta}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Campo>
+            {/* Tipo de linea + Modalidad — comparten fila en 2 columnas */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Campo label="Tipo de linea" obligatorio>
+                <Select
+                  value={borrador.tipoLinea}
+                  disabled={disabled}
+                  // Al cambiar el tipo, la modalidad anterior deja de aplicar
+                  // (las modalidades se filtran por tipo): la limpiamos.
+                  onValueChange={(v) =>
+                    set({ tipoLinea: v as TipoLinea, idModalidad: "" })
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIPOS_LINEA.map((t) => (
+                      <SelectItem key={t.valor} value={t.valor}>
+                        {t.etiqueta}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Campo>
 
-            {/* Modalidad — fila propia a ancho completo (su contenido
-                `codigo — nombre` no entra bien en media fila). */}
-            <Campo label="Modalidad" obligatorio error={erroresCampo.idModalidad}>
-              <ModalidadSelector
-                name="__modalidad__"
-                value={borrador.idModalidad}
-                tipoLinea={borrador.tipoLinea}
-                disabled={disabled}
-                onValueChange={(id) => set({ idModalidad: id })}
-              />
-            </Campo>
+              <Campo label="Modalidad" obligatorio error={erroresCampo.idModalidad}>
+                <ModalidadSelector
+                  name="__modalidad__"
+                  value={borrador.idModalidad}
+                  tipoLinea={borrador.tipoLinea}
+                  disabled={disabled}
+                  onValueChange={(id) => set({ idModalidad: id })}
+                />
+              </Campo>
+            </div>
 
             <Campo label="Descripcion" obligatorio error={erroresCampo.descripcion}>
               <Input
@@ -240,8 +257,76 @@ export function LineaDetalleDrawer({
                 </div>
               </Grupo>
             ) : null}
+
+            {/* Cargos adicionales del item (nivel linea): resumen read-only aca,
+                edicion en un Dialog ancho donde la tabla entra comoda. */}
+            <Grupo
+              titulo={`Cargos adicionales por Linea${
+                borrador.cargosAdicionales.length
+                  ? ` (${borrador.cargosAdicionales.length})`
+                  : ""
+              }`}
+            >
+              {borrador.cargosAdicionales.length > 0 ? (
+                <ul className="flex flex-col gap-1.5">
+                  {borrador.cargosAdicionales.map((cargo) => (
+                    <li
+                      key={cargo.claveCliente}
+                      className="flex items-center justify-between gap-3 text-xs"
+                    >
+                      <span className="truncate text-foreground">
+                        {cargo.descripcion || "Sin descripcion"}
+                      </span>
+                      <span className="shrink-0 font-mono tabular-nums text-muted-foreground">
+                        {parseFloat(cargo.cantidad) || 0} ×{" "}
+                        {parseFloat(cargo.precioUnitario) || 0} ={" "}
+                        {formatearMoneda(montoCargo(cargo), moneda)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-muted-foreground">Sin cargos adicionales.</p>
+              )}
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="self-start"
+                disabled={disabled}
+                onClick={() => setCargosAbierto(true)}
+              >
+                <SlidersHorizontalIcon data-icon="inline-start" />
+                Gestionar cargos
+              </Button>
+            </Grupo>
           </div>
         </div>
+
+        {/* Sub-editor de cargos: la tabla ancha vive aca, no en el drawer angosto */}
+        <Dialog open={cargosAbierto} onOpenChange={setCargosAbierto}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Cargos de la linea</DialogTitle>
+              <DialogDescription>
+                Cargos adicionales propios de esta linea (escolta, movilizacion, etc.).
+              </DialogDescription>
+            </DialogHeader>
+            <EditorCargos
+              cargos={borrador.cargosAdicionales}
+              opcionesCatalogo={opcionesCatalogo}
+              erroresCampo={erroresCampo}
+              disabled={disabled}
+              onChange={(cargos) => set({ cargosAdicionales: cargos })}
+            />
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button">Listo</Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Separator />
         <SheetFooter className="flex-row justify-end gap-2">
@@ -287,12 +372,17 @@ function Campo({
 
 function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-4">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <FieldSet className="gap-3 rounded-lg border border-border px-4 pb-4 pt-1">
+      {/* Mismo prefijo de variante para pisar el `text-sm` del primitivo:
+          un `text-xs` plano no lo deduplica twMerge (ver SheetContent arriba). */}
+      <FieldLegend
+        variant="label"
+        className="px-1.5 font-semibold uppercase tracking-wide text-muted-foreground data-[variant=label]:text-xs"
+      >
         {titulo}
-      </p>
+      </FieldLegend>
       {children}
-    </div>
+    </FieldSet>
   );
 }
 

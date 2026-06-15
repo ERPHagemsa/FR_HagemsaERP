@@ -37,8 +37,8 @@ A "vista" is the top-level component a `page.tsx` renders; pages stay near-empty
 
 ### Two HTTP client patterns (important)
 
-1. **Browser → Next Route Handler → backend (server-side proxy).** Use this whenever the call needs the JWT. `compartido/api/cliente-http.ts` (`clienteHttp`) hits same-origin `/api/...`; httpOnly cookies ride along automatically. The Route Handler reads the cookie and injects `Authorization: Bearer`. See `app/api/admin/[...path]/route.ts` for the canonical catch-all proxy. **The JWT never reaches browser JS.**
-2. **Browser → backend directly.** `compartido/api/clientes-backend.ts` exports one preconfigured axios instance per BC (`clienteActivos`, `clienteCombustible`, `clienteSocioNegocios`, `clienteConfiguracionGeneral`), each reading `NEXT_PUBLIC_<BC>_API_URL` from `compartido/api/config.ts` (falls back to `NEXT_PUBLIC_API_GATEWAY_URL`, then a dev URL). These use `withCredentials: false` and do **not** carry the JWT.
+1. **Browser → Next Route Handler → backend (server-side proxy).** Use this whenever the call needs the JWT. `compartido/api/cliente-http.ts` (`clienteHttp`) hits same-origin `/api/...`; httpOnly cookies ride along automatically. The Route Handler reads the cookie and injects `Authorization: Bearer`. Socio de Negocios and Configuracion General use this pattern. **The JWT never reaches browser JS.**
+2. **Browser → backend directly.** `compartido/api/clientes-backend.ts` also exports preconfigured axios instances for BCs that do not require the JWT. These read `NEXT_PUBLIC_<BC>_API_URL` from `compartido/api/config.ts`, use `withCredentials: false`, and do **not** carry the JWT.
 
 A module's HTTP calls always live in `modulos/<bc>/servicios/<bc>-api.ts` and use the appropriate client. Adding a new BC: add the env var, add the entry in `config.ts` (and extend the `ServicioApi` union), then add the instance in `clientes-backend.ts` — the header comment in that file is the step-by-step.
 
@@ -63,7 +63,7 @@ shadcn/ui (style `radix-maia`, base color `mist`, RSC enabled) installed into `c
 
 ## Environment
 
-Server-only (no `NEXT_PUBLIC_`): `AUTH_SERVICE_URL`, `AUTH_MODO_DESARROLLO`. Client-exposed: `NEXT_PUBLIC_<BC>_API_URL` per backend and optional `NEXT_PUBLIC_API_GATEWAY_URL`. Copy `.env.local.example` → `.env.local` for local dev. **Never put the bearer token client-side** — that's the whole point of the cookie + proxy design.
+Server-only (no `NEXT_PUBLIC_`): `AUTH_SERVICE_URL`, `AUTH_MODO_DESARROLLO`, `SOCIO_NEGOCIOS_API_URL`, `CONFIGURACION_GENERAL_API_URL`. Client-exposed: `NEXT_PUBLIC_<BC>_API_URL` only for backends called directly by the browser, plus optional `NEXT_PUBLIC_API_GATEWAY_URL`. Copy `.env.local.example` → `.env.local` for local dev. **Never put the bearer token client-side** — that's the whole point of the cookie + proxy design.
 
 ## Branch flow
 

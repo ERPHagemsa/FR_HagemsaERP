@@ -74,6 +74,6 @@ function crearClienteBffPorBC(servicio: ServicioApi) {
 
 export const clienteActivos = crearClientePorBC("activos")
 export const clienteCombustible = crearClientePorBC("combustible")
-export const clienteSocioNegocios = crearClientePorBC("socioNegocios")
+export const clienteSocioNegocios = crearClienteBffPorBC("socioNegocios")
 export const clienteConfiguracionGeneral = crearClienteBffPorBC("configuracionGeneral")
 export const clienteComercial = crearClientePorBC("comercial")

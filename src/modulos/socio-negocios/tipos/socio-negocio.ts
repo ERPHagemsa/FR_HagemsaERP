@@ -395,6 +395,8 @@ export interface SapBusinessPartnerResumenResponse {
   areaNombre?: string
   cuentaId?: string
   cuentaNombre?: string
+  contratoId?: string
+  contratoNombre?: string
 }
 
 export type SapBusinessPartnerResponse = SapBusinessPartnerResumenResponse & {

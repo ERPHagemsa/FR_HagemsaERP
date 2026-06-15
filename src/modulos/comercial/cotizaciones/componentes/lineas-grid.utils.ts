@@ -121,6 +121,20 @@ export function mapearErroresContenido(
       continue;
     }
 
+    // Cargo de linea (indice draft): "secciones.{i}.lineas.{k}.cargosAdicionales.{j}.{campo}"
+    // ORDERING CRITICAL: este branch DEBE ir antes del matcher generico de linea (siguiente)
+    // para que las claves de cargos no sean absorbidas por el regex de campo-de-linea.
+    m = ruta.match(/^secciones\.(\d+)\.lineas\.(\d+)\.cargosAdicionales\.(\d+)\.(.+)$/);
+    if (m) {
+      const sec = secciones[Number(m[1])];
+      const linea = sec?.lineas[Number(m[2])];
+      if (linea) {
+        // Clave relativa que EditorCargos espera dentro de su prop erroresCampo
+        (porLinea[linea.claveCliente] ??= {})[`cargosAdicionales.${m[3]}.${m[4]}`] = msg;
+      }
+      continue;
+    }
+
     // Linea dentro de seccion (indice draft): "secciones.{i}.lineas.{j}.{campo}"
     m = ruta.match(/^secciones\.(\d+)\.lineas\.(\d+)\.(.+)$/);
     if (m) {

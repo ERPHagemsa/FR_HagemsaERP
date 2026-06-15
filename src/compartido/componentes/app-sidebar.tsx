@@ -93,11 +93,13 @@ const data = {
       items: [
         { title: "Prospectos", url: "/comercial/prospectos" },
         { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
-        { title: "Cotizaciones", url: "/comercial/cotizaciones" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
         { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
         { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
+        // Listado global de cotizaciones: vista secundaria/reporte. El camino principal
+        // para cotizar es Solicitudes de cliente (la cotizacion nace de una SC).
+        { title: "Todas las cotizaciones", url: "/comercial/cotizaciones" },
       ],
     },
     {

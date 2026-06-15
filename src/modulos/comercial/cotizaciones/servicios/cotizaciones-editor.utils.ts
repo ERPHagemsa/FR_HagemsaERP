@@ -20,6 +20,7 @@ import type {
   LeadTime,
   TipoLinea,
   Moneda,
+  UnidadCobro,
   Version,
   PayloadBorrador,
   PayloadLinea,
@@ -49,7 +50,10 @@ export type DraftLeadTime = {
 export type DraftCargoAdicional = {
   claveCliente: string; // clave efimera UI
   descripcion: string;
-  monto: string;        // input numerico como string (>=0)
+  unidadCobro: UnidadCobro; // unidad de cobro del cargo
+  cantidad: string;          // input numerico como string (> 0)
+  precioUnitario: string;    // input numerico como string (>= 0)
+  // monto derivado: cantidad × precioUnitario — NO almacenar; calcular en el componente via montoCargo()
   orden: number;
 };
 
@@ -93,6 +97,7 @@ export type DraftLinea = {
   equipo: DraftEquipoHijo;
   almacenaje: DraftAlmacenajeHijo;
   personal: DraftPersonalHijo;
+  cargosAdicionales: DraftCargoAdicional[]; // cargos a nivel de linea (arco exclusivo: linea XOR seccion)
 };
 
 // Contrato 2026-06-06: sin campo unidad. monto = tarifa diaria.
@@ -167,6 +172,7 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
     equipo: equipoVacio(),
     almacenaje: almacenajeVacio(),
     personal: personalVacio(),
+    cargosAdicionales: [],
   };
 }
 
@@ -195,9 +201,20 @@ export function cargoAdicionalVacio(): DraftCargoAdicional {
   return {
     claveCliente: crypto.randomUUID(),
     descripcion: "",
-    monto: "0",
+    unidadCobro: "SERVICIO",
+    cantidad: "1",
+    precioUnitario: "0",
     orden: 0,
   };
+}
+
+/**
+ * montoCargo — calcula el monto de un DraftCargoAdicional (cantidad × precioUnitario).
+ * Funcion pura; usada tanto en el componente EditorCargos como en los subtotales
+ * de EditorContenido para evitar derivar la formula.
+ */
+export function montoCargo(c: DraftCargoAdicional): number {
+  return (parseFloat(c.cantidad) || 0) * (parseFloat(c.precioUnitario) || 0);
 }
 
 export function seccionVacia(esDefecto = false): DraftSeccion {
@@ -220,11 +237,21 @@ export function seccionDefectoVacia(): DraftSeccion {
 // Con migracion graceful de shapes viejos (ADR-D3)
 // ---------------------------------------------------------------------------
 
-function cargoAdicionalReadADraft(c: CargoAdicional): DraftCargoAdicional {
+function cargoAdicionalReadADraft(c: CargoAdicionalCompat): DraftCargoAdicional {
+  // Migracion graceful: shapes viejos {descripcion, monto} sin unidadCobro/cantidad/precioUnitario.
+  // Si faltan los campos nuevos, derivar precioUnitario de monto (con cantidad = 1)
+  // para que cantidad × precioUnitario reproduzca el monto legado.
+  const unidadCobro: UnidadCobro = c.unidadCobro ?? "SERVICIO";
+  const cantidad = c.cantidad !== undefined ? String(c.cantidad) : "1";
+  const precioUnitario = c.precioUnitario !== undefined
+    ? String(c.precioUnitario)
+    : String(c.monto ?? 0);
   return {
     claveCliente: c.id,
     descripcion: c.descripcion,
-    monto: String(c.monto),
+    unidadCobro,
+    cantidad,
+    precioUnitario,
     orden: c.orden,
   };
 }
@@ -287,8 +314,18 @@ function lineaReadADraft(l: Linea): DraftLinea {
     equipo: l.equipo ? equipoReadADraft(l.equipo) : equipoVacio(),
     almacenaje: l.almacenaje ? almacenajeReadADraft(l.almacenaje) : almacenajeVacio(),
     personal: l.personal ? personalReadADraft(l.personal) : personalVacio(),
+    // Cargos a nivel de linea: mapear con compat graceful; lineas legacy no tienen este campo.
+    cargosAdicionales: (l.cargosAdicionales ?? []).map((c) => cargoAdicionalReadADraft(c as CargoAdicionalCompat)),
   };
 }
+
+// Migracion graceful para CargoAdicional: shapes anteriores solo tenian {id, descripcion, monto, orden}.
+// Usamos un tipo interseccion con campos opcionales para la compat (patron StandbyCompat).
+type CargoAdicionalCompat = CargoAdicional & {
+  unidadCobro?: UnidadCobro;
+  cantidad?: number;
+  precioUnitario?: number;
+};
 
 // Migracion graceful: el shape viejo del standby tenia recurso/tarifaDia/moneda/idSeccion.
 // Usamos un tipo interseccion con campos opcionales del shape viejo para la compat.
@@ -436,7 +473,8 @@ function personalAPayload(p: DraftPersonalHijo): PayloadPersonalHijo {
  * AGENCIAMIENTO / SERVICIO_AUXILIAR → sin hijo.
  * Emite precioUnitario (requerido, >=0) y cantidad (entero >=1); NUNCA emitir
  * idSeccion, precioTotal, subtotal ni totales (los calcula el backend).
- * NUNCA emitir moneda ni cargos en linea.
+ * NUNCA emitir moneda en linea (moneda es de version).
+ * cargosAdicionales a nivel linea: incluir cuando existen (contrato bc03).
  */
 function lineaAPayload(l: DraftLinea): PayloadLinea {
   const base: PayloadLinea = {
@@ -461,6 +499,11 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
       base.personal = personalAPayload(l.personal);
       break;
     // AGENCIAMIENTO y SERVICIO_AUXILIAR: sin hijo
+  }
+
+  // Cargos a nivel de linea (arco exclusivo: no deben coexistir con los de la seccion padre).
+  if (l.cargosAdicionales.length > 0) {
+    base.cargosAdicionales = l.cargosAdicionales.map(cargoAdicionalAPayload);
   }
 
   return base;
@@ -489,9 +532,12 @@ function leadTimeAPayload(l: DraftLeadTime): PayloadLeadTime {
 }
 
 function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
+  // NUNCA emitir monto — el tipo PayloadCargoAdicional lo excluye estructuralmente.
   const payload: PayloadCargoAdicional = {
     descripcion: c.descripcion,
-    monto: parseNumero(c.monto),
+    unidadCobro: c.unidadCobro,
+    cantidad: parseNumero(c.cantidad),
+    precioUnitario: parseNumero(c.precioUnitario),
   };
   if (c.orden > 0) payload.orden = c.orden;
   return payload;
@@ -520,12 +566,37 @@ function seccionAPayload(s: DraftSeccion): PayloadSeccion | null {
   return payload;
 }
 
+const UNIDADES_COBRO_VALIDAS: ReadonlySet<string> = new Set([
+  "VIAJE", "DIA", "M2", "SERVICIO", "HORA", "TONELADA", "CONTENEDOR", "OTRO",
+]);
+
+function validarCargo(
+  errores: Record<string, string>,
+  c: DraftCargoAdicional,
+  prefijo: string,
+): void {
+  if (c.descripcion.trim() === "") {
+    errores[`${prefijo}.descripcion`] = "La descripcion del cargo es obligatoria.";
+  }
+  if (!UNIDADES_COBRO_VALIDAS.has(c.unidadCobro)) {
+    errores[`${prefijo}.unidadCobro`] = "La unidad de cobro es invalida.";
+  }
+  const cantidadNum = parseFloat(c.cantidad);
+  if (isNaN(cantidadNum) || cantidadNum <= 0) {
+    errores[`${prefijo}.cantidad`] = "La cantidad debe ser mayor a 0.";
+  }
+  const precioNum = parseFloat(c.precioUnitario);
+  if (isNaN(precioNum) || precioNum < 0) {
+    errores[`${prefijo}.precioUnitario`] = "El precio unitario debe ser >= 0.";
+  }
+}
+
 /**
  * validarBorrador — validaciones client-side previas al envío.
  *
  * - Seccion con nombre obligatorio (EXCEPTO esDefecto — la seccion por defecto no exige nombre).
  * - LeadTime: descripcion no vacia; diasMax >= diasMin cuando esRango.
- * - CargoAdicional: descripcion no vacia; monto >= 0.
+ * - CargoAdicional (seccion y linea): descripcion no vacia; unidadCobro valida; cantidad > 0; precioUnitario >= 0.
  * - Standby: descripcion no vacia; monto >= 0.
  * - Moneda: requerida a nivel version.
  */
@@ -543,24 +614,22 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
     if (!s.esDefecto && s.nombre.trim() === "") {
       errores[`secciones.${i}.nombre`] = "El nombre de la seccion es obligatorio.";
     }
-    // Lineas: cantidad debe ser un entero >= 1
-    s.lineas.forEach((l, j) => {
+    // Lineas: cantidad debe ser un entero >= 1; cargos de la linea
+    s.lineas.forEach((l, k) => {
       if (l.cantidad !== "") {
         const cantidadNum = parseFloat(l.cantidad);
         if (isNaN(cantidadNum) || cantidadNum < 1 || !Number.isInteger(cantidadNum)) {
-          errores[`secciones.${i}.lineas.${j}.cantidad`] = "La cantidad debe ser un entero mayor o igual a 1.";
+          errores[`secciones.${i}.lineas.${k}.cantidad`] = "La cantidad debe ser un entero mayor o igual a 1.";
         }
       }
+      // Cargos a nivel de linea
+      l.cargosAdicionales.forEach((c, j) => {
+        validarCargo(errores, c, `secciones.${i}.lineas.${k}.cargosAdicionales.${j}`);
+      });
     });
     // Cargos adicionales de esta seccion
     s.cargosAdicionales.forEach((c, j) => {
-      if (c.descripcion.trim() === "") {
-        errores[`secciones.${i}.cargosAdicionales.${j}.descripcion`] = "La descripcion del cargo es obligatoria.";
-      }
-      const montoNum = parseFloat(c.monto);
-      if (isNaN(montoNum) || montoNum < 0) {
-        errores[`secciones.${i}.cargosAdicionales.${j}.monto`] = "El monto debe ser >= 0.";
-      }
+      validarCargo(errores, c, `secciones.${i}.cargosAdicionales.${j}`);
     });
   });
 

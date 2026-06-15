@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 import { extraerMensajeError } from "@/compartido/api";
 import { Alert, AlertDescription } from "@/compartido/componentes/ui/alert";
 import { Button } from "@/compartido/componentes/ui/button";
+import { FieldLegend, FieldSet } from "@/compartido/componentes/ui/field";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -82,6 +83,8 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
       origenTipo: "PROSPECTO",
       origenId,
       nombre: nombre ?? undefined,
+      tipoDocumento,
+      numeroDocumento,
     });
   }
 
@@ -96,8 +99,15 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4">
-      <p className="text-sm font-semibold">Buscar por documento</p>
+    <FieldSet className="gap-3 rounded-lg border border-border px-4 pb-4 pt-1">
+      {/* Mismo prefijo de variante para pisar el text-sm del primitivo (ver Grupo
+          en linea-detalle-drawer): un text-xs plano no lo deduplica twMerge. */}
+      <FieldLegend
+        variant="label"
+        className="px-1.5 font-semibold uppercase tracking-wide text-muted-foreground data-[variant=label]:text-xs"
+      >
+        Buscar por documento
+      </FieldLegend>
       <p className="text-xs text-muted-foreground">
         Busca el prospecto o cliente por su documento (DNI / RUC / CE) para seleccionar el origen de la solicitud.
       </p>
@@ -230,6 +240,6 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
           </AlertDescription>
         </Alert>
       ) : null}
-    </div>
+    </FieldSet>
   );
 }
