@@ -16,7 +16,7 @@ import type {
 
 type RespuestaOperacion = { success: boolean; mensaje: string };
 type HistorialFlotaItem = {
-  id: string;
+  id: number;
   accion?: string | null;
   fechaAccion?: string | null;
   usuarioAccion?: string | null;
