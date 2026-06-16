@@ -16,12 +16,14 @@ function unirUrl(baseUrl: string, subruta: string, query: string) {
 }
 
 async function reenviar(request: NextRequest, ctx: Ctx): Promise<NextResponse> {
-  const accessToken = await obtenerAccessToken()
-  if (!accessToken) {
+  const { path = [] } = await ctx.params
+  const esEstadoPublico = request.method === "GET" && path.length === 1 && path[0] === "estado"
+
+  const accessToken = esEstadoPublico ? null : await obtenerAccessToken()
+  if (!accessToken && !esEstadoPublico) {
     return NextResponse.json({ message: "Sesion no iniciada." }, { status: 401 })
   }
 
-  const { path = [] } = await ctx.params
   const urlDestino = unirUrl(
     URLS_SERVIDOR.socioNegocios,
     path.join("/"),
@@ -29,7 +31,9 @@ async function reenviar(request: NextRequest, ctx: Ctx): Promise<NextResponse> {
   )
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${accessToken}`,
+  }
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`
   }
 
   const contentType = request.headers.get("content-type")

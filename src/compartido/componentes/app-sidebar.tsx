@@ -33,7 +33,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   useSidebar,
 } from "@/compartido/componentes/ui/sidebar"
 
@@ -252,8 +251,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <ThemeToggle showLabel />
         <NavUser user={data.user} />
       </SidebarFooter>
-
-      <SidebarRail />
     </Sidebar>
   )
 }

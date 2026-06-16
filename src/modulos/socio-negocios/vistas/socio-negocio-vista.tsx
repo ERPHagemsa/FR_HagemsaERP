@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { SiteHeader } from "@/compartido/componentes/site-header"
+import { ApiError } from "@/compartido/api/axios"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import {
   AlertDialog,
@@ -50,6 +51,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
+import { Textarea } from "@/compartido/componentes/ui/textarea"
 import {
   Table,
   TableBody,
@@ -58,24 +60,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table"
-import { Textarea } from "@/compartido/componentes/ui/textarea"
-import { ApiError } from "@/compartido/api/axios"
 import { cn } from "@/compartido/utilidades/utils"
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Add01Icon,
-  ArchiveArrowDownIcon,
-  ArchiveRestoreIcon,
-  CancelCircleIcon,
-  ChartUpIcon,
-  CheckmarkCircle01Icon,
-  Download01Icon,
-  Edit02Icon,
-  Loading03Icon,
-  MoreVerticalCircle01Icon,
-  Search01Icon,
-  ViewIcon,
-} from "@hugeicons/core-free-icons"
+  BriefcaseBusiness,
+  ArchiveRestore,
+  ArchiveX,
+  Building2,
+  CheckCircle2,
+  CircleDashed,
+  CircleX,
+  Clock,
+  Download,
+  Eye,
+  type LucideIcon,
+  MoreVertical,
+  Package,
+  Pencil,
+  Plus,
+  Search,
+  TrendingUp,
+  User,
+  Loader2,
+} from "lucide-react"
 
 import {
   useDarDeBajaSocioDeNegocioMutation,
@@ -83,11 +89,11 @@ import {
   useReactivarSocioDeNegocioMutation,
   useSociosDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 import { PaginationControls } from "../componentes/pagination-controls"
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
-import { condicionesLaborales } from "../tipos/socio-negocio"
+import { EstadoSincronizacionSapBadge } from "../componentes/estado-sincronizacion-sap-badge"
 import type {
-  CondicionLaboral,
   ConsultarSociosDeNegocioQuery,
   ReporteSociosDeNegocioResponse,
   SocioDeNegocioResponse,
@@ -100,76 +106,43 @@ type SocioNegocioVistaProps = {
   filtros?: ConsultarSociosDeNegocioQuery
 }
 
+type ErrorOperacion = {
+  titulo: string
+  descripcion: string
+}
+
 const estadoVariant = {
   ACTIVO: "outline",
-  INACTIVO: "secondary",
+  INACTIVO: "outline",
 } as const
 
 const estadoRegistroVariant = {
   ACTIVO: "outline",
-  ANULADO: "destructive",
+  ANULADO: "outline",
 } as const
 
 const estadoClassName = {
-  ACTIVO:
-    "border-border bg-background text-foreground shadow-xs",
-  INACTIVO:
-    "border-border bg-background text-muted-foreground shadow-xs",
+  ACTIVO: "border-border/70 bg-card text-foreground shadow-xs",
+  INACTIVO: "border-border/70 bg-card text-foreground shadow-xs",
 } as const
 
 const estadoRegistroClassName = {
-  ACTIVO:
-    "border-border bg-background text-foreground shadow-xs",
-  ANULADO:
-    "border-border bg-background text-foreground shadow-xs",
+  ACTIVO: "border-border/70 bg-card text-foreground shadow-xs",
+  ANULADO: "border-border/70 bg-card text-foreground shadow-xs",
 } as const
 
 const estadoIconClassName = {
-  ACTIVO: "text-emerald-500",
-  INACTIVO: "text-destructive",
+  ACTIVO: "text-emerald-600 dark:text-emerald-400",
+  INACTIVO: "text-muted-foreground",
 } as const
 
 const estadoRegistroIconClassName = {
-  ACTIVO: "text-emerald-500",
+  ACTIVO: "text-emerald-600 dark:text-emerald-400",
   ANULADO: "text-destructive",
 } as const
 
-function etiquetaCondicionLaboral(condicion?: CondicionLaboral | null) {
-  return (
-    condicionesLaborales.find((item) => item.valor === condicion)?.etiqueta ??
-    condicion ??
-    "-"
-  )
-}
-
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
-}
-
-function tipoMimeReporte(formato: ReporteSociosDeNegocioResponse["formato"]) {
-  return formato === "PDF"
-    ? "application/pdf"
-    : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-}
-
-function descargarReporte(reporte: ReporteSociosDeNegocioResponse) {
-  const enlace = document.createElement("a")
-  const contenido = reporte.contenido
-  const url = contenido.startsWith("data:")
-    ? contenido
-    : `data:${tipoMimeReporte(reporte.formato)};base64,${contenido}`
-
-  enlace.href = url
-  enlace.download = reporte.nombreArchivo
-  enlace.style.display = "none"
-  document.body.appendChild(enlace)
-  enlace.click()
-  enlace.remove()
-}
-
-type ErrorOperacion = {
-  titulo: string
-  descripcion: string
 }
 
 function obtenerErrorOperacion(error: unknown): ErrorOperacion {
@@ -202,6 +175,27 @@ function obtenerErrorOperacion(error: unknown): ErrorOperacion {
   }
 }
 
+function tipoMimeReporte(formato: ReporteSociosDeNegocioResponse["formato"]) {
+  return formato === "PDF"
+    ? "application/pdf"
+    : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+}
+
+function descargarReporte(reporte: ReporteSociosDeNegocioResponse) {
+  const enlace = document.createElement("a")
+  const contenido = reporte.contenido
+  const url = contenido.startsWith("data:")
+    ? contenido
+    : `data:${tipoMimeReporte(reporte.formato)};base64,${contenido}`
+
+  enlace.href = url
+  enlace.download = reporte.nombreArchivo
+  enlace.style.display = "none"
+  document.body.appendChild(enlace)
+  enlace.click()
+  enlace.remove()
+}
+
 function formatearFecha(fecha?: string) {
   if (!fecha) {
     return "-"
@@ -229,12 +223,11 @@ function EstadoSocioBadge({
       variant={estadoVariant[estado]}
       className={`h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${estadoClassName[estado]}`}
     >
-      <HugeiconsIcon
-        data-icon="inline-start"
-        icon={estado === "ACTIVO" ? CheckmarkCircle01Icon : Loading03Icon}
-        strokeWidth={2}
-        className={estadoIconClassName[estado]}
-      />
+      {estado === "ACTIVO" ? (
+        <CheckCircle2 data-icon="inline-start" className={estadoIconClassName[estado]} />
+      ) : (
+        <CircleDashed data-icon="inline-start" className={estadoIconClassName[estado]} />
+      )}
       {estado}
     </Badge>
   )
@@ -246,16 +239,15 @@ function EstadoRegistroBadge({
   estadoRegistro: SocioDeNegocioResponse["estadoRegistro"]
 }) {
   return (
-    <Badge
+      <Badge
       variant={estadoRegistroVariant[estadoRegistro]}
       className={`h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${estadoRegistroClassName[estadoRegistro]}`}
     >
-      <HugeiconsIcon
-        data-icon="inline-start"
-        icon={estadoRegistro === "ACTIVO" ? CheckmarkCircle01Icon : Loading03Icon}
-        strokeWidth={2}
-        className={estadoRegistroIconClassName[estadoRegistro]}
-      />
+      {estadoRegistro === "ACTIVO" ? (
+        <CheckCircle2 data-icon="inline-start" className={estadoRegistroIconClassName[estadoRegistro]} />
+      ) : (
+        <CircleX data-icon="inline-start" className={estadoRegistroIconClassName[estadoRegistro]} />
+      )}
       {estadoRegistro}
     </Badge>
   )
@@ -291,10 +283,50 @@ function obtenerClaseFilaSocio(socio: SocioDeNegocioResponse) {
   const anulado = socio.estadoRegistro === "ANULADO"
 
   return cn(
-    "border-border/80",
-    inactivo && !anulado && "bg-muted/45 hover:bg-muted/65",
+    "border-border/80 hover:bg-transparent",
+    inactivo && !anulado &&
+      "border-l-4 border-l-muted-foreground/40 bg-muted/45 hover:bg-muted/45",
     anulado &&
-      "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/10",
+      "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/5",
+  )
+}
+
+function EstadoAprobacionBadge({
+  estado,
+}: {
+  estado: SocioDeNegocioResponse["estadoAprobacion"]
+}) {
+  const baseClase = "bg-card border-border/70 shadow-sm gap-1.5"
+
+  if (estado === "APROBADO") {
+    return (
+      <Badge variant="outline" className={cn(baseClase, "text-foreground")}>
+        <CheckCircle2
+          data-icon="inline-start"
+          className="text-emerald-600 dark:text-emerald-400"
+        />
+        Aprobado
+      </Badge>
+    )
+  }
+
+  if (estado === "PENDIENTE_APROBACION") {
+    return (
+      <Badge variant="outline" className={cn(baseClase, "text-foreground")}>
+        <Clock
+          data-icon="inline-start"
+          className="text-amber-500 dark:text-amber-400"
+        />
+        Pendiente
+      </Badge>
+    )
+  }
+
+  return (
+    <Badge variant="outline" className={cn(baseClase, "text-foreground")}>
+      <CircleX data-icon="inline-start" className="text-destructive" />
+      No aprobado
+    </Badge>
   )
 }
 
@@ -304,12 +336,37 @@ function obtenerClaseContenidoSocio(socio: SocioDeNegocioResponse) {
     : undefined
 }
 
+function ResumenListado({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon
+  label: string
+  value: number
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-border bg-background p-3">
+      <div className="flex items-center gap-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-lg font-semibold tabular-nums">{value}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AccionesSocio({
   socio,
   onActualizado,
   onMensaje,
   onError,
 }: AccionesSocioProps) {
+  const { usuario } = useSesion()
   const bajaMutation = useDarDeBajaSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
@@ -319,14 +376,15 @@ function AccionesSocio({
   const [accion, setAccion] = useState<"anular" | "reactivar" | null>(null)
   const [motivo, setMotivo] = useState("")
   const procesando = bajaMutation.isPending || reactivarMutation.isPending
-  const puedeReactivar = socio.estado === "INACTIVO" || socio.estadoRegistro === "ANULADO"
+  const puedeReactivar =
+    socio.estado === "INACTIVO" && socio.estadoRegistro === "ACTIVO"
   const requiereMotivo = accion === "anular"
 
   function abrirAccion(nuevaAccion: "anular" | "reactivar") {
     setMotivo(
       nuevaAccion === "anular"
         ? "Documento registrado incorrectamente"
-        : socio.motivoBaja || "",
+        : "",
     )
     setAccion(nuevaAccion)
   }
@@ -336,15 +394,15 @@ function AccionesSocio({
       if (accion === "anular") {
         await bajaMutation.mutateAsync({
           motivo: motivo.trim(),
-          usuarioId: "admin",
+          usuarioId: usuario?.nombreUsuario ?? "",
           estadoRegistro: "ANULADO",
         })
-        onMensaje(`${socio.razonSocial} fue borrado.`)
+        onMensaje(`${socio.razonSocial} fue anulado.`)
       }
 
       if (accion === "reactivar") {
-        await reactivarMutation.mutateAsync({ usuarioId: "admin" })
-        onMensaje(`${socio.razonSocial} fue reactivado.`)
+        await reactivarMutation.mutateAsync({ usuarioId: usuario?.nombreUsuario ?? "" })
+        onMensaje(`Se creo un nuevo registro pendiente para ${socio.razonSocial}.`)
       }
 
       setAccion(null)
@@ -358,33 +416,45 @@ function AccionesSocio({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" aria-label="Acciones" disabled={procesando}>
-            <HugeiconsIcon
-              icon={procesando ? Loading03Icon : MoreVerticalCircle01Icon}
-              strokeWidth={2}
-            />
+            {procesando ? (
+              <Loader2 className="animate-spin" />
+            ) : (
+              <MoreVertical />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
             <DropdownMenuItem asChild>
               <Link href={`/socio-negocios/${socio.id}`}>
-                <HugeiconsIcon data-icon="inline-start" icon={ViewIcon} strokeWidth={2} />
+                <Eye data-icon="inline-start" />
                 Ver
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href={`/socio-negocios/historial/${socio.id}`}>
-                <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
+                <TrendingUp data-icon="inline-start" />
                 Auditar
               </Link>
             </DropdownMenuItem>
+            {socio.tipo === "PERSONAL" ? (
+              <DropdownMenuItem
+                asChild
+                disabled={socio.estadoRegistro === "ANULADO" || procesando}
+              >
+                <Link href={`/socio-negocios/${socio.id}/asignaciones`}>
+                  <BriefcaseBusiness data-icon="inline-start" />
+                  Asignaciones
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               asChild
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
             >
               <Link href={`/socio-negocios/${socio.id}?modo=editar`}>
-                <HugeiconsIcon data-icon="inline-start" icon={Edit02Icon} strokeWidth={2} />
-                Editar
+                <Pencil data-icon="inline-start" />
+                Editar datos
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -396,11 +466,7 @@ function AccionesSocio({
               }
             >
               <Link href={`/socio-negocios/${socio.id}`}>
-                <HugeiconsIcon
-                  data-icon="inline-start"
-                  icon={ArchiveArrowDownIcon}
-                  strokeWidth={2}
-                />
+                <ArchiveX data-icon="inline-start" />
                 Dar de baja
               </Link>
             </DropdownMenuItem>
@@ -409,18 +475,14 @@ function AccionesSocio({
               disabled={socio.estadoRegistro === "ANULADO" || procesando}
               onSelect={() => abrirAccion("anular")}
             >
-              <HugeiconsIcon data-icon="inline-start" icon={CancelCircleIcon} strokeWidth={2} />
-              Borrar
+              <CircleX data-icon="inline-start" />
+              Anular
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={!puedeReactivar || procesando}
               onSelect={() => abrirAccion("reactivar")}
             >
-              <HugeiconsIcon
-                data-icon="inline-start"
-                icon={ArchiveRestoreIcon}
-                strokeWidth={2}
-              />
+              <ArchiveRestore data-icon="inline-start" />
               Reactivar
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -431,7 +493,9 @@ function AccionesSocio({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {accion === "anular" ? "Borrar registro" : "Reactivar socio"}
+              {accion === "anular"
+                ? "Anular registro"
+                : "Reactivar socio"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {accion === "reactivar"
@@ -443,7 +507,7 @@ function AccionesSocio({
           </AlertDialogHeader>
 
           <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-border bg-muted/40 p-3">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
               <p className="font-medium">{socio.razonSocial}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {socio.codigoInternoSap} · {socio.numeroDocumento}
@@ -460,7 +524,7 @@ function AccionesSocio({
                   placeholder={
                     accion === "anular"
                       ? "Documento registrado incorrectamente"
-                      : "Dejo de operar"
+                      : "Informacion incorrecta"
                   }
                   disabled={procesando}
                 />
@@ -474,14 +538,20 @@ function AccionesSocio({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={procesando}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              variant={accion === "anular" ? "destructive" : "default"}
+              variant={
+                accion === "anular" ? "destructive" : "default"
+              }
               disabled={procesando || (requiereMotivo && !motivo.trim())}
               onClick={(event) => {
                 event.preventDefault()
                 void confirmarAccion()
               }}
             >
-              {procesando ? "Procesando..." : accion === "anular" ? "Borrar" : "Confirmar"}
+              {procesando
+                ? "Procesando..."
+                : accion === "anular"
+                  ? "Anular"
+                  : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -534,6 +604,15 @@ export function SocioNegocioVista({
   )
   const socios = useMemo(() => Array.isArray(sociosQuery.data?.datos) ? sociosQuery.data.datos : [], [sociosQuery.data])
   const metaPaginacion = sociosQuery.data?.paginacion
+  const conteoVisible = useMemo(
+    () => ({
+      clientes: socios.filter((socio) => socio.tipo === "CLIENTE").length,
+      proveedores: socios.filter((socio) => socio.tipo === "PROVEEDOR").length,
+      personal: socios.filter((socio) => socio.tipo === "PERSONAL").length,
+      pendientes: socios.filter((socio) => socio.estadoAprobacion === "PENDIENTE_APROBACION").length,
+    }),
+    [socios],
+  )
   const cargando = sociosQuery.isLoading
   const error = sociosQuery.error ? obtenerMensajeError(sociosQuery.error) : null
   const tipoBloqueado = Boolean(filtros?.tipo)
@@ -565,10 +644,6 @@ export function SocioNegocioVista({
         delete siguiente[key]
       } else {
         siguiente[key] = value as ConsultarSociosDeNegocioQuery[K]
-      }
-
-      if (key === "tipo" && value !== "PERSONAL") {
-        delete siguiente.condicionLaboral
       }
 
       return limpiarFiltros({
@@ -609,16 +684,18 @@ export function SocioNegocioVista({
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
           <SocioNegocioPageHeader
-            title="Listar socio de negocio"
+            title="Listado de Socios de Negocio"
+            description="Busca, filtra y opera el maestro de socios con una vista clara para trabajo diario."
+            meta={
+              metaPaginacion ? (
+                <Badge variant="secondary">{metaPaginacion.total} registros</Badge>
+              ) : null
+            }
             actions={
               crearHref ? (
                 <Button asChild className="w-full sm:w-auto">
                   <Link href={crearHref}>
-                    <HugeiconsIcon
-                      data-icon="inline-start"
-                      icon={Add01Icon}
-                      strokeWidth={2}
-                    />
+                    <Plus data-icon="inline-start" />
                     {accionPrincipal}
                   </Link>
                 </Button>
@@ -647,27 +724,36 @@ export function SocioNegocioVista({
             </Alert>
           ) : null}
 
-          <section className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <h2 className="text-lg font-semibold">Socios registrados</h2>
-              <p className="text-sm text-muted-foreground">
-                Busca, revisa y gestiona clientes, proveedores y personal.
-              </p>
-            </div>
-
+          <section className="flex flex-col gap-4">
             <div className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
-              <div className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold">Buscar y filtrar</h2>
+                    <p className="text-sm leading-5 text-muted-foreground">
+                      Combina criterios para encontrar rapidamente el registro que necesitas.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:w-[520px] xl:grid-cols-4">
+                    <ResumenListado icon={Building2} label="Clientes" value={conteoVisible.clientes} />
+                    <ResumenListado icon={Package} label="Proveedores" value={conteoVisible.proveedores} />
+                    <ResumenListado icon={User} label="Personal" value={conteoVisible.personal} />
+                    <ResumenListado icon={Clock} label="Pendientes" value={conteoVisible.pendientes} />
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 border-b border-border bg-muted/20 px-4 py-4">
                 <form
-                  className="flex flex-col gap-2 lg:flex-row lg:items-center"
+                  className="grid gap-3 md:grid-cols-2 xl:grid-cols-6"
                   onSubmit={(event) => {
                     event.preventDefault()
                     aplicarFiltros()
                   }}
                 >
-                  <Field className="lg:w-56">
+                  <Field className="md:col-span-2 xl:col-span-2">
                     <InputGroup>
                       <InputGroupAddon>
-                        <HugeiconsIcon icon={Search01Icon} strokeWidth={2} />
+                        <Search />
                       </InputGroupAddon>
                       <InputGroupInput
                         value={obtenerValorFiltro(filtrosFormulario, "razonSocial")}
@@ -678,7 +764,7 @@ export function SocioNegocioVista({
                       />
                     </InputGroup>
                   </Field>
-                  <Field className="lg:w-40">
+                  <Field>
                     <Input
                       value={obtenerValorFiltro(
                         filtrosFormulario,
@@ -690,7 +776,7 @@ export function SocioNegocioVista({
                       }
                     />
                   </Field>
-                  <Field className="lg:w-40">
+                  <Field>
                     <Select
                       value={filtrosFormulario.tipo ?? "TODOS"}
                       disabled={tipoBloqueado}
@@ -714,7 +800,7 @@ export function SocioNegocioVista({
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field className="lg:w-40">
+                  <Field>
                     <Select
                       value={filtrosFormulario.estado ?? "TODOS"}
                       onValueChange={(value) =>
@@ -736,7 +822,7 @@ export function SocioNegocioVista({
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field className="lg:w-44">
+                  <Field>
                     <Select
                       value={filtrosFormulario.estadoRegistro ?? "TODOS"}
                       onValueChange={(value) =>
@@ -758,39 +844,83 @@ export function SocioNegocioVista({
                       </SelectContent>
                     </Select>
                   </Field>
-                  <Field className="lg:w-56">
+                  <Field>
                     <Select
-                      value={filtrosFormulario.condicionLaboral ?? "TODOS"}
-                      disabled={filtrosFormulario.tipo !== "PERSONAL"}
+                      value={filtrosFormulario.estadoAprobacion ?? "TODOS"}
                       onValueChange={(value) =>
                         actualizarFiltro(
-                          "condicionLaboral",
-                          value as ConsultarSociosDeNegocioQuery["condicionLaboral"] | "TODOS",
+                          "estadoAprobacion",
+                          value as ConsultarSociosDeNegocioQuery["estadoAprobacion"] | "TODOS",
                         )
                       }
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Condicion laboral" />
+                        <SelectValue placeholder="Aprobacion" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="TODOS">Condicion: todas</SelectItem>
-                          {condicionesLaborales.map((condicion) => (
-                            <SelectItem key={condicion.valor} value={condicion.valor}>
-                              {condicion.etiqueta}
-                            </SelectItem>
-                          ))}
+                          <SelectItem value="TODOS">Aprobacion: todas</SelectItem>
+                          <SelectItem value="PENDIENTE_APROBACION">Pendientes</SelectItem>
+                          <SelectItem value="APROBADO">Aprobados</SelectItem>
+                          <SelectItem value="RECHAZADO">Rechazados</SelectItem>
                         </SelectGroup>
                       </SelectContent>
                     </Select>
                   </Field>
-                  <div className="flex gap-2">
+                  <Field>
+                    <Select
+                      value={filtrosFormulario.origen ?? "TODOS"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "origen",
+                          value as ConsultarSociosDeNegocioQuery["origen"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Origen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Origen: todos</SelectItem>
+                          <SelectItem value="MANUAL">Manual</SelectItem>
+                          <SelectItem value="COMERCIAL">Comercial</SelectItem>
+                          <SelectItem value="SAP">SAP</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <Select
+                      value={filtrosFormulario.estadoSincronizacionSap ?? "TODOS"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "estadoSincronizacionSap",
+                          value as
+                            | ConsultarSociosDeNegocioQuery["estadoSincronizacionSap"]
+                            | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sincronizacion SAP" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">SAP: todas</SelectItem>
+                          <SelectItem value="SINCRONIZADO">Sincronizado</SelectItem>
+                          <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                          <SelectItem value="PROCESANDO">Procesando</SelectItem>
+                          <SelectItem value="FALLIDO">Fallido</SelectItem>
+                          <SelectItem value="NO_INICIADA">No iniciada</SelectItem>
+                          <SelectItem value="NO_APLICA">No aplica</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <div className="flex flex-wrap gap-2 md:col-span-2 xl:col-span-2">
                     <Button type="submit" size="sm" disabled={sociosQuery.isFetching}>
-                      <HugeiconsIcon
-                        data-icon="inline-start"
-                        icon={Search01Icon}
-                        strokeWidth={2}
-                      />
+                      <Search data-icon="inline-start" />
                       {sociosQuery.isFetching ? "Consultando..." : "Aplicar"}
                     </Button>
                     <Button
@@ -803,18 +933,17 @@ export function SocioNegocioVista({
                     </Button>
                   </div>
                 </form>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+                  <span className="mr-auto text-sm text-muted-foreground">
+                    Exporta el resultado filtrado para reportes o revision interna.
+                  </span>
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={exportacionExcelQuery.isFetching}
                     onClick={() => void exportar("EXCEL")}
                   >
-                    <HugeiconsIcon
-                      data-icon="inline-start"
-                      icon={Download01Icon}
-                      strokeWidth={2}
-                    />
+                    <Download data-icon="inline-start" />
                     {exportacionExcelQuery.isFetching ? "Descargando..." : "Excel"}
                   </Button>
                   <Button
@@ -823,11 +952,7 @@ export function SocioNegocioVista({
                     disabled={exportacionPdfQuery.isFetching}
                     onClick={() => void exportar("PDF")}
                   >
-                    <HugeiconsIcon
-                      data-icon="inline-start"
-                      icon={Download01Icon}
-                      strokeWidth={2}
-                    />
+                    <Download data-icon="inline-start" />
                     {exportacionPdfQuery.isFetching ? "Descargando..." : "PDF"}
                   </Button>
               </div>
@@ -851,29 +976,29 @@ export function SocioNegocioVista({
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/70 hover:bg-muted/70">
+                    <TableRow className="bg-background hover:bg-transparent">
                       <TableHead className="w-10">Acciones</TableHead>
-                      <TableHead className="text-right">#</TableHead>
+                      <TableHead className="text-right">ID</TableHead>
                       <TableHead>Codigo SAP</TableHead>
                       <TableHead>Socio</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead>Condicion laboral</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Registro</TableHead>
+                      <TableHead>Aprobacion</TableHead>
+                      <TableHead>Asignacion vigente</TableHead>
+                      <TableHead>Sincronizacion SAP</TableHead>
+                      <TableHead>Origen</TableHead>
                       <TableHead>Documento</TableHead>
-                      <TableHead>Contacto</TableHead>
-                      <TableHead>Celular</TableHead>
-                      <TableHead>Cuenta</TableHead>
                       <TableHead>Creacion</TableHead>
-                      <TableHead>Baja</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {socios.map((socio) => {
                       const claseContenido = obtenerClaseContenidoSocio(socio)
-
+                      const inactivo = socio.estado === "INACTIVO"
+                      const anulado = socio.estadoRegistro === "ANULADO"
                       return (
-                        <TableRow key={socio.id} className={obtenerClaseFilaSocio(socio)}>
+                          <TableRow key={socio.id} className={obtenerClaseFilaSocio(socio)}>
                           <TableCell>
                             <AccionesSocio
                               socio={socio}
@@ -889,35 +1014,40 @@ export function SocioNegocioVista({
                             />
                           </TableCell>
                         <TableCell className="text-right font-medium tabular-nums">
-                          <span className={claseContenido}>{socio.count}</span>
+                          <span className={claseContenido}>{socio.id}</span>
                         </TableCell>
                         <TableCell className="font-mono text-xs">
                           <span className={claseContenido}>{socio.codigoInternoSap}</span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex min-w-48 flex-col">
-                            <span className={cn("font-medium", claseContenido)}>
-                              {socio.razonSocial}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {socio.nombreComercial || "Sin nombre comercial"}
-                            </span>
+                          <div className="flex min-w-48 items-center gap-2">
+                            {inactivo || anulado ? (
+                              <span
+                                className={cn(
+                                  "size-2 shrink-0 rounded-full",
+                                  anulado ? "bg-destructive" : "bg-destructive/60",
+                                )}
+                                aria-hidden
+                                title={anulado ? "Registro anulado" : "Socio inactivo"}
+                              />
+                            ) : null}
+                            <div className="flex min-w-0 flex-col">
+                              <span className={cn("font-medium", claseContenido)}>
+                                {socio.razonSocial}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {socio.nombreComercial || "Sin nombre comercial"}
+                              </span>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className="h-6 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+                            className="h-6 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
                           >
                             {socio.tipo}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className={claseContenido}>
-                            {socio.tipo === "PERSONAL"
-                              ? etiquetaCondicionLaboral(socio.condicionLaboral)
-                              : "-"}
-                          </span>
                         </TableCell>
                         <TableCell>
                           <span className={claseContenido}>
@@ -930,25 +1060,30 @@ export function SocioNegocioVista({
                           </span>
                         </TableCell>
                         <TableCell>
+                          <EstadoAprobacionBadge estado={socio.estadoAprobacion} />
+                        </TableCell>
+                        <TableCell>
+                          {socio.tipo === "PERSONAL" ? (
+                            <Button asChild variant="outline" size="sm">
+                              <Link href={`/socio-negocios/${socio.id}/asignaciones`}>
+                                Ver asignaciones
+                              </Link>
+                            </Button>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No aplica</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <EstadoSincronizacionSapBadge
+                            estado={socio.estadoSincronizacionSap}
+                            ultimoError={socio.ultimoErrorSincronizacionSap}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{socio.origen}</Badge>
+                        </TableCell>
+                        <TableCell>
                           <span className={claseContenido}>{socio.numeroDocumento}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex min-w-44 flex-col">
-                            <span className={claseContenido}>
-                              {socio.contacto || "Sin contacto"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {socio.correo || "Sin correo"}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className={claseContenido}>{socio.numeroCelular || "-"}</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={claseContenido}>
-                            {socio.cuentaNombre || socio.cuenta || "-"}
-                          </span>
                         </TableCell>
                         <TableCell>
                           <div className="flex min-w-40 flex-col">
@@ -957,16 +1092,6 @@ export function SocioNegocioVista({
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {socio.usuarioCreacion || "Sin usuario"}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex min-w-44 flex-col">
-                            <span className={claseContenido}>
-                              {socio.fechaBaja ? formatearFecha(socio.fechaBaja) : "-"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {socio.motivoBaja || "Sin baja registrada"}
                             </span>
                           </div>
                         </TableCell>

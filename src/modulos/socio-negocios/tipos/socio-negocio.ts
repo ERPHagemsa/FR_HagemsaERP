@@ -1,61 +1,30 @@
-﻿export type TipoSocioDeNegocio = "CLIENTE" | "PROVEEDOR" | "PERSONAL"
-
+export type TipoSocioDeNegocio = "CLIENTE" | "PROVEEDOR" | "PERSONAL"
 export type EstadoSocioDeNegocio = "ACTIVO" | "INACTIVO"
-
 export type EstadoRegistro = "ACTIVO" | "ANULADO"
-
-export type CondicionLaboral =
-  | "LABORANDO"
-  | "VACACIONES"
-  | "LICENCIA"
-  | "PERMISO"
-  | "DESCANSO_MEDICO"
-  | "SUSPENDIDO"
-  | "CAPACITACION"
-  | "COMISION_SERVICIO"
-  | "DESCANSO"
-  | "SUBSIDIO"
-  | "MATERNIDAD_PATERNIDAD"
-  | "REUBICADO"
-
-export const condicionesLaborales: Array<{
-  valor: CondicionLaboral
-  etiqueta: string
-}> = [
-  { valor: "LABORANDO", etiqueta: "Laborando" },
-  { valor: "VACACIONES", etiqueta: "Vacaciones" },
-  { valor: "LICENCIA", etiqueta: "Licencia" },
-  { valor: "PERMISO", etiqueta: "Permiso" },
-  { valor: "DESCANSO_MEDICO", etiqueta: "Descanso medico" },
-  { valor: "SUSPENDIDO", etiqueta: "Suspendido" },
-  { valor: "CAPACITACION", etiqueta: "Capacitacion" },
-  { valor: "COMISION_SERVICIO", etiqueta: "Comision de servicio" },
-  { valor: "DESCANSO", etiqueta: "Descanso" },
-  { valor: "SUBSIDIO", etiqueta: "Subsidio" },
-  { valor: "MATERNIDAD_PATERNIDAD", etiqueta: "Maternidad / paternidad" },
-  { valor: "REUBICADO", etiqueta: "Reubicado" },
-]
-
-export type FormatoExportacionSocios = "EXCEL" | "PDF"
-
-export type TipoDatoMaestroIntegracion =
-  | "CARGO"
-  | "SEDE"
-  | "AREA"
-  | "CUENTA"
-  | "CONTRATO"
-  | "UBICACION"
-  | "ALMACEN"
-
+export type EstadoAprobacion = "PENDIENTE_APROBACION" | "APROBADO" | "RECHAZADO"
+export type EstadoSincronizacionSap =
+  | "NO_APLICA"
+  | "NO_INICIADA"
+  | "PENDIENTE"
+  | "PROCESANDO"
+  | "SINCRONIZADO"
+  | "FALLIDO"
+export type OrigenSocioDeNegocio = "MANUAL" | "COMERCIAL" | "SAP"
+export type EstadoEventoSocioDeNegocio =
+  | "PENDIENTE"
+  | "PROCESANDO"
+  | "PUBLICADO"
+  | "FALLIDO"
 export type AccionHistorialSocioDeNegocio =
   | "REGISTRO"
   | "MODIFICACION"
   | "ELIMINACION"
-
+export type FormatoExportacionSocios = "EXCEL" | "PDF"
 export type SortOrder = "asc" | "desc"
+export type ValorPaginacion = number | string
 
 export type SortBySocioDeNegocio =
-  | "count"
+  | "id"
   | "codigoInternoSap"
   | "tipo"
   | "numeroDocumento"
@@ -63,8 +32,6 @@ export type SortBySocioDeNegocio =
   | "estado"
   | "estadoRegistro"
   | "fechaCreacion"
-
-export type ValorPaginacion = number | string
 
 export interface PaginationMeta {
   pagina: number
@@ -84,23 +51,55 @@ export interface RespuestaDto<T> {
   datos: T
 }
 
+export interface SocioDeNegocioResponse {
+  id: number
+  codigoInternoSap: string | null
+  tipo: TipoSocioDeNegocio
+  numeroDocumento: string
+  razonSocial: string
+  nombreComercial: string
+  primerNombre: string
+  segundoNombre: string
+  apellidoPaterno: string
+  apellidoMaterno: string
+  direccion: string
+  contacto: string
+  correo: string
+  numeroCelular: string
+  estado: EstadoSocioDeNegocio
+  estadoRegistro: EstadoRegistro
+  estadoAprobacion: EstadoAprobacion
+  estadoSincronizacionSap: EstadoSincronizacionSap
+  fechaSincronizacionSap: string
+  ultimoErrorSincronizacionSap: string
+  origen: OrigenSocioDeNegocio
+  registroAnteriorId: number | null
+  motivoNuevoRegistro: string
+  fechaCreacion: string
+  usuarioCreacion: string
+  fechaModificacion: string
+  usuarioModificacion: string
+  fechaAprobacion: string
+  usuarioAprobacion: string
+  fechaRechazo: string
+  usuarioRechazo: string
+  motivoRechazo: string
+  motivoBaja: string
+  fechaBaja: string
+  usuarioBajaId: string
+  motivoAnulacion: string
+  fechaAnulacion: string
+  usuarioAnulacionId: string
+}
+
 export interface ResumenSociosDeNegocioResponse {
   totalSocios: number
   operativosActivos: number
   inactivosReactivables: number
   anulados: number
-  porTipo: Array<{
-    tipo: TipoSocioDeNegocio
-    total: number
-  }>
-  porEstado: Array<{
-    estado: EstadoSocioDeNegocio
-    total: number
-  }>
-  porEstadoRegistro: Array<{
-    estadoRegistro: EstadoRegistro
-    total: number
-  }>
+  porTipo: Array<{ tipo: TipoSocioDeNegocio; total: number }>
+  porEstado: Array<{ estado: EstadoSocioDeNegocio; total: number }>
+  porEstadoRegistro: Array<{ estadoRegistro: EstadoRegistro; total: number }>
   porTipoYEstado: Array<{
     tipo: TipoSocioDeNegocio
     estado: EstadoSocioDeNegocio
@@ -111,10 +110,12 @@ export interface ResumenSociosDeNegocioResponse {
   registrosRecientes: SocioDeNegocioResponse[]
 }
 
-export interface SocioDeNegocioResponse {
-  id: string
-  count: number
-  codigoInternoSap: string
+export interface EstadoBcResponse {
+  boundedContext: string
+  agregado: string
+}
+
+export interface RegistrarSocioDeNegocioRequest {
   tipo: TipoSocioDeNegocio
   numeroDocumento: string
   razonSocial: string
@@ -127,167 +128,35 @@ export interface SocioDeNegocioResponse {
   contacto: string
   correo: string
   numeroCelular: string
-  estado: EstadoSocioDeNegocio
-  estadoRegistro: EstadoRegistro
-  fechaCreacion: string
-  usuarioCreacion: string
-  fechaModificacion: string
-  usuarioModificacion: string
-  cargoId: string
-  cargoNombre: string
-  sedeId: string
-  sedeNombre: string
-  areaId: string
-  areaNombre: string
-  contratoId?: string
-  contratoNombre?: string
-  condicionLaboral?: CondicionLaboral
-  cuentaId: string
-  cuentaNombre: string
-  motivoBaja: string
-  fechaBaja: string
-  usuarioBajaId: string
-  motivoAnulacion: string
-  fechaAnulacion: string
-  usuarioAnulacionId: string
-  cargo?: string
-  sede?: string
-  area?: string
-  contrato?: string
-  cuenta?: string
-}
-
-export interface EstadoBcResponse {
-  boundedContext: string
-  agregado: string
-}
-
-export interface MaestroConfiguracionGeneralIntegracion {
-  id: string
-  count?: number
-  idExterno?: string
-  tipoDatoMaestro: TipoDatoMaestroIntegracion
-  codigo: string
-  nombre: string
-  estado: EstadoSocioDeNegocio
-  areaId?: string | null
-  sedeId?: string | null
-  ubicacionId?: string | null
-  departamento?: string | null
-  provincia?: string | null
-  distrito?: string | null
-  nivelCuentaContrato?: number | null
-  contratoPadreId?: string | null
-  fechaSincronizacion?: string | null
-  ultimoEventoId?: string | null
-  ultimoEvento?: string | null
-}
-
-export interface ConsultarMaestrosConfiguracionGeneralQuery {
-  tipoDatoMaestro: TipoDatoMaestroIntegracion
-  estado?: EstadoSocioDeNegocio
-  sedeId?: string
-  ubicacionId?: string
-  page?: number
-  pageSize?: number
-}
-
-/**
- * DTOs específicos por tipo de socio
- * - CLIENTE/PROVEEDOR: Campos básicos + contacto con área/cargo donde atiende
- * - PERSONAL: Campos básicos + datos laborales (ubicación, sede, área, cargo, contrato)
- */
-
-/** Base común para todos los tipos */
-interface RegistrarSocioDeNegocioBase {
-  codigoInternoSap?: string
-  numeroDocumento: string
-  razonSocial: string
-  nombreComercial: string
-  direccion: string
-  contacto: string
-  correo: string
-  numeroCelular: string
-  cuentaId?: string
-  cuentaNombre?: string
-  contratoId?: string
-  contratoNombre?: string
   usuarioId?: string
 }
 
-/** Cliente: el backend obtiene datos comerciales desde SAP por documento */
-export interface RegistrarClienteRequest extends RegistrarSocioDeNegocioBase {
-  tipo: "CLIENTE"
-  areaId?: string
-  areaNombre?: string
-  cargoId?: string
-  cargoNombre?: string
-}
-
-/** Proveedor: el backend obtiene datos comerciales desde SAP por documento */
-export interface RegistrarProveedorRequest extends RegistrarSocioDeNegocioBase {
-  tipo: "PROVEEDOR"
-  areaId?: string
-  areaNombre?: string
-  cargoId?: string
-  cargoNombre?: string
-}
-
-/** Personal: TODOS los datos laborales OBLIGATORIOS */
-export interface RegistrarPersonalRequest extends RegistrarSocioDeNegocioBase {
-  tipo: "PERSONAL"
-  primerNombre: string
-  segundoNombre?: string
-  apellidoPaterno: string
-  apellidoMaterno: string
-  razonSocial: string
-  nombreComercial: string
-  direccion: string
-  contacto: string
-  correo: string
-  numeroCelular: string
-  sedeId: string
-  sedeNombre: string
-  areaId: string
-  areaNombre: string
-  cargoId: string
-  cargoNombre: string
-  contratoId?: string
-  contratoNombre?: string
-  condicionLaboral?: CondicionLaboral
-}
-
-/** Request unificado (compatible con el backend) */
-export type RegistrarSocioDeNegocioRequest =
-  | RegistrarClienteRequest
-  | RegistrarProveedorRequest
-  | RegistrarPersonalRequest
-
+export type RegistrarClienteRequest = RegistrarSocioDeNegocioRequest & { tipo: "CLIENTE" }
+export type RegistrarProveedorRequest = RegistrarSocioDeNegocioRequest & { tipo: "PROVEEDOR" }
+export type RegistrarPersonalRequest = RegistrarSocioDeNegocioRequest & { tipo: "PERSONAL" }
 export type RegistrarClienteDesdeComercialRequest = RegistrarClienteRequest
 
 export interface ModificarSocioDeNegocioRequest {
+  razonSocial?: string
+  nombreComercial?: string
   primerNombre?: string
   segundoNombre?: string
   apellidoPaterno?: string
   apellidoMaterno?: string
-  razonSocial?: string
-  nombreComercial?: string
   direccion?: string
   contacto?: string
   correo?: string
   numeroCelular?: string
-  cargoId?: string
-  cargoNombre?: string
-  sedeId?: string
-  sedeNombre?: string
-  areaId?: string
-  areaNombre?: string
-  contratoId?: string
-  contratoNombre?: string
-  cuentaId?: string
-  cuentaNombre?: string
-  condicionLaboral?: CondicionLaboral
   usuarioId: string
+}
+
+export interface AprobarSocioDeNegocioRequest {
+  usuarioId: string
+}
+
+export interface RechazarSocioDeNegocioRequest {
+  usuarioId: string
+  motivo: string
 }
 
 export interface DarDeBajaSocioDeNegocioRequest {
@@ -298,36 +167,29 @@ export interface DarDeBajaSocioDeNegocioRequest {
 
 export interface ReactivarSocioDeNegocioRequest {
   usuarioId: string
+  sapSession?: string
 }
 
 export interface ConsultarSociosDeNegocioQuery {
+  id?: ValorPaginacion
   tipo?: TipoSocioDeNegocio
   estado?: EstadoSocioDeNegocio
   estadoRegistro?: EstadoRegistro
-  count?: ValorPaginacion
+  estadoAprobacion?: EstadoAprobacion
+  estadoSincronizacionSap?: EstadoSincronizacionSap
+  origen?: OrigenSocioDeNegocio
   numeroDocumento?: string
   codigoInternoSap?: string
+  razonSocial?: string
+  nombreComercial?: string
   primerNombre?: string
   segundoNombre?: string
   apellidoPaterno?: string
   apellidoMaterno?: string
-  razonSocial?: string
-  nombreComercial?: string
   direccion?: string
   contacto?: string
   correo?: string
   numeroCelular?: string
-  cargoId?: string
-  cargoNombre?: string
-  sedeId?: string
-  sedeNombre?: string
-  areaId?: string
-  areaNombre?: string
-  contratoId?: string
-  contratoNombre?: string
-  cuentaId?: string
-  cuentaNombre?: string
-  condicionLaboral?: CondicionLaboral
   page?: ValorPaginacion
   pageSize?: ValorPaginacion
   sortBy?: SortBySocioDeNegocio
@@ -343,75 +205,36 @@ export interface ConsultarHistorialSocioDeNegocioQuery {
   pageSize?: ValorPaginacion
 }
 
-export interface ExportarSociosDeNegocioQuery {
+export type ExportarSociosDeNegocioQuery = ConsultarSociosDeNegocioQuery & {
   formato: FormatoExportacionSocios
-  tipo?: TipoSocioDeNegocio
-  estado?: EstadoSocioDeNegocio
-  estadoRegistro?: EstadoRegistro
-  count?: ValorPaginacion
-  numeroDocumento?: string
-  codigoInternoSap?: string
-  primerNombre?: string
-  segundoNombre?: string
-  apellidoPaterno?: string
-  apellidoMaterno?: string
-  razonSocial?: string
-  nombreComercial?: string
-  direccion?: string
-  contacto?: string
-  correo?: string
-  numeroCelular?: string
-  cargoId?: string
-  cargoNombre?: string
-  sedeId?: string
-  sedeNombre?: string
-  areaId?: string
-  areaNombre?: string
-  contratoId?: string
-  contratoNombre?: string
-  cuentaId?: string
-  cuentaNombre?: string
-  condicionLaboral?: CondicionLaboral
-  sortBy?: string
-  sortOrder?: SortOrder
 }
 
 export interface ConsultarSapPorDocumentoQuery {
-  tipo: Exclude<TipoSocioDeNegocio, "PERSONAL">
+  tipo?: TipoSocioDeNegocio
+  session?: string
 }
 
-export interface SapBusinessPartnerResumenResponse {
+export interface SapSessionQuery {
+  session?: string
+}
+
+export interface SapBusinessPartnerResponse {
   codigoInternoSap: string
-  tipo: Exclude<TipoSocioDeNegocio, "PERSONAL">
+  tipo: TipoSocioDeNegocio
   numeroDocumento: string
   razonSocial: string
   direccion: string
   contacto: string
   correo: string
   numeroCelular: string
-  cargoId?: string
-  cargoNombre?: string
-  areaId?: string
-  areaNombre?: string
-  cuentaId?: string
-  cuentaNombre?: string
-  contratoId?: string
-  contratoNombre?: string
 }
 
-export type SapBusinessPartnerResponse = SapBusinessPartnerResumenResponse & {
-  nombreComercial?: string
-  cargoId?: string
-  cargoNombre?: string
-  sedeId?: string
-  sedeNombre?: string
-  areaId?: string
-  areaNombre?: string
-  contratoId?: string
-  contratoNombre?: string
-  cuentaId?: string
-  cuentaNombre?: string
-  [key: string]: unknown
+export type SapBusinessPartnerResumenResponse = SocioDeNegocioResponse
+
+export interface RegistrarDesdeSapRequest {
+  tipo?: TipoSocioDeNegocio
+  usuarioId?: string
+  session?: string
 }
 
 export interface ReporteSociosDeNegocioResponse {
@@ -422,11 +245,39 @@ export interface ReporteSociosDeNegocioResponse {
 
 export interface HistorialSocioDeNegocioResponse {
   id: string
-  idRegistro: string
-  count: number
+  idRegistro: number
   accion: AccionHistorialSocioDeNegocio
   fechaAccion: string
   usuarioAccion: string
   datosAnteriores: Record<string, unknown> | null
   datosNuevos: Record<string, unknown> | null
+}
+
+export interface EventoSocioDeNegocioResponse {
+  id: string
+  eventoId?: string
+  idRegistro: number
+  nombre: string
+  origen: string
+  destino: string
+  payload: Record<string, unknown>
+  estado: EstadoEventoSocioDeNegocio
+  intentos: number
+  proximoIntentoEn?: string | null
+  fechaInicioProcesamiento?: string | null
+  ultimoError: string
+  fechaCreacion: string
+  fechaProcesamiento?: string | null
+  fechaPublicacion?: string | null
+}
+
+export interface ClientePorDocumentoResponse {
+  clienteId: number
+  numeroDocumento: string
+  razonSocial: string
+  nombreComercial: string
+  contacto: string
+  correo: string
+  numeroCelular: string
+  estado: EstadoSocioDeNegocio
 }
