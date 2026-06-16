@@ -132,6 +132,21 @@ export function crearProxyBackend(opciones: OpcionesProxy) {
       return new NextResponse(null, { status: respuesta.status })
     }
 
+    // Si el backend respondio un error con cuerpo NO-JSON (404/502 HTML, pagina
+    // de gateway, texto plano), no lo reenviamos crudo: el cliente solo veria el
+    // mensaje generico. Lo envolvemos en el contrato { message, detalle } con el
+    // status real, asi el usuario ve "El servicio de X respondio 404" en pantalla.
+    const esJson = tipo.includes("application/json")
+    if (respuesta.status >= 400 && !esJson) {
+      return NextResponse.json(
+        {
+          message: `El servicio de ${opciones.nombre} respondio ${respuesta.status}.`,
+          detalle: `El servicio de ${opciones.nombre} respondio ${respuesta.status}.`,
+        },
+        { status: respuesta.status },
+      )
+    }
+
     return new NextResponse(texto, {
       status: respuesta.status,
       headers: { "Content-Type": tipo || "application/json" },
