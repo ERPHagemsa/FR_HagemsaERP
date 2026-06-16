@@ -101,7 +101,11 @@ export function crearProxyBackend(opciones: OpcionesProxy) {
     let respuesta: Response
     try {
       respuesta = await fetch(urlDestino, init)
-    } catch {
+    } catch (error) {
+      console.error(
+        `[bff:${opciones.nombre}] ${request.method} ${urlDestino} -> fetch fallo`,
+        error,
+      )
       return NextResponse.json(
         { message: `Servicio de ${opciones.nombre} no disponible.` },
         { status: 503 },
@@ -110,6 +114,19 @@ export function crearProxyBackend(opciones: OpcionesProxy) {
 
     const texto = await respuesta.text()
     const tipo = respuesta.headers.get("content-type") ?? ""
+
+    // Diagnostico: si el backend respondio con error, dejamos rastro server-side
+    // (status + URL destino + tipo de contenido). En dev tambien un fragmento del
+    // cuerpo para ver respuestas no-JSON (404 HTML, gateway, etc.).
+    if (respuesta.status >= 400) {
+      const detalle =
+        process.env.NODE_ENV !== "production"
+          ? ` body: ${texto.slice(0, 300)}`
+          : ""
+      console.warn(
+        `[bff:${opciones.nombre}] ${request.method} ${urlDestino} -> ${respuesta.status} (${tipo || "sin content-type"})${detalle}`,
+      )
+    }
 
     if (respuesta.status === 204 || texto.length === 0) {
       return new NextResponse(null, { status: respuesta.status })
