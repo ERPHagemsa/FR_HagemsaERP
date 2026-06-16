@@ -860,7 +860,7 @@ function FichaRevisionInventario({
               <ImagenesActivo
                 codigo={detalle.codigoActivo}
                 imagenes={imagenes}
-                editable={!disabled}
+                editable={false}
                 embedded
               />
             )}
@@ -1530,7 +1530,6 @@ function obtenerTituloSnapshotItem(
     item.tipoDocumento,
     item.tipoImagen,
     item.tipoTanque,
-    item.url,
     item.numero,
   ];
   const valor = candidatos.find(
@@ -1556,7 +1555,6 @@ function obtenerCamposSnapshotItem(
     return [
       { label: "Descripcion", value: valorItem(item.descripcion) },
       { label: "Orden", value: valorItem(item.orden) },
-      { label: "URL", value: valorItem(item.url) },
     ];
   }
 

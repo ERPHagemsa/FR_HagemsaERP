@@ -74,7 +74,7 @@ export function ImagenesActivo({
     }
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Selecciona un archivo de imagen valido.");
+      toast.error("Selecciona una imagen valida.");
       event.target.value = "";
       setSelectedFileName(null);
       setLocalImageUrl(null);
@@ -101,11 +101,11 @@ export function ImagenesActivo({
     const form = event.currentTarget;
     const formData = new FormData(form);
     const orden = String(formData.get("orden") ?? "").trim();
-    const url = localImageUrl ?? String(formData.get("url") ?? "").trim();
+    const url = localImageUrl ?? "";
 
     try {
       if (!url) {
-        throw new Error("Selecciona una imagen o ingresa una URL.");
+        throw new Error("Selecciona una imagen desde tu equipo.");
       }
 
       await crearImagenMutation.mutateAsync({
@@ -170,7 +170,7 @@ export function ImagenesActivo({
             </select>
           </label>
           <div className="grid gap-2">
-            <Label htmlFor="imagen-archivo">Archivo desde equipo</Label>
+            <Label htmlFor="imagen-archivo">Imagen desde equipo</Label>
             <input
               ref={fileInputRef}
               id="imagen-archivo"
@@ -188,21 +188,11 @@ export function ImagenesActivo({
                 Seleccionar imagen
               </Button>
               <Input
-                value={selectedFileName ?? "Ningun archivo seleccionado"}
+                value={selectedFileName ?? "Ninguna imagen seleccionada"}
                 readOnly
-                aria-label="Archivo seleccionado"
+                aria-label="Imagen seleccionada"
               />
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="imagen-url">
-              URL de imagen
-            </Label>
-            <Input
-              id="imagen-url"
-              name="url"
-              placeholder="https://servidor/imagen.jpg"
-            />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="imagen-descripcion">Descripcion</Label>
@@ -250,7 +240,7 @@ export function ImagenesActivo({
                     />
                   ) : (
                     <div className="flex size-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
-                      URL no disponible para previsualizar
+                      Imagen no disponible para previsualizar
                     </div>
                   )}
                 </div>

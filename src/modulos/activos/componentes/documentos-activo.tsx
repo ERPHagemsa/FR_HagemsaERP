@@ -3,12 +3,7 @@
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import {
-  IconExternalLink,
-  IconFilePlus,
-  IconFileUpload,
-  IconTrash,
-} from "@tabler/icons-react";
+import { IconExternalLink, IconFilePlus, IconFileUpload, IconTrash } from "@tabler/icons-react";
 
 import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -68,10 +63,10 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
     const formData = new FormData(form);
     const fechaVencimiento = String(formData.get("fechaVencimiento") ?? "");
     const observacion = String(formData.get("observacion") ?? "").trim();
-    const archivoUrl = archivoDataUrl || String(formData.get("archivoUrl") ?? "").trim();
+    const archivoUrl = archivoDataUrl || "pendiente-storage";
 
-    if (!archivoUrl) {
-      toast.error("Selecciona un archivo desde tu equipo o registra una URL documental.");
+    if (!archivoDataUrl) {
+      toast.error("Selecciona un documento desde tu equipo.");
       setIsSaving(false);
       return;
     }
@@ -114,9 +109,7 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
       event.target.value = "";
       setArchivoNombre("");
       setArchivoDataUrl("");
-      toast.error(
-        "El archivo supera 10 MB. Usa una URL documental o selecciona un archivo mas ligero."
-      );
+      toast.error("El documento supera 10 MB. Selecciona uno mas ligero.");
       return;
     }
 
@@ -176,14 +169,14 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
             <Field name="fechaVencimiento" label="Fecha vencimiento" type="date" />
             <div className="grid gap-2">
               <Label htmlFor="documento-archivo">
-                Archivo desde equipo
+                Documento desde equipo
                 <span className="ml-1 text-destructive">*</span>
               </Label>
               <div className="flex items-center gap-2">
                 <Button asChild type="button" variant="outline">
                   <label htmlFor="documento-archivo" className="cursor-pointer">
                     <IconFileUpload />
-                    Seleccionar archivo
+                    Seleccionar documento
                   </label>
                 </Button>
                 <Input
@@ -193,17 +186,10 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
                   onChange={onArchivoChange}
                 />
                 <span className="min-w-0 truncate rounded-full border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
-                  {archivoNombre || "Ningun archivo seleccionado"}
+                  {archivoNombre || "Ningun documento seleccionado"}
                 </span>
               </div>
             </div>
-            <Field
-              name="archivoUrl"
-              label="URL documental"
-              placeholder={archivoDataUrl ? "Archivo seleccionado desde equipo" : "https://..."}
-              type="url"
-              disabled={Boolean(archivoDataUrl)}
-            />
             <Field
               name="usuarioCarga"
               label="Usuario responsable"
@@ -241,7 +227,7 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
               <TableHead>Emision</TableHead>
               <TableHead>Vencimiento</TableHead>
               <TableHead>Usuario</TableHead>
-              <TableHead>Archivo</TableHead>
+              <TableHead>Sustento</TableHead>
               {editable ? <TableHead className="text-center">Accion</TableHead> : null}
             </TableRow>
           </TableHeader>
@@ -263,18 +249,18 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
                     "-"}
                 </TableCell>
                 <TableCell>
-                  {documento.archivoUrl ? (
+                  {esDocumentoAbrible(documento.archivoUrl) ? (
                     <a
                       className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
-                      href={documento.archivoUrl}
+                      href={documento.archivoUrl ?? undefined}
                       rel="noreferrer"
                       target="_blank"
                     >
                       <IconExternalLink className="size-4" />
-                      Abrir
+                      Ver
                     </a>
                   ) : (
-                    "-"
+                    "Registrado"
                   )}
                 </TableCell>
                 {editable ? (
@@ -317,6 +303,15 @@ function fileToDataUrl(file: File) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+function esDocumentoAbrible(value: string | null | undefined) {
+  return Boolean(
+    value &&
+      (value.startsWith("http://") ||
+        value.startsWith("https://") ||
+        value.startsWith("data:"))
+  );
 }
 
 function EstadoDocumentoBadge({ value }: { value: EstadoDocumentoActivo }) {
