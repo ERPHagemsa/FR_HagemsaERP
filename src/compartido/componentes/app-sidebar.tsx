@@ -91,6 +91,7 @@ const data = {
       icon: <Briefcase />,
       items: [
         { title: "Prospectos", url: "/comercial/prospectos" },
+        { title: "Historial de prospectos", url: "/comercial/prospectos/historial" },
         { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },

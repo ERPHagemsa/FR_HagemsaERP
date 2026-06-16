@@ -33,11 +33,6 @@ export async function CotizacionDetalleVista({ id }: Props) {
       <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 px-5 py-3 lg:px-8 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-center gap-3">
-            <Button asChild variant="ghost" size="icon" className="shrink-0">
-              <Link href="/comercial/cotizaciones" aria-label="Volver al listado">
-                <ArrowLeft />
-              </Link>
-            </Button>
             {cotizacion.solicitudClienteId ? (
               <Button asChild variant="outline" size="sm" className="shrink-0 text-xs">
                 <Link href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}>
@@ -123,6 +118,7 @@ export async function CotizacionDetalleVista({ id }: Props) {
 
         {/* === Notebook de versiones === */}
         <CotizacionVersionesNotebook
+          idCotizacion={cotizacion.id}
           versiones={cotizacion.versiones}
           versionVigente={cotizacion.versionVigente}
         />
@@ -136,15 +132,11 @@ export async function CotizacionDetalleVista({ id }: Props) {
 // ---------------------------------------------------------------------------
 
 function Pipeline({ estado }: { estado: EstadoCotizacion }) {
-  // Estados fuera del happy path: se muestran como chip unico.
+  // Estados fuera del happy path (EN_REVISION/CANCELADA/VENCIDA): el pipeline no
+  // puede mostrar progresion y solo repetiria lo que ya dice EstadoCotizacionBadge.
+  // Se omite para no duplicar el estado en pantalla.
   if (estado === "CANCELADA" || estado === "VENCIDA" || estado === "EN_REVISION") {
-    return (
-      <div className="flex items-center">
-        <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-          {etiqueta(estado)}
-        </span>
-      </div>
-    );
+    return null;
   }
 
   const pasos: { clave: EstadoCotizacion; texto: string }[] = [
@@ -264,19 +256,6 @@ function CampoSC({ cotizacion }: { cotizacion: Cotizacion }) {
 // ---------------------------------------------------------------------------
 // Formato
 // ---------------------------------------------------------------------------
-
-function etiqueta(estado: EstadoCotizacion): string {
-  const mapa: Record<EstadoCotizacion, string> = {
-    BORRADOR: "Borrador",
-    ENVIADA: "Enviada",
-    EN_REVISION: "En revision",
-    GANADA: "Ganada",
-    PERDIDA: "Perdida",
-    CANCELADA: "Cancelada",
-    VENCIDA: "Vencida",
-  };
-  return mapa[estado];
-}
 
 function formatearOrigenTipo(tipo: string) {
   return tipo === "PROSPECTO" ? "Prospecto" : tipo === "CLIENTE" ? "Cliente" : tipo;

@@ -30,6 +30,11 @@ const mensajes: Record<
     detalle: "El prospecto fue marcado como DESCARTADO.",
     tipo: "info",
   },
+  reactivado: {
+    titulo: "Prospecto reactivado",
+    detalle: "El prospecto volvio a la cartera (ACTIVO).",
+    tipo: "success",
+  },
   bloqueado: {
     titulo: "Prospecto no editable",
     detalle:

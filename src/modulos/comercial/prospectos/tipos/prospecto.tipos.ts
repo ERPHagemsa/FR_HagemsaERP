@@ -20,15 +20,18 @@ export type Contacto = {
   nombre: string;
   cargo: string | null;
   telefono: string | null;
-  email: string | null;
+  email: string;
   observaciones: string | null;
   esPrincipal: boolean;
 };
 
 export type Prospecto = {
   id: string;
-  nombreComercial: string;
-  razonSocial: string | null;
+  // razonSocial es el nombre legal/formal (obligatorio); nombreComercial es el
+  // nombre de fantasia (opcional) — ver contrato API-Prospectos §4.
+  nombreComercial: string | null;
+  razonSocial: string;
+  direccion: string;
   tipoDocumento: TipoDocumento;
   numeroDocumento: string;
   medioContactoInicial: MedioContactoInicial;
@@ -53,13 +56,53 @@ export type RespuestaPaginadaProspectos = {
 };
 
 // ---------------------------------------------------------------------------
+// Historial / feed de auditoria (§5.3.1)
+// ---------------------------------------------------------------------------
+
+export type AccionHistorial = "REGISTRO" | "MODIFICACION" | "ELIMINACION";
+
+export type EntradaHistorial = {
+  prospectoId: string;
+  prospectoNombre: string;
+  accion: AccionHistorial;
+  fechaAccion: string;
+  usuarioAccion: string;
+  // Snapshots: campos cambiados. null en REGISTRO (anteriores) / ELIMINACION (nuevos).
+  datosAnteriores: Record<string, unknown> | null;
+  datosNuevos: Record<string, unknown> | null;
+};
+
+export type FiltrosHistorial = {
+  prospectoId?: string;
+  accion?: AccionHistorial;
+  desde?: string;
+  hasta?: string;
+  pagina?: number;
+  porPagina?: number;
+};
+
+export type RespuestaPaginadaHistorial = {
+  data: EntradaHistorial[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+};
+
+// ---------------------------------------------------------------------------
 // Filtros para el listado
 // ---------------------------------------------------------------------------
 
 export type FiltrosProspectos = {
+  // Si se omite, el backend devuelve solo ACTIVO (contrato §5.2). No existe
+  // "todos los estados" en una sola llamada: para ver Convertidos/Descartados
+  // hay que pedir ese estado explicitamente.
   estado?: EstadoProspecto;
   idEjecutivoResponsable?: string;
+  // Texto: nombre comercial, razon social o numero de documento (RUC/DNI/CE).
   busqueda?: string;
+  // Rango sobre la fecha de creacion (ISO 8601).
+  fechaDesde?: string;
+  fechaHasta?: string;
   pagina?: number;
   porPagina?: number;
 };
@@ -72,15 +115,16 @@ export type PayloadContactoInicial = {
   nombre: string;
   cargo?: string;
   telefono?: string;
-  email?: string;
+  email: string;
   observaciones?: string;
   // esPrincipal NO se envia al registrar: el backend marca el contacto inicial
   // como principal. esPrincipal solo viaja al agregar un contacto (ver PayloadAgregarContacto).
 };
 
 export type PayloadRegistrarProspecto = {
-  nombreComercial: string;
-  razonSocial?: string;
+  nombreComercial?: string;
+  razonSocial: string;
+  direccion: string;
   tipoDocumento: TipoDocumento;
   numeroDocumento: string;
   medioContactoInicial: MedioContactoInicial;
@@ -91,6 +135,7 @@ export type PayloadRegistrarProspecto = {
 export type PayloadActualizarProspecto = {
   nombreComercial?: string;
   razonSocial?: string;
+  direccion?: string;
   tipoDocumento?: TipoDocumento;
   numeroDocumento?: string;
   medioContactoInicial?: MedioContactoInicial;
@@ -106,8 +151,18 @@ export type PayloadAgregarContacto = {
   nombre: string;
   cargo?: string;
   telefono?: string;
-  email?: string;
+  email: string;
   // Spec 5.7: observaciones opcionales al agregar un contacto
   observaciones?: string;
   esPrincipal: boolean;
+};
+
+// Editar contacto (§5.10): parcial, todos opcionales. NO incluye esPrincipal
+// (eso se cambia por su endpoint dedicado, ver cambiarContactoPrincipal).
+export type PayloadEditarContacto = {
+  nombre?: string;
+  cargo?: string;
+  telefono?: string;
+  email?: string;
+  observaciones?: string;
 };

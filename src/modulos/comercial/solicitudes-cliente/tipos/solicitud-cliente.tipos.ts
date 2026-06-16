@@ -36,6 +36,15 @@ export type RefCotizacion = {
   montoTotal: number | null;
 };
 
+// Ref ultraligera de la cotizacion "vigente" del listado: { id, estado }.
+// "vigente" = la mas reciente NO terminal (excluye CANCELADA/PERDIDA/VENCIDA);
+// null si la SC no tiene ninguna cotizacion viva. Pensada para el deep-link del
+// listado — NO derivar de totalCotizaciones (ese cuenta tambien las terminales).
+export type RefCotizacionVigente = {
+  id: string;
+  estado: EstadoCotizacion;
+};
+
 // Entidad detalle (full)
 export type SolicitudCliente = {
   id: string;
@@ -68,6 +77,9 @@ export type SolicitudClienteResumen = {
   // Campos snapshot server-derived (disponibles desde backend v2)
   nombreSolicitante: string;
   totalCotizaciones: number;
+  // Ref de la cotizacion viva mas reciente (o null). Clave del deep-link y de
+  // "Tomado por" — NO usar totalCotizaciones para eso (incluye terminales).
+  cotizacionVigente: RefCotizacionVigente | null;
   contactoSolicitante: ContactoSolicitante | null;
   fechaCreacion: string;
 };

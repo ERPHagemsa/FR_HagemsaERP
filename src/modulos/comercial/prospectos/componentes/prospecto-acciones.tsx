@@ -11,6 +11,8 @@ import {
 
 import type { EstadoProspecto } from "../tipos/prospecto.tipos";
 import { ProspectoDescartarDialog } from "./prospecto-descartar-dialog";
+import { ProspectoEliminarDialog } from "./prospecto-eliminar-dialog";
+import { ProspectoReactivarDialog } from "./prospecto-reactivar-dialog";
 
 type Props = {
   idProspecto: string;
@@ -18,17 +20,32 @@ type Props = {
 };
 
 export function ProspectoAcciones({ idProspecto, estado }: Props) {
-  const esTerminal = estado !== "ACTIVO";
-  const motivoBloqueo =
-    estado === "DESCARTADO"
-      ? "El prospecto esta descartado y no admite cambios"
-      : estado === "CONVERTIDO"
-        ? "El prospecto fue convertido y no admite cambios"
-        : null;
-
+  // Gating por estado (contrato §3 + notas §7.4):
+  // - ACTIVO: editar, descartar y eliminar.
+  // - DESCARTADO: solo reactivar (y eliminar, si no tiene actividad comercial).
+  // - CONVERTIDO: terminal, no admite ninguna accion de escritura.
   return (
     <div className="flex flex-wrap gap-2">
-      {esTerminal ? (
+      {estado === "ACTIVO" ? (
+        <>
+          <Button asChild variant="outline">
+            <Link href={`/comercial/prospectos/${idProspecto}/editar`}>
+              Editar
+            </Link>
+          </Button>
+          <ProspectoDescartarDialog idProspecto={idProspecto} />
+          <ProspectoEliminarDialog idProspecto={idProspecto} />
+        </>
+      ) : null}
+
+      {estado === "DESCARTADO" ? (
+        <>
+          <ProspectoReactivarDialog idProspecto={idProspecto} />
+          <ProspectoEliminarDialog idProspecto={idProspecto} />
+        </>
+      ) : null}
+
+      {estado === "CONVERTIDO" ? (
         <Tooltip>
           <TooltipTrigger asChild>
             <span>
@@ -37,30 +54,11 @@ export function ProspectoAcciones({ idProspecto, estado }: Props) {
               </Button>
             </span>
           </TooltipTrigger>
-          <TooltipContent>{motivoBloqueo}</TooltipContent>
+          <TooltipContent>
+            El prospecto fue convertido y no admite cambios
+          </TooltipContent>
         </Tooltip>
-      ) : (
-        <Button asChild variant="outline">
-          <Link href={`/comercial/prospectos/${idProspecto}/editar`}>
-            Editar
-          </Link>
-        </Button>
-      )}
-
-      {esTerminal ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button variant="destructive" disabled>
-                Descartar
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>{motivoBloqueo}</TooltipContent>
-        </Tooltip>
-      ) : (
-        <ProspectoDescartarDialog idProspecto={idProspecto} />
-      )}
+      ) : null}
     </div>
   );
 }

@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { Printer } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
+import { Button } from "@/compartido/componentes/ui/button";
 import {
   Select,
   SelectContent,
@@ -17,6 +19,7 @@ import {
   TabsTrigger,
 } from "@/compartido/componentes/ui/tabs";
 
+import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import type {
   CargaHijo,
   EquipoHijo,
@@ -28,6 +31,7 @@ import type {
 } from "../tipos/cotizaciones.tipos";
 
 type Props = {
+  idCotizacion: string;
   versiones: Version[];
   versionVigente: number | null;
 };
@@ -36,7 +40,8 @@ type Props = {
 // El selector elige que version se ve; las pestañas parten el detalle
 // de esa version (Resumen / Lineas / Lead times / Standby) para que
 // nada quede apilado infinitamente hacia abajo.
-export function CotizacionVersionesNotebook({ versiones, versionVigente }: Props) {
+export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVigente }: Props) {
+  const { imprimir, generando } = useImprimirPdf(idCotizacion);
   const ordenadas = React.useMemo(
     () => [...versiones].sort((a, b) => b.numeroVersion - a.numeroVersion),
     [versiones]
@@ -103,13 +108,25 @@ export function CotizacionVersionesNotebook({ versiones, versionVigente }: Props
           )}
         </div>
 
-        <div className="flex items-baseline gap-2">
-          <span className="text-xs uppercase text-muted-foreground">Monto total</span>
-          <span className="text-lg font-semibold tabular-nums">
-            {version.montoTotal !== null
-              ? `${formatearMonto(version.montoTotal)} ${version.moneda}`
-              : "—"}
-          </span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-baseline gap-2">
+            <span className="text-xs uppercase text-muted-foreground">Monto total</span>
+            <span className="text-lg font-semibold tabular-nums">
+              {version.montoTotal !== null
+                ? `${formatearMonto(version.montoTotal)} ${version.moneda}`
+                : "—"}
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => imprimir(version.numeroVersion)}
+            disabled={generando}
+          >
+            <Printer data-icon="inline-start" />
+            {generando ? "Generando..." : "Imprimir version"}
+          </Button>
         </div>
       </div>
 

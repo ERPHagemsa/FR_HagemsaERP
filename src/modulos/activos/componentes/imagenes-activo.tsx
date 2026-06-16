@@ -27,6 +27,7 @@ type Props = {
   codigo: string;
   imagenes: ImagenActivo[];
   editable?: boolean;
+  embedded?: boolean;
 };
 
 const tiposImagen: TipoImagenActivo[] = [
@@ -46,7 +47,12 @@ function isRenderableImageUrl(url: string) {
   );
 }
 
-export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
+export function ImagenesActivo({
+  codigo,
+  imagenes,
+  editable = true,
+  embedded = false,
+}: Props) {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -68,7 +74,7 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
     }
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Selecciona un archivo de imagen valido.");
+      toast.error("Selecciona una imagen valida.");
       event.target.value = "";
       setSelectedFileName(null);
       setLocalImageUrl(null);
@@ -95,11 +101,11 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
     const form = event.currentTarget;
     const formData = new FormData(form);
     const orden = String(formData.get("orden") ?? "").trim();
-    const url = localImageUrl ?? String(formData.get("url") ?? "").trim();
+    const url = localImageUrl ?? "";
 
     try {
       if (!url) {
-        throw new Error("Selecciona una imagen o ingresa una URL.");
+        throw new Error("Selecciona una imagen desde tu equipo.");
       }
 
       await crearImagenMutation.mutateAsync({
@@ -141,15 +147,8 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
     }
   }
 
-  return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <CardTitle className="flex items-center gap-2">
-          <IconPhotoPlus className="size-5 text-primary" />
-          Imagenes del activo
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-5 pt-5">
+  const contenido = (
+    <div className="grid gap-5">
         {editable ? (
         <form onSubmit={onSubmit} className="grid gap-4">
           <div className="grid gap-4 lg:grid-cols-[180px_1fr_1fr_120px_auto] lg:items-end">
@@ -171,7 +170,7 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
             </select>
           </label>
           <div className="grid gap-2">
-            <Label htmlFor="imagen-archivo">Archivo desde equipo</Label>
+            <Label htmlFor="imagen-archivo">Imagen desde equipo</Label>
             <input
               ref={fileInputRef}
               id="imagen-archivo"
@@ -189,21 +188,11 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
                 Seleccionar imagen
               </Button>
               <Input
-                value={selectedFileName ?? "Ningun archivo seleccionado"}
+                value={selectedFileName ?? "Ninguna imagen seleccionada"}
                 readOnly
-                aria-label="Archivo seleccionado"
+                aria-label="Imagen seleccionada"
               />
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="imagen-url">
-              URL de imagen
-            </Label>
-            <Input
-              id="imagen-url"
-              name="url"
-              placeholder="https://servidor/imagen.jpg"
-            />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="imagen-descripcion">Descripcion</Label>
@@ -251,7 +240,7 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
                     />
                   ) : (
                     <div className="flex size-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
-                      URL no disponible para previsualizar
+                      Imagen no disponible para previsualizar
                     </div>
                   )}
                 </div>
@@ -283,7 +272,30 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
             Este activo aun no tiene imagenes registradas.
           </div>
         )}
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <section className="mt-6 border-t border-border pt-5">
+        <h3 className="mb-4 flex items-center gap-2 text-base font-semibold">
+          <IconPhotoPlus className="size-5 text-primary" />
+          Imagenes del activo
+        </h3>
+        {contenido}
+      </section>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="border-b border-border">
+        <CardTitle className="flex items-center gap-2">
+          <IconPhotoPlus className="size-5 text-primary" />
+          Imagenes del activo
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-5">{contenido}</CardContent>
     </Card>
   );
 }

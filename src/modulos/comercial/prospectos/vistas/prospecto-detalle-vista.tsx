@@ -19,6 +19,7 @@ import {
 import { AvisoResultado } from "../componentes/aviso-resultado";
 import { ContactosProspecto } from "../componentes/contactos-prospecto";
 import { EstadoProspectoBadge } from "../componentes/estado-prospecto-badge";
+import { HistorialProspecto } from "../componentes/historial-prospecto";
 import { ProspectoAcciones } from "../componentes/prospecto-acciones";
 import { consultarProspecto } from "../servicios/prospectos-api";
 
@@ -45,8 +46,10 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
             <p className="text-sm font-medium text-muted-foreground">
               Prospecto
             </p>
-            <h1 className="text-2xl font-semibold">{prospecto.nombreComercial}</h1>
-            {prospecto.razonSocial ? (
+            <h1 className="text-2xl font-semibold">
+              {prospecto.nombreComercial ?? prospecto.razonSocial}
+            </h1>
+            {prospecto.nombreComercial ? (
               <p className="text-sm text-muted-foreground">{prospecto.razonSocial}</p>
             ) : null}
             <div className="mt-2">
@@ -94,12 +97,14 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
                   <TabsTrigger value="contactos">
                     Contactos ({prospecto.contactos.length})
                   </TabsTrigger>
+                  <TabsTrigger value="historial">Historial</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="datos" className="pt-5">
                   <FichaGrid>
-                    <Dato label="Nombre comercial" value={prospecto.nombreComercial} />
                     <Dato label="Razon social" value={prospecto.razonSocial} />
+                    <Dato label="Nombre comercial" value={prospecto.nombreComercial} />
+                    <Dato label="Direccion" value={prospecto.direccion} />
                     <Dato label="Tipo documento" value={prospecto.tipoDocumento} />
                     <Dato label="Numero documento" value={prospecto.numeroDocumento} />
                     <Dato
@@ -119,6 +124,10 @@ export async function ProspectoDetalleVista({ id, accion }: Props) {
                     contactos={prospecto.contactos}
                     esTerminal={esTerminal}
                   />
+                </TabsContent>
+
+                <TabsContent value="historial" className="pt-5">
+                  <HistorialProspecto idProspecto={prospecto.id} />
                 </TabsContent>
               </Tabs>
             </CardContent>

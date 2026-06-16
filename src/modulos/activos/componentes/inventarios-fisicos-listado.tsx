@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarDays, ClipboardList, Eye, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -40,17 +41,24 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
   const [mostrarApertura, setMostrarApertura] = React.useState(false);
   const [formulario, setFormulario] = React.useState({
     codigo: "",
-    fechaApertura: toDateInputValue(new Date()),
+    fechaApertura: toDateTimeInputValue(new Date()),
     descripcion: "",
     observacion: "",
   });
+
+  function mostrarError(mensaje: string) {
+    setError(mensaje);
+    toast.error("No se pudo aperturar el inventario", {
+      description: mensaje,
+    });
+  }
 
   async function aperturar(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
 
     if (!formulario.codigo.trim() || !formulario.fechaApertura || !formulario.descripcion.trim()) {
-      setError("Completa codigo, fecha de apertura y descripcion.");
+      mostrarError("Completa codigo, fecha de apertura y descripcion.");
       return;
     }
 
@@ -59,7 +67,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
     try {
       const inventario = await aperturarInventarioFisico({
         codigo: formulario.codigo.trim().toUpperCase(),
-        fechaApertura: formulario.fechaApertura,
+        fechaApertura: convertirDateTimeLocalAISO(formulario.fechaApertura),
         descripcion: formulario.descripcion.trim(),
         observacion: formulario.observacion.trim() || undefined,
         usuarioApertura: "activos.web",
@@ -67,7 +75,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
       setInventarios((actual) => [inventario, ...actual]);
       router.push(`/activos/inventario-fisico/${inventario.id}`);
     } catch (err) {
-      setError(
+      mostrarError(
         err instanceof Error
           ? err.message
           : "No se pudo aperturar el inventario fisico"
@@ -122,17 +130,27 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
           <div>
             <CardTitle>Inventarios aperturados</CardTitle>
             <CardDescription>
-              La apertura crea la cabecera; la revision fisica se registra luego
-              desde la accion Inventariar.
+              La apertura crea la cabecera y la foto historica de activos
+              vigentes; la revision fisica se registra luego desde Revisar.
             </CardDescription>
           </div>
-          <Button onClick={() => setMostrarApertura(true)} disabled={creando}>
+          <Button
+            onClick={() => {
+              setError(null);
+              setFormulario((actual) => ({
+                ...actual,
+                fechaApertura: toDateTimeInputValue(new Date()),
+              }));
+              setMostrarApertura(true);
+            }}
+            disabled={creando}
+          >
             <Plus className="size-4" />
             Aperturar inventario
           </Button>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {error ? (
+          {!mostrarApertura && error ? (
             <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
@@ -154,6 +172,9 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
               </TableHeader>
               <TableBody>
                 {inventarios.map((inventario) => {
+                  const inventariados = inventario.detalles.filter(
+                    (detalle) => detalle.estadoRevision !== "PENDIENTE"
+                  ).length;
                   const pendientes = inventario.detalles.filter(
                     (detalle) => detalle.estadoRevision === "PENDIENTE"
                   ).length;
@@ -182,7 +203,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
                         </Badge>
                       </TableCell>
                       <TableCell>{formatearFecha(inventario.fechaApertura)}</TableCell>
-                      <TableCell>{inventario.detalles.length}</TableCell>
+                      <TableCell>{inventariados}</TableCell>
                       <TableCell>{pendientes}</TableCell>
                       <TableCell>
                         <span
@@ -199,7 +220,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
                         <Button asChild variant="outline" size="sm">
                           <Link href={`/activos/inventario-fisico/${inventario.id}`}>
                             <Eye className="size-4" />
-                            Inventariar
+                            Revisar
                           </Link>
                         </Button>
                       </TableCell>
@@ -232,6 +253,11 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
               Registra los datos de apertura. El inventario iniciara en estado
               Creado y sin activos inventariados.
             </p>
+            {error ? (
+              <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
             <div className="mt-5 grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="inventario-codigo">Codigo</Label>
@@ -249,10 +275,10 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="inventario-fecha">Fecha de apertura</Label>
+                <Label htmlFor="inventario-fecha">Fecha y hora de apertura</Label>
                 <Input
                   id="inventario-fecha"
-                  type="date"
+                  type="datetime-local"
                   value={formulario.fechaApertura}
                   onChange={(event) =>
                     setFormulario((actual) => ({
@@ -297,7 +323,10 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setMostrarApertura(false)}
+                onClick={() => {
+                  setError(null);
+                  setMostrarApertura(false);
+                }}
                 disabled={creando}
               >
                 Cancelar
@@ -362,9 +391,27 @@ function formatearFecha(fecha?: string | null) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Lima",
   }).format(value);
 }
 
-function toDateInputValue(fecha: Date) {
-  return fecha.toISOString().slice(0, 10);
+function toDateTimeInputValue(fecha: Date) {
+  const offset = fecha.getTimezoneOffset();
+  const local = new Date(fecha.getTime() - offset * 60 * 1000);
+  return local.toISOString().slice(0, 16);
+}
+
+function convertirDateTimeLocalAISO(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Date(`${value}T${toTimeInputValue(new Date())}`).toISOString();
+  }
+
+  const fecha = new Date(value);
+  return Number.isNaN(fecha.getTime()) ? value : fecha.toISOString();
+}
+
+function toTimeInputValue(fecha: Date) {
+  return `${String(fecha.getHours()).padStart(2, "0")}:${String(
+    fecha.getMinutes()
+  ).padStart(2, "0")}`;
 }

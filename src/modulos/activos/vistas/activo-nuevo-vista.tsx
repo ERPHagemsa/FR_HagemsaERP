@@ -194,12 +194,12 @@ function ActivoOrigenCard({
                         target="_blank"
                         rel="noreferrer"
                       >
-                        Ver archivo
+                        Ver documento
                       </a>
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">
-                      Sin archivo
+                      Sin sustento
                     </span>
                   )}
                 </div>
