@@ -1,6 +1,5 @@
 "use server";
 
-import { obtenerConfiguracionApi } from "@/compartido/api/config";
 import { URLS_SERVIDOR } from "@/compartido/api/config-servidor";
 import { obtenerAccessToken } from "@/compartido/autenticacion/sesion-servidor";
 import { revalidatePath } from "next/cache";
@@ -32,13 +31,11 @@ type HistorialFlotaResponse = {
 };
 
 function getAsignacionesApiUrl() {
-  const cfg = obtenerConfiguracionApi("flota");
-  return `${cfg.baseUrl}/flota/asignaciones-contratos`;
+  return `${URLS_SERVIDOR.flota}/flota/asignaciones-contratos`;
 }
 
 function getUnidadesApiUrl() {
-  const cfg = obtenerConfiguracionApi("flota");
-  return `${cfg.baseUrl}/flota/unidades`;
+  return `${URLS_SERVIDOR.flota}/flota/unidades`;
 }
 
 function crearAbortController(timeoutMs: number) {
@@ -148,8 +145,7 @@ async function consultarConfiguracionGeneralActiva(
 export async function obtenerContratosDisponibles(): Promise<ContratoDisponibleFlota[]> {
   // BC_Flota mantiene una copia local sincronizada desde BC_ConfiguracionGeneral.
   // El frontend ya no depende directamente de BC_ConfiguracionGeneral para listar contratos.
-  const cfg = obtenerConfiguracionApi("flota");
-  const url = `${cfg.baseUrl}/flota/contratos`;
+  const url = `${URLS_SERVIDOR.flota}/flota/contratos`;
   const { controller, timeout } = crearAbortController(5000);
 
   try {

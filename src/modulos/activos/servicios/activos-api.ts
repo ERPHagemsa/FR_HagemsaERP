@@ -173,7 +173,7 @@ export async function obtenerActivos(
   }
 
   throw new Error(
-    "La API de activos no devolvio una lista. Revisa NEXT_PUBLIC_ACTIVOS_API_URL."
+    "La API de activos no devolvio una lista. Revisa ACTIVOS_API_URL."
   );
 }
 
