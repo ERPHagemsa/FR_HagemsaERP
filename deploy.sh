@@ -7,15 +7,17 @@ if [ ! -f .env.cloud ]; then
 fi
 
 source .env.cloud
-trap 'rm -f .env.production' EXIT
 
+# Variables obligatorias. TODAS las URLs de backend son PLANAS (server-only):
+# las consume el BFF (/api/<bc>/*) en runtime. Ya NO se usa NEXT_PUBLIC_ para
+# backends (se inlinearia en build y quedaria undefined en el server).
 required_vars=(
   AUTH_SERVICE_URL
-  CONFIGURACION_GENERAL_API_URL
+  ACTIVOS_API_URL
+  COMBUSTIBLE_API_URL
+  COMERCIAL_API_URL
   SOCIO_NEGOCIOS_API_URL
-  NEXT_PUBLIC_API_GATEWAY_URL
-  NEXT_PUBLIC_ACTIVOS_API_URL
-  NEXT_PUBLIC_COMBUSTIBLE_API_URL
+  CONFIGURACION_GENERAL_API_URL
   NODE_ENV
 )
 
@@ -26,22 +28,31 @@ for var_name in "${required_vars[@]}"; do
   fi
 done
 
-# CONFIGURACION_GENERAL_API_URL y SOCIO_NEGOCIOS_API_URL son server-only (las
-# usan Route Handlers), por eso van solo en runtime (VARS) y no en BUILD_VARS.
-VARS="AUTH_SERVICE_URL=${AUTH_SERVICE_URL},CONFIGURACION_GENERAL_API_URL=${CONFIGURACION_GENERAL_API_URL},SOCIO_NEGOCIOS_API_URL=${SOCIO_NEGOCIOS_API_URL},NEXT_PUBLIC_API_GATEWAY_URL=${NEXT_PUBLIC_API_GATEWAY_URL},NEXT_PUBLIC_ACTIVOS_API_URL=${NEXT_PUBLIC_ACTIVOS_API_URL},NEXT_PUBLIC_COMBUSTIBLE_API_URL=${NEXT_PUBLIC_COMBUSTIBLE_API_URL},NODE_ENV=${NODE_ENV}"
+# Env vars de RUNTIME: Cloud Run las inyecta y el BFF las lee en cada request.
+# Todas las URLs de backend van aca (server-only), NO en build.
+VARS="NODE_ENV=${NODE_ENV}"
+VARS="${VARS},AUTH_SERVICE_URL=${AUTH_SERVICE_URL}"
+VARS="${VARS},ACTIVOS_API_URL=${ACTIVOS_API_URL}"
+VARS="${VARS},COMBUSTIBLE_API_URL=${COMBUSTIBLE_API_URL}"
+VARS="${VARS},COMERCIAL_API_URL=${COMERCIAL_API_URL}"
+VARS="${VARS},SOCIO_NEGOCIOS_API_URL=${SOCIO_NEGOCIOS_API_URL}"
+VARS="${VARS},CONFIGURACION_GENERAL_API_URL=${CONFIGURACION_GENERAL_API_URL}"
 
-BUILD_VARS="NEXT_PUBLIC_API_GATEWAY_URL=${NEXT_PUBLIC_API_GATEWAY_URL},NEXT_PUBLIC_ACTIVOS_API_URL=${NEXT_PUBLIC_ACTIVOS_API_URL},NEXT_PUBLIC_COMBUSTIBLE_API_URL=${NEXT_PUBLIC_COMBUSTIBLE_API_URL},NODE_ENV=${NODE_ENV}"
+# Opcionales: solo se agregan si estan definidas en .env.cloud.
+if [ -n "${FLOTA_API_URL}" ]; then
+  VARS="${VARS},FLOTA_API_URL=${FLOTA_API_URL}"
+else
+  echo "Aviso: FLOTA_API_URL no esta definida; el modulo de flota caera al default."
+fi
+if [ -n "${API_GATEWAY_URL}" ]; then
+  VARS="${VARS},API_GATEWAY_URL=${API_GATEWAY_URL}"
+fi
 
-cat > .env.production <<EOF
-NEXT_PUBLIC_API_GATEWAY_URL=${NEXT_PUBLIC_API_GATEWAY_URL}
-NEXT_PUBLIC_ACTIVOS_API_URL=${NEXT_PUBLIC_ACTIVOS_API_URL}
-NEXT_PUBLIC_COMBUSTIBLE_API_URL=${NEXT_PUBLIC_COMBUSTIBLE_API_URL}
-EOF
-
+# Ya no hay variables NEXT_PUBLIC_ de backend: nada que hornear en build salvo
+# NODE_ENV. Por eso desaparece la generacion de .env.production.
 gcloud run deploy front-ddd \
   --source . \
   --region=us-central1 \
   --clear-base-image \
-  --set-build-env-vars="${BUILD_VARS}" \
+  --set-build-env-vars="NODE_ENV=${NODE_ENV}" \
   --set-env-vars="${VARS}"
-
