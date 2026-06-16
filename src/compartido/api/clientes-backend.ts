@@ -1,4 +1,5 @@
 import { crearClienteHttp } from "@/compartido/api/axios"
+import { refrescarSesion } from "@/compartido/api/cliente-http"
 import {
   obtenerConfiguracionApi,
   type ServicioApi,
@@ -55,6 +56,10 @@ function crearClienteBff(baseURL: string, servicio: ServicioApi) {
     baseURL,
     timeoutMs: configuracion.timeoutMs,
     withCredentials: true,
+    // Mismo single-flight refresh que clienteHttp: ante un 401 (access token
+    // vencido) refresca una sola vez y reintenta, sin disparar refresh
+    // concurrente. Asi los clientes por BC se comportan igual que admin/auth.
+    alRecibir401: refrescarSesion,
     mensajeErrorDefault: `No se pudo completar la operacion en ${configuracion.nombre}.`,
   })
 }

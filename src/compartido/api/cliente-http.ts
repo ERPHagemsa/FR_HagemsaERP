@@ -6,7 +6,10 @@ import { crearClienteHttp } from "@/compartido/api/axios"
 // que en el Auth Service dispararia "reuso detectado" y revocaria la familia.
 let refreshEnCurso: Promise<boolean> | null = null
 
-function refrescarSesion(): Promise<boolean> {
+// Exportada para que TODOS los clientes del navegador (clienteHttp y los
+// clientes por BC de clientes-backend.ts) compartan el MISMO single-flight: un
+// solo refresh en vuelo ante 401s concurrentes, sin reimplementar la logica.
+export function refrescarSesion(): Promise<boolean> {
   if (!refreshEnCurso) {
     // /api/auth/refresh lee el refresh token de la cookie httpOnly, rota el par
     // y reescribe las cookies. No necesita body.
