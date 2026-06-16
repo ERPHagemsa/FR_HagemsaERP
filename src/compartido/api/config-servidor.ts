@@ -20,10 +20,12 @@ export const URLS_SERVIDOR = {
   authService: process.env.AUTH_SERVICE_URL ?? "http://localhost:8080",
 
   // BC-02 Activos. Lo consume el Route Handler /api/activos/*.
+  // OJO: el default NO debe ser localhost:3000 (ese es el propio Next): si lo
+  // fuera, una URL faltante haria que el BFF se llame a si mismo y devuelva 404.
   activos:
     process.env.ACTIVOS_API_URL ??
     API_GATEWAY_URL ??
-    "http://localhost:3000",
+    "http://localhost:3001",
 
   // Combustible. Lo consume el Route Handler /api/combustible/*.
   combustible:
@@ -32,10 +34,12 @@ export const URLS_SERVIDOR = {
     "http://localhost:3003",
 
   // BC-03 Gestion Comercial. Lo consume el Route Handler /api/comercial/*.
+  // Default en un puerto propio (no 3000, que es el de Next): si la URL falta,
+  // preferimos un "connection refused" claro a llamarnos a nosotros mismos.
   comercial:
     process.env.COMERCIAL_API_URL ??
     API_GATEWAY_URL ??
-    "http://localhost:3000/api/v1",
+    "http://localhost:3002/api/v1",
 
   // BC-04 Flota. Lo consumen las server actions de flota (flota-api.ts).
   flota:
