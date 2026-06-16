@@ -43,8 +43,9 @@ export function resumenDetalle(linea: DraftLinea): string {
       const ruta = [linea.carga.origen, linea.carga.destino]
         .map((v) => v || "—")
         .join(" → ");
-      const peso = linea.carga.pesoTn ? ` · ${linea.carga.pesoTn} Tn` : "";
-      return ruta + peso;
+      const n = linea.carga.cargas.length;
+      const items = n > 0 ? ` · ${n} ${n === 1 ? "carga" : "cargas"}` : "";
+      return ruta + items;
     }
     case "ALQUILER_EQUIPO":
       return (
@@ -131,6 +132,19 @@ export function mapearErroresContenido(
       if (linea) {
         // Clave relativa que EditorCargos espera dentro de su prop erroresCampo
         (porLinea[linea.claveCliente] ??= {})[`cargosAdicionales.${m[3]}.${m[4]}`] = msg;
+      }
+      continue;
+    }
+
+    // Item de carga (indice draft): "secciones.{i}.lineas.{k}.carga.cargas.{j}.{campo}"
+    // ORDERING CRITICAL: antes del matcher generico de linea, igual que los cargos.
+    m = ruta.match(/^secciones\.(\d+)\.lineas\.(\d+)\.carga\.cargas\.(\d+)\.(.+)$/);
+    if (m) {
+      const sec = secciones[Number(m[1])];
+      const linea = sec?.lineas[Number(m[2])];
+      if (linea) {
+        // Clave relativa que EditorCargasFisicas espera dentro de su prop erroresCampo
+        (porLinea[linea.claveCliente] ??= {})[`carga.cargas.${m[3]}.${m[4]}`] = msg;
       }
       continue;
     }
