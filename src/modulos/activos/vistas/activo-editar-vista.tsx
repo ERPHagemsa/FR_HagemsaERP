@@ -1,6 +1,3 @@
-import Link from "next/link";
-
-import { Button } from "@/compartido/componentes/ui/button";
 import { ActivoFormulario } from "../componentes/activo-formulario";
 import {
   obtenerActivoPorCodigo,
@@ -23,18 +20,6 @@ export async function ActivoEditarVista({ codigo, returnTo }: Props) {
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
       <div className="flex w-full flex-col gap-5">
-        <section className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-normal">
-              Actualizar activo
-            </h1>
-            <p className="text-sm text-muted-foreground">{activo.codigo}</p>
-          </div>
-          <Button asChild variant="outline">
-            <Link href={returnTo ?? `/activos/${activo.codigo}`}>Volver</Link>
-          </Button>
-        </section>
-
         <ActivoFormulario
           activo={activo}
           documentos={documentos}
@@ -42,6 +27,8 @@ export async function ActivoEditarVista({ codigo, returnTo }: Props) {
           modo="editar"
           returnTo={returnTo}
           tanques={tanques}
+          tituloPagina="Actualizar activo"
+          subtituloPagina={activo.codigo}
         />
       </div>
     </main>

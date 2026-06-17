@@ -54,6 +54,10 @@ import type {
   ModificarSocioDeNegocioRequest,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
+import {
+  puedeGestionarAsignacionesPersonal,
+  puedeResolverAprobacionSocio,
+} from "../tipos/socio-negocio"
 
 function formatearFecha(fecha?: string | Date | null) {
   if (!fecha) return "-"
@@ -178,8 +182,9 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
   const { usuario } = useSesion()
   const usuarioId = usuario?.nombreUsuario ?? ""
   const [motivo, setMotivo] = useState("")
-  const [dialogoBajaAbierto, setDialogoBajaAbierto] = useState(false)
+  const [dialogoEstadoAbierto, setDialogoEstadoAbierto] = useState(false)
   const [dialogoRechazoAbierto, setDialogoRechazoAbierto] = useState(false)
+  const [accionEstado, setAccionEstado] = useState<"baja" | "anular" | null>(null)
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const bajaMutation = useDarDeBajaSocioDeNegocioMutation(id, {
@@ -206,12 +211,22 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
     socio?.estado === "ACTIVO" &&
     socio.estadoRegistro === "ACTIVO" &&
     socio.estadoAprobacion === "APROBADO"
-  const pendienteAprobacion = socio?.estadoAprobacion === "PENDIENTE_APROBACION"
+  const puedeGestionarAsignaciones =
+    socio ? puedeGestionarAsignacionesPersonal(socio) : false
+  const puedeResolverAprobacion =
+    socio ? puedeResolverAprobacionSocio(socio) : false
+  const registroAnulado = socio?.estadoRegistro === "ANULADO"
   const modoEdicion =
     searchParams.get("modo") === "editar" && socio?.estadoRegistro !== "ANULADO"
   const formEditarId = `editar-socio-${id}`
 
-  async function darDeBaja() {
+  function abrirDialogoEstado(accion: "baja" | "anular") {
+    setAccionEstado(accion)
+    setMotivo("")
+    setDialogoEstadoAbierto(true)
+  }
+
+  async function ejecutarCambioEstado() {
     if (!motivo.trim() || !socio) return
 
     try {
@@ -220,18 +235,23 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       await bajaMutation.mutateAsync({
         motivo: motivo.trim(),
         usuarioId,
-        estadoRegistro: "ACTIVO",
+        estadoRegistro: accionEstado === "anular" ? "ANULADO" : "ACTIVO",
       })
-      setMensaje(`${socio.razonSocial} fue dado de baja.`)
+      setMensaje(
+        accionEstado === "anular"
+          ? `${socio.razonSocial} fue anulado.`
+          : `${socio.razonSocial} fue dado de baja.`,
+      )
       setMotivo("")
-      setDialogoBajaAbierto(false)
+      setDialogoEstadoAbierto(false)
+      setAccionEstado(null)
     } catch (err) {
       setError(obtenerMensajeError(err))
     }
   }
 
   async function aprobar() {
-    if (!socio) return
+    if (!socio || !puedeResolverAprobacion) return
     try {
       setError(null)
       await aprobarMutation.mutateAsync({ usuarioId })
@@ -242,11 +262,11 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
   }
 
   async function rechazar() {
-    if (!socio || !motivo.trim()) return
+    if (!socio || !motivo.trim() || !puedeResolverAprobacion) return
     try {
       setError(null)
       await rechazarMutation.mutateAsync({ usuarioId, motivo: motivo.trim() })
-      setMensaje(`${socio.razonSocial} fue anulado.`)
+      setMensaje(`${socio.razonSocial} fue rechazado.`)
       setMotivo("")
       setDialogoRechazoAbierto(false)
     } catch (err) {
@@ -385,13 +405,15 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                             Volver al listado
                           </Link>
                         </Button>
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/socio-negocios/${id}?modo=editar`}>
-                            <Pencil data-icon="inline-start" />
-                            Editar datos
-                          </Link>
-                        </Button>
-                        {socio.tipo === "PERSONAL" ? (
+                        {!registroAnulado ? (
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/socio-negocios/${id}?modo=editar`}>
+                              <Pencil data-icon="inline-start" />
+                              Editar datos
+                            </Link>
+                          </Button>
+                        ) : null}
+                        {puedeGestionarAsignaciones ? (
                           <Button asChild variant="outline" size="sm">
                             <Link href={`/socio-negocios/${id}/asignaciones`}>
                               <BriefcaseBusiness data-icon="inline-start" />
@@ -399,7 +421,7 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                             </Link>
                           </Button>
                         ) : null}
-                        {pendienteAprobacion ? (
+                        {puedeResolverAprobacion ? (
                           <>
                             <Button
                               size="sm"
@@ -416,9 +438,20 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                               onClick={() => setDialogoRechazoAbierto(true)}
                             >
                               <CircleX data-icon="inline-start" />
-                              Anular
+                              Rechazar
                             </Button>
                           </>
+                        ) : null}
+                        {!registroAnulado && !puedeResolverAprobacion ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={bajaMutation.isPending}
+                            onClick={() => abrirDialogoEstado("anular")}
+                          >
+                            <CircleX data-icon="inline-start" />
+                            Anular
+                          </Button>
                         ) : null}
                         {socio.estado === "INACTIVO" && socio.estadoRegistro === "ACTIVO" ? (
                           <Button
@@ -437,15 +470,17 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                             Auditar
                           </Link>
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          disabled={!puedeDarBaja || bajaMutation.isPending}
-                          onClick={() => setDialogoBajaAbierto(true)}
-                        >
-                          <ArchiveX data-icon="inline-start" />
-                          Dar de baja
-                        </Button>
+                        {!registroAnulado ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={!puedeDarBaja || bajaMutation.isPending}
+                            onClick={() => abrirDialogoEstado("baja")}
+                          >
+                            <ArchiveX data-icon="inline-start" />
+                            Dar de baja
+                          </Button>
+                        ) : null}
                       </>
                     )}
                   </>
@@ -574,7 +609,7 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                     </dl>
                   </section>
 
-                  {socio.tipo === "PERSONAL" ? (
+                  {puedeGestionarAsignaciones ? (
                     <AsignacionesPersonalSeccion
                       personalId={socio.id}
                       titulo="Asignaciones del registro actual"
@@ -582,11 +617,19 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                       vacioTitulo="Sin asignacion vigente"
                       vacioDescripcion="Este registro actual todavia no tiene asignaciones."
                     />
+                  ) : socio.tipo === "PERSONAL" ? (
+                    <Alert>
+                      <AlertTitle>Asignaciones pendientes de aprobacion</AlertTitle>
+                      <AlertDescription>
+                        Primero aprueba el personal y verifica que este activo y no anulado.
+                        Luego podras gestionar sus asignaciones.
+                      </AlertDescription>
+                    </Alert>
                   ) : null}
                 </>
               )}
 
-              {!puedeDarBaja ? (
+              {!puedeDarBaja && !registroAnulado ? (
                 <Alert>
                   <AlertTitle>Baja no disponible</AlertTitle>
                   <AlertDescription>
@@ -601,15 +644,20 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       </main>
 
       <AlertDialog
-        open={dialogoBajaAbierto}
+        open={dialogoEstadoAbierto}
         onOpenChange={(open) => {
-          setDialogoBajaAbierto(open)
-          if (!open) setMotivo("")
+          setDialogoEstadoAbierto(open)
+          if (!open) {
+            setMotivo("")
+            setAccionEstado(null)
+          }
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Dar de baja socio</AlertDialogTitle>
+            <AlertDialogTitle>
+              {accionEstado === "anular" ? "Anular socio" : "Dar de baja socio"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               Tenga en cuenta que esta informacion no se podra recuperar.
             </AlertDialogDescription>
@@ -629,7 +677,11 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                 id={`motivo-baja-${id}`}
                 value={motivo}
                 onChange={(event) => setMotivo(event.target.value)}
-                placeholder="Dejo de operar"
+                placeholder={
+                  accionEstado === "anular"
+                    ? "Registro creado por error"
+                    : "Dejo de operar"
+                }
                 disabled={bajaMutation.isPending}
               />
               <FieldDescription>
@@ -647,10 +699,14 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
               disabled={!motivo.trim() || bajaMutation.isPending}
               onClick={(event) => {
                 event.preventDefault()
-                void darDeBaja()
+                void ejecutarCambioEstado()
               }}
             >
-              {bajaMutation.isPending ? "Procesando..." : "Dar de baja"}
+              {bajaMutation.isPending
+                ? "Procesando..."
+                : accionEstado === "anular"
+                  ? "Anular"
+                  : "Dar de baja"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -665,7 +721,7 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Anular socio pendiente</AlertDialogTitle>
+            <AlertDialogTitle>Rechazar socio pendiente</AlertDialogTitle>
             <AlertDialogDescription>
               El motivo quedara registrado en la auditoria del socio.
             </AlertDialogDescription>
@@ -677,10 +733,13 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
               value={motivo}
               onChange={(event) => setMotivo(event.target.value)}
               placeholder="Registro creado por error"
+              disabled={rechazarMutation.isPending}
             />
           </Field>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={rechazarMutation.isPending}>
+              Cancelar
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               disabled={!motivo.trim() || rechazarMutation.isPending}
@@ -689,7 +748,7 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                 void rechazar()
               }}
             >
-              Anular
+              {rechazarMutation.isPending ? "Procesando..." : "Rechazar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

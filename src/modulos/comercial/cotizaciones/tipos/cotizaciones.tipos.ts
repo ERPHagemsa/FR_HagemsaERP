@@ -48,15 +48,42 @@ export type UnidadCobro =
 // Entidades de lectura (read model — shape plano que devuelve el backend)
 // ---------------------------------------------------------------------------
 
-export type CargaHijo = {
+export type UnidadPeso = "TN" | "KG";
+
+// Item fisico transportado. Contrato API §4 (2026-06-15): una linea de TRANSPORTE
+// lleva 0..N items dentro de carga.cargas[]; cada uno con su nombre, dimensiones y peso.
+export type CargaItem = {
   id: string;
+  nombre: string;
   largoM: number | null;
   anchoM: number | null;
   altoM: number | null;
-  pesoTn: number | null;
+  peso: number | null;
+  unidadPeso: UnidadPeso | null;
+  orden: number;
+};
+
+// Sugerencia de carga para autocompletado (API §5.3.1). Subset clonable de CargaItem:
+// SIN id ni orden. Es una lectura GLOBAL (busca sobre cargas de cualquier cotizacion,
+// no filtra por ejecutivo) y deduplica por nombre trayendo la mas reciente.
+// Todas las dimensiones pueden venir null; el front las clona y el usuario las edita.
+export type SugerenciaCarga = {
+  nombre: string;
+  largoM: number | null;
+  anchoM: number | null;
+  altoM: number | null;
+  peso: number | null;
+  unidadPeso: UnidadPeso | null;
+};
+
+// El transporte de la linea: ruta + vehiculo + los items fisicos que mueve.
+// Antes era un objeto plano con dimensiones unicas; ahora las dimensiones bajan a cargas[].
+export type CargaHijo = {
+  id: string;
   origen: string | null;
   destino: string | null;
   tipoVehiculo: string | null;
+  cargas: CargaItem[];
 };
 
 export type EquipoHijo = {
@@ -124,7 +151,7 @@ export type Linea = {
   idModalidad: string;
   tipoLinea: TipoLinea;
   orden: number;
-  descripcion: string; // nombre/identificacion de la linea (antes `concepto`)
+  descripcion: string | null; // nombre/identificacion de la linea (opcional; en TRANSPORTE suele venir null)
   cantidad: number;
   precioUnitario: number;
   precioTotal: number; // calculado por el backend: precioUnitario × cantidad (solo lectura)
@@ -310,14 +337,22 @@ export type PayloadStandby = {
 };
 
 // Hijos polimorficos del write model (sin id — el backend los re-crea)
-export type PayloadCargaHijo = {
+// Item fisico del request: nombre requerido (no vacio); dimensiones y peso opcionales.
+export type PayloadCargaItem = {
+  nombre: string;
   largoM?: number;
   anchoM?: number;
   altoM?: number;
-  pesoTn?: number;
+  peso?: number;
+  unidadPeso?: UnidadPeso;
+  orden?: number;
+};
+
+export type PayloadCargaHijo = {
   origen?: string;
   destino?: string;
   tipoVehiculo?: string;
+  cargas?: PayloadCargaItem[];
 };
 
 export type PayloadEquipoHijo = {
@@ -345,7 +380,7 @@ export type PayloadPersonalHijo = {
 export type PayloadLinea = {
   idModalidad: string;
   tipoLinea: TipoLinea;
-  descripcion: string;
+  descripcion?: string; // opcional; el backend convierte vacio/espacios a null
   precioUnitario: number;
   cantidad?: number;
   carga?: PayloadCargaHijo;

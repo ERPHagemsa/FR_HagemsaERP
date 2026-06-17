@@ -199,6 +199,11 @@ export function InventarioFisicoDetallePanel({
       observacion?: string;
     }
   ) {
+    if (inventarioBloqueado) {
+      setError("El inventario ya esta cerrado o anulado; solo se puede consultar.");
+      return;
+    }
+
     setError(null);
 
     try {
@@ -228,12 +233,27 @@ export function InventarioFisicoDetallePanel({
   }
 
   async function cerrarInventario() {
+    if (inventarioBloqueado) {
+      setError("El inventario ya esta cerrado o anulado.");
+      return;
+    }
+
+    const mensajePendientes = resumen.pendientes
+      ? `Hay ${resumen.pendientes} activos pendientes de revision.`
+      : "Todos los activos tienen revision registrada.";
+    const confirmado = window.confirm(
+      `${mensajePendientes}\n\nDeseas cerrar este inventario fisico? Al cerrarlo quedara en modo solo lectura.`
+    );
+
+    if (!confirmado) return;
+
     setError(null);
     setCerrando(true);
 
     try {
       const actualizado = await cerrarInventarioFisico(inventario.id, {
         usuarioCierre: "activos.web",
+        observacion: `Cierre desde Inventario Fisico. Inventariados: ${resumen.inventariados}. Pendientes: ${resumen.pendientes}. Faltantes: ${resumen.faltantes}. Observados: ${resumen.observados}.`,
       });
       setInventario(actualizado);
     } catch (err) {
@@ -259,6 +279,8 @@ export function InventarioFisicoDetallePanel({
             <Badge variant="outline">{resumen.inventariados} inventariados</Badge>
             <Badge variant="outline">{resumen.candidatos} candidatos</Badge>
             <Badge variant="outline">{resumen.pendientes} pendientes</Badge>
+            <Badge variant="outline">{resumen.faltantes} faltantes</Badge>
+            <Badge variant="outline">{resumen.observados} observados</Badge>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -280,6 +302,14 @@ export function InventarioFisicoDetallePanel({
       {error ? (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error}
+        </div>
+      ) : null}
+
+      {inventarioBloqueado ? (
+        <div className="rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground">
+          Este inventario esta {formatear(inventario.estado).toLowerCase()}.
+          Puedes consultar la revision y la foto historica, pero ya no editar
+          resultados ni cerrar nuevamente.
         </div>
       ) : null}
 
@@ -575,6 +605,18 @@ function FichaRevisionInventario({
   const returnToInventario = `/activos/inventario-fisico/${inventarioId}?activo=${encodeURIComponent(
     detalle.codigoActivo
   )}`;
+  const requiereUbicacion =
+    estado === "ENCONTRADO" || estado === "OBSERVADO";
+  const requiereObservacion =
+    estado === "FALTANTE" || estado === "OBSERVADO" || estado === "NO_APLICA";
+  const ubicacionPendiente = requiereUbicacion && !ubicacion.trim();
+  const observacionPendiente = requiereObservacion && !observacion.trim();
+  const puedeGuardar =
+    !disabled &&
+    !guardando &&
+    estado !== "PENDIENTE" &&
+    !ubicacionPendiente &&
+    !observacionPendiente;
 
   React.useEffect(() => {
     setEstado(detalle.estadoRevision);
@@ -622,6 +664,8 @@ function FichaRevisionInventario({
   }, [detalle.activoId, inventarioId]);
 
   async function guardar() {
+    if (!puedeGuardar) return;
+
     setGuardando(true);
     try {
       await onGuardar(detalle, {
@@ -656,22 +700,24 @@ function FichaRevisionInventario({
             <ArrowLeft className="size-4" />
             Volver
           </Button>
-          <Button asChild>
-            <Link
-              href={`/activos/${detalle.codigoActivo}/editar?context=inventario&returnTo=${encodeURIComponent(
-                returnToInventario
-              )}`}
-              onClick={() => {
-                window.sessionStorage.setItem(
-                  "activos:returnToAfterEdit",
+          {!disabled ? (
+            <Button asChild>
+              <Link
+                href={`/activos/${detalle.codigoActivo}/editar?context=inventario&returnTo=${encodeURIComponent(
                   returnToInventario
-                );
-              }}
-            >
-              <Pencil className="size-4" />
-              Editar
-            </Link>
-          </Button>
+                )}`}
+                onClick={() => {
+                  window.sessionStorage.setItem(
+                    "activos:returnToAfterEdit",
+                    returnToInventario
+                  );
+                }}
+              >
+                <Pencil className="size-4" />
+                Editar
+              </Link>
+            </Button>
+          ) : null}
         </div>
       </section>
 
@@ -932,6 +978,11 @@ function FichaRevisionInventario({
                   placeholder="Ubicacion real"
                   className="h-10 rounded-xl border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
                 />
+                {ubicacionPendiente ? (
+                  <span className="text-xs text-destructive">
+                    Registra la ubicacion constatada para este resultado.
+                  </span>
+                ) : null}
               </label>
 
               <label className="grid gap-2">
@@ -943,6 +994,11 @@ function FichaRevisionInventario({
                   placeholder="Detalle de la constatacion"
                   className="min-h-20 rounded-xl border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
                 />
+                {observacionPendiente ? (
+                  <span className="text-xs text-destructive">
+                    Registra una observacion para sustentar el resultado.
+                  </span>
+                ) : null}
               </label>
 
               <DiferenciaInventario
@@ -953,7 +1009,7 @@ function FichaRevisionInventario({
               <Button
                 type="button"
                 onClick={guardar}
-                disabled={disabled || guardando || estado === "PENDIENTE"}
+                disabled={!puedeGuardar}
               >
                 <Save className="size-4" />
                 {guardando ? "Guardando..." : "Guardar revision"}

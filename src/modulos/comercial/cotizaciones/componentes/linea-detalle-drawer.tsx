@@ -22,6 +22,7 @@ import {
   SheetTitle,
 } from "@/compartido/componentes/ui/sheet";
 import { Separator } from "@/compartido/componentes/ui/separator";
+import { ScrollArea } from "@/compartido/componentes/ui/scroll-area";
 import { FieldSet, FieldLegend } from "@/compartido/componentes/ui/field";
 import {
   Dialog,
@@ -39,6 +40,7 @@ import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
 import type { DraftLinea } from "../servicios/cotizaciones-editor.utils";
 import { montoCargo } from "../servicios/cotizaciones-editor.utils";
 import { EditorCargos } from "./editor-cargos";
+import { EditorCargasFisicas } from "./editor-cargas-fisicas";
 import { ModalidadSelector } from "./modalidad-selector";
 import { TIPOS_LINEA, formatearMoneda } from "./lineas-grid.utils";
 
@@ -89,8 +91,12 @@ export function LineaDetalleDrawer({
   const set = (patch: Partial<DraftLinea>) =>
     setBorrador((b) => (b ? { ...b, ...patch } : b));
 
-  const total =
+  // Aporte real de la linea = base (cantidad × precioUnitario) + Σ cargos adicionales de la linea.
+  // Es lo que la linea suma al subtotal de la seccion (los cargos de linea SI suman; ver API §5.4).
+  const base =
     (parseFloat(borrador.cantidad) || 0) * (parseFloat(borrador.precioUnitario) || 0);
+  const totalCargos = borrador.cargosAdicionales.reduce((acc, c) => acc + montoCargo(c), 0);
+  const aporteLinea = base + totalCargos;
 
   return (
     <Sheet open={abierto} onOpenChange={(v) => (!v ? onCerrar() : undefined)}>
@@ -98,19 +104,29 @@ export function LineaDetalleDrawer({
           pisarlo hay que usar EL MISMO prefijo de variante; un `sm:max-w-*` plano
           no lo deduplica twMerge y pierde por especificidad. */}
       {/* <SheetContent side="right" className="w-full gap-0 sm:max-w-3xl"> */}
-      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-xl">
+      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-2xl">
         <SheetHeader className="border-b border-border">
           <SheetTitle>Detalle de la linea</SheetTitle>
           <SheetDescription>
             Campos especificos segun el tipo de servicio.
           </SheetDescription>
+          {/* Banda de aporte: el header es fijo, asi queda visible al scrollear.
+              Va en su propia fila (no en la esquina) para no chocar con la X de cierre. */}
+          <div className="mt-1 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+            <span className="text-xs text-muted-foreground">Aporte de la linea</span>
+            <span className="font-mono text-base font-semibold tabular-nums">
+              {formatearMoneda(aporteLinea, moneda)}
+            </span>
+          </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="flex flex-col gap-5">
+        {/* min-h-0 + flex-1: deja que el ScrollArea ocupe el resto y scrollee por dentro
+            (scrollbar fino de Radix, no el nativo del navegador). */}
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="flex flex-col gap-5 p-6">
             {/* Tipo de linea + Modalidad — comparten fila en 2 columnas */}
             <div className="grid gap-4 sm:grid-cols-2">
-              <Campo label="Tipo de linea" obligatorio>
+              <Campo label="Tipo de servicio" obligatorio>
                 <Select
                   value={borrador.tipoLinea}
                   disabled={disabled}
@@ -133,7 +149,7 @@ export function LineaDetalleDrawer({
                 </Select>
               </Campo>
 
-              <Campo label="Modalidad" obligatorio error={erroresCampo.idModalidad}>
+              <Campo label="Modalidad del servicio" obligatorio error={erroresCampo.idModalidad}>
                 <ModalidadSelector
                   name="__modalidad__"
                   value={borrador.idModalidad}
@@ -143,16 +159,6 @@ export function LineaDetalleDrawer({
                 />
               </Campo>
             </div>
-
-            <Campo label="Descripcion" obligatorio error={erroresCampo.descripcion}>
-              <Input
-                value={borrador.descripcion}
-                disabled={disabled}
-                placeholder="Descripcion del servicio"
-                aria-invalid={Boolean(erroresCampo.descripcion)}
-                onChange={(e) => set({ descripcion: e.target.value })}
-              />
-            </Campo>
 
             {/* Ruta — solo transporte */}
             {borrador.tipoLinea === "TRANSPORTE" ? (
@@ -182,6 +188,22 @@ export function LineaDetalleDrawer({
               </Grupo>
             ) : null}
 
+            {/* Cargas — items fisicos a transportar, solo transporte */}
+            {borrador.tipoLinea === "TRANSPORTE" ? (
+              <Grupo
+                titulo={`Cargas${
+                  borrador.carga.cargas.length ? ` (${borrador.carga.cargas.length})` : ""
+                }`}
+              >
+                <EditorCargasFisicas
+                  cargas={borrador.carga.cargas}
+                  erroresCampo={erroresCampo}
+                  disabled={disabled}
+                  onChange={(cargas) => set({ carga: { ...borrador.carga, cargas } })}
+                />
+              </Grupo>
+            ) : null}
+
             {/* Cantidad + precio */}
             <div className="grid gap-4 sm:grid-cols-2">
               <Campo label="Cantidad" error={erroresCampo.cantidad}>
@@ -208,26 +230,21 @@ export function LineaDetalleDrawer({
               </Campo>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <span className="text-sm text-muted-foreground">Total de la linea</span>
-              <span className="font-mono text-base font-semibold tabular-nums">
-                {formatearMoneda(total, moneda)}
-              </span>
-            </div>
-
-            {/* Subform polimorfico */}
+             {/* Tipo de vehiculo — encima de la seccion de Cargas, solo transporte */}
             {borrador.tipoLinea === "TRANSPORTE" ? (
-              <Grupo titulo="Datos de carga">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <CampoMini label="Vehiculo" value={borrador.carga.tipoVehiculo} disabled={disabled} onChange={(v) => set({ carga: { ...borrador.carga, tipoVehiculo: v } })} />
-                  <CampoMini label="Peso (Tn)" tipo="number" value={borrador.carga.pesoTn} disabled={disabled} onChange={(v) => set({ carga: { ...borrador.carga, pesoTn: v } })} />
-                  <CampoMini label="Largo (m)" tipo="number" value={borrador.carga.largoM} disabled={disabled} onChange={(v) => set({ carga: { ...borrador.carga, largoM: v } })} />
-                  <CampoMini label="Ancho (m)" tipo="number" value={borrador.carga.anchoM} disabled={disabled} onChange={(v) => set({ carga: { ...borrador.carga, anchoM: v } })} />
-                  <CampoMini label="Alto (m)" tipo="number" value={borrador.carga.altoM} disabled={disabled} onChange={(v) => set({ carga: { ...borrador.carga, altoM: v } })} />
-                </div>
-              </Grupo>
+              <Campo label="Tipo de unidad">
+                <Input
+                  value={borrador.carga.tipoVehiculo}
+                  disabled={disabled}
+                  placeholder="Ej: Cama baja"
+                  onChange={(e) =>
+                    set({ carga: { ...borrador.carga, tipoVehiculo: e.target.value } })
+                  }
+                />
+              </Campo>
             ) : null}
 
+            {/* Subform polimorfico (no-transporte; el de TRANSPORTE vive arriba) */}
             {borrador.tipoLinea === "ALQUILER_EQUIPO" ? (
               <Grupo titulo="Datos de equipo">
                 <div className="grid gap-3 sm:grid-cols-3">
@@ -301,8 +318,19 @@ export function LineaDetalleDrawer({
                 Gestionar cargos
               </Button>
             </Grupo>
+
+            {/* Descripcion — opcional; va al final (en TRANSPORTE manda el nombre de cada carga) */}
+            <Campo label="Descripcion" error={erroresCampo.descripcion}>
+              <Input
+                value={borrador.descripcion}
+                disabled={disabled}
+                placeholder="Descripcion del servicio (opcional)"
+                aria-invalid={Boolean(erroresCampo.descripcion)}
+                onChange={(e) => set({ descripcion: e.target.value })}
+              />
+            </Campo>
           </div>
-        </div>
+        </ScrollArea>
 
         {/* Sub-editor de cargos: la tabla ancha vive aca, no en el drawer angosto */}
         <Dialog open={cargosAbierto} onOpenChange={setCargosAbierto}>

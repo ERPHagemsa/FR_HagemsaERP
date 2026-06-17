@@ -92,6 +92,33 @@ export interface SocioDeNegocioResponse {
   usuarioAnulacionId: string
 }
 
+export function puedeGestionarAsignacionesPersonal(
+  socio: Pick<
+    SocioDeNegocioResponse,
+    "tipo" | "estado" | "estadoRegistro" | "estadoAprobacion"
+  >,
+) {
+  return (
+    socio.tipo === "PERSONAL" &&
+    socio.estado === "ACTIVO" &&
+    socio.estadoRegistro === "ACTIVO" &&
+    socio.estadoAprobacion === "APROBADO"
+  )
+}
+
+export function puedeResolverAprobacionSocio(
+  socio: Pick<
+    SocioDeNegocioResponse,
+    "estado" | "estadoRegistro" | "estadoAprobacion"
+  >,
+) {
+  return (
+    socio.estado === "ACTIVO" &&
+    socio.estadoRegistro === "ACTIVO" &&
+    socio.estadoAprobacion === "PENDIENTE_APROBACION"
+  )
+}
+
 export interface ResumenSociosDeNegocioResponse {
   totalSocios: number
   operativosActivos: number

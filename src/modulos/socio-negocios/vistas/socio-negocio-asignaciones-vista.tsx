@@ -11,6 +11,7 @@ import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import { AsignacionesPersonalSeccion } from "../componentes/asignaciones-personal-seccion"
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
 import { useSocioDeNegocioQuery } from "../servicios/socio-negocios-queries"
+import { puedeGestionarAsignacionesPersonal } from "../tipos/socio-negocio"
 
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo cargar el socio."
@@ -20,6 +21,8 @@ export function SocioNegocioAsignacionesVista({ id }: { id: string }) {
   const socioQuery = useSocioDeNegocioQuery(id)
   const socio = socioQuery.data
   const esPersonal = socio?.tipo === "PERSONAL"
+  const puedeGestionarAsignaciones =
+    socio ? puedeGestionarAsignacionesPersonal(socio) : false
 
   return (
     <>
@@ -65,7 +68,7 @@ export function SocioNegocioAsignacionesVista({ id }: { id: string }) {
                 }
               />
 
-              {esPersonal ? (
+              {puedeGestionarAsignaciones ? (
                 <AsignacionesPersonalSeccion
                   personalId={socio.id}
                   titulo="Asignaciones del registro actual"
@@ -73,6 +76,14 @@ export function SocioNegocioAsignacionesVista({ id }: { id: string }) {
                   vacioTitulo="Sin asignacion vigente"
                   vacioDescripcion="Este registro actual todavia no tiene asignaciones."
                 />
+              ) : esPersonal ? (
+                <Alert>
+                  <AlertTitle>Asignaciones pendientes de aprobacion</AlertTitle>
+                  <AlertDescription>
+                    Primero aprueba el personal y verifica que este activo y no anulado.
+                    Luego podras gestionar sus asignaciones.
+                  </AlertDescription>
+                </Alert>
               ) : (
                 <Alert>
                   <AlertTitle>Asignaciones no disponibles</AlertTitle>
