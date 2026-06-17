@@ -91,28 +91,29 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
 
         <AvisoResultado accion={accion} />
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <EstadoCard titulo="Placa" valor={vehiculo?.placa ?? "SIN_PLACA"} variante="neutro" />
           <EstadoCard titulo="Estado activo" valor={formatearEstadoActivo(activo.estadoActivo)} />
           <EstadoCard titulo="Condicion activo" valor={vehiculo?.estadoOperativo ?? "SIN_DETALLE"} />
           <EstadoCard titulo="Calibracion" valor={vehiculo?.estadoCalibracion ?? "SIN_DETALLE"} />
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
-          <Card>
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Ficha del activo</CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="base">
-                <TabsList>
-                  <TabsTrigger value="base">Base</TabsTrigger>
-                  <TabsTrigger value="adquisicion">Adquisicion</TabsTrigger>
-                  <TabsTrigger value="vehiculo">Vehiculo</TabsTrigger>
-                  <TabsTrigger value="equipamiento">Equipamiento</TabsTrigger>
-                  <TabsTrigger value="dimensiones">Dimensiones</TabsTrigger>
-                  <TabsTrigger value="control">Control operativo</TabsTrigger>
-                  <TabsTrigger value="combustible">Combustible</TabsTrigger>
-                  <TabsTrigger value="documentos">Documentos</TabsTrigger>
+                <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 overflow-visible rounded-2xl">
+                  <TabsTrigger value="base" className="flex-none">Base</TabsTrigger>
+                  <TabsTrigger value="adquisicion" className="flex-none">Adquisicion</TabsTrigger>
+                  <TabsTrigger value="vehiculo" className="flex-none">Vehiculo</TabsTrigger>
+                  <TabsTrigger value="equipamiento" className="flex-none">Equipamiento</TabsTrigger>
+                  <TabsTrigger value="dimensiones" className="flex-none">Dimensiones</TabsTrigger>
+                  <TabsTrigger value="control" className="flex-none">Control operativo</TabsTrigger>
+                  <TabsTrigger value="combustible" className="flex-none">Combustible</TabsTrigger>
+                  <TabsTrigger value="documentos" className="flex-none">Documentos</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="base" className="pt-5">
@@ -210,13 +211,13 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
             </CardContent>
           </Card>
 
-          <div className="grid gap-5">
-            <Card>
+          <aside className="grid gap-5 xl:sticky xl:top-5">
+            <Card className="h-fit">
               <CardHeader>
                 <CardTitle>Registro del activo</CardTitle>
               </CardHeader>
               <CardContent>
-                  <FichaGrid>
+                  <FichaGrid compact>
                     <Dato label="ID inventario" value={activo.id} />
                     {activo.activoOrigenId ? (
                       <Dato label="ID anterior" value={activo.activoOrigenId} />
@@ -250,7 +251,7 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
             </Card>
 
             <ActivoAccionesCicloVida activo={activo} />
-          </div>
+          </aside>
         </div>
 
         <ImagenesActivo
@@ -272,16 +273,51 @@ export async function ActivoDetalleVista({ codigo, accion }: Props) {
   );
 }
 
-function FichaGrid({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{children}</div>;
+function FichaGrid({
+  children,
+  compact = false,
+}: {
+  children: React.ReactNode;
+  compact?: boolean;
+}) {
+  return (
+    <div
+      className={
+        compact
+          ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-1"
+          : "grid gap-x-8 gap-y-5 sm:grid-cols-2 xl:grid-cols-3"
+      }
+    >
+      {children}
+    </div>
+  );
 }
 
-function EstadoCard({ titulo, valor }: { titulo: string; valor: string }) {
+function EstadoCard({
+  titulo,
+  valor,
+  variante = "estado",
+}: {
+  titulo: string;
+  valor: string;
+  variante?: "estado" | "neutro";
+}) {
   return (
-    <Card>
-      <CardHeader>
-        <p className="text-sm text-muted-foreground">{titulo}</p>
-        <Badge>{valor}</Badge>
+    <Card className="h-full">
+      <CardHeader className="px-5 py-4">
+        <div className="flex min-h-12 items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">{titulo}</p>
+          <Badge
+            className={
+              variante === "neutro"
+                ? "h-6 w-fit border-border bg-muted text-foreground"
+                : "h-6 w-fit px-3 text-xs font-semibold"
+            }
+            variant={variante === "neutro" ? "outline" : "default"}
+          >
+            {valor}
+          </Badge>
+        </div>
       </CardHeader>
     </Card>
   );

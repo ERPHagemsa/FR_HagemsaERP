@@ -1,28 +1,29 @@
-import {
-  clienteConfiguracionGeneral,
-  clienteSocioNegocios,
-} from "@/compartido/api/clientes-backend"
+import { clienteSocioNegocios } from "@/compartido/api/clientes-backend"
 
 import type {
+  AprobarSocioDeNegocioRequest,
+  ClientePorDocumentoResponse,
   ConsultarSapPorDocumentoQuery,
   ConsultarHistorialSocioDeNegocioQuery,
-  ConsultarMaestrosConfiguracionGeneralQuery,
   ConsultarSociosDeNegocioQuery,
   DarDeBajaSocioDeNegocioRequest,
   EstadoBcResponse,
+  EventoSocioDeNegocioResponse,
   ExportarSociosDeNegocioQuery,
   HistorialSocioDeNegocioResponse,
-  MaestroConfiguracionGeneralIntegracion,
   ModificarSocioDeNegocioRequest,
   PaginatedResponse,
   ReactivarSocioDeNegocioRequest,
+  RechazarSocioDeNegocioRequest,
   RegistrarClienteDesdeComercialRequest,
+  RegistrarDesdeSapRequest,
   RegistrarSocioDeNegocioRequest,
   ReporteSociosDeNegocioResponse,
   RespuestaDto,
   ResumenSociosDeNegocioResponse,
   SapBusinessPartnerResponse,
   SapBusinessPartnerResumenResponse,
+  SapSessionQuery,
   SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 
@@ -33,8 +34,8 @@ function crearQueryString(
     | ConsultarSociosDeNegocioQuery
     | ExportarSociosDeNegocioQuery
     | ConsultarHistorialSocioDeNegocioQuery
-    | ConsultarMaestrosConfiguracionGeneralQuery
-    | ConsultarSapPorDocumentoQuery,
+    | ConsultarSapPorDocumentoQuery
+    | SapSessionQuery,
 ): string {
   const params = new URLSearchParams()
 
@@ -62,20 +63,6 @@ export async function obtenerResumenSociosDeNegocio(): Promise<ResumenSociosDeNe
   return data.datos
 }
 
-export async function consultarMaestrosConfiguracionGeneral(
-  query: ConsultarMaestrosConfiguracionGeneralQuery,
-): Promise<MaestroConfiguracionGeneralIntegracion[]> {
-  const queryCatalogo = {
-    page: 1,
-    pageSize: 100,
-    ...query,
-  }
-  const { data } = await clienteConfiguracionGeneral.get<
-    PaginatedResponse<MaestroConfiguracionGeneralIntegracion>
-  >(`/configuracion-general/catalogo${crearQueryString(queryCatalogo)}`)
-  return data.datos
-}
-
 export async function registrarSocioDeNegocio(
   payload: RegistrarSocioDeNegocioRequest,
 ): Promise<SocioDeNegocioResponse> {
@@ -97,7 +84,7 @@ export async function registrarClienteDesdeComercial(
 }
 
 export async function modificarSocioDeNegocio(
-  id: string,
+  id: string | number,
   payload: ModificarSocioDeNegocioRequest,
 ): Promise<SocioDeNegocioResponse> {
   const { data } = await clienteSocioNegocios.put<RespuestaDto<SocioDeNegocioResponse>>(
@@ -107,8 +94,30 @@ export async function modificarSocioDeNegocio(
   return data.datos
 }
 
+export async function aprobarSocioDeNegocio(
+  id: string | number,
+  payload: AprobarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/aprobar`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function rechazarSocioDeNegocio(
+  id: string | number,
+  payload: RechazarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/rechazar`,
+    payload,
+  )
+  return data.datos
+}
+
 export async function darDeBajaSocioDeNegocio(
-  id: string,
+  id: string | number,
   payload: DarDeBajaSocioDeNegocioRequest,
 ): Promise<SocioDeNegocioResponse> {
   const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
@@ -119,7 +128,7 @@ export async function darDeBajaSocioDeNegocio(
 }
 
 export async function reactivarSocioDeNegocio(
-  id: string,
+  id: string | number,
   payload: ReactivarSocioDeNegocioRequest,
 ): Promise<SocioDeNegocioResponse> {
   const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
@@ -154,13 +163,34 @@ export async function consultarSapBusinessPartnerPorDocumento(
 
 export async function consultarSapBusinessPartnerPorCodigo(
   codigoInternoSap: string,
+  query?: SapSessionQuery,
 ): Promise<SapBusinessPartnerResponse | null> {
   const { data } = await clienteSocioNegocios.get<
     RespuestaDto<SapBusinessPartnerResponse | null>
   >(
     `${BASE_ENDPOINT}/sap/business-partners/${encodeURIComponent(
       codigoInternoSap,
-    )}`,
+    )}${crearQueryString(query)}`,
+  )
+  return data.datos
+}
+
+export async function registrarSocioDesdeSap(
+  numeroDocumento: string,
+  payload: RegistrarDesdeSapRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.post<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/desde-sap/documento/${encodeURIComponent(numeroDocumento)}`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function obtenerClientePorDocumento(
+  numeroDocumento: string,
+): Promise<ClientePorDocumentoResponse> {
+  const { data } = await clienteSocioNegocios.get<RespuestaDto<ClientePorDocumentoResponse>>(
+    `${BASE_ENDPOINT}/clientes/por-documento/${encodeURIComponent(numeroDocumento)}`,
   )
   return data.datos
 }
@@ -175,13 +205,31 @@ export async function consultarHistorialSociosDeNegocio(
 }
 
 export async function consultarHistorialSocioDeNegocio(
-  id: string,
+  id: string | number,
   query?: ConsultarHistorialSocioDeNegocioQuery,
 ): Promise<PaginatedResponse<HistorialSocioDeNegocioResponse>> {
   const { data } = await clienteSocioNegocios.get<
     PaginatedResponse<HistorialSocioDeNegocioResponse>
   >(`${BASE_ENDPOINT}/${id}/historial${crearQueryString(query)}`)
   return data
+}
+
+export async function consultarEventosSociosDeNegocio(): Promise<
+  EventoSocioDeNegocioResponse[]
+> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<EventoSocioDeNegocioResponse[]>
+  >(`${BASE_ENDPOINT}/eventos`)
+  return data.datos
+}
+
+export async function consultarEventosSocioDeNegocio(
+  id: string | number,
+): Promise<EventoSocioDeNegocioResponse[]> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<EventoSocioDeNegocioResponse[]>
+  >(`${BASE_ENDPOINT}/${id}/eventos`)
+  return data.datos
 }
 
 export async function exportarSociosDeNegocio(

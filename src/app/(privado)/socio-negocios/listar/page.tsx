@@ -3,7 +3,7 @@ import { SocioNegocioVista } from "@/modulos/socio-negocios/vistas/socio-negocio
 export default function ListarSociosNegocioPage() {
   return (
     <SocioNegocioVista
-      titulo="Listar Socios de Negocio"
+      titulo="Listado de Socios de Negocio"
       accionPrincipal="Nuevo"
       crearHref="/socio-negocios/nuevo"
       filtros={{

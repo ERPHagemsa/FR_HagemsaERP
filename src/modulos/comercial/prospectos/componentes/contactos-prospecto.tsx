@@ -9,7 +9,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Star, Trash2 } from "lucide-react";
+import { Pencil, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { extraerMensajeError } from "@/compartido/api";
@@ -61,11 +61,13 @@ import {
 import {
   useAgregarContactoMutation,
   useCambiarContactoPrincipalMutation,
+  useEditarContactoMutation,
   useEliminarContactoMutation,
 } from "../servicios/prospectos-queries";
 import {
   issuesAErroresCampo,
   schemaAgregarContacto,
+  schemaEditarContacto,
 } from "../tipos/prospecto.schemas";
 import type { Contacto } from "../tipos/prospecto.tipos";
 
@@ -211,6 +213,14 @@ function FilaContacto({
             />
           ) : null}
 
+          {/* Editar contacto */}
+          {!esTerminal ? (
+            <DialogEditarContacto
+              idProspecto={idProspecto}
+              contacto={contacto}
+            />
+          ) : null}
+
           {/* Eliminar contacto */}
           {!puedeEliminar ? (
             <BotonIconoAccion
@@ -282,10 +292,9 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
         (
           form.querySelector<HTMLInputElement>("[name=telefono]")?.value ?? ""
         ).trim() || undefined,
-      email:
-        (
-          form.querySelector<HTMLInputElement>("[name=email]")?.value ?? ""
-        ).trim() || undefined,
+      email: (
+        form.querySelector<HTMLInputElement>("[name=email]")?.value ?? ""
+      ).trim(),
       observaciones:
         (
           form.querySelector<HTMLTextAreaElement>("[name=observaciones]")?.value ?? ""
@@ -324,8 +333,7 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
         <DialogHeader>
           <DialogTitle>Agregar contacto</DialogTitle>
           <DialogDescription>
-            Completa los datos del nuevo contacto. Se requiere al menos telefono
-            o email.
+            Completa los datos del nuevo contacto. El email es obligatorio.
           </DialogDescription>
         </DialogHeader>
 
@@ -382,7 +390,10 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="contacto-email">Email</Label>
+              <Label htmlFor="contacto-email">
+                Email
+                <span className="ml-1 text-destructive">*</span>
+              </Label>
               <Input
                 id="contacto-email"
                 name="email"
@@ -439,6 +450,181 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
             </Button>
             <Button type="submit" disabled={isPending}>
               {isPending ? "Guardando..." : "Agregar contacto"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dialog: Editar contacto (§5.10) — parcial, sin esPrincipal
+// ---------------------------------------------------------------------------
+
+type DialogEditarContactoProps = {
+  idProspecto: string;
+  contacto: Contacto;
+};
+
+function DialogEditarContacto({
+  idProspecto,
+  contacto,
+}: DialogEditarContactoProps) {
+  const router = useRouter();
+  const [abierto, setAbierto] = React.useState(false);
+  const [erroresCampo, setErroresCampo] = React.useState<
+    Record<string, string>
+  >({});
+  const [isPending, setIsPending] = React.useState(false);
+
+  const formRef = React.useRef<HTMLFormElement>(null);
+  const editarMutation = useEditarContactoMutation(idProspecto);
+
+  function handleOpenChange(open: boolean) {
+    if (!open) {
+      setErroresCampo({});
+      setIsPending(false);
+    }
+    setAbierto(open);
+  }
+
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErroresCampo({});
+
+    const form = event.currentTarget;
+    const leer = (name: string) =>
+      (
+        form.querySelector<HTMLInputElement>(`[name=${name}]`)?.value ?? ""
+      ).trim();
+
+    // PATCH parcial: solo enviamos los campos con valor (los vacios se omiten).
+    const datos = {
+      nombre: leer("nombre") || undefined,
+      cargo: leer("cargo") || undefined,
+      telefono: leer("telefono") || undefined,
+      email: leer("email") || undefined,
+      observaciones:
+        (
+          form.querySelector<HTMLTextAreaElement>("[name=observaciones]")
+            ?.value ?? ""
+        ).trim() || undefined,
+    };
+
+    const resultado = schemaEditarContacto.safeParse(datos);
+    if (!resultado.success) {
+      setErroresCampo(issuesAErroresCampo(resultado.error));
+      return;
+    }
+
+    setIsPending(true);
+    try {
+      await editarMutation.mutateAsync({
+        idContacto: contacto.id,
+        payload: resultado.data,
+      });
+      setAbierto(false);
+      toast.success("Contacto actualizado", {
+        description: "Los cambios del contacto fueron guardados.",
+      });
+      router.refresh();
+    } catch (err) {
+      toast.error(extraerMensajeError(err, "No se pudo editar el contacto"));
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <Dialog open={abierto} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <BotonIconoAccion icono={Pencil} etiqueta="Editar contacto" />
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar contacto</DialogTitle>
+          <DialogDescription>
+            Modifica los datos del contacto. Para cambiar el contacto principal
+            usa la estrella en la tabla.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="editar-contacto-nombre">Nombre</Label>
+            <Input
+              id="editar-contacto-nombre"
+              name="nombre"
+              defaultValue={contacto.nombre}
+              disabled={isPending}
+              aria-invalid={Boolean(erroresCampo.nombre)}
+            />
+            {erroresCampo.nombre ? (
+              <p className="text-xs text-destructive">{erroresCampo.nombre}</p>
+            ) : null}
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="editar-contacto-cargo">Cargo</Label>
+            <Input
+              id="editar-contacto-cargo"
+              name="cargo"
+              defaultValue={contacto.cargo ?? ""}
+              disabled={isPending}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="editar-contacto-telefono">Telefono</Label>
+              <Input
+                id="editar-contacto-telefono"
+                name="telefono"
+                defaultValue={contacto.telefono ?? ""}
+                disabled={isPending}
+              />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label htmlFor="editar-contacto-email">Email</Label>
+              <Input
+                id="editar-contacto-email"
+                name="email"
+                type="email"
+                defaultValue={contacto.email}
+                disabled={isPending}
+                aria-invalid={Boolean(erroresCampo.email)}
+              />
+              {erroresCampo.email ? (
+                <p className="text-xs text-destructive">{erroresCampo.email}</p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="editar-contacto-observaciones">Observaciones</Label>
+            <Textarea
+              id="editar-contacto-observaciones"
+              name="observaciones"
+              rows={3}
+              defaultValue={contacto.observaciones ?? ""}
+              disabled={isPending}
+              className="min-h-20"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={isPending}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Guardando..." : "Guardar cambios"}
             </Button>
           </DialogFooter>
         </form>

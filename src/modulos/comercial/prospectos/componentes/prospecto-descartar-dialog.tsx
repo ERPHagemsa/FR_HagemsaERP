@@ -85,8 +85,8 @@ export function ProspectoDescartarDialog({ idProspecto, disabled }: Props) {
         <AlertDialogHeader>
           <AlertDialogTitle>Descartar prospecto</AlertDialogTitle>
           <AlertDialogDescription>
-            Esta accion marcara el prospecto como descartado. No podra reactivarse
-            desde esta interfaz. Por favor indica el motivo.
+            Esta accion marcara el prospecto como descartado (descalifica el lead).
+            Es reversible: podras reactivarlo mas adelante. Por favor indica el motivo.
           </AlertDialogDescription>
         </AlertDialogHeader>
 

@@ -11,6 +11,8 @@ type Props = {
     estado?: string;
     idEjecutivoResponsable?: string;
     busqueda?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
     pagina?: number;
     porPagina?: number;
   };

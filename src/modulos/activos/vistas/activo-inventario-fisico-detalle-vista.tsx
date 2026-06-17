@@ -13,8 +13,10 @@ import {
 
 export async function ActivoInventarioFisicoDetalleVista({
   id,
+  activo,
 }: {
   id: number;
+  activo?: string;
 }) {
   const resultado = await Promise.all([
     obtenerInventarioFisicoPorId(id),
@@ -48,6 +50,7 @@ export async function ActivoInventarioFisicoDetalleVista({
           <InventarioFisicoDetallePanel
             inventarioInicial={resultado.inventario}
             activosMaestro={resultado.activosMaestro}
+            activoInicial={activo}
           />
         ) : null}
       </div>

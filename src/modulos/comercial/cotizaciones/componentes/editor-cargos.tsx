@@ -25,7 +25,6 @@ import type { UnidadCobro } from "../tipos/cotizaciones.tipos";
 import type { DraftCargoAdicional } from "../servicios/cotizaciones-editor.utils";
 import { cargoAdicionalVacio, montoCargo } from "../servicios/cotizaciones-editor.utils";
 import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
-import { CargoCatalogoInput } from "./cargo-catalogo-input";
 
 const UNIDADES_COBRO: { valor: UnidadCobro; etiqueta: string }[] = [
   { valor: "VIAJE", etiqueta: "Viaje" },
@@ -87,16 +86,37 @@ export function EditorCargos({ cargos, opcionesCatalogo, erroresCampo = {}, disa
                 const monto = montoCargo(cargo);
                 return (
                   <TableRow key={cargo.claveCliente}>
-                    {/* Descripcion con autocomplete de catalogo */}
+                    {/* Cargo: seleccion estricta desde el catalogo de cargos adicionales */}
                     <TableCell>
-                      <CargoCatalogoInput
-                        value={cargo.descripcion}
-                        onChange={(v) => actualizar(cargo.claveCliente, { descripcion: v })}
-                        opciones={opcionesCatalogo}
-                        disabled={disabled}
-                        placeholder="Ej: Escolta SUTRAN"
-                        aria-invalid={Boolean(errDesc)}
-                      />
+                      <Select
+                        value={cargo.descripcion || undefined}
+                        disabled={disabled || opcionesCatalogo.length === 0}
+                        onValueChange={(v) =>
+                          actualizar(cargo.claveCliente, { descripcion: v })
+                        }
+                      >
+                        <SelectTrigger
+                          className="h-8 w-full min-w-[180px] text-xs"
+                          aria-invalid={Boolean(errDesc)}
+                        >
+                          <SelectValue
+                            placeholder={
+                              opcionesCatalogo.length === 0
+                                ? "Sin catalogo disponible"
+                                : "Selecciona un cargo"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {opcionesCatalogo.map((o) => (
+                              <SelectItem key={o.id} value={o.nombre} className="text-xs">
+                                {o.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
                       {errDesc ? (
                         <p className="mt-0.5 whitespace-normal text-xs text-destructive">{errDesc}</p>
                       ) : null}

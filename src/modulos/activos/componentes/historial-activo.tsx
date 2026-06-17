@@ -31,6 +31,8 @@ type GrupoAuditoria = {
   resumen: string;
   usuario: string;
   motivo: string;
+  origen: string;
+  referencia: string;
   detalles: DetalleAuditoria[];
 };
 
@@ -100,8 +102,21 @@ export function HistorialActivo({ historial, configuraciones = [] }: Props) {
                 </summary>
 
                 <div className="border-t border-border px-4 py-3">
-                  <div className="mb-3 grid gap-1 text-sm text-muted-foreground">
-                    <span>Motivo: {grupo.motivo}</span>
+                  <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">Origen</span>
+                    <Badge variant="secondary">{grupo.origen}</Badge>
+                    {grupo.referencia !== "-" ? (
+                      <>
+                        <span className="text-muted-foreground">Referencia</span>
+                        <Badge variant="outline">{grupo.referencia}</Badge>
+                      </>
+                    ) : null}
+                    <span className="basis-full text-muted-foreground md:basis-auto">
+                      Motivo:
+                    </span>
+                    <span className="font-medium text-foreground">
+                      {grupo.motivo}
+                    </span>
                   </div>
                   <div className="overflow-hidden rounded-lg border border-border">
                     <table className="w-full text-sm">
@@ -210,7 +225,9 @@ function construirGruposAuditoria(
     modulo: "Configuracion historica",
     resumen: construirResumenConfiguracion(item),
     usuario: item.usuarioRegistro ?? "-",
-    motivo: item.motivo ?? "-",
+    motivo: formatearMotivoCambio(item.motivo),
+    origen: "Configuracion historica",
+    referencia: "-",
     detalles: construirDetallesConfiguracion(item),
   }));
 
@@ -226,6 +243,10 @@ function construirGruposAuditoria(
       item.createdAt,
       item.usuario ?? "",
       item.motivo ?? "",
+      item.origenCambio ?? "",
+      item.referenciaTipo ?? "",
+      item.referenciaId ?? "",
+      item.referenciaCodigo ?? "",
     ].join("|");
     gruposPorLlave.set(llave, [...(gruposPorLlave.get(llave) ?? []), item]);
   }
@@ -241,7 +262,9 @@ function construirGruposAuditoria(
         modulo: obtenerModuloHistorial(items),
         resumen: construirResumenHistorial(items),
         usuario: primero.usuario ?? "-",
-        motivo: primero.motivo ?? "-",
+        motivo: formatearMotivoCambio(primero.motivo),
+        origen: formatearOrigenCambio(primero.origenCambio),
+        referencia: construirReferenciaOrigen(primero),
         detalles: items.map((item) => construirDetalleHistorial(item)),
       };
     }
@@ -494,6 +517,52 @@ function formatearTipoConfiguracion(value: ActivoConfiguracionHistorica["tipoCam
   return labels[value] ?? formatearTexto(value);
 }
 
+function formatearOrigenCambio(value?: string | null) {
+  const labels: Record<string, string> = {
+    MAESTRO_ACTIVOS: "Maestro de activos",
+    INVENTARIO_FISICO: "Inventario fisico",
+    REPLAQUEO: "Replaqueo",
+    CICLO_VIDA: "Ciclo de vida",
+    DOCUMENTOS: "Documentos",
+    CARGA_MASIVA: "Carga masiva",
+    SISTEMA: "Sistema / integracion",
+  };
+
+  return value ? labels[value] ?? formatearTexto(value) : "-";
+}
+
+function construirReferenciaOrigen(item: ActivoHistorial) {
+  if (item.referenciaCodigo) {
+    return item.referenciaCodigo;
+  }
+
+  if (item.referenciaTipo && item.referenciaId) {
+    return `${formatearReferenciaTipo(item.referenciaTipo)} #${item.referenciaId}`;
+  }
+
+  if (item.referenciaId) {
+    return `Referencia #${item.referenciaId}`;
+  }
+
+  return "-";
+}
+
+function formatearReferenciaTipo(value: string) {
+  const labels: Record<string, string> = {
+    ACTIVO: "Activo",
+    INVENTARIO_FISICO: "Inventario fisico",
+    REPLAQUEO: "Replaqueo",
+    DOCUMENTO: "Documento",
+  };
+
+  return labels[value] ?? formatearTexto(value);
+}
+
+function formatearMotivoCambio(value?: string | null) {
+  const motivo = value?.trim();
+  return motivo || "Sin motivo registrado";
+}
+
 const CAMPOS_HISTORIAL: Record<string, string> = {
   registro: "Registro",
   codigo: "Codigo",
@@ -508,6 +577,7 @@ const CAMPOS_HISTORIAL: Record<string, string> = {
   proveedor: "Proveedor",
   numeroFactura: "Numero de factura",
   fechaFactura: "Fecha de factura",
+  imagenes: "Imagenes",
   "vehiculo.plantillaInventario": "Clase",
   "vehiculo.placa": "Placa",
   "vehiculo.anioFabricacion": "Ano de fabricacion",

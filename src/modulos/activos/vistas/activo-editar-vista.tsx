@@ -11,9 +11,10 @@ import {
 
 type Props = {
   codigo: string;
+  returnTo?: string;
 };
 
-export async function ActivoEditarVista({ codigo }: Props) {
+export async function ActivoEditarVista({ codigo, returnTo }: Props) {
   const activo = await obtenerActivoPorCodigo(codigo);
   const documentos = await obtenerDocumentosPorCodigo(codigo).catch(() => []);
   const imagenes = await obtenerImagenesPorCodigo(codigo).catch(() => []);
@@ -30,7 +31,7 @@ export async function ActivoEditarVista({ codigo }: Props) {
             <p className="text-sm text-muted-foreground">{activo.codigo}</p>
           </div>
           <Button asChild variant="outline">
-            <Link href={`/activos/${activo.codigo}`}>Volver</Link>
+            <Link href={returnTo ?? `/activos/${activo.codigo}`}>Volver</Link>
           </Button>
         </section>
 
@@ -39,6 +40,7 @@ export async function ActivoEditarVista({ codigo }: Props) {
           documentos={documentos}
           imagenes={imagenes}
           modo="editar"
+          returnTo={returnTo}
           tanques={tanques}
         />
       </div>

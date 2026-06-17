@@ -17,6 +17,8 @@ export default async function Page({ searchParams }: Props) {
   const ejecutivoRaw = Array.isArray(params.idEjecutivoResponsable)
     ? params.idEjecutivoResponsable[0]
     : params.idEjecutivoResponsable;
+  const fechaDesdeRaw = Array.isArray(params.fechaDesde) ? params.fechaDesde[0] : params.fechaDesde;
+  const fechaHastaRaw = Array.isArray(params.fechaHasta) ? params.fechaHasta[0] : params.fechaHasta;
   const paginaRaw = Array.isArray(params.pagina) ? params.pagina[0] : params.pagina;
   const porPaginaRaw = Array.isArray(params.porPagina) ? params.porPagina[0] : params.porPagina;
 
@@ -33,6 +35,8 @@ export default async function Page({ searchParams }: Props) {
     estado,
     busqueda: busquedaRaw,
     idEjecutivoResponsable,
+    fechaDesde: fechaDesdeRaw,
+    fechaHasta: fechaHastaRaw,
     pagina,
     porPagina,
   };
@@ -41,6 +45,8 @@ export default async function Page({ searchParams }: Props) {
     estado: estadoRaw,
     idEjecutivoResponsable: ejecutivoRaw,
     busqueda: busquedaRaw,
+    fechaDesde: fechaDesdeRaw,
+    fechaHasta: fechaHastaRaw,
     pagina,
     porPagina,
   };

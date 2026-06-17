@@ -33,7 +33,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   useSidebar,
 } from "@/compartido/componentes/ui/sidebar"
 
@@ -92,6 +91,7 @@ const data = {
       icon: <Briefcase />,
       items: [
         { title: "Prospectos", url: "/comercial/prospectos" },
+        { title: "Historial de prospectos", url: "/comercial/prospectos/historial" },
         { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
         { title: "Tarifarios", url: "#" },
         { title: "Contratos", url: "#" },
@@ -252,8 +252,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <ThemeToggle showLabel />
         <NavUser user={data.user} />
       </SidebarFooter>
-
-      <SidebarRail />
     </Sidebar>
   )
 }

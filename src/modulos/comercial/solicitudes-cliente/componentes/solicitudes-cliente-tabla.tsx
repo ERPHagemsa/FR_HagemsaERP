@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
-import { Eye, FilePlusCorner, Plus, RefreshCw, Search } from "lucide-react";
+import { Eye, FilePlusCorner, FileText, Plus, RefreshCw, Search } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -38,6 +38,7 @@ import {
 } from "@/compartido/componentes/ui/tooltip";
 import { cn } from "@/compartido/utilidades";
 
+import { accionesPermitidasSC } from "../tipos/solicitud-cliente.tipos";
 import type {
   FiltrosSolicitudesCliente,
   SolicitudClienteResumen,
@@ -306,7 +307,10 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
 }
 
 function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
-  const esPendiente = item.estado === "PENDIENTE";
+  // La cotizacion viva mas reciente (o null). Es la fuente para el deep-link y
+  // para "Tomado por" — NO usar totalCotizaciones (cuenta tambien las terminales).
+  const vigente = item.cotizacionVigente;
+  const puedeCotizar = accionesPermitidasSC(item.estado).agregarCotizacion;
 
   return (
     <TableRow>
@@ -327,10 +331,12 @@ function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
       <TableCell>
         <EstadoSolicitudBadge estado={item.estado} />
       </TableCell>
-      {/* Columna "Tomado por": derivada de totalCotizaciones.
-          Cuando el backend agregue el ejecutivo al resumen, acá se mostrará el nombre real. */}
+      {/* Columna "Tomado por": derivada de cotizacionVigente (presencia de una
+          cotizacion viva), NO de totalCotizaciones. Si todas murieron, la SC
+          vuelve al pool → "Disponible". Cuando el backend exponga el ejecutivo,
+          acá se mostrará el nombre real. */}
       <TableCell>
-        {item.totalCotizaciones === 0 ? (
+        {vigente == null ? (
           <Badge variant="outline">Disponible</Badge>
         ) : (
           <Badge variant="secondary">Tomada</Badge>
@@ -341,12 +347,26 @@ function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
           {item.totalCotizaciones}
         </span>
       </TableCell>
-      {/* Accion adaptativa por estado (botones solo-icono con tooltip):
-          - PENDIENTE: boton "Cotizar" (primario) + boton "Ver detalle"
-          - Otros estados: solo boton "Ver detalle" */}
+      {/* Accion primaria adaptativa (solo-icono con tooltip):
+          - hay cotizacion viva  -> "Ver cotizacion" (deep-link directo, evita el detalle)
+          - no hay viva y se puede cotizar -> "Cotizar"
+          - no hay viva y la SC es terminal -> sin accion primaria
+          "Ver detalle" (el expediente) queda SIEMPRE como accion secundaria. */}
       <TableCell className="text-right">
         <div className="flex items-center justify-end gap-1.5">
-          {esPendiente ? (
+          {vigente != null ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild size="icon-sm" variant="default">
+                  <Link href={`/comercial/cotizaciones/${vigente.id}`}>
+                    <FileText />
+                    <span className="sr-only">Ver cotización</span>
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Ver cotización</TooltipContent>
+            </Tooltip>
+          ) : puedeCotizar ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button asChild size="icon-sm" variant="default">

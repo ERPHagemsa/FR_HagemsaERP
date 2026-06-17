@@ -4,28 +4,33 @@ import { useConsulta } from "@/compartido/api/use-consulta"
 import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
+  aprobarSocioDeNegocio,
+  consultarEventosSocioDeNegocio,
+  consultarEventosSociosDeNegocio,
   consultarSapBusinessPartnerPorCodigo,
   consultarSapBusinessPartnerPorDocumento,
   consultarHistorialSocioDeNegocio,
   consultarHistorialSociosDeNegocio,
-  consultarMaestrosConfiguracionGeneral,
   consultarSociosDeNegocio,
   darDeBajaSocioDeNegocio,
   exportarSociosDeNegocio,
   modificarSocioDeNegocio,
   obtenerEstadoBcSocioDeNegocio,
+  obtenerClientePorDocumento,
   obtenerResumenSociosDeNegocio,
   obtenerSocioDeNegocio,
   registrarClienteDesdeComercial,
+  registrarSocioDesdeSap,
   registrarSocioDeNegocio,
+  rechazarSocioDeNegocio,
   reactivarSocioDeNegocio,
 } from "./socio-negocios-api"
 import type {
   ConsultarSapPorDocumentoQuery,
   ConsultarHistorialSocioDeNegocioQuery,
-  ConsultarMaestrosConfiguracionGeneralQuery,
   ConsultarSociosDeNegocioQuery,
   ExportarSociosDeNegocioQuery,
+  SapSessionQuery,
 } from "../tipos/socio-negocio"
 
 export function useEstadoBcSocioDeNegocioQuery() {
@@ -47,17 +52,6 @@ export function useSocioDeNegocioQuery(id: string) {
   return useConsulta(() => obtenerSocioDeNegocio(id), [id], {
     enabled: Boolean(id),
   })
-}
-
-export function useMaestrosConfiguracionGeneralQuery(
-  query: ConsultarMaestrosConfiguracionGeneralQuery,
-  enabled = true,
-) {
-  return useConsulta(
-    () => consultarMaestrosConfiguracionGeneral(query),
-    [JSON.stringify(query)],
-    { enabled },
-  )
 }
 
 export function useExportarSociosDeNegocioQuery(
@@ -98,7 +92,7 @@ export function useRegistrarClienteDesdeComercialMutation(
 }
 
 export function useModificarSocioDeNegocioMutation(
-  id: string,
+  id: string | number,
   opciones: OpcionesMutacionSocioNegocios = {},
 ) {
   return useMutar<
@@ -111,7 +105,7 @@ export function useModificarSocioDeNegocioMutation(
 }
 
 export function useDarDeBajaSocioDeNegocioMutation(
-  id: string,
+  id: string | number,
   opciones: OpcionesMutacionSocioNegocios = {},
 ) {
   return useMutar<
@@ -124,7 +118,7 @@ export function useDarDeBajaSocioDeNegocioMutation(
 }
 
 export function useReactivarSocioDeNegocioMutation(
-  id: string,
+  id: string | number,
   opciones: OpcionesMutacionSocioNegocios = {},
 ) {
   return useMutar<
@@ -132,6 +126,45 @@ export function useReactivarSocioDeNegocioMutation(
     Awaited<ReturnType<typeof reactivarSocioDeNegocio>>
   >({
     fn: (payload) => reactivarSocioDeNegocio(id, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useRegistrarSocioDesdeSapMutation(
+  numeroDocumento: string,
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof registrarSocioDesdeSap>[1],
+    Awaited<ReturnType<typeof registrarSocioDesdeSap>>
+  >({
+    fn: (payload) => registrarSocioDesdeSap(numeroDocumento, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useAprobarSocioDeNegocioMutation(
+  id: string | number,
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof aprobarSocioDeNegocio>[1],
+    Awaited<ReturnType<typeof aprobarSocioDeNegocio>>
+  >({
+    fn: (payload) => aprobarSocioDeNegocio(id, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useRechazarSocioDeNegocioMutation(
+  id: string | number,
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof rechazarSocioDeNegocio>[1],
+    Awaited<ReturnType<typeof rechazarSocioDeNegocio>>
+  >({
+    fn: (payload) => rechazarSocioDeNegocio(id, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }
@@ -154,14 +187,27 @@ export function useSapBusinessPartnerPorDocumentoQuery(
 
 export function useSapBusinessPartnerPorCodigoQuery(
   codigoInternoSap: string,
+  query?: SapSessionQuery,
   enabled = Boolean(codigoInternoSap),
 ) {
   return useConsulta(
     () =>
       consultarSapBusinessPartnerPorCodigo(
         codigoInternoSap,
+        query,
       ),
-    [codigoInternoSap],
+    [codigoInternoSap, JSON.stringify(query ?? {})],
+    { enabled },
+  )
+}
+
+export function useClientePorDocumentoQuery(
+  numeroDocumento: string,
+  enabled = Boolean(numeroDocumento),
+) {
+  return useConsulta(
+    () => obtenerClientePorDocumento(numeroDocumento),
+    [numeroDocumento],
     { enabled },
   )
 }
@@ -184,4 +230,14 @@ export function useHistorialSocioDeNegocioQuery(
     [id, JSON.stringify(query ?? {})],
     { enabled: Boolean(id) },
   )
+}
+
+export function useEventosSociosDeNegocioQuery() {
+  return useConsulta(consultarEventosSociosDeNegocio, [])
+}
+
+export function useEventosSocioDeNegocioQuery(id: string | number) {
+  return useConsulta(() => consultarEventosSocioDeNegocio(id), [String(id)], {
+    enabled: Boolean(id),
+  })
 }

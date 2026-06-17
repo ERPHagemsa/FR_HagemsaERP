@@ -166,8 +166,9 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
 
   async function onSubmitNuevo(root: HTMLElement) {
     const datos = {
-      nombreComercial: getValue(root, "nombreComercial"),
-      razonSocial: getValue(root, "razonSocial") || undefined,
+      nombreComercial: getValue(root, "nombreComercial") || undefined,
+      razonSocial: getValue(root, "razonSocial"),
+      direccion: getValue(root, "direccion"),
       tipoDocumento: getValue(root, "tipoDocumento") as TipoDocumento,
       numeroDocumento: getValue(root, "numeroDocumento"),
       medioContactoInicial: getValue(root, "medioContactoInicial") as MedioContactoInicial,
@@ -175,7 +176,7 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
         nombre: getValue(root, "contacto.nombre"),
         cargo: getValue(root, "contacto.cargo") || undefined,
         telefono: getValue(root, "contacto.telefono") || undefined,
-        email: getValue(root, "contacto.email") || undefined,
+        email: getValue(root, "contacto.email"),
         observaciones: getValue(root, "contacto.observaciones") || undefined,
       },
     };
@@ -211,6 +212,7 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
     const datos = {
       nombreComercial: getValue(root, "nombreComercial") || undefined,
       razonSocial: getValue(root, "razonSocial") || undefined,
+      direccion: getValue(root, "direccion") || undefined,
       tipoDocumento:
         (getValue(root, "tipoDocumento") as TipoDocumento) || undefined,
       numeroDocumento: getValue(root, "numeroDocumento") || undefined,
@@ -305,21 +307,33 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <CampoTexto
+                  label="Razon social"
+                  name="razonSocial"
+                  requerido
+                  defaultValue={prospecto?.razonSocial}
+                  error={erroresCampo["razonSocial"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("razonSocial")}
+                />
+                <CampoTexto
                   label="Nombre comercial"
                   name="nombreComercial"
-                  requerido
-                  defaultValue={prospecto?.nombreComercial}
+                  defaultValue={prospecto?.nombreComercial ?? undefined}
                   error={erroresCampo["nombreComercial"]}
                   disabled={isSaving}
                   onChange={() => limpiarErrorCampo("nombreComercial")}
                 />
+              </div>
+
+              <div className="mt-4">
                 <CampoTexto
-                  label="Razon social"
-                  name="razonSocial"
-                  defaultValue={prospecto?.razonSocial ?? undefined}
-                  error={erroresCampo["razonSocial"]}
+                  label="Direccion"
+                  name="direccion"
+                  requerido
+                  defaultValue={prospecto?.direccion}
+                  error={erroresCampo["direccion"]}
                   disabled={isSaving}
-                  onChange={() => limpiarErrorCampo("razonSocial")}
+                  onChange={() => limpiarErrorCampo("direccion")}
                 />
               </div>
 
@@ -386,19 +400,27 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
                   descripcion="Informacion comercial y de identificacion."
                 />
                 <CampoTexto
+                  label="Razon social"
+                  name="razonSocial"
+                  requerido
+                  error={erroresCampo["razonSocial"]}
+                  disabled={isSaving}
+                  onChange={() => limpiarErrorCampo("razonSocial")}
+                />
+                <CampoTexto
                   label="Nombre comercial"
                   name="nombreComercial"
-                  requerido
                   error={erroresCampo["nombreComercial"]}
                   disabled={isSaving}
                   onChange={() => limpiarErrorCampo("nombreComercial")}
                 />
                 <CampoTexto
-                  label="Razon social"
-                  name="razonSocial"
-                  error={erroresCampo["razonSocial"]}
+                  label="Direccion"
+                  name="direccion"
+                  requerido
+                  error={erroresCampo["direccion"]}
                   disabled={isSaving}
-                  onChange={() => limpiarErrorCampo("razonSocial")}
+                  onChange={() => limpiarErrorCampo("direccion")}
                 />
                 <CampoSelect
                   label="Tipo de documento"
@@ -489,7 +511,7 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
               <div className="flex flex-col gap-4 lg:border-l lg:border-border lg:pl-10">
                 <SeccionTitulo
                   titulo="Contacto inicial"
-                  descripcion="Persona de contacto con la que se inicio la relacion comercial. Se requiere al menos telefono o email."
+                  descripcion="Persona de contacto con la que se inicio la relacion comercial. El email es obligatorio."
                 />
                 <CampoTexto
                   label="Nombre del contacto"
@@ -511,21 +533,16 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
                   type="tel"
                   error={erroresCampo["contacto.telefono"]}
                   disabled={isSaving}
-                  onChange={() => {
-                    limpiarErrorCampo("contacto.telefono");
-                    limpiarErrorCampo("contacto.email");
-                  }}
+                  onChange={() => limpiarErrorCampo("contacto.telefono")}
                 />
                 <CampoTexto
                   label="Email"
                   name="contacto.email"
                   type="email"
+                  requerido
                   error={erroresCampo["contacto.email"]}
                   disabled={isSaving}
-                  onChange={() => {
-                    limpiarErrorCampo("contacto.email");
-                    limpiarErrorCampo("contacto.telefono");
-                  }}
+                  onChange={() => limpiarErrorCampo("contacto.email")}
                 />
                 <CampoTextarea
                   label="Observaciones"

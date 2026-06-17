@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -17,12 +15,6 @@ import { CalendarDays, Pencil } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
 import { Calendar } from "@/compartido/componentes/ui/calendar";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card";
 import { FieldLegend, FieldSet } from "@/compartido/componentes/ui/field";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -442,49 +434,6 @@ export function CamposNuevaSolicitud({
         disabled={isSaving}
       />
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// SolicitudClienteFormulario — wrapper para la pagina /nueva (sin cambios de comportamiento)
-// ---------------------------------------------------------------------------
-
-export function SolicitudClienteFormulario() {
-  const router = useRouter();
-
-  const { formularioRef, campos } = useFormularioNuevaSolicitud({
-    onExito: (id) => {
-      router.push(`/comercial/solicitudes-cliente/${id}`);
-    },
-  });
-
-  return (
-    <form
-      ref={formularioRef}
-      onSubmit={(e) => {
-        e.preventDefault();
-        campos.onSubmit();
-      }}
-    >
-      <Card>
-        <CardHeader className="border-b border-border">
-          <CardTitle>Registrar solicitud de cliente</CardTitle>
-        </CardHeader>
-        <CardContent className="px-5 pt-5 pb-0">
-          <CamposNuevaSolicitud campos={campos} />
-
-          {/* Footer */}
-          <div className="-mx-5 mt-5 flex items-center justify-end gap-2 border-t border-border bg-muted/40 px-5 py-4">
-            <Button type="button" variant="outline" asChild disabled={campos.isSaving}>
-              <Link href="/comercial/solicitudes-cliente">Cancelar</Link>
-            </Button>
-            <Button type="submit" disabled={campos.isSaving}>
-              {campos.isSaving ? "Registrando..." : "Registrar solicitud"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </form>
   );
 }
 

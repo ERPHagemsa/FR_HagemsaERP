@@ -44,46 +44,39 @@ const camposContacto = {
   nombre: z.string().min(1, "El nombre del contacto es requerido"),
   cargo: z.string().optional(),
   telefono: z.string().optional(),
+  // Contrato API-Prospectos: email es obligatorio; telefono es opcional.
   email: z
-    .union([z.string().email("El email no tiene un formato valido"), z.literal("")])
-    .optional(),
+    .string()
+    .min(1, "El email es requerido")
+    .email("El email no tiene un formato valido"),
   // Spec 5.7: observaciones opcionales — compartido por contacto inicial y alta de contacto.
   observaciones: z.string().optional(),
 };
 
-// Exige al menos telefono o email — comun a ambos schemas de contacto.
-function refinarTelefonoOEmail(
-  data: { telefono?: string; email?: string },
-  ctx: z.RefinementCtx
-) {
-  const tieneTelefono = data.telefono && data.telefono.trim().length > 0;
-  const tieneEmail = data.email && data.email.trim().length > 0;
-  if (!tieneTelefono && !tieneEmail) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Ingresa al menos telefono o email",
-      path: ["telefono"],
-    });
-  }
-}
-
 // Contacto inicial del registro de prospecto — sin esPrincipal.
-export const schemaContactoInicial = z
-  .object(camposContacto)
-  .superRefine(refinarTelefonoOEmail);
+export const schemaContactoInicial = z.object(camposContacto);
 
 export type DatosContactoInicial = z.infer<typeof schemaContactoInicial>;
 
 // Alta de contacto a un prospecto existente — incluye esPrincipal.
 // observaciones ya viene de camposContacto.
-export const schemaAgregarContacto = z
-  .object({
-    ...camposContacto,
-    esPrincipal: z.boolean(),
-  })
-  .superRefine(refinarTelefonoOEmail);
+export const schemaAgregarContacto = z.object({
+  ...camposContacto,
+  esPrincipal: z.boolean(),
+});
 
 export type DatosAgregarContacto = z.infer<typeof schemaAgregarContacto>;
+
+// Editar contacto (§5.10): parcial. Email valida formato solo si se envia.
+export const schemaEditarContacto = z.object({
+  nombre: z.string().min(1, "El nombre no puede estar vacio").optional(),
+  cargo: z.string().optional(),
+  telefono: z.string().optional(),
+  email: z.string().email("El email no tiene un formato valido").optional(),
+  observaciones: z.string().optional(),
+});
+
+export type DatosEditarContacto = z.infer<typeof schemaEditarContacto>;
 
 // ---------------------------------------------------------------------------
 // Schema de registro de prospecto
@@ -91,10 +84,10 @@ export type DatosAgregarContacto = z.infer<typeof schemaAgregarContacto>;
 
 export const schemaRegistrarProspecto = z
   .object({
-    nombreComercial: z
-      .string()
-      .min(1, "El nombre comercial es requerido"),
-    razonSocial: z.string().optional(),
+    // Contrato API-Prospectos §5.1: razonSocial obligatorio, nombreComercial opcional.
+    nombreComercial: z.string().optional(),
+    razonSocial: z.string().min(1, "La razon social es requerida"),
+    direccion: z.string().min(1, "La direccion es requerida"),
     tipoDocumento: z.enum(["RUC", "DNI", "CE"], {
       message: "Selecciona un tipo de documento valido",
     }),
@@ -147,7 +140,14 @@ export const schemaActualizarProspecto = z
       .string()
       .min(1, "El nombre comercial no puede estar vacio")
       .optional(),
-    razonSocial: z.string().optional(),
+    razonSocial: z
+      .string()
+      .min(1, "La razon social no puede estar vacia")
+      .optional(),
+    direccion: z
+      .string()
+      .min(1, "La direccion no puede estar vacia")
+      .optional(),
     tipoDocumento: z.enum(["RUC", "DNI", "CE"]).optional(),
     numeroDocumento: z.string().min(1, "El numero de documento no puede estar vacio").optional(),
     medioContactoInicial: z

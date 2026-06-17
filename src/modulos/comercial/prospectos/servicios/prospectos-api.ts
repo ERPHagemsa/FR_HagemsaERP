@@ -1,12 +1,15 @@
 import { clienteComercial } from "@/compartido/api/clientes-backend";
 
 import type {
+  FiltrosHistorial,
   FiltrosProspectos,
   PayloadAgregarContacto,
   PayloadActualizarProspecto,
   PayloadDescartarProspecto,
+  PayloadEditarContacto,
   PayloadRegistrarProspecto,
   Prospecto,
+  RespuestaPaginadaHistorial,
   RespuestaPaginadaProspectos,
 } from "../tipos/prospecto.tipos";
 
@@ -26,6 +29,18 @@ export async function listarProspectos(
 
 export async function consultarProspecto(id: string): Promise<Prospecto> {
   const { data } = await clienteComercial.get<Prospecto>(`/prospectos/${id}`);
+  return data;
+}
+
+// Feed de auditoria (§5.3.1). Sin prospectoId = toda la cartera; con prospectoId
+// = traza de un solo prospecto. Un prospectoId inexistente devuelve pagina vacia.
+export async function obtenerHistorialProspectos(
+  filtros: FiltrosHistorial = {}
+): Promise<RespuestaPaginadaHistorial> {
+  const { data } = await clienteComercial.get<RespuestaPaginadaHistorial>(
+    "/prospectos/historial",
+    { params: filtros }
+  );
   return data;
 }
 
@@ -66,6 +81,22 @@ export async function descartarProspecto(
 }
 
 // ---------------------------------------------------------------------------
+// Reactivar (DESCARTADO -> ACTIVO). Sin body.
+// ---------------------------------------------------------------------------
+
+export async function reactivarProspecto(id: string): Promise<void> {
+  await clienteComercial.patch(`/prospectos/${id}/reactivar`);
+}
+
+// ---------------------------------------------------------------------------
+// Eliminar (baja logica / soft-delete). 409 si tiene actividad comercial.
+// ---------------------------------------------------------------------------
+
+export async function eliminarProspecto(id: string): Promise<void> {
+  await clienteComercial.delete(`/prospectos/${id}`);
+}
+
+// ---------------------------------------------------------------------------
 // Contactos
 // ---------------------------------------------------------------------------
 
@@ -75,6 +106,17 @@ export async function agregarContacto(
 ): Promise<void> {
   await clienteComercial.post(
     `/prospectos/${idProspecto}/contactos`,
+    payload
+  );
+}
+
+export async function editarContacto(
+  idProspecto: string,
+  idContacto: string,
+  payload: PayloadEditarContacto
+): Promise<void> {
+  await clienteComercial.patch(
+    `/prospectos/${idProspecto}/contactos/${idContacto}`,
     payload
   );
 }

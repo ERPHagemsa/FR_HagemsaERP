@@ -12,16 +12,18 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Add01Icon,
-  ArrowRight01Icon,
-  ChartUpIcon,
-  CheckmarkCircle01Icon,
-  FileExportIcon,
-  Loading03Icon,
-  UserGroupIcon,
-} from "@hugeicons/core-free-icons"
+  ArrowRight,
+  Ban,
+  Building2,
+  CheckCircle2,
+  FileDown,
+  type LucideIcon,
+  Package,
+  Plus,
+  TrendingUp,
+  Users,
+} from "lucide-react"
 
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -54,9 +56,7 @@ import {
 
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
 import { useResumenSociosDeNegocioQuery } from "../servicios/socio-negocios-queries"
-import { condicionesLaborales } from "../tipos/socio-negocio"
 import type {
-  CondicionLaboral,
   EstadoRegistro,
   EstadoSocioDeNegocio,
   ResumenSociosDeNegocioResponse,
@@ -101,14 +101,6 @@ function formatearFecha(fecha?: string) {
   const valor = new Date(fecha)
   if (Number.isNaN(valor.getTime())) return fecha
   return new Intl.DateTimeFormat("es-PE", { dateStyle: "medium" }).format(valor)
-}
-
-function etiquetaCondicionLaboral(condicion?: CondicionLaboral | null) {
-  return (
-    condicionesLaborales.find((item) => item.valor === condicion)?.etiqueta ??
-    condicion ??
-    "-"
-  )
 }
 
 function totalPorEstado(
@@ -180,34 +172,34 @@ function completarMatrizTipoEstado(
 
 function MetricCard({
   detail,
-  icon,
+  icon: Icon,
   label,
   loading,
   value,
 }: {
   detail: string
-  icon: Parameters<typeof HugeiconsIcon>[0]["icon"]
+  icon: LucideIcon
   label: string
   loading?: boolean
   value: number
 }) {
   return (
-    <Card className="border-border/60 bg-muted/25 shadow-none">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
+    <Card className="border-primary/15 shadow-xs">
+      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-1">
         <div className="min-w-0">
-          <CardDescription className="text-xs font-medium uppercase tracking-[0.08em]">
+          <CardDescription className="text-sm">
             {label}
           </CardDescription>
-          <CardTitle className="mt-2 text-3xl font-semibold tabular-nums">
+          <CardTitle className="mt-1 text-2xl font-semibold tabular-nums md:text-3xl">
             {loading ? "-" : value}
           </CardTitle>
         </div>
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border/60">
-          <HugeiconsIcon icon={icon} strokeWidth={2} />
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
+          <Icon className="size-4" />
         </span>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground">{detail}</p>
+        <p className="text-xs leading-5 text-muted-foreground">{detail}</p>
       </CardContent>
     </Card>
   )
@@ -216,25 +208,36 @@ function MetricCard({
 function ActionCard({
   description,
   href,
+  icon: Icon,
   label,
   title,
 }: {
   description: string
   href: string
+  icon: LucideIcon
   label: string
   title: string
 }) {
   return (
-    <Card className="border-border/60 shadow-none">
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+    <Card className="border-primary/15 shadow-xs">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <CardTitle className="text-sm">{title}</CardTitle>
+            <CardDescription className="mt-1 text-xs leading-5">
+              {description}
+            </CardDescription>
+          </div>
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+            <Icon className="size-4" />
+          </span>
+        </div>
       </CardHeader>
-      <CardFooter>
-        <Button asChild variant="outline" size="sm" className="w-full justify-between">
+      <CardFooter className="pt-0">
+        <Button asChild variant="ghost" size="sm" className="w-full justify-between">
           <Link href={href}>
             {label}
-            <HugeiconsIcon data-icon="inline-end" icon={ArrowRight01Icon} strokeWidth={2} />
+            <ArrowRight data-icon="inline-end" />
           </Link>
         </Button>
       </CardFooter>
@@ -271,19 +274,18 @@ function TablaRecientes({
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow className="bg-muted/70 hover:bg-muted/70">
+          <TableRow className="bg-background hover:bg-transparent">
             <TableHead>Socio</TableHead>
             <TableHead>Tipo</TableHead>
-            <TableHead>Condicion laboral</TableHead>
             <TableHead>Documento</TableHead>
-            <TableHead>Referencia</TableHead>
+            <TableHead>Origen</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Creacion</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {socios.map((socio) => (
-            <TableRow key={socio.id}>
+            <TableRow key={socio.id} className="hover:bg-transparent">
               <TableCell>
                 <div className="flex min-w-56 flex-col">
                   <span className="font-medium">{socio.razonSocial}</span>
@@ -295,19 +297,9 @@ function TablaRecientes({
               <TableCell>
                 <Badge variant="outline">{socio.tipo}</Badge>
               </TableCell>
-              <TableCell>
-                {socio.tipo === "PERSONAL"
-                  ? etiquetaCondicionLaboral(socio.condicionLaboral)
-                  : "-"}
-              </TableCell>
               <TableCell>{socio.numeroDocumento}</TableCell>
               <TableCell>
-                <div className="flex min-w-44 flex-col">
-                  <span>{socio.cuentaNombre || socio.cuenta || "-"}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {socio.areaNombre || socio.area || socio.sedeNombre || socio.sede || "Sin area"}
-                  </span>
-                </div>
+                <Badge variant="outline">{socio.origen}</Badge>
               </TableCell>
               <TableCell>
                 <Badge variant={socio.estado === "ACTIVO" ? "outline" : "secondary"}>
@@ -355,17 +347,19 @@ export function SocioNegocioDashboardVista() {
         <div className="flex w-full flex-col gap-5">
           <SocioNegocioPageHeader
             title="Socio de negocio"
+            description="Administra clientes, proveedores y personal desde un centro simple para registrar, aprobar, consultar y auditar."
+            meta={<Badge variant="secondary">Centro de control</Badge>}
             actions={
               <>
                 <Button asChild variant="outline">
                   <Link href="/socio-negocios/listar">
-                    <HugeiconsIcon data-icon="inline-start" icon={UserGroupIcon} strokeWidth={2} />
+                    <Users data-icon="inline-start" />
                     Listar
                   </Link>
                 </Button>
                 <Button asChild>
                   <Link href="/socio-negocios/nuevo?tipo=CLIENTE">
-                    <HugeiconsIcon data-icon="inline-start" icon={Add01Icon} strokeWidth={2} />
+                    <Plus data-icon="inline-start" />
                     Nuevo
                   </Link>
                 </Button>
@@ -382,33 +376,33 @@ export function SocioNegocioDashboardVista() {
             </Alert>
           ) : null}
 
-          <section className="grid gap-3 md:grid-cols-4">
+          <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Total socios"
               value={resumen?.totalSocios ?? 0}
               detail="Clientes, proveedores y personal registrados."
-              icon={UserGroupIcon}
+              icon={Users}
               loading={resumenQuery.isLoading}
             />
             <MetricCard
               label="Operativos"
               value={resumen?.operativosActivos ?? 0}
               detail="Activos y vigentes para usar en operaciones."
-              icon={CheckmarkCircle01Icon}
+              icon={CheckCircle2}
               loading={resumenQuery.isLoading}
             />
             <MetricCard
               label="Reactivables"
               value={resumen?.inactivosReactivables ?? 0}
               detail="Inactivos con registro vigente para reactivar."
-              icon={ChartUpIcon}
+              icon={TrendingUp}
               loading={resumenQuery.isLoading}
             />
             <MetricCard
               label="Anulados"
               value={resumen?.anulados ?? 0}
               detail="Retirados del maestro operativo por control."
-              icon={Loading03Icon}
+              icon={Ban}
               loading={resumenQuery.isLoading}
             />
           </section>
@@ -420,24 +414,27 @@ export function SocioNegocioDashboardVista() {
                   title="Clientes"
                   description="Registra y consulta clientes para operaciones comerciales."
                   href="/socio-negocios/nuevo?tipo=CLIENTE"
+                  icon={Building2}
                   label="Nuevo cliente"
                 />
                 <ActionCard
                   title="Proveedores"
                   description="Gestiona terceros que abastecen servicios o recursos."
                   href="/socio-negocios/nuevo?tipo=PROVEEDOR"
+                  icon={Package}
                   label="Nuevo proveedor"
                 />
                 <ActionCard
                   title="Personal"
-                  description="Usa cargo, sede, area y contrato desde el catalogo."
+                  description="Registra identidad y contacto del personal."
                   href="/socio-negocios/nuevo?tipo=PERSONAL"
+                  icon={Users}
                   label="Nuevo personal"
                 />
               </section>
 
               <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-                <Card className="border-border/60 shadow-none">
+                <Card className="border-primary/15 shadow-xs">
                   <CardHeader>
                     <CardTitle>Distribucion por tipo</CardTitle>
                     <CardDescription>Composicion actual del maestro.</CardDescription>
@@ -477,7 +474,7 @@ export function SocioNegocioDashboardVista() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-border/60 shadow-none">
+                <Card className="border-primary/15 shadow-xs">
                   <CardHeader>
                     <CardTitle>Control por estado</CardTitle>
                     <CardDescription>Activos, inactivos y anulados por tipo.</CardDescription>
@@ -485,7 +482,7 @@ export function SocioNegocioDashboardVista() {
                   <CardContent>
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-muted/70 hover:bg-muted/70">
+                        <TableRow className="bg-primary/5 hover:bg-primary/5">
                           <TableHead>Tipo</TableHead>
                           <TableHead className="text-right">Activos</TableHead>
                           <TableHead className="text-right">Inactivos</TableHead>
@@ -494,7 +491,7 @@ export function SocioNegocioDashboardVista() {
                       </TableHeader>
                       <TableBody>
                         {matrizTipoEstado.map((item) => (
-                          <TableRow key={item.tipo}>
+                          <TableRow key={item.tipo} className="hover:bg-transparent">
                             <TableCell>
                               <Badge variant="outline">{item.tipo}</Badge>
                             </TableCell>
@@ -510,7 +507,7 @@ export function SocioNegocioDashboardVista() {
               </section>
 
               <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
-                <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-1 border-b border-border px-5 py-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-base font-semibold">Ultimos socios agregados</h2>
                     <p className="text-sm text-muted-foreground">
@@ -520,7 +517,7 @@ export function SocioNegocioDashboardVista() {
                   <Button asChild variant="outline" size="sm">
                     <Link href="/socio-negocios/listar">
                       Ver listado
-                      <HugeiconsIcon data-icon="inline-end" icon={ArrowRight01Icon} strokeWidth={2} />
+                      <ArrowRight data-icon="inline-end" />
                     </Link>
                   </Button>
                 </div>
@@ -532,7 +529,7 @@ export function SocioNegocioDashboardVista() {
             </section>
 
             <aside className="flex flex-col gap-4">
-              <Card className="border-border/60 shadow-none">
+              <Card className="border-primary/15 shadow-xs">
                 <CardHeader>
                   <CardTitle>Accesos rapidos</CardTitle>
                   <CardDescription>Operaciones frecuentes.</CardDescription>
@@ -540,32 +537,32 @@ export function SocioNegocioDashboardVista() {
                 <CardContent className="flex flex-col gap-2">
                   <Button asChild>
                     <Link href="/socio-negocios/nuevo?tipo=CLIENTE">
-                      <HugeiconsIcon data-icon="inline-start" icon={Add01Icon} strokeWidth={2} />
+                      <Plus data-icon="inline-start" />
                       Nuevo
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
                     <Link href="/socio-negocios/listar">
-                      <HugeiconsIcon data-icon="inline-start" icon={UserGroupIcon} strokeWidth={2} />
+                      <Users data-icon="inline-start" />
                       Listar
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
                     <Link href="/socio-negocios/listar">
-                      <HugeiconsIcon data-icon="inline-start" icon={FileExportIcon} strokeWidth={2} />
+                      <FileDown data-icon="inline-start" />
                       Descargar reportes
                     </Link>
                   </Button>
                   <Button asChild variant="outline">
                     <Link href="/socio-negocios/historial">
-                      <HugeiconsIcon data-icon="inline-start" icon={ChartUpIcon} strokeWidth={2} />
+                      <TrendingUp data-icon="inline-start" />
                       Historial
                     </Link>
                   </Button>
                 </CardContent>
               </Card>
 
-              <Card className="border-border/60 shadow-none">
+              <Card className="border-primary/15 shadow-xs">
                 <CardHeader>
                   <CardTitle>Estado operativo</CardTitle>
                   <CardDescription>Relacion entre activos e inactivos.</CardDescription>
@@ -606,7 +603,7 @@ export function SocioNegocioDashboardVista() {
                 </CardContent>
               </Card>
 
-              <Card className="border-border/60 shadow-none">
+              <Card className="border-primary/15 shadow-xs">
                 <CardHeader>
                   <CardTitle>Bajas recientes</CardTitle>
                   <CardDescription>Registros enviados a inactivo.</CardDescription>
@@ -616,13 +613,8 @@ export function SocioNegocioDashboardVista() {
                     <p className="text-sm text-muted-foreground">No hay bajas recientes.</p>
                   ) : (
                     bajasRecientes.slice(0, 4).map((socio) => (
-                      <div key={socio.id} className="rounded-md border border-border p-3">
+                        <div key={socio.id} className="rounded-md border border-border p-3">
                         <p className="truncate text-sm font-medium">{socio.razonSocial}</p>
-                        {socio.tipo === "PERSONAL" ? (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Condicion laboral: {etiquetaCondicionLaboral(socio.condicionLaboral)}
-                          </p>
-                        ) : null}
                         <p className="mt-1 text-xs text-muted-foreground">
                           {formatearFecha(socio.fechaBaja)} - {socio.motivoBaja || "Sin motivo"}
                         </p>

@@ -364,14 +364,14 @@ export type PayloadSeccion = {
   cargosAdicionales?: PayloadCargoAdicional[];
 };
 
-// Borrador: moneda + secciones + lineas raiz + standbys raiz + leadTimes raiz
-// lineas[] raiz = items SIN seccion explícita
+// Borrador: moneda + secciones + standbys raiz + leadTimes raiz.
+// Contrato 2026-06-08 (§5.4): NO existe canal de lineas raiz — toda linea va
+// dentro de secciones[].lineas; el caso "plano" es una seccion sin nombre.
 // standbys[] raiz = standbys de la version (informativo, no suman al total)
 // leadTimes[] raiz = plazos de entrega de la version
 export type PayloadBorrador = {
   moneda?: Moneda;       // default PEN en el backend
   secciones?: PayloadSeccion[];
-  lineas?: PayloadLinea[];
   standbys?: PayloadStandby[];   // SOLO root (antes standbyTarifas)
   leadTimes?: PayloadLeadTime[]; // SOLO root
 };

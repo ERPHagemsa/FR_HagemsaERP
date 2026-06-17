@@ -45,13 +45,16 @@ type Props = {
     estado?: string;
     idEjecutivoResponsable?: string;
     busqueda?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
     pagina?: number;
     porPagina?: number;
   };
 };
 
-const ESTADOS_PROSPECTO: Array<{ valor: EstadoProspecto | "TODOS"; etiqueta: string }> = [
-  { valor: "TODOS", etiqueta: "Todos" },
+// Contrato §5.2: no existe "todos los estados" en una sola llamada — omitir
+// estado equivale a ACTIVO. El filtro expone los tres estados explicitos.
+const ESTADOS_PROSPECTO: Array<{ valor: EstadoProspecto; etiqueta: string }> = [
   { valor: "ACTIVO", etiqueta: "Activo" },
   { valor: "CONVERTIDO", etiqueta: "Convertido" },
   { valor: "DESCARTADO", etiqueta: "Descartado" },
@@ -68,10 +71,16 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
     filtrosActivos.busqueda ?? ""
   );
   const [estadoLocal, setEstadoLocal] = React.useState(
-    filtrosActivos.estado ?? "TODOS"
+    filtrosActivos.estado ?? "ACTIVO"
   );
   const [ejecutivoLocal, setEjecutivoLocal] = React.useState(
     filtrosActivos.idEjecutivoResponsable ?? ""
+  );
+  const [fechaDesdeLocal, setFechaDesdeLocal] = React.useState(
+    filtrosActivos.fechaDesde ?? ""
+  );
+  const [fechaHastaLocal, setFechaHastaLocal] = React.useState(
+    filtrosActivos.fechaHasta ?? ""
   );
 
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
@@ -94,6 +103,8 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
         estado: estadoLocal,
         idEjecutivoResponsable: ejecutivoLocal,
         busqueda: busquedaLocal,
+        fechaDesde: fechaDesdeLocal,
+        fechaHasta: fechaHastaLocal,
         pagina: 1,
         porPagina: filtrosActivos.porPagina,
       })
@@ -102,8 +113,10 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
 
   function limpiarFiltros() {
     setBusquedaLocal("");
-    setEstadoLocal("TODOS");
+    setEstadoLocal("ACTIVO");
     setEjecutivoLocal("");
+    setFechaDesdeLocal("");
+    setFechaHastaLocal("");
     router.push(pathname);
   }
 
@@ -113,6 +126,8 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
         estado: filtrosActivos.estado,
         idEjecutivoResponsable: filtrosActivos.idEjecutivoResponsable,
         busqueda: filtrosActivos.busqueda,
+        fechaDesde: filtrosActivos.fechaDesde,
+        fechaHasta: filtrosActivos.fechaHasta,
         pagina: nuevaPagina,
         porPagina: filtrosActivos.porPagina,
       })
@@ -120,9 +135,11 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
   }
 
   const hayFiltros =
-    !!filtrosActivos.estado ||
+    (!!filtrosActivos.estado && filtrosActivos.estado !== "ACTIVO") ||
     !!filtrosActivos.idEjecutivoResponsable ||
-    !!filtrosActivos.busqueda;
+    !!filtrosActivos.busqueda ||
+    !!filtrosActivos.fechaDesde ||
+    !!filtrosActivos.fechaHasta;
 
   return (
     <Card>
@@ -180,6 +197,30 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
               onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
             />
           </div>
+          <div className="grid min-w-36 gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">
+              Creado desde
+            </span>
+            <Input
+              type="date"
+              value={fechaDesdeLocal}
+              max={fechaHastaLocal || undefined}
+              onChange={(e) => setFechaDesdeLocal(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
+            />
+          </div>
+          <div className="grid min-w-36 gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">
+              Creado hasta
+            </span>
+            <Input
+              type="date"
+              value={fechaHastaLocal}
+              min={fechaDesdeLocal || undefined}
+              onChange={(e) => setFechaHastaLocal(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
+            />
+          </div>
           <Button type="button" onClick={aplicarFiltros}>
             Buscar
           </Button>
@@ -204,8 +245,8 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[25%]">Nombre comercial</TableHead>
-                <TableHead className="w-[20%]">Razon social</TableHead>
+                <TableHead className="w-[25%]">Razon social</TableHead>
+                <TableHead className="w-[20%]">Nombre comercial</TableHead>
                 <TableHead className="w-[12%]">Documento</TableHead>
                 <TableHead className="w-[14%]">Medio contacto</TableHead>
                 <TableHead className="w-[10%]">Estado</TableHead>
@@ -271,10 +312,10 @@ function FilaProspecto({ prospecto }: { prospecto: Prospecto }) {
   return (
     <TableRow>
       <TableCell>
-        <span className="truncate font-medium">{prospecto.nombreComercial}</span>
+        <span className="truncate font-medium">{prospecto.razonSocial}</span>
       </TableCell>
       <TableCell className="truncate text-muted-foreground">
-        {prospecto.razonSocial ?? "-"}
+        {prospecto.nombreComercial ?? "-"}
       </TableCell>
       <TableCell>
         <div className="flex min-w-0 flex-col gap-0.5">

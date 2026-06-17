@@ -74,6 +74,7 @@ type Props = {
   modo?: "crear" | "editar";
   documentos?: DocumentoActivo[];
   imagenes?: ImagenActivo[];
+  returnTo?: string;
   tanques?: TanqueActivo[];
 };
 
@@ -117,9 +118,13 @@ export function ActivoFormulario({
   modo = "crear",
   documentos = [],
   imagenes = [],
+  returnTo,
   tanques = [],
 }: Props) {
   const router = useRouter();
+  const [returnToGuardado, setReturnToGuardado] = React.useState<string | null>(
+    null
+  );
   const [isSaving, setIsSaving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("base");
   const [tipoActivoSeleccionado, setTipoActivoSeleccionado] =
@@ -168,6 +173,7 @@ export function ActivoFormulario({
   const imageFileInputRef = React.useRef<HTMLInputElement>(null);
   const formularioRef = React.useRef<HTMLDivElement>(null);
   const isEdit = modo === "editar";
+  const returnToEfectivo = returnTo ?? returnToGuardado ?? undefined;
   const actualizarResumen = React.useCallback(() => {
     setFormVersion((version) => version + 1);
   }, []);
@@ -219,6 +225,32 @@ export function ActivoFormulario({
       isMounted = false;
     };
   }, [plantillaSeleccionada, selectedCarroceriaReferenciaId]);
+
+  React.useEffect(() => {
+    if (returnTo || !isEdit) {
+      return;
+    }
+
+    const guardado = window.sessionStorage.getItem(
+      "activos:returnToAfterEdit"
+    );
+
+    if (guardado?.startsWith("/") && !guardado.startsWith("//")) {
+      setReturnToGuardado(guardado);
+      return;
+    }
+
+    if (document.referrer) {
+      const referrer = new URL(document.referrer);
+
+      if (
+        referrer.origin === window.location.origin &&
+        referrer.pathname.startsWith("/activos/inventario-fisico/")
+      ) {
+        setReturnToGuardado(`${referrer.pathname}${referrer.search}`);
+      }
+    }
+  }, [isEdit, returnTo]);
 
   React.useEffect(() => {
     actualizarResumen();
@@ -448,15 +480,13 @@ export function ActivoFormulario({
       const documentoInvalido = documentosPendientes.find(
         (documento) =>
           !documento.numero ||
-          !documento.fechaEmision ||
-          !documento.archivoUrl ||
-          !isHttpUrl(documento.archivoUrl)
+          !documento.fechaEmision
       );
 
       if (documentoInvalido) {
         setActiveTab("documentos");
         throw new Error(
-          "Revisa los documentos agregados: numero, fecha de emision y URL/archivo son obligatorios."
+          "Revisa los documentos agregados: numero y fecha de emision son obligatorios."
         );
       }
 
@@ -547,6 +577,9 @@ export function ActivoFormulario({
         numeroFactura: getValue("numeroFactura") || null,
         fechaFactura: getValue("fechaFactura") || null,
         ...(vehiculo ? { vehiculo } : {}),
+        ...(isEdit
+          ? construirMetadataCambio(returnToEfectivo, getValue("motivoCambio"))
+          : {}),
       };
 
       const saved = isEdit
@@ -588,7 +621,15 @@ export function ActivoFormulario({
         }
       }
 
-      router.push(`/activos/${saved.codigo}?${isEdit ? "updated" : "created"}=1`);
+      const destino = returnToEfectivo
+        ? agregarQueryParam(returnToEfectivo, isEdit ? "updated" : "created", "1")
+        : `/activos/${saved.codigo}?${isEdit ? "updated" : "created"}=1`;
+
+      if (returnToEfectivo) {
+        window.sessionStorage.removeItem("activos:returnToAfterEdit");
+      }
+
+      router.push(destino);
       router.refresh();
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo guardar el activo"));
@@ -613,19 +654,11 @@ export function ActivoFormulario({
     const observacion = getValue("observacionDocumento");
     const numeroDocumento = getValue("numeroDocumento");
     const fechaEmision = getValue("fechaEmision");
-    const archivoUrl = getValue("archivoUrl");
+    const archivoUrl = "pendiente-storage";
 
-    if (!numeroDocumento || !fechaEmision || !archivoUrl) {
+    if (!numeroDocumento || !fechaEmision) {
       setActiveTab("documentos");
-      toast.error(
-        "Completa numero, fecha de emision y archivo o URL antes de agregar el documento."
-      );
-      return;
-    }
-
-    if (!isHttpUrl(archivoUrl)) {
-      setActiveTab("documentos");
-      toast.error("Ingresa una URL valida para el documento, por ejemplo https://...");
+      toast.error("Completa numero y fecha de emision antes de agregar el documento.");
       return;
     }
 
@@ -705,7 +738,7 @@ export function ActivoFormulario({
     }
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Selecciona un archivo de imagen valido.");
+      toast.error("Selecciona una imagen valida.");
       event.target.value = "";
       setSelectedImageFileName("");
       setLocalImageUrl("");
@@ -737,10 +770,10 @@ export function ActivoFormulario({
           | null
       )?.value.trim() ?? "";
 
-    const url = localImageUrl || getValue("urlImagen");
+    const url = localImageUrl;
 
     if (!url) {
-      toast.error("Selecciona una imagen o ingresa una URL.");
+      toast.error("Selecciona una imagen desde tu equipo.");
       return;
     }
 
@@ -791,7 +824,7 @@ export function ActivoFormulario({
                 ref={imagenDraftRef}
                 className="grid gap-4 rounded-xl border border-border bg-background/40 p-4"
               >
-                <div className="grid gap-4 xl:grid-cols-[160px_220px_minmax(260px,1fr)_120px] xl:items-end">
+                <div className="grid gap-4 xl:grid-cols-[160px_minmax(220px,1fr)_120px] xl:items-end">
                   <SelectField
                     name="tipoImagen"
                     label="Tipo"
@@ -829,19 +862,6 @@ export function ActivoFormulario({
                       </span>
                     </Button>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="urlImagen" className="flex flex-wrap gap-x-1">
-                      URL de imagen
-                      <span className="text-xs font-normal text-muted-foreground">
-                        opcional si hay archivo
-                      </span>
-                    </Label>
-                    <Input
-                      id="urlImagen"
-                      name="urlImagen"
-                      placeholder="https://servidor/imagen.jpg"
-                    />
-                  </div>
                   <Field
                     label="Orden"
                     min="0"
@@ -878,8 +898,8 @@ export function ActivoFormulario({
                     imagen.descripcion || "Sin descripcion"
                   }`,
                   detail: imagen.url.startsWith("data:image/")
-                    ? "Archivo seleccionado desde equipo"
-                    : imagen.url,
+                    ? "Imagen seleccionada desde equipo"
+                    : "Imagen registrada",
                 }))}
                 onRemove={(index) =>
                   setImagenesPendientes((items) =>
@@ -908,7 +928,11 @@ export function ActivoFormulario({
             {isEdit ? "Modificar activo" : "Registrar activo"}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={() => router.push("/activos")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push(returnToEfectivo ?? "/activos")}
+            >
               Cancelar
             </Button>
             <Button type="button" disabled={isSaving} onClick={onSubmit}>
@@ -921,6 +945,34 @@ export function ActivoFormulario({
           </div>
         </CardHeader>
         <CardContent className="p-5">
+          {isEdit ? (
+            <div className="mb-5 grid gap-3 rounded-xl border border-border bg-muted/20 p-4">
+              <div className="grid gap-1">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Trazabilidad del cambio
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Este dato quedara visible en Historial y auditoria del activo.
+                </p>
+              </div>
+              <div className="grid gap-4 lg:grid-cols-[220px_1fr] lg:items-end">
+                <div className="grid gap-2">
+                  <Label>Origen</Label>
+                  <div className="flex h-9 items-center rounded-lg border border-input bg-background px-3 text-sm font-medium text-foreground">
+                    {obtenerOrigenCambioVisual(returnToEfectivo)}
+                  </div>
+                </div>
+                <Field
+                  name="motivoCambio"
+                  label="Motivo del cambio"
+                  placeholder="Ej. Correccion de datos tecnicos durante inventario"
+                  defaultValue={
+                    construirMetadataCambio(returnToEfectivo).motivoCambio
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-5 flex h-auto w-full flex-wrap justify-start gap-1 overflow-visible rounded-2xl">
               <TabsTrigger value="base" className="flex-none">
@@ -1425,13 +1477,6 @@ export function ActivoFormulario({
                           type="date"
                         />
                         <Field
-                          name="archivoUrl"
-                          label="Archivo o URL"
-                          placeholder="https://..."
-                          required
-                          type="url"
-                        />
-                        <Field
                           name="usuarioCarga"
                           label="Usuario responsable"
                           placeholder="usuario.activos"
@@ -1896,6 +1941,43 @@ function formatLabel(value: string) {
     .join(" ");
 }
 
+function agregarQueryParam(url: string, key: string, value: string) {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+}
+
+function construirMetadataCambio(returnTo?: string, motivoCambio?: string) {
+  if (!returnTo?.startsWith("/activos/inventario-fisico/")) {
+    return {
+      origenCambio: "MAESTRO_ACTIVOS" as const,
+      referenciaTipo: "ACTIVO",
+      motivoCambio:
+        motivoCambio?.trim() || "Actualizacion desde maestro de activos.",
+      usuarioCambio: "activos.web",
+    };
+  }
+
+  const inventarioId = Number(
+    returnTo.match(/^\/activos\/inventario-fisico\/(\d+)/)?.[1]
+  );
+
+  return {
+    origenCambio: "INVENTARIO_FISICO" as const,
+    referenciaTipo: "INVENTARIO_FISICO",
+    referenciaId: Number.isFinite(inventarioId) ? inventarioId : undefined,
+    motivoCambio:
+      motivoCambio?.trim() ||
+      "Correccion durante revision fisica del inventario.",
+    usuarioCambio: "activos.web",
+  };
+}
+
+function obtenerOrigenCambioVisual(returnTo?: string) {
+  return returnTo?.startsWith("/activos/inventario-fisico/")
+    ? "Inventario fisico"
+    : "Maestro de activos";
+}
+
 function formatearEstadoActivo(value?: string | null) {
   if (value === "ACTIVO") return "Activo";
   if (value === "SINIESTRADO") return "Baja / Siniestro";
@@ -1914,11 +1996,3 @@ function toDateInputValue(value: string | null | undefined) {
   return value.slice(0, 10);
 }
 
-function isHttpUrl(value: string) {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
-}

@@ -20,26 +20,30 @@ export function SocioNegocioPageHeader({
   return (
     <section
       className={cn(
-        "border-b border-border/70 pb-4 text-foreground",
+        "border-b border-border pb-5 text-foreground",
         className,
       )}
     >
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="break-words text-2xl font-semibold tracking-normal">
+          {meta ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              {meta}
+            </div>
+          ) : null}
+          <div>
+            <h1 className="break-words text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
               {title}
             </h1>
-            {meta}
+            {description ? (
+              <p className="mt-2 max-w-4xl text-sm leading-6 text-muted-foreground">
+                {description}
+              </p>
+            ) : null}
           </div>
-          {description ? (
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              {description}
-            </p>
-          ) : null}
         </div>
         {actions ? (
-          <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end md:w-auto">
+          <div className="flex w-full flex-wrap gap-2 lg:w-auto lg:max-w-xl lg:justify-end">
             {actions}
           </div>
         ) : null}
