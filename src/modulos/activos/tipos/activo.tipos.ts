@@ -275,7 +275,7 @@ export type CrearDocumentoActivoPayload = {
   numero: string;
   fechaEmision: string;
   fechaVencimiento?: string;
-  archivoUrl: string;
+  archivoUrl?: string;
   observacion?: string;
   usuarioCarga: string;
 };
