@@ -31,31 +31,22 @@ export async function ActivoNuevoVista({ origenId }: Props) {
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
       <div className="flex w-full flex-col gap-5">
-        <section className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold tracking-normal">
-              {esAcople ? "Replaqueo" : "Nuevo activo"}
-            </h1>
-            {esAcople ? (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Registra la nueva ficha conservando la referencia de la unidad
-                de baja.
-              </p>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {esAcople ? (
+        <ActivoFormulario
+          activo={activoBaseAcople}
+          tituloPagina={esAcople ? "Replaqueo" : "Nuevo activo"}
+          subtituloPagina={
+            esAcople
+              ? "Registra la nueva ficha conservando la referencia de la unidad de baja."
+              : undefined
+          }
+          accionesExtra={
+            esAcople ? (
               <Button asChild variant="outline">
                 <Link href="/activos/nuevo-acople">Cambiar unidad</Link>
               </Button>
-            ) : null}
-            <Button asChild variant="outline">
-              <Link href="/activos">Volver</Link>
-            </Button>
-          </div>
-        </section>
-
-        <ActivoFormulario activo={activoBaseAcople} />
+            ) : undefined
+          }
+        />
 
         {origenId ? (
           activoOrigen ? (

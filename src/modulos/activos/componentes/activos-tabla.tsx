@@ -355,110 +355,107 @@ export function ActivosTabla({ activos }: Props) {
             aplicarFiltros();
           }}
         >
-          <div className="flex flex-wrap items-center justify-end gap-2 border-b border-border px-4 py-3">
-            <Button type="submit" size="sm">
-              <IconSearch />
-              Aplicar
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={limpiarFiltros}>
-              <IconRefresh />
-              Limpiar
-            </Button>
-          </div>
-
-          <div className="flex flex-col gap-3 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-1 flex-wrap items-center gap-2">
-            <div className="relative">
-              <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="h-9 w-full min-w-60 rounded-4xl pl-9 md:w-72"
-                placeholder="Codigo, placa, marca o modelo"
-                value={filtrosFormulario.query}
-                onChange={(event) => actualizarFiltro("query", event.target.value)}
+          <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <div className="relative w-56">
+                <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="h-9 w-full rounded-4xl pl-9"
+                  placeholder="Codigo, placa, marca o modelo"
+                  value={filtrosFormulario.query}
+                  onChange={(event) => actualizarFiltro("query", event.target.value)}
+                />
+              </div>
+              <FiltroSelect
+                ariaLabel="Tipo de activo"
+                value={filtrosFormulario.tipoActivo}
+                onChange={(value) => actualizarFiltro("tipoActivo", value)}
+                values={[
+                  { value: "TODOS", label: "Tipo: todos" },
+                  { value: "VEHICULO", label: "Vehiculo" },
+                  { value: "EQUIPO", label: "Equipo" },
+                  { value: "HERRAMIENTA", label: "Herramienta" },
+                  { value: "DISPOSITIVO", label: "Dispositivo" },
+                  { value: "OTRO", label: "Otro" },
+                ]}
+              />
+              <FiltroSelect
+                ariaLabel="Estado del activo"
+                value={filtrosFormulario.estadoActivo}
+                onChange={(value) => actualizarFiltro("estadoActivo", value)}
+                values={[
+                  { value: "TODOS", label: "Estado: todos" },
+                  { value: "ACTIVO", label: "Activo" },
+                  { value: "BAJA", label: "Baja" },
+                ]}
+              />
+              <FiltroSelect
+                ariaLabel="Condicion activo"
+                value={filtrosFormulario.estadoOperativo}
+                onChange={(value) => actualizarFiltro("estadoOperativo", value)}
+                values={[
+                  { value: "TODOS", label: "Condicion: todos" },
+                  { value: "OPERATIVO", label: "Operativo" },
+                  { value: "MANTENIMIENTO", label: "Mantenimiento" },
+                  { value: "NO_OPERATIVO", label: "No operativo" },
+                ]}
+              />
+              <FiltroSelect
+                ariaLabel="Estado de calibracion"
+                value={filtrosFormulario.estadoCalibracion}
+                onChange={(value) => actualizarFiltro("estadoCalibracion", value)}
+                values={[
+                  { value: "TODOS", label: "Calibracion: todos" },
+                  { value: "CALIBRADA", label: "Calibrada" },
+                  { value: "NO_CALIBRADA", label: "No calibrada" },
+                  { value: "PENDIENTE", label: "Pendiente" },
+                  { value: "OBSERVADA", label: "Observada" },
+                ]}
+              />
+              <FiltroSelect
+                ariaLabel="Estado de registro"
+                value={filtrosFormulario.estadoRegistro}
+                onChange={(value) =>
+                  actualizarFiltro("estadoRegistro", value as FiltroRegistro)
+                }
+                values={[
+                  { value: "ACTIVO", label: "Vigentes" },
+                  { value: "ANULADO", label: "Anulados" },
+                  { value: "TODOS", label: "Registro: todos" },
+                ]}
+              />
+              <FiltroFecha
+                value={filtrosFormulario.fechaDesde}
+                max={filtrosFormulario.fechaHasta || undefined}
+                onChange={(value) => actualizarFiltro("fechaDesde", value)}
+                ariaLabel="Fecha desde"
+              />
+              <FiltroFecha
+                value={filtrosFormulario.fechaHasta}
+                min={filtrosFormulario.fechaDesde || undefined}
+                onChange={(value) => actualizarFiltro("fechaHasta", value)}
+                ariaLabel="Fecha hasta"
               />
             </div>
-            <FiltroSelect
-              ariaLabel="Tipo de activo"
-              value={filtrosFormulario.tipoActivo}
-              onChange={(value) => actualizarFiltro("tipoActivo", value)}
-              values={[
-                { value: "TODOS", label: "Tipo: todos" },
-                { value: "VEHICULO", label: "Vehiculo" },
-                { value: "EQUIPO", label: "Equipo" },
-                { value: "HERRAMIENTA", label: "Herramienta" },
-                { value: "DISPOSITIVO", label: "Dispositivo" },
-                { value: "OTRO", label: "Otro" },
-              ]}
-            />
-            <FiltroSelect
-              ariaLabel="Estado del activo"
-              value={filtrosFormulario.estadoActivo}
-              onChange={(value) => actualizarFiltro("estadoActivo", value)}
-              values={[
-                { value: "TODOS", label: "Estado activo: todos" },
-                { value: "ACTIVO", label: "Estado activo: activo" },
-                { value: "BAJA", label: "Estado activo: baja" },
-              ]}
-            />
-            <FiltroSelect
-              ariaLabel="Condicion activo"
-              value={filtrosFormulario.estadoOperativo}
-              onChange={(value) => actualizarFiltro("estadoOperativo", value)}
-              values={[
-                { value: "TODOS", label: "Condicion: todos" },
-                { value: "OPERATIVO", label: "Operativo" },
-                { value: "MANTENIMIENTO", label: "Mantenimiento" },
-                { value: "NO_OPERATIVO", label: "No operativo" },
-              ]}
-            />
-            <FiltroSelect
-              ariaLabel="Estado de calibracion"
-              value={filtrosFormulario.estadoCalibracion}
-              onChange={(value) => actualizarFiltro("estadoCalibracion", value)}
-              values={[
-                { value: "TODOS", label: "Calibracion: todos" },
-                { value: "CALIBRADA", label: "Calibrada" },
-                { value: "NO_CALIBRADA", label: "No calibrada" },
-                { value: "PENDIENTE", label: "Pendiente" },
-                { value: "OBSERVADA", label: "Observada" },
-              ]}
-            />
-            <FiltroSelect
-              ariaLabel="Estado de registro"
-              value={filtrosFormulario.estadoRegistro}
-              onChange={(value) =>
-                actualizarFiltro("estadoRegistro", value as FiltroRegistro)
-              }
-              values={[
-                { value: "ACTIVO", label: "Registro: visibles" },
-                { value: "ANULADO", label: "Registro: anulados" },
-                { value: "TODOS", label: "Registro: todos" },
-              ]}
-            />
-            <FiltroFecha
-              value={filtrosFormulario.fechaDesde}
-              max={filtrosFormulario.fechaHasta || undefined}
-              onChange={(value) => actualizarFiltro("fechaDesde", value)}
-              ariaLabel="Fecha desde"
-            />
-            <FiltroFecha
-              value={filtrosFormulario.fechaHasta}
-              min={filtrosFormulario.fechaDesde || undefined}
-              onChange={(value) => actualizarFiltro("fechaHasta", value)}
-              ariaLabel="Fecha hasta"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={exportarExcel}>
-              <IconDownload />
-              Excel
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={exportarPdf}>
-              <IconDownload />
-              PDF
-            </Button>
-          </div>
+            <div className="flex items-center gap-1.5">
+              <Button type="submit" size="sm">
+                <IconSearch />
+                Aplicar
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={limpiarFiltros}>
+                <IconRefresh />
+                Limpiar
+              </Button>
+              <div className="mx-1 h-5 w-px bg-border" />
+              <Button type="button" variant="outline" size="sm" onClick={exportarExcel}>
+                <IconDownload />
+                Excel
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={exportarPdf}>
+                <IconDownload />
+                PDF
+              </Button>
+            </div>
           </div>
         </form>
 
@@ -930,7 +927,7 @@ function FiltroSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger aria-label={ariaLabel} className="h-9 min-w-40">
+      <SelectTrigger aria-label={ariaLabel} className="h-9 w-40">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
