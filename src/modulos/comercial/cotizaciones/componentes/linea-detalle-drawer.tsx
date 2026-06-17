@@ -188,20 +188,6 @@ export function LineaDetalleDrawer({
               </Grupo>
             ) : null}
 
-            {/* Tipo de vehiculo — encima de la seccion de Cargas, solo transporte */}
-            {borrador.tipoLinea === "TRANSPORTE" ? (
-              <Campo label="Tipo de vehiculo">
-                <Input
-                  value={borrador.carga.tipoVehiculo}
-                  disabled={disabled}
-                  placeholder="Ej: Cama baja"
-                  onChange={(e) =>
-                    set({ carga: { ...borrador.carga, tipoVehiculo: e.target.value } })
-                  }
-                />
-              </Campo>
-            ) : null}
-
             {/* Cargas — items fisicos a transportar, solo transporte */}
             {borrador.tipoLinea === "TRANSPORTE" ? (
               <Grupo
@@ -243,6 +229,20 @@ export function LineaDetalleDrawer({
                 />
               </Campo>
             </div>
+
+             {/* Tipo de vehiculo — encima de la seccion de Cargas, solo transporte */}
+            {borrador.tipoLinea === "TRANSPORTE" ? (
+              <Campo label="Tipo de unidad">
+                <Input
+                  value={borrador.carga.tipoVehiculo}
+                  disabled={disabled}
+                  placeholder="Ej: Cama baja"
+                  onChange={(e) =>
+                    set({ carga: { ...borrador.carga, tipoVehiculo: e.target.value } })
+                  }
+                />
+              </Campo>
+            ) : null}
 
             {/* Subform polimorfico (no-transporte; el de TRANSPORTE vive arriba) */}
             {borrador.tipoLinea === "ALQUILER_EQUIPO" ? (
