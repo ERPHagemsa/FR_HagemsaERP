@@ -84,9 +84,9 @@ import {
 } from "lucide-react"
 
 import {
-  useDarDeBajaSocioDeNegocioMutation,
   useExportarSociosDeNegocioQuery,
   useReactivarSocioDeNegocioMutation,
+  useRechazarSocioDeNegocioMutation,
   useSociosDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
@@ -97,6 +97,10 @@ import type {
   ConsultarSociosDeNegocioQuery,
   ReporteSociosDeNegocioResponse,
   SocioDeNegocioResponse,
+} from "../tipos/socio-negocio"
+import {
+  puedeGestionarAsignacionesPersonal,
+  puedeResolverAprobacionSocio,
 } from "../tipos/socio-negocio"
 
 type SocioNegocioVistaProps = {
@@ -367,7 +371,7 @@ function AccionesSocio({
   onError,
 }: AccionesSocioProps) {
   const { usuario } = useSesion()
-  const bajaMutation = useDarDeBajaSocioDeNegocioMutation(socio.id, {
+  const rechazarMutation = useRechazarSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
   const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
@@ -375,9 +379,14 @@ function AccionesSocio({
   })
   const [accion, setAccion] = useState<"anular" | "reactivar" | null>(null)
   const [motivo, setMotivo] = useState("")
-  const procesando = bajaMutation.isPending || reactivarMutation.isPending
+  const procesando =
+    rechazarMutation.isPending ||
+    reactivarMutation.isPending
+  const registroAnulado = socio.estadoRegistro === "ANULADO"
   const puedeReactivar =
     socio.estado === "INACTIVO" && socio.estadoRegistro === "ACTIVO"
+  const puedeGestionarAsignaciones = puedeGestionarAsignacionesPersonal(socio)
+  const puedeResolverAprobacion = puedeResolverAprobacionSocio(socio)
   const requiereMotivo = accion === "anular"
 
   function abrirAccion(nuevaAccion: "anular" | "reactivar") {
@@ -392,12 +401,11 @@ function AccionesSocio({
   async function confirmarAccion() {
     try {
       if (accion === "anular") {
-        await bajaMutation.mutateAsync({
+        await rechazarMutation.mutateAsync({
           motivo: motivo.trim(),
           usuarioId: usuario?.nombreUsuario ?? "",
-          estadoRegistro: "ANULADO",
         })
-        onMensaje(`${socio.razonSocial} fue anulado.`)
+        onMensaje(`${socio.razonSocial} fue rechazado.`)
       }
 
       if (accion === "reactivar") {
@@ -437,54 +445,53 @@ function AccionesSocio({
                 Auditar
               </Link>
             </DropdownMenuItem>
-            {socio.tipo === "PERSONAL" ? (
-              <DropdownMenuItem
-                asChild
-                disabled={socio.estadoRegistro === "ANULADO" || procesando}
-              >
+            {puedeGestionarAsignaciones ? (
+              <DropdownMenuItem asChild disabled={procesando}>
                 <Link href={`/socio-negocios/${socio.id}/asignaciones`}>
                   <BriefcaseBusiness data-icon="inline-start" />
                   Asignaciones
                 </Link>
               </DropdownMenuItem>
             ) : null}
-            <DropdownMenuItem
-              asChild
-              disabled={socio.estadoRegistro === "ANULADO" || procesando}
-            >
-              <Link href={`/socio-negocios/${socio.id}?modo=editar`}>
-                <Pencil data-icon="inline-start" />
-                Editar datos
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              asChild
-              disabled={
-                socio.estado !== "ACTIVO" ||
-                socio.estadoRegistro !== "ACTIVO" ||
-                procesando
-              }
-            >
-              <Link href={`/socio-negocios/${socio.id}`}>
-                <ArchiveX data-icon="inline-start" />
-                Dar de baja
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled={socio.estadoRegistro === "ANULADO" || procesando}
-              onSelect={() => abrirAccion("anular")}
-            >
-              <CircleX data-icon="inline-start" />
-              Anular
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={!puedeReactivar || procesando}
-              onSelect={() => abrirAccion("reactivar")}
-            >
-              <ArchiveRestore data-icon="inline-start" />
-              Reactivar
-            </DropdownMenuItem>
+            {!registroAnulado ? (
+              <>
+                <DropdownMenuItem asChild disabled={procesando}>
+                  <Link href={`/socio-negocios/${socio.id}?modo=editar`}>
+                    <Pencil data-icon="inline-start" />
+                    Editar datos
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  asChild
+                  disabled={
+                    socio.estado !== "ACTIVO" ||
+                    socio.estadoRegistro !== "ACTIVO" ||
+                    socio.estadoAprobacion !== "APROBADO" ||
+                    procesando
+                  }
+                >
+                  <Link href={`/socio-negocios/${socio.id}`}>
+                    <ArchiveX data-icon="inline-start" />
+                    Dar de baja
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  disabled={!puedeResolverAprobacion || procesando}
+                  onSelect={() => abrirAccion("anular")}
+                >
+                  <CircleX data-icon="inline-start" />
+                  Rechazar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!puedeReactivar || procesando}
+                  onSelect={() => abrirAccion("reactivar")}
+                >
+                  <ArchiveRestore data-icon="inline-start" />
+                  Reactivar
+                </DropdownMenuItem>
+              </>
+            ) : null}
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -494,14 +501,14 @@ function AccionesSocio({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {accion === "anular"
-                ? "Anular registro"
+                ? "Rechazar socio pendiente"
                 : "Reactivar socio"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {accion === "reactivar"
                 ? `Confirma la reactivacion de ${socio.razonSocial}.`
                 : accion === "anular"
-                  ? "Tenga en cuenta que esta informacion no se podra recuperar."
+                  ? "El motivo quedara registrado en la auditoria del socio."
                   : `Registra el motivo para ${socio.razonSocial}.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -523,7 +530,7 @@ function AccionesSocio({
                   onChange={(event) => setMotivo(event.target.value)}
                   placeholder={
                     accion === "anular"
-                      ? "Documento registrado incorrectamente"
+                      ? "Registro creado por error"
                       : "Informacion incorrecta"
                   }
                   disabled={procesando}
@@ -550,7 +557,7 @@ function AccionesSocio({
               {procesando
                 ? "Procesando..."
                 : accion === "anular"
-                  ? "Anular"
+                  ? "Rechazar"
                   : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -824,11 +831,11 @@ export function SocioNegocioVista({
                   </Field>
                   <Field>
                     <Select
-                      value={filtrosFormulario.estadoRegistro ?? "TODOS"}
+                      value={filtrosFormulario.estadoRegistro ?? "ACTIVO"}
                       onValueChange={(value) =>
                         actualizarFiltro(
                           "estadoRegistro",
-                          value as ConsultarSociosDeNegocioQuery["estadoRegistro"] | "TODOS",
+                          value as ConsultarSociosDeNegocioQuery["estadoRegistro"],
                         )
                       }
                     >
@@ -837,7 +844,6 @@ export function SocioNegocioVista({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          <SelectItem value="TODOS">Registro: todos</SelectItem>
                           <SelectItem value="ACTIVO">Vigentes</SelectItem>
                           <SelectItem value="ANULADO">Anulados</SelectItem>
                         </SelectGroup>
@@ -997,6 +1003,8 @@ export function SocioNegocioVista({
                       const claseContenido = obtenerClaseContenidoSocio(socio)
                       const inactivo = socio.estado === "INACTIVO"
                       const anulado = socio.estadoRegistro === "ANULADO"
+                      const puedeGestionarAsignaciones =
+                        puedeGestionarAsignacionesPersonal(socio)
                       return (
                           <TableRow key={socio.id} className={obtenerClaseFilaSocio(socio)}>
                           <TableCell>
@@ -1063,12 +1071,16 @@ export function SocioNegocioVista({
                           <EstadoAprobacionBadge estado={socio.estadoAprobacion} />
                         </TableCell>
                         <TableCell>
-                          {socio.tipo === "PERSONAL" ? (
+                          {puedeGestionarAsignaciones ? (
                             <Button asChild variant="outline" size="sm">
                               <Link href={`/socio-negocios/${socio.id}/asignaciones`}>
                                 Ver asignaciones
                               </Link>
                             </Button>
+                          ) : socio.tipo === "PERSONAL" ? (
+                            <span className="text-sm text-muted-foreground">
+                              Requiere aprobacion
+                            </span>
                           ) : (
                             <span className="text-sm text-muted-foreground">No aplica</span>
                           )}

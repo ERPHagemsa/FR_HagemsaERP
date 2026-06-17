@@ -5,7 +5,7 @@ Este BC administra las personas y organizaciones que interactúan con la empresa
 | Campo | Detalle |
 | --- | --- |
 | Área | Recursos Humanos |
-| Roles | Analista Administrador de Personal. |
+| Roles | **Administrador Principal**, **Analista de Recursos Humanos** y **Auditor**. |
 | Relación clave | Un Socio de Negocio se identifica por la combinación de documento/RUC/DNI + tipo de socio. Un mismo documento puede estar asociado a más de un Socio de Negocio cuando cumple roles diferentes dentro de la empresa, por ejemplo, CLIENTE, PROVEEDOR o PERSONAL. Cada registro mantiene el tipo de socio, si está disponible para operar o fue dado de baja, si el registro sigue vigente o fue anulado, y si está pendiente de aprobación, aprobado o rechazado. |
 | Alcance funcional | Registrar, modificar, dar de baja, consultar y exportar socios de negocio. |
 | Eventos de salida funcionales esperados | ClienteRegistrado, ClienteModificado, ClienteDadoDeBaja, ClienteAnulado; ProveedorRegistrado, ProveedorModificado, ProveedorDadoDeBaja, ProveedorAnulado; PersonalRegistrado, PersonalModificado, PersonalDadoDeBaja, PersonalAnulado. |
@@ -22,6 +22,8 @@ Este BC administra las personas y organizaciones que interactúan con la empresa
 | 4 | Gestión de Asignaciones Operativas de Personal | Administrar cargo, sede, área, aprobación, vigencia y múltiples cuentas o contratos del personal. | 4 |
 | 5 | Reportes y Consultas de Socios de Negocio | Permitir consultar, filtrar, auditar y exportar información de clientes, proveedores, personal y asignaciones. | 3 |
 
+> **Nota sobre alcance:** En el resumen, los objetivos de las épicas 1 y 2 mencionan *validación SAP* y *aprobación*, pero esas capacidades no tienen una HU propia: la *validación SAP* se realiza dentro de las HU de registro con la acción **Consultar SAP** (HU-01-001 para cliente y HU-01-005 para proveedor), y la *aprobación o rechazo* del cliente se cubre en HU-01-002. Para proveedor y personal, la aprobación o rechazo se ejecuta desde la pantalla de detalle del socio (la de personal está incluida en HU-01-008).
+
 ## Épica 1: Gestión de Clientes
 
 > **Objetivo:** Administrar el alta, modificación, aprobación, baja y anulación de clientes como Socios de Negocio, manteniendo actualizada su información maestra.
@@ -32,7 +34,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 
 ---
 
-### HU-01-001 Como Analista Administrativo de Personal, quiero registrar un cliente, para mantener su información maestra disponible como Socio de Negocio.
+### HU-01-001 Como Analista de Recursos Humanos, quiero registrar un cliente, para mantener su información maestra disponible como Socio de Negocio.
 
 **Prioridad: Alta | Estimación: 5 SP**
 
@@ -58,6 +60,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 4. Completa razon social, nombre comercial y datos de contacto.
 5. Selecciona Agregar cliente.
 6. El sistema abre el detalle del cliente, ya en estado Pendiente.
+7. Un usuario autorizado lo aprueba o rechaza desde el detalle.
 
 **Flujos de Excepción**
 
@@ -70,10 +73,12 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 **Eventos de Dominio**
 
 - ClienteRegistrado
+- SocioAprobado
+- SocioRechazado
 
 ---
 
-### HU-01-002 Como Analista Administrativo de Personal, quiero registrar como cliente formal la información recibida desde Comercial, para crear su información maestra como Socio de Negocio tipo CLIENTE.
+### HU-01-002 Como Administrador Principal, quiero revisar y aprobar o rechazar la información de cliente recibida desde Comercial, para formalizar su información maestra como Socio de Negocio tipo CLIENTE.
 
 **Prioridad: Alta | Estimación: 8 SP**
 
@@ -87,8 +92,9 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 - ☐ DADO un cliente recibido desde Comercial, CUANDO aparece en el listado, ENTONCES se muestra con origen COMERCIAL y su estado de aprobacion (Pendiente, Aprobado o No aprobado).
 - ☐ DADO un cliente del listado, CUANDO el usuario selecciona Ver, ENTONCES se abre su detalle completo para revisarlo.
 - ☐ DADO que hay datos por corregir, CUANDO el usuario selecciona Editar datos, ENTONCES el detalle pasa a modo edicion y puede actualizar los campos permitidos.
-- ☐ DADO un cliente Pendiente, CUANDO el usuario selecciona Aprobar, ENTONCES su estado cambia a Aprobado de inmediato.
-- ☐ DADO un cliente Pendiente, CUANDO el usuario selecciona Rechazar, ENTONCES el sistema pide un motivo y el rechazo queda visible en el detalle y en el historial.
+- ☐ DADO un cliente activo, vigente y Pendiente, CUANDO el usuario selecciona Aprobar, ENTONCES su estado cambia a Aprobado de inmediato.
+- ☐ DADO un cliente activo, vigente y Pendiente, CUANDO el usuario selecciona Rechazar, ENTONCES el sistema pide un motivo y el rechazo queda visible en el detalle y en el historial.
+- ☐ DADO un cliente anulado o inactivo, CUANDO se muestra su detalle, ENTONCES no aparecen acciones de aprobar ni rechazar.
 
 **Flujo Principal**
 
@@ -113,7 +119,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 
 ---
 
-### HU-01-003 Como Analista Administrador de Personal, quiero modificar los datos de un cliente, para mantener actualizada su información maestra.
+### HU-01-003 Como Analista de Recursos Humanos, quiero modificar los datos de un cliente, para mantener actualizada su información maestra.
 
 **Prioridad: Alta | Estimación: 5 SP**
 
@@ -152,7 +158,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 
 ---
 
-### HU-01-004 Como Analista Administrativo de Personal, quiero dar de baja o anular a un cliente, para que deje de estar disponible como socio activo cuando corresponda.
+### HU-01-004 Como Analista de Recursos Humanos, quiero dar de baja o anular a un cliente, para que deje de estar disponible como socio activo cuando corresponda.
 
 **Prioridad: Alta | Estimación: 3 SP**
 
@@ -195,7 +201,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 
 ---
 
-### HU-01-005 Como Analista Administrativo de Personal, quiero registrar un proveedor, para mantener su información maestra disponible como Socio de Negocio.
+### HU-01-005 Como Analista de Recursos Humanos, quiero registrar un proveedor, para mantener su información maestra disponible como Socio de Negocio.
 
 **Prioridad: Alta | Estimación: 5 SP**
 
@@ -211,6 +217,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 - ☐ DADO el campo de celular, CUANDO el usuario lo llena, ENTONCES solo acepta numeros y debe tener 9 digitos.
 - ☐ DADO un documento ya registrado como proveedor, CUANDO el usuario intenta registrarlo otra vez, ENTONCES el sistema avisa la duplicidad y no crea un registro repetido.
 - ☐ DADO el formulario completo, CUANDO el usuario selecciona Agregar proveedor, ENTONCES el proveedor queda Pendiente de aprobacion y el sistema abre su pantalla de detalle.
+- ☐ DADO el detalle del proveedor recien creado, CUANDO el usuario lo revisa, ENTONCES puede aprobarlo, rechazarlo, editarlo o auditarlo segun su estado.
 
 **Flujo Principal**
 
@@ -220,6 +227,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 4. Completa razon social, nombre comercial y datos de contacto.
 5. Selecciona Agregar proveedor.
 6. El sistema abre el detalle del proveedor, ya en estado Pendiente.
+7. Un usuario autorizado lo aprueba o rechaza desde el detalle.
 
 **Flujos de Excepción**
 
@@ -232,10 +240,12 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 **Eventos de Dominio**
 
 - ProveedorRegistrado
+- SocioAprobado
+- SocioRechazado
 
 ---
 
-### HU-01-006 Como Analista Administrativo de Personal, quiero modificar los datos de un proveedor, para mantener actualizada su información maestra.
+### HU-01-006 Como Analista de Recursos Humanos, quiero modificar los datos de un proveedor, para mantener actualizada su información maestra.
 
 **Prioridad: Alta | Estimación: 5 SP**
 
@@ -273,7 +283,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 
 ---
 
-### HU-01-007 Como Analista Administrativo de Personal, quiero dar de baja o anular a un proveedor, para que deje de estar disponible como socio activo cuando corresponda.
+### HU-01-007 Como Analista de Recursos Humanos, quiero dar de baja o anular a un proveedor, para que deje de estar disponible como socio activo cuando corresponda.
 
 **Prioridad: Alta | Estimación: 3 SP**
 
@@ -316,7 +326,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 
 ---
 
-### HU-01-008 Como Analista Administrativo de Personal, quiero registrar personal, para mantener actualizado el maestro de empleados de Hagemsa.
+### HU-01-008 Como Analista de Recursos Humanos, quiero registrar personal, para mantener actualizado el maestro de empleados de Hagemsa.
 
 **Prioridad: Alta | Estimación: 8 SP**
 
@@ -332,7 +342,8 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 - ☐ DADO el campo de celular, CUANDO el usuario lo llena, ENTONCES solo acepta numeros y debe tener 9 digitos.
 - ☐ DADO un DNI ya registrado como personal, CUANDO el usuario intenta registrarlo otra vez, ENTONCES el sistema avisa la duplicidad y no crea un registro repetido.
 - ☐ DADO el formulario completo, CUANDO el usuario selecciona Agregar personal, ENTONCES el personal queda Pendiente de aprobacion y el sistema abre su pantalla de detalle.
-- ☐ DADO un personal aprobado, CUANDO el usuario selecciona Gestionar asignaciones, ENTONCES entra a la pantalla donde administra cargo, sede, area, cuentas, contrato e historial.
+- ☐ DADO el detalle del personal recien creado, CUANDO el usuario lo revisa, ENTONCES puede aprobarlo, rechazarlo, editarlo o auditarlo segun su estado.
+- ☐ DADO un personal aprobado, activo y con registro activo, CUANDO el usuario selecciona Gestionar asignaciones, ENTONCES entra a la pantalla donde administra cargo, sede, area, cuentas, contrato e historial.
 
 **Flujo Principal**
 
@@ -342,6 +353,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 4. Selecciona Agregar personal.
 5. El sistema abre el detalle del personal, ya en estado Pendiente.
 6. Un usuario autorizado lo aprueba o rechaza desde el detalle.
+7. Una vez aprobado y activo, el personal continúa con su asignación (Épica 4) para completar su configuración operativa.
 
 **Flujos de Excepción**
 
@@ -359,7 +371,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 
 ---
 
-### HU-01-009 Como Analista Administrativo de Personal, quiero modificar los datos del personal, para mantener actualizada su información maestra.
+### HU-01-009 Como Analista de Recursos Humanos, quiero modificar los datos del personal, para mantener actualizada su información maestra.
 
 **Prioridad: Alta | Estimación: 8 SP**
 
@@ -398,7 +410,7 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 
 ---
 
-### HU-01-010 Como Analista Administrativo de Personal, quiero dar de baja o anular al personal, para que deje de figurar como empleado activo cuando corresponda.
+### HU-01-010 Como Analista de Recursos Humanos, quiero dar de baja o anular al personal, para que deje de figurar como empleado activo cuando corresponda.
 
 **Prioridad: Alta | Estimación: 3 SP**
 
@@ -426,8 +438,6 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 **Flujos de Excepción**
 
 - El motivo obligatorio no fue informado.
-- El nuevo DNI no tiene 8 dígitos.
-- El nuevo DNI ya está registrado como PERSONAL.
 - Se intenta dar de baja un personal que no esta aprobado, activo y vigente (el boton aparece deshabilitado).
 - Se intenta reactivar un registro anulado.
 - El usuario no tiene permiso para realizar la acción.
@@ -437,6 +447,8 @@ El registro de clientes se realiza con informacion maestra validada. Para CLIENT
 - PersonalDadoDeBaja
 - PersonalAnulado
 - SocioReactivado
+
+> **Nota de flujo (Personal → Asignación):** Como todo socio, el personal se registra en estado Pendiente y luego se aprueba o rechaza, igual que el cliente y el proveedor. La diferencia es que, una vez aprobado y activo, el sistema continúa con su **asignación** (Épica 4) para completar su configuración operativa: cargo, sede, área, cuentas y contrato. Los clientes y proveedores quedan completos solo con su registro y aprobación; no requieren asignación.
 
 ## Épica 4: Gestión de Asignaciones Operativas de Personal
 
@@ -448,19 +460,19 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 
 ---
 
-### HU-01-011 Como Analista Administrativo de Personal, quiero crear una asignación operativa para un personal, para dejar trazada su configuración vigente.
+### HU-01-011 Como Analista de Recursos Humanos, quiero crear una asignación operativa para un personal, para dejar trazada su configuración vigente.
 
 **Prioridad: Alta | Estimación: 8 SP**
 
 **Precondiciones**
 
-- Personal registrado y aprobado.
+- Personal registrado, aprobado, activo y con registro activo.
 - Usuario autenticado y con permiso para administrar asignaciones.
 - Cargo, sede, área, cuentas y contratos disponibles para selección.
 
 **Criterios de Aceptación**
 
-- ☐ DADO un personal aprobado, CUANDO el usuario selecciona Nueva asignación, ENTONCES se abre un dialogo con tres bloques: Datos laborales, Relacion contractual y Vigencia.
+- ☐ DADO un personal aprobado, activo y con registro activo, CUANDO el usuario selecciona Nueva asignación, ENTONCES se abre un dialogo con tres bloques: Datos laborales, Relacion contractual y Vigencia.
 - ☐ DADO el bloque Datos laborales, CUANDO el usuario lo completa, ENTONCES elige en cascada Distrito, Ubicacion, Sede, Area y Cargo (distrito y ubicacion solo sirven para filtrar; se guardan sede, area y cargo).
 - ☐ DADO el bloque Relación contractual, CUANDO el usuario elige una cuenta, ENTONCES se agrega sola; puede añadir varias cuentas sin repetir y quitarlas con la papelera.
 - ☐ DADO el contrato, CUANDO el usuario lo elige, ENTONCES solo puede haber un contrato final y debe pertenecer a una de las cuentas elegidas.
@@ -491,7 +503,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 
 ---
 
-### HU-01-012 Como Analista Administrativo de Personal, quiero modificar la asignación operativa de un personal, para mantener correctamente sus datos de cargo, ubicación, cuentas y contrato.
+### HU-01-012 Como Analista de Recursos Humanos, quiero modificar la asignación operativa de un personal, para mantener correctamente sus datos de cargo, ubicación, cuentas y contrato.
 
 **Prioridad: Alta | Estimación: 8 SP**
 
@@ -532,7 +544,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 
 ---
 
-### HU-01-013 Como Jefe o Aprobador, quiero aprobar una asignación operativa, para dejar constancia de que la configuración del personal fue validada.
+### HU-01-013 Como Administrador Principal, quiero aprobar una asignación operativa, para dejar constancia de que la configuración del personal fue validada.
 
 **Prioridad: Alta | Estimación: 3 SP**
 
@@ -569,7 +581,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 
 ---
 
-### HU-01-014 Como Analista Administrativo de Personal, quiero consultar las asignaciones y su historial, para conocer la configuración operativa vigente y los cambios realizados.
+### HU-01-014 Como Analista de Recursos Humanos, quiero consultar las asignaciones y su historial, para conocer la configuración operativa vigente y los cambios realizados.
 
 **Prioridad: Media | Estimación: 5 SP**
 
@@ -610,7 +622,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 
 ---
 
-### HU-01-015 Como Analista Administrativo de Personal, quiero consultar el personal por datos maestros y estado, para obtener información actualizada del maestro de socios.
+### HU-01-015 Como Analista de Recursos Humanos, quiero consultar el personal por datos maestros y estado, para obtener información actualizada del maestro de socios.
 
 **Prioridad: Media | Estimación: 5 SP**
 
@@ -625,7 +637,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 - ☐ DADO un personal listado, CUANDO se muestra el resultado, ENTONCES se visualizan su estado, registro, aprobación y estado de asignación vigente.
 - ☐ DADO un personal sin asignación vigente, CUANDO aparece en el Listado de Socios de Negocio, ENTONCES el sistema lo informa claramente.
 - ☐ DADO un personal encontrado, CUANDO el usuario selecciona Ver, ENTONCES accede a la pantalla de detalle completa.
-- ☐ DADO un personal encontrado, CUANDO el usuario selecciona Asignaciones, ENTONCES accede a la pantalla única para administrar y consultar sus asignaciones.
+- ☐ DADO un personal aprobado, activo y con registro activo, CUANDO el usuario selecciona Asignaciones, ENTONCES accede a la pantalla única para administrar y consultar sus asignaciones.
 
 **Flujo Principal**
 
@@ -637,6 +649,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 
 - No existen registros para el filtro aplicado.
 - El personal no tiene asignación vigente.
+- El personal no esta aprobado, activo y con registro activo; el acceso a asignaciones no se muestra para operar.
 - No fue posible cargar el listado.
 - El usuario no tiene permiso de consulta.
 
@@ -646,7 +659,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 
 ---
 
-### HU-01-016 Como Analista Administrativo de Personal, quiero consultar socios de negocio por tipo, estado y trazabilidad, para identificar clientes, proveedores y personal activos, inactivos, anulados o pendientes de aprobación.
+### HU-01-016 Como Analista de Recursos Humanos, quiero consultar socios de negocio por tipo, estado y trazabilidad, para identificar clientes, proveedores y personal activos, inactivos, anulados o pendientes de aprobación.
 
 **Prioridad: Media | Estimación: 5 SP**
 
@@ -657,12 +670,13 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 
 **Criterios de Aceptación**
 
-- ☐ DADO que el usuario ingresa al Listado de Socios de Negocio, CUANDO aplica filtros por tipo, estado, registro, aprobación, origen o sincronización SAP, ENTONCES se muestran únicamente los socios coincidentes.
-- ☐ DADO un socio listado, CUANDO el usuario abre sus acciones, ENTONCES encuentra Ver, Editar datos, Auditar y las acciones permitidas por su estado.
+- ☐ DADO que el usuario ingresa al Listado de Socios de Negocio sin filtro de registro, CUANDO carga la consulta normal, ENTONCES se muestran solo socios vigentes con estadoRegistro ACTIVO.
+- ☐ DADO que el usuario filtra por registro Anulados, CUANDO aplica el filtro, ENTONCES la consulta envia estadoRegistro=ANULADO y se muestran solo socios anulados.
+- ☐ DADO un socio listado, CUANDO el usuario abre sus acciones, ENTONCES encuentra Ver, Editar datos, Auditar y las acciones permitidas por su estado; si el socio esta anulado, solo encuentra acciones de consulta e historial.
 - ☐ DADO que el usuario selecciona Ver, CUANDO abre la pantalla de detalle, ENTONCES puede consultar toda la información y ejecutar las acciones disponibles.
 - ☐ DADO que el usuario selecciona Editar datos, CUANDO abre la pantalla de detalle, ENTONCES la misma pantalla se muestra en modo edición.
 - ☐ DADO que el usuario selecciona Auditar, CUANDO abre el historial, ENTONCES visualiza fecha, acción, usuario y cambios principales.
-- ☐ DADO filtros aplicados, CUANDO el usuario selecciona Limpiar, ENTONCES el Listado de Socios de Negocio vuelve al listado completo.
+- ☐ DADO filtros aplicados, CUANDO el usuario selecciona Limpiar, ENTONCES el Listado de Socios de Negocio vuelve al listado de socios vigentes.
 
 **Flujo Principal**
 
@@ -673,6 +687,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 **Flujos de Excepción**
 
 - No existen registros para los filtros aplicados.
+- El usuario necesita ver vigentes y anulados al mismo tiempo; por ahora el listado muestra un solo estado a la vez, así que primero revisa los vigentes y luego cambia el filtro a Anulados para ver esos registros.
 - Una acción no está disponible para el estado actual del socio.
 - Asignaciones no aplica para clientes o proveedores.
 - No fue posible cargar el listado o historial.
@@ -683,7 +698,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 
 ---
 
-### HU-01-017 Como Analista Administrativo de Personal, quiero exportar la información de socios de negocio, para compartir reportes en Excel o PDF.
+### HU-01-017 Como Auditor, quiero exportar la información de socios de negocio, para compartir reportes en Excel o PDF.
 
 **Prioridad: Media | Estimación: 5 SP**
 
@@ -695,7 +710,7 @@ La asignacion operativa se modela como un agregado propio. SocioDeNegocio conser
 **Criterios de Aceptación**
 
 - ☐ DADO que el usuario aplica filtros en el Listado de Socios de Negocio, CUANDO selecciona Excel o PDF desde el listado, ENTONCES el archivo contiene el resultado filtrado.
-- ☐ DADO que no se aplican filtros, CUANDO el usuario exporta desde el listado, ENTONCES el archivo contiene el listado disponible completo.
+- ☐ DADO que no se aplican filtros, CUANDO el usuario exporta desde el listado, ENTONCES el archivo contiene el listado vigente disponible.
 - ☐ DADO que el usuario selecciona Excel, CUANDO finaliza la generación, ENTONCES el sistema descarga el archivo en ese formato.
 - ☐ DADO que el usuario selecciona PDF, CUANDO finaliza la generación, ENTONCES el sistema descarga el archivo en ese formato.
 - ☐ DADO que ocurre un error, CUANDO no se puede generar el archivo, ENTONCES el sistema informa el problema al usuario.
