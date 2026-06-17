@@ -34,6 +34,13 @@ type DetalleVehiculoClientProps = {
   id: string;
 };
 
+function formatearFecha(fecha?: string | null) {
+  if (!fecha) return null;
+  const d = new Date(fecha);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat("es-PE", { dateStyle: "medium" }).format(d);
+}
+
 function DatoVer({
   label,
   value,
@@ -437,8 +444,14 @@ export default function DetalleVehiculoClient({
                   : "Sin cuenta"
               }
             />
-            <DatoVer label="Ultima actualizacion" value={vehiculo.updatedAt} />
-            <DatoVer label="ID" value={vehiculo.id} />
+            <DatoVer
+              label="Vigencia inicio"
+              value={formatearFecha(vehiculo.contratoDetalle?.fechaInicio)}
+            />
+            <DatoVer
+              label="Vigencia fin"
+              value={formatearFecha(vehiculo.contratoDetalle?.fechaFin)}
+            />
           </dl>
 
           <form id="contrato-form" onSubmit={(event) => void onSave(event)}>
