@@ -17,6 +17,17 @@ export type VehiculoFlota = {
   color?: string | null;
   contrato?: unknown;
   cuenta?: unknown;
+  contratoDetalle?: {
+    fechaInicio?: string | null;
+    fechaFin?: string | null;
+    estado?: string | null;
+    descripcion?: string | null;
+  } | null;
+  asignacion?: {
+    fechaModificacion?: string | null;
+    estadoRegistro?: string | null;
+    usuarioModificacion?: string | null;
+  } | null;
   estadoRegistro?: string | null;
   estado?: string | null;
   estadoOperativo?: string | null;

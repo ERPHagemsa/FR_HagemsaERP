@@ -30,7 +30,7 @@ import {
   obtenerHistorialPorCodigo,
   obtenerImagenesPorCodigo,
   obtenerTanquesPorCodigo,
-} from "../servicios/activos-api";
+} from "../servicios/activos-api-servidor";
 
 type Props = {
   codigo: string;
