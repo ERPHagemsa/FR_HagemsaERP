@@ -26,6 +26,7 @@ export {
 // Hooks utility para consultas y mutaciones (reemplazan TanStack Query).
 export {
   useConsulta,
+  invalidarConsulta,
   type OpcionesConsulta,
   type ResultadoConsulta,
 } from "./use-consulta"

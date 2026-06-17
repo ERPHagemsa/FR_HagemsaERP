@@ -1,12 +1,11 @@
 "use client";
 
 import { extraerMensajeError } from "@/compartido/api";
-import { useConsulta } from "@/compartido/api/use-consulta";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { SolicitudesClienteTabla } from "../componentes/solicitudes-cliente-tabla";
-import { listarSolicitudesCliente } from "../servicios/solicitudes-cliente-api";
+import { useSolicitudesClienteQuery } from "../servicios/solicitudes-cliente-queries";
 import type { FiltrosSolicitudesCliente } from "../tipos/solicitud-cliente.tipos";
 
 type Props = {
@@ -14,10 +13,7 @@ type Props = {
 };
 
 export function SolicitudesClienteVista({ filtros = {} }: Props) {
-  const { data, isLoading, isError, error } = useConsulta(
-    () => listarSolicitudesCliente(filtros),
-    [JSON.stringify(filtros)]
-  );
+  const { data, isLoading, isError, error } = useSolicitudesClienteQuery(filtros);
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">

@@ -4,7 +4,12 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { extraerMensajeError } from "@/compartido/api";
+import { extraerMensajeError, invalidarConsulta } from "@/compartido/api";
+import {
+  CLAVE_PROSPECTOS,
+  CLAVE_PROSPECTO_DETALLE,
+  CLAVE_PROSPECTO_HISTORIAL,
+} from "../../claves-consulta";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -41,8 +46,10 @@ export function ProspectoReactivarDialog({ idProspecto }: Props) {
     try {
       await reactivarMutation.mutateAsync(idProspecto);
       setAbierto(false);
+      invalidarConsulta(CLAVE_PROSPECTOS);
+      invalidarConsulta(CLAVE_PROSPECTO_DETALLE);
+      invalidarConsulta(CLAVE_PROSPECTO_HISTORIAL);
       router.push(`/comercial/prospectos/${idProspecto}?accion=reactivado`);
-      router.refresh();
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo reactivar el prospecto"));
     } finally {

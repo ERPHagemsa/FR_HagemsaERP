@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { esError409, extraerMensajeError } from "@/compartido/api";
+import { esError409, extraerMensajeError, invalidarConsulta } from "@/compartido/api";
+import { CLAVE_PROSPECTOS } from "../../claves-consulta";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -44,8 +45,8 @@ export function ProspectoEliminarDialog({ idProspecto }: Props) {
       toast.success("Prospecto eliminado", {
         description: "El registro fue dado de baja.",
       });
+      invalidarConsulta(CLAVE_PROSPECTOS);
       router.push("/comercial/prospectos");
-      router.refresh();
     } catch (err) {
       // 409: tiene actividad comercial — no se elimina, se descarta.
       if (esError409(err)) {
