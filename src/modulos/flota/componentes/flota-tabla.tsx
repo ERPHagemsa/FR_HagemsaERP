@@ -86,12 +86,14 @@ type Props = {
 type FiltrosFlota = {
   busqueda: string;
   estadoActivo: string;
+  estadoRegistro: string;
   estadoOperativo: string;
 };
 
 const filtrosIniciales: FiltrosFlota = {
   busqueda: "",
   estadoActivo: "TODOS",
+  estadoRegistro: "ACTIVO",
   estadoOperativo: "TODOS",
 };
 
@@ -127,6 +129,8 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
       return (
         coincideTexto &&
         coincideEstadoActivo(estadoActivoVehiculo(vehiculo), filtrosAplicados.estadoActivo) &&
+        (filtrosAplicados.estadoRegistro === "TODOS" ||
+          estadoRegistroVehiculo(vehiculo) === filtrosAplicados.estadoRegistro) &&
         (filtrosAplicados.estadoOperativo === "TODOS" ||
           estadoOperativoVehiculo(vehiculo) === filtrosAplicados.estadoOperativo)
       );
@@ -217,6 +221,23 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                 </SelectContent>
               </Select>
             </Field>
+            <Field className="lg:w-44">
+              <Select
+                value={filtrosFormulario.estadoRegistro}
+                onValueChange={(value) => actualizarFiltro("estadoRegistro", value)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Registro" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="TODOS">Registro: todos</SelectItem>
+                    <SelectItem value="ACTIVO">Registro: activos</SelectItem>
+                    <SelectItem value="ANULADO">Registro: anulados</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
             <Field className="lg:w-48">
               <Select
                 value={filtrosFormulario.estadoOperativo}
@@ -278,6 +299,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                   <TableHead>Contrato</TableHead>
                   <TableHead>Cuenta</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Registro</TableHead>
                   <TableHead>Condicion</TableHead>
                 </TableRow>
               </TableHeader>
@@ -319,6 +341,9 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                     </TableCell>
                     <TableCell>
                       <EstadoActivoBadge value={estadoActivoVehiculo(vehiculo)} />
+                    </TableCell>
+                    <TableCell>
+                      <EstadoActivoBadge value={estadoRegistroVehiculo(vehiculo)} />
                     </TableCell>
                     <TableCell>
                       <EstadoOperativoBadge value={estadoOperativoVehiculo(vehiculo)} />
