@@ -63,6 +63,19 @@ export type CargaItem = {
   orden: number;
 };
 
+// Sugerencia de carga para autocompletado (API §5.3.1). Subset clonable de CargaItem:
+// SIN id ni orden. Es una lectura GLOBAL (busca sobre cargas de cualquier cotizacion,
+// no filtra por ejecutivo) y deduplica por nombre trayendo la mas reciente.
+// Todas las dimensiones pueden venir null; el front las clona y el usuario las edita.
+export type SugerenciaCarga = {
+  nombre: string;
+  largoM: number | null;
+  anchoM: number | null;
+  altoM: number | null;
+  peso: number | null;
+  unidadPeso: UnidadPeso | null;
+};
+
 // El transporte de la linea: ruta + vehiculo + los items fisicos que mueve.
 // Antes era un objeto plano con dimensiones unicas; ahora las dimensiones bajan a cargas[].
 export type CargaHijo = {

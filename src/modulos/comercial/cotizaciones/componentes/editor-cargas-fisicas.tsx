@@ -13,9 +13,13 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
-import type { UnidadPeso } from "../tipos/cotizaciones.tipos";
+import type { SugerenciaCarga, UnidadPeso } from "../tipos/cotizaciones.tipos";
 import type { DraftCargaItem } from "../servicios/cotizaciones-editor.utils";
 import { cargaItemVacio } from "../servicios/cotizaciones-editor.utils";
+import { AutocompleteCargaNombre } from "./autocomplete-carga-nombre";
+
+// Las dimensiones del draft son strings (inputs controlados); la sugerencia trae number|null.
+const numAStr = (n: number | null): string => (n == null ? "" : String(n));
 
 const UNIDADES_PESO: { valor: UnidadPeso; etiqueta: string }[] = [
   { valor: "TN", etiqueta: "TN" },
@@ -73,13 +77,23 @@ export function EditorCargasFisicas({ cargas, erroresCampo = {}, disabled, onCha
                     <Label className="text-xs text-muted-foreground">
                       Dimensión de la carga {idx + 1} <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      className="h-8 text-xs"
+                    <AutocompleteCargaNombre
                       value={carga.nombre}
                       disabled={disabled}
+                      invalid={Boolean(errNombre)}
                       placeholder="Ej: Excavadora CAT 320"
-                      aria-invalid={Boolean(errNombre)}
-                      onChange={(e) => actualizar(carga.claveCliente, { nombre: e.target.value })}
+                      onChangeTexto={(v) => actualizar(carga.claveCliente, { nombre: v })}
+                      onSeleccionar={(s: SugerenciaCarga) =>
+                        actualizar(carga.claveCliente, {
+                          nombre: s.nombre,
+                          largoM: numAStr(s.largoM),
+                          anchoM: numAStr(s.anchoM),
+                          altoM: numAStr(s.altoM),
+                          peso: numAStr(s.peso),
+                          // La sugerencia puede no traer unidad: conservamos la actual del draft.
+                          unidadPeso: s.unidadPeso ?? carga.unidadPeso,
+                        })
+                      }
                     />
                   </div>
                   <div className="grid shrink-0 gap-1">
