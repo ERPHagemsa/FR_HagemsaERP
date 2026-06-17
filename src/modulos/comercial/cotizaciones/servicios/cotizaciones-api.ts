@@ -8,6 +8,7 @@ import type {
   PayloadNuevaVersion,
   PayloadPerdida,
   RespuestaPaginadaCotizaciones,
+  SugerenciaCarga,
 } from "../tipos/cotizaciones.tipos";
 
 // ---------------------------------------------------------------------------
@@ -28,6 +29,22 @@ export async function listarCotizaciones(
 // GET /cotizaciones/:id
 export async function consultarCotizacion(id: string): Promise<Cotizacion> {
   const { data } = await clienteComercial.get<Cotizacion>(`/cotizaciones/${id}`);
+  return data;
+}
+
+// GET /cotizaciones/cargas/sugerencias
+// Autocompletado de cargas (API §5.3.1). Lectura GLOBAL: busca sobre todas las cargas
+// activas de cualquier cotizacion y deduplica por nombre (trae la mas reciente).
+// La respuesta es un ARRAY pelado de SugerenciaCarga (no `{ data }`).
+// Reglas del backend: q con <2 chars (tras trim) devuelve []; limit default 10, tope 50.
+export async function obtenerSugerenciasCarga(
+  q: string,
+  limit = 10
+): Promise<SugerenciaCarga[]> {
+  const { data } = await clienteComercial.get<SugerenciaCarga[]>(
+    "/cotizaciones/cargas/sugerencias",
+    { params: { q, limit } }
+  );
   return data;
 }
 

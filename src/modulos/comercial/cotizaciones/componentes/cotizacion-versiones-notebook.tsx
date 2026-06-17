@@ -22,6 +22,7 @@ import {
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import type {
   CargaHijo,
+  CargaItem,
   EquipoHijo,
   AlmacenajeHijo,
   PersonalHijo,
@@ -443,17 +444,27 @@ function CargaDetalle({ carga }: { carga: CargaHijo }) {
       <MiniDato label="Vehiculo" value={carga.tipoVehiculo} />
       <MiniDato label="Origen" value={carga.origen} />
       <MiniDato label="Destino" value={carga.destino} />
-      <MiniDato label="Peso (Tn)" value={carga.pesoTn !== null ? String(carga.pesoTn) : null} />
       <MiniDato
-        label="Dimensiones (m)"
-        value={
-          carga.largoM !== null && carga.anchoM !== null && carga.altoM !== null
-            ? `${carga.largoM} x ${carga.anchoM} x ${carga.altoM}`
-            : null
-        }
+        label="Cargas"
+        value={carga.cargas.length > 0 ? String(carga.cargas.length) : null}
       />
+      {carga.cargas.map((it) => (
+        <MiniDato key={it.id} label={it.nombre || "Carga"} value={resumenCargaItem(it)} />
+      ))}
     </>
   );
+}
+
+// Resumen de un item fisico para el detalle read-only: dimensiones · peso.
+function resumenCargaItem(it: CargaItem): string | null {
+  const partes: string[] = [];
+  if (it.largoM !== null && it.anchoM !== null && it.altoM !== null) {
+    partes.push(`${it.largoM} x ${it.anchoM} x ${it.altoM} m`);
+  }
+  if (it.peso !== null) {
+    partes.push(`${it.peso} ${it.unidadPeso ?? "TN"}`);
+  }
+  return partes.length > 0 ? partes.join(" · ") : null;
 }
 
 function EquipoDetalle({ equipo }: { equipo: EquipoHijo }) {

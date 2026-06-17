@@ -20,6 +20,7 @@ import {
   marcarGanada,
   marcarPerdida,
   nuevaVersion,
+  obtenerSugerenciasCarga,
 } from "./cotizaciones-api";
 import { listarCatalogosCargoAdicional } from "./catalogos-cargo-adicional-api";
 import { listarModalidades } from "./modalidades-api";
@@ -39,6 +40,18 @@ export function useConsultarCotizacion(id: string) {
   return useConsulta(() => consultarCotizacion(id), [id], {
     enabled: Boolean(id),
   });
+}
+
+// Autocompletado de cargas. Espeja la regla del backend: con <2 chars (tras trim)
+// no dispara la query. OJO: useConsulta NO limpia `data` al deshabilitarse, asi que
+// el consumidor debe gatear el render del dropdown por `q.trim().length >= 2`.
+export function useSugerenciasCarga(q: string, limit = 10) {
+  const termino = q.trim();
+  return useConsulta(
+    () => obtenerSugerenciasCarga(termino, limit),
+    [termino, limit],
+    { enabled: termino.length >= 2 }
+  );
 }
 
 // ---------------------------------------------------------------------------

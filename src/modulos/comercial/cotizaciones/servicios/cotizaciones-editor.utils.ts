@@ -11,6 +11,8 @@
 
 import type {
   CargaHijo,
+  CargaItem,
+  UnidadPeso,
   EquipoHijo,
   AlmacenajeHijo,
   PersonalHijo,
@@ -29,6 +31,7 @@ import type {
   PayloadLeadTime,
   PayloadCargoAdicional,
   PayloadCargaHijo,
+  PayloadCargaItem,
   PayloadEquipoHijo,
   PayloadAlmacenajeHijo,
   PayloadPersonalHijo,
@@ -57,14 +60,23 @@ export type DraftCargoAdicional = {
   orden: number;
 };
 
-export type DraftCargaHijo = {
+// Item fisico del transporte (campos numericos como string para los inputs).
+export type DraftCargaItem = {
+  claveCliente: string; // clave efimera UI
+  nombre: string;
   largoM: string;
   anchoM: string;
   altoM: string;
-  pesoTn: string;
+  peso: string;
+  unidadPeso: UnidadPeso;
+  orden: number;
+};
+
+export type DraftCargaHijo = {
   origen: string;
   destino: string;
   tipoVehiculo: string;
+  cargas: DraftCargaItem[]; // 0..N items fisicos transportados
 };
 
 export type DraftEquipoHijo = {
@@ -131,13 +143,23 @@ export type DraftBorrador = {
 
 function cargaVacia(): DraftCargaHijo {
   return {
-    largoM: "",
-    anchoM: "",
-    altoM: "",
-    pesoTn: "",
     origen: "",
     destino: "",
     tipoVehiculo: "",
+    cargas: [],
+  };
+}
+
+export function cargaItemVacio(): DraftCargaItem {
+  return {
+    claveCliente: crypto.randomUUID(),
+    nombre: "",
+    largoM: "",
+    anchoM: "",
+    altoM: "",
+    peso: "",
+    unidadPeso: "TN",
+    orden: 0,
   };
 }
 
@@ -267,15 +289,56 @@ function leadTimeReadADraft(l: LeadTime): DraftLeadTime {
   };
 }
 
-function cargaReadADraft(c: CargaHijo): DraftCargaHijo {
+// Migracion graceful (ADR-D3): el shape viejo de carga tenia las dimensiones y el peso
+// aplastados en la raiz (largoM/anchoM/altoM/pesoTn) y no existia cargas[]. Si llega ese
+// shape, lo envolvemos en un unico CargaItem para no perder datos de cotizaciones previas.
+type CargaHijoCompat = CargaHijo & {
+  largoM?: number | null;
+  anchoM?: number | null;
+  altoM?: number | null;
+  pesoTn?: number | null;
+};
+
+function cargaItemReadADraft(c: CargaItem): DraftCargaItem {
   return {
+    claveCliente: c.id,
+    nombre: c.nombre ?? "",
     largoM: c.largoM !== null ? String(c.largoM) : "",
     anchoM: c.anchoM !== null ? String(c.anchoM) : "",
     altoM: c.altoM !== null ? String(c.altoM) : "",
-    pesoTn: c.pesoTn !== null ? String(c.pesoTn) : "",
+    peso: c.peso !== null ? String(c.peso) : "",
+    unidadPeso: c.unidadPeso ?? "TN",
+    orden: c.orden,
+  };
+}
+
+function cargaReadADraft(c: CargaHijoCompat): DraftCargaHijo {
+  let cargas: DraftCargaItem[];
+  if (Array.isArray(c.cargas) && c.cargas.length > 0) {
+    cargas = c.cargas.map(cargaItemReadADraft);
+  } else if (
+    // Shape viejo: dimensiones/peso en la raiz, sin cargas[] → envolver en un item.
+    (c.largoM ?? null) !== null ||
+    (c.anchoM ?? null) !== null ||
+    (c.altoM ?? null) !== null ||
+    (c.pesoTn ?? null) !== null
+  ) {
+    const item = cargaItemVacio();
+    item.nombre = "Carga 1";
+    item.largoM = c.largoM != null ? String(c.largoM) : "";
+    item.anchoM = c.anchoM != null ? String(c.anchoM) : "";
+    item.altoM = c.altoM != null ? String(c.altoM) : "";
+    item.peso = c.pesoTn != null ? String(c.pesoTn) : "";
+    item.unidadPeso = "TN";
+    cargas = [item];
+  } else {
+    cargas = [];
+  }
+  return {
     origen: c.origen ?? "",
     destino: c.destino ?? "",
     tipoVehiculo: c.tipoVehiculo ?? "",
+    cargas,
   };
 }
 
@@ -306,7 +369,7 @@ function lineaReadADraft(l: Linea): DraftLinea {
     claveCliente: l.id,
     idModalidad: l.idModalidad,
     tipoLinea: l.tipoLinea,
-    descripcion: l.descripcion,
+    descripcion: l.descripcion ?? "", // read model ahora puede venir null (descripcion opcional)
     cantidad: String(l.cantidad),
     precioUnitario: String(l.precioUnitario),
     // Poblar el hijo correspondiente; el resto queda en valores por defecto
@@ -433,15 +496,27 @@ function parseNumero(valor: string): number {
   return isNaN(n) ? 0 : n;
 }
 
-function cargaAPayload(c: DraftCargaHijo): PayloadCargaHijo {
-  const payload: PayloadCargaHijo = {};
+function cargaItemAPayload(c: DraftCargaItem): PayloadCargaItem {
+  const payload: PayloadCargaItem = { nombre: c.nombre.trim() };
   if (c.largoM !== "") payload.largoM = parseNumero(c.largoM);
   if (c.anchoM !== "") payload.anchoM = parseNumero(c.anchoM);
   if (c.altoM !== "") payload.altoM = parseNumero(c.altoM);
-  if (c.pesoTn !== "") payload.pesoTn = parseNumero(c.pesoTn);
+  if (c.peso !== "") {
+    payload.peso = parseNumero(c.peso);
+    payload.unidadPeso = c.unidadPeso;
+  }
+  if (c.orden > 0) payload.orden = c.orden;
+  return payload;
+}
+
+function cargaAPayload(c: DraftCargaHijo): PayloadCargaHijo {
+  const payload: PayloadCargaHijo = {};
   if (c.origen !== "") payload.origen = c.origen;
   if (c.destino !== "") payload.destino = c.destino;
   if (c.tipoVehiculo !== "") payload.tipoVehiculo = c.tipoVehiculo;
+  // Descartar items totalmente vacios (sin nombre): el usuario agrego una fila y no la lleno.
+  const cargas = c.cargas.filter((it) => it.nombre.trim() !== "");
+  if (cargas.length > 0) payload.cargas = cargas.map(cargaItemAPayload);
   return payload;
 }
 
@@ -480,10 +555,13 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
   const base: PayloadLinea = {
     idModalidad: l.idModalidad,
     tipoLinea: l.tipoLinea,
-    descripcion: l.descripcion,
     precioUnitario: parseNumero(l.precioUnitario),
     cantidad: l.cantidad !== "" ? parseNumero(l.cantidad) : 1,
   };
+
+  // descripcion ahora es opcional: solo se emite si el usuario puso algo (trim).
+  const descripcion = l.descripcion.trim();
+  if (descripcion !== "") base.descripcion = descripcion;
 
   switch (l.tipoLinea) {
     case "TRANSPORTE":
@@ -591,6 +669,35 @@ function validarCargo(
   }
 }
 
+// Numeros opcionales de un item de carga: si vienen, deben ser >= 0.
+const CAMPOS_NUM_CARGA: ReadonlyArray<keyof Pick<DraftCargaItem, "largoM" | "anchoM" | "altoM" | "peso">> = [
+  "largoM", "anchoM", "altoM", "peso",
+];
+
+function validarCargaItem(
+  errores: Record<string, string>,
+  it: DraftCargaItem,
+  prefijo: string,
+): void {
+  const tieneData =
+    it.nombre.trim() !== "" ||
+    CAMPOS_NUM_CARGA.some((c) => it[c] !== "");
+  // Fila totalmente vacia: se descarta en el payload, no se valida.
+  if (!tieneData) return;
+  if (it.nombre.trim() === "") {
+    errores[`${prefijo}.nombre`] = "El nombre de la carga es obligatorio.";
+  }
+  for (const campo of CAMPOS_NUM_CARGA) {
+    const valor = it[campo];
+    if (valor !== "") {
+      const n = parseFloat(valor);
+      if (isNaN(n) || n < 0) {
+        errores[`${prefijo}.${campo}`] = "Debe ser un numero mayor o igual a 0.";
+      }
+    }
+  }
+}
+
 /**
  * validarBorrador — validaciones client-side previas al envío.
  *
@@ -621,6 +728,12 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
         if (isNaN(cantidadNum) || cantidadNum < 1 || !Number.isInteger(cantidadNum)) {
           errores[`secciones.${i}.lineas.${k}.cantidad`] = "La cantidad debe ser un entero mayor o igual a 1.";
         }
+      }
+      // Items de carga (solo TRANSPORTE): nombre obligatorio, dimensiones/peso >= 0
+      if (l.tipoLinea === "TRANSPORTE") {
+        l.carga.cargas.forEach((it, j) => {
+          validarCargaItem(errores, it, `secciones.${i}.lineas.${k}.carga.cargas.${j}`);
+        });
       }
       // Cargos a nivel de linea
       l.cargosAdicionales.forEach((c, j) => {
