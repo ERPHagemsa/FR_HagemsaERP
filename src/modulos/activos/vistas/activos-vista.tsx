@@ -33,7 +33,7 @@ import {
 } from "@/compartido/componentes/ui/table";
 
 import { ActivosResumen } from "../componentes/activos-resumen";
-import { obtenerActivos } from "../servicios/activos-api";
+import { obtenerActivos } from "../servicios/activos-api-servidor";
 import type { Activo, EstadoOperativo, TipoActivo } from "../tipos/activo.tipos";
 
 const DIAS_ALTAS_RECIENTES = 8;

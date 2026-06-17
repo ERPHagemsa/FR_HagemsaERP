@@ -13,7 +13,7 @@ import { ActivoFormulario } from "../componentes/activo-formulario";
 import {
   obtenerActivoPorId,
   obtenerDocumentosPorActivoId,
-} from "../servicios/activos-api";
+} from "../servicios/activos-api-servidor";
 import type { Activo, DocumentoActivo } from "../tipos/activo.tipos";
 
 type Props = {

@@ -6,7 +6,7 @@ import {
 } from "@/compartido/componentes/ui/alert";
 
 import { InventariosFisicosListado } from "../componentes/inventarios-fisicos-listado";
-import { obtenerInventariosFisicos } from "../servicios/activos-api";
+import { obtenerInventariosFisicos } from "../servicios/activos-api-servidor";
 
 export async function ActivosInventarioFisicoVista() {
   const resultado = await obtenerInventariosFisicos()

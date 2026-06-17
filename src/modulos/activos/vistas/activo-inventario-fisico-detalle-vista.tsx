@@ -9,7 +9,7 @@ import { InventarioFisicoDetallePanel } from "../componentes/inventario-fisico-d
 import {
   obtenerActivos,
   obtenerInventarioFisicoPorId,
-} from "../servicios/activos-api";
+} from "../servicios/activos-api-servidor";
 
 export async function ActivoInventarioFisicoDetalleVista({
   id,
