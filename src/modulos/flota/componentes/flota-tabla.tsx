@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 import {
   CheckCircle2,
+  CircleDashed,
   CircleX,
   Clock,
   Eye,
@@ -85,14 +86,12 @@ type Props = {
 type FiltrosFlota = {
   busqueda: string;
   estadoActivo: string;
-  estadoRegistro: string;
   estadoOperativo: string;
 };
 
 const filtrosIniciales: FiltrosFlota = {
   busqueda: "",
   estadoActivo: "TODOS",
-  estadoRegistro: "ACTIVO",
   estadoOperativo: "TODOS",
 };
 
@@ -128,8 +127,6 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
       return (
         coincideTexto &&
         coincideEstadoActivo(estadoActivoVehiculo(vehiculo), filtrosAplicados.estadoActivo) &&
-        (filtrosAplicados.estadoRegistro === "TODOS" ||
-          estadoRegistroVehiculo(vehiculo) === filtrosAplicados.estadoRegistro) &&
         (filtrosAplicados.estadoOperativo === "TODOS" ||
           estadoOperativoVehiculo(vehiculo) === filtrosAplicados.estadoOperativo)
       );
@@ -216,23 +213,6 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                     <SelectItem value="TODOS">Estado: todos</SelectItem>
                     <SelectItem value="ACTIVO">Activo</SelectItem>
                     <SelectItem value="BAJA">Baja</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field className="lg:w-44">
-              <Select
-                value={filtrosFormulario.estadoRegistro}
-                onValueChange={(value) => actualizarFiltro("estadoRegistro", value)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Registro" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="TODOS">Registro: todos</SelectItem>
-                    <SelectItem value="ACTIVO">Registro: activos</SelectItem>
-                    <SelectItem value="ANULADO">Registro: anulados</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -338,7 +318,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                       />
                     </TableCell>
                     <TableCell>
-                      <EstadoRegistroBadge value={estadoRegistroVehiculo(vehiculo)} />
+                      <EstadoActivoBadge value={estadoActivoVehiculo(vehiculo)} />
                     </TableCell>
                     <TableCell>
                       <EstadoOperativoBadge value={estadoOperativoVehiculo(vehiculo)} />
@@ -488,27 +468,27 @@ function ReferenciaFlota({
   );
 }
 
-function EstadoRegistroBadge({ value }: { value: string | null }) {
+function EstadoActivoBadge({ value }: { value: string | null }) {
   const activo = value === "ACTIVO";
 
   return (
     <Badge
       variant="outline"
-      className={cn(
-        "h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium shadow-xs",
-        activo
-          ? "border-border/70 bg-card text-foreground"
-          : "border-destructive/30 bg-destructive/10 text-destructive",
-      )}
+      className="h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
     >
       {activo ? (
         <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
       ) : (
-        <CircleX data-icon="inline-start" />
+        <CircleDashed data-icon="inline-start" className="text-muted-foreground" />
       )}
-      {activo ? "Activo" : "Anulado"}
+      {activo ? "Activo" : formatearEstadoActivo(value)}
     </Badge>
   );
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "INACTIVO" || value === "SINIESTRADO") return "Baja / De baja";
+  return formatear(value);
 }
 
 function EstadoOperativoBadge({ value }: { value: string | null }) {
