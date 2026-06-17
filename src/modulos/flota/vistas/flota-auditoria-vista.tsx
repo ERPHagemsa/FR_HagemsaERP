@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Eye, RotateCcw } from "lucide-react";
+import { ArrowLeft, CirclePlus, Eye, Pencil, Trash2 } from "lucide-react";
 
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import {
@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 import { cn } from "@/compartido/utilidades/utils";
+import { FlotaPageHeader } from "../componentes/flota-page-header";
 
 type HistorialFlotaItem = {
   id: number;
@@ -53,12 +54,12 @@ type Props = {
 
 function obtenerEstiloAccion(accion?: string | null) {
   if (accion === "REGISTRO") {
-    return "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300";
+    return "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
   }
   if (accion === "ELIMINACION") {
     return "border-destructive/30 bg-destructive/10 text-destructive";
   }
-  return "border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-700 dark:bg-sky-950/50 dark:text-sky-300";
+  return "border-primary/30 bg-primary/10 text-primary";
 }
 
 function obtenerEstiloCabecera(accion?: string | null) {
@@ -66,9 +67,9 @@ function obtenerEstiloCabecera(accion?: string | null) {
     return "border-l-emerald-500 bg-emerald-50/70 hover:bg-emerald-50 dark:border-l-emerald-400 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50";
   }
   if (accion === "ELIMINACION") {
-    return "border-l-destructive bg-destructive/10 hover:bg-destructive/15 dark:bg-destructive/20 dark:hover:bg-destructive/30";
+    return "border-l-destructive bg-destructive/10 hover:bg-destructive/5";
   }
-  return "border-l-sky-500 bg-sky-50/70 hover:bg-sky-50 dark:border-l-sky-400 dark:bg-sky-950/30 dark:hover:bg-sky-950/50";
+  return "border-l-primary bg-primary/10 hover:bg-primary/5";
 }
 
 function etiquetaAccion(accion?: string | null) {
@@ -76,6 +77,12 @@ function etiquetaAccion(accion?: string | null) {
   if (accion === "MODIFICACION") return "Modificacion";
   if (accion === "ELIMINACION") return "Eliminacion";
   return accion ?? "Movimiento";
+}
+
+function IconoAccion({ accion }: { accion?: string | null }) {
+  if (accion === "REGISTRO") return <CirclePlus data-icon="inline-start" />;
+  if (accion === "ELIMINACION") return <Trash2 data-icon="inline-start" />;
+  return <Pencil data-icon="inline-start" />;
 }
 
 function formatearFecha(fecha?: string | null) {
@@ -159,45 +166,40 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
         ]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-        <div className="flex w-full flex-col gap-6">
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h1 className="text-2xl font-semibold tracking-normal">
-                  Auditoria de {placa ?? id}
-                </h1>
-                <Badge
-                  variant="outline"
-                  className="h-6 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
-                >
-                  VEHICULO
-                </Badge>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Revisa los movimientos y cambios registrados para esta unidad.
-              </p>
-            </div>
+        <div className="flex w-full flex-col gap-5">
+          <FlotaPageHeader
+            title={`Auditoria de ${placa ?? id}`}
+            description="Revisa los movimientos y cambios registrados para esta unidad."
+            meta={
+              <Badge
+                variant="outline"
+                className="h-6 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+              >
+                VEHICULO
+              </Badge>
+            }
+            actions={
+              <>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/flota/unidades">
+                    <ArrowLeft data-icon="inline-start" />
+                    Volver
+                  </Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link href={`/flota/unidades/${encodeURIComponent(id)}`}>
+                    <Eye data-icon="inline-start" />
+                    Ver unidad
+                  </Link>
+                </Button>
+              </>
+            }
+          />
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href="/flota/unidades">
-                  <RotateCcw />
-                  Volver
-                </Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href={`/flota/unidades/${encodeURIComponent(id)}`}>
-                  <Eye />
-                  Ver unidad
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-            <div className="border-b border-border px-5 py-4">
-              <h2 className="text-lg font-semibold">Historial de movimientos</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+          <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
+            <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
+              <h2 className="text-base font-semibold">Historial de movimientos</h2>
+              <p className="text-sm leading-5 text-muted-foreground">
                 Cambios anteriores y nuevos asociados al contrato y cuenta.
               </p>
             </div>
@@ -212,7 +214,7 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
                 </EmptyHeader>
               </Empty>
             ) : (
-              <Accordion type="multiple" className="mx-4 my-4 w-auto space-y-3 border-0">
+              <Accordion type="multiple" className="m-4 flex w-auto flex-col gap-3 border-0">
                 {registrosPaginados.map((item, index) => {
                   const reverseIndex = totalRegistros - (inicio + index);
 
@@ -220,11 +222,11 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
                     <AccordionItem
                       key={item.id}
                       value={String(item.id)}
-                      className="min-w-0 max-w-full overflow-hidden rounded-lg border border-border bg-background shadow-xs"
+                      className="min-w-0 max-w-full overflow-hidden rounded-lg border border-primary/15 bg-background shadow-xs transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md"
                     >
                       <AccordionTrigger
                         className={cn(
-                          "min-w-0 max-w-full overflow-hidden border-l-4 px-4 py-3 text-left no-underline hover:no-underline",
+                          "min-w-0 max-w-full overflow-hidden border-l-4 px-4 py-3 text-left no-underline transition-colors hover:no-underline",
                           obtenerEstiloCabecera(item.accion),
                         )}
                       >
@@ -234,11 +236,12 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
                               <Badge variant="outline">#{reverseIndex}</Badge>
                               <Badge
                                 variant="outline"
-                                className={cn("rounded-full", obtenerEstiloAccion(item.accion))}
+                                className={cn("gap-1.5 rounded-full", obtenerEstiloAccion(item.accion))}
                               >
+                                <IconoAccion accion={item.accion} />
                                 {etiquetaAccion(item.accion)}
                               </Badge>
-                              <span className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                              <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-primary transition-colors hover:border-primary/30 hover:bg-primary/10">
                                 Click para abrir detalle
                               </span>
                             </div>
@@ -246,7 +249,7 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
                               {formatearFecha(item.fechaAccion)}
                             </p>
                           </div>
-                          <div className="min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm md:max-w-xs">
+                          <div className="min-w-0 rounded-md border border-primary/15 bg-background px-3 py-2 text-sm md:max-w-xs transition-colors hover:border-primary/25 hover:bg-primary/5">
                             <span className="text-muted-foreground">Usuario</span>
                             <p className="truncate font-medium">{item.usuarioAccion || "-"}</p>
                           </div>
@@ -254,7 +257,7 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
                       </AccordionTrigger>
                       <AccordionContent className="min-w-0 max-w-full overflow-hidden">
                         <div className="grid min-w-0 max-w-full gap-3 overflow-hidden px-4 pb-4 pt-3">
-                          <div className="grid min-w-0 gap-3 overflow-hidden rounded-md bg-muted/30 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:grid-cols-[minmax(120px,200px)_minmax(0,1fr)_minmax(0,1fr)]">
+                          <div className="grid min-w-0 gap-3 overflow-hidden rounded-md bg-primary/5 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:grid-cols-[minmax(120px,200px)_minmax(0,1fr)_minmax(0,1fr)]">
                             <span>Campo</span>
                             <span>Anterior</span>
                             <span>Nuevo</span>
@@ -366,12 +369,12 @@ function DiffRow({
   return (
     <div
       className={cn(
-        "grid min-w-0 max-w-full gap-3 overflow-hidden rounded-md border border-border p-3 md:grid-cols-[minmax(120px,200px)_minmax(0,1fr)_minmax(0,1fr)] md:items-start",
-        cambio && "border-primary/30 bg-primary/5 dark:bg-primary/10",
+        "grid min-w-0 max-w-full gap-3 overflow-hidden rounded-md border border-primary/15 p-3 transition-colors hover:border-primary/25 hover:bg-primary/5 md:grid-cols-[minmax(120px,200px)_minmax(0,1fr)_minmax(0,1fr)] md:items-start",
+        cambio && "border-primary/30 bg-primary/5",
       )}
     >
       <div className="flex min-h-10 min-w-0 items-center">
-        <span className="break-words text-sm font-medium">{campo}</span>
+        <span className="wrap-break-word text-sm font-medium">{campo}</span>
       </div>
       <ValorDiff tipo="anterior" valor={anterior} cambio={cambio} />
       <ValorDiff tipo="nuevo" valor={nuevo} cambio={cambio} />
@@ -400,7 +403,7 @@ function ValorDiff({
             : "border-border bg-muted/30 text-muted-foreground"),
         tipo === "nuevo" &&
           (cambio
-            ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+            ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
             : "border-border bg-background text-foreground"),
       )}
     >

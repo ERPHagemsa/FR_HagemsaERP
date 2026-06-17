@@ -3,13 +3,17 @@
 import Link from "next/link";
 import * as React from "react";
 import {
-  BarChart3,
   CheckCircle2,
+  CircleDashed,
+  CircleX,
+  Clock,
   Eye,
   Loader2,
   MoreVertical,
   Search,
-  XCircle,
+  TrendingUp,
+  Truck,
+  type LucideIcon,
 } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -93,20 +97,6 @@ const filtrosIniciales: FiltrosFlota = {
   estadoOperativo: "TODOS",
 };
 
-const estadoIconClassName = {
-  success: "text-emerald-500",
-  warning: "text-amber-500",
-  danger: "text-destructive",
-  neutral: "text-muted-foreground",
-} as const;
-
-const variantBadge = {
-  default: "default" as const,
-  secondary: "secondary" as const,
-  destructive: "destructive" as const,
-  outline: "outline" as const,
-};
-
 export function FlotaTabla({ loading, vehiculos }: Props) {
   const [filtrosFormulario, setFiltrosFormulario] =
     React.useState<FiltrosFlota>(filtrosIniciales);
@@ -114,6 +104,15 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
     React.useState<FiltrosFlota>(filtrosIniciales);
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(20);
+
+  const resumenConteo = React.useMemo(() => ({
+    total: vehiculos.length,
+    conContrato: vehiculos.filter((v) => contratoVehiculo(v) !== null).length,
+    sinContrato: vehiculos.filter((v) => contratoVehiculo(v) === null).length,
+    enMantenimiento: vehiculos.filter(
+      (v) => estadoOperativoVehiculo(v) === "MANTENIMIENTO",
+    ).length,
+  }), [vehiculos]);
 
   function coincideEstadoActivo(estado: string | null, filtro: string) {
     if (filtro === "TODOS") return true;
@@ -172,16 +171,20 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Consulta de unidades</h2>
-        <p className="text-sm text-muted-foreground">
-          Filtra, exporta y revisa las unidades disponibles.
-        </p>
-      </div>
+    <section className="flex flex-col gap-4">
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
+        <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-base font-semibold">Consulta de unidades</h2>
+              <p className="text-sm leading-5 text-muted-foreground">
+                Filtra y revisa las unidades disponibles en la flota.
+              </p>
+            </div>
+          </div>
+        </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-3 border-b border-border bg-muted/20 px-4 py-4">
           <form
             className="flex flex-col gap-2 lg:flex-row lg:items-center"
             onSubmit={(event) => {
@@ -255,7 +258,11 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
             </Field>
             <div className="flex gap-2">
               <Button type="submit" size="sm" disabled={loading}>
-                {loading ? <Loader2 className="animate-spin" /> : <Search />}
+                {loading ? (
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                ) : (
+                  <Search data-icon="inline-start" />
+                )}
                 {loading ? "Consultando..." : "Aplicar"}
               </Button>
               <Button type="button" variant="outline" size="sm" onClick={limpiarBusqueda}>
@@ -263,17 +270,6 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
               </Button>
             </div>
           </form>
-
-          {/* <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm">
-              <Download />
-              Excel
-            </Button>
-            <Button variant="outline" size="sm">
-              <Download />
-              PDF
-            </Button>
-          </div> */}
         </div>
 
         {loading ? (
@@ -295,7 +291,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/70 hover:bg-muted/70">
+                <TableRow className="bg-background hover:bg-transparent">
                   <TableHead className="w-10">Acciones</TableHead>
                   <TableHead className="text-right">#</TableHead>
                   <TableHead>Placa</TableHead>
@@ -343,17 +339,10 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                       />
                     </TableCell>
                     <TableCell>
-                      <EstadoBadge
-                        value={estadoActivoVehiculo(vehiculo)}
-                        variant={estadoActivoVariant(estadoActivoVehiculo(vehiculo))}
-                        formatter={formatearEstadoActivo}
-                      />
+                      <EstadoActivoBadge value={estadoActivoVehiculo(vehiculo)} />
                     </TableCell>
                     <TableCell>
-                      <EstadoBadge
-                        value={estadoOperativoVehiculo(vehiculo)}
-                        variant={estadoOperativoVariant(estadoOperativoVehiculo(vehiculo))}
-                      />
+                      <EstadoOperativoBadge value={estadoOperativoVehiculo(vehiculo)} />
                     </TableCell>
                   </TableRow>
                 ))}
@@ -445,19 +434,43 @@ function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
             <Link href={`/flota/unidades/${id}`}>
-              <Eye />
+              <Eye data-icon="inline-start" />
               Ver
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href={`/flota/unidades/${id}/auditoria`}>
-              <BarChart3 />
+              <TrendingUp data-icon="inline-start" />
               Auditar
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function ResumenListado({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="min-w-0 rounded-lg border border-border bg-background p-3">
+      <div className="flex items-center gap-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="text-lg font-semibold tabular-nums">{value}</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -476,59 +489,64 @@ function ReferenciaFlota({
   );
 }
 
+function EstadoActivoBadge({ value }: { value: string | null }) {
+  const activo = value === "ACTIVO";
+
+  return (
+    <Badge
+      variant="outline"
+      className="h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+    >
+      {activo ? (
+        <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
+      ) : (
+        <CircleDashed data-icon="inline-start" className="text-muted-foreground" />
+      )}
+      {activo ? "Activo" : formatearEstadoActivo(value)}
+    </Badge>
+  );
+}
+
+function EstadoOperativoBadge({ value }: { value: string | null }) {
+  if (value === "OPERATIVO") {
+    return (
+      <Badge
+        variant="outline"
+        className="h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+      >
+        <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
+        Operativo
+      </Badge>
+    );
+  }
+
+  if (value === "MANTENIMIENTO") {
+    return (
+      <Badge
+        variant="outline"
+        className="h-6 gap-1.5 rounded-full border-amber-300/70 bg-amber-50 px-2.5 text-[12px] font-medium text-amber-700 shadow-xs dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-400"
+      >
+        <Clock data-icon="inline-start" className="text-amber-500 dark:text-amber-400" />
+        Mantenimiento
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge
+      variant="outline"
+      className="h-6 gap-1.5 rounded-full border-destructive/30 bg-destructive/10 px-2.5 text-[12px] font-medium text-destructive shadow-xs"
+    >
+      <CircleX data-icon="inline-start" />
+      {formatear(value)}
+    </Badge>
+  );
+}
+
 function formatearEstadoActivo(value?: string | null) {
   if (value === "ACTIVO") return "Activo";
   if (value === "INACTIVO" || value === "SINIESTRADO") return "Baja / De baja";
   return formatear(value);
-}
-
-function formatearRegistro(value?: string | null) {
-  if (value === "ACTIVO") return "Activo";
-  if (value === "ANULADO") return "Anulado";
-  return formatear(value);
-}
-
-function EstadoBadge({
-  value,
-  variant = "outline",
-  formatter = formatear,
-}: {
-  value: string | null;
-  variant?: "default" | "secondary" | "destructive" | "outline";
-  formatter?: (v: string | null) => string;
-}) {
-  return (
-    <Badge
-      variant={variant}
-      className="h-6 gap-1.5 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
-    >
-      {formatter(value)}
-    </Badge>
-  );
-}
-
-function EstadoRegistroBadge({ value }: { value: string | null }) {
-  const anulado = value === "ANULADO";
-
-  return (
-    <Badge
-      variant={anulado ? "destructive" : "secondary"}
-      className="h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium shadow-xs"
-    >
-      {formatearRegistro(value)}
-    </Badge>
-  );
-}
-
-function estadoActivoVariant(value: string | null) {
-  if (value === "ACTIVO") return "default" as const;
-  return "secondary" as const;
-}
-
-function estadoOperativoVariant(value: string | null) {
-  if (value === "OPERATIVO") return "default" as const;
-  if (value === "NO_OPERATIVO") return "destructive" as const;
-  return "secondary" as const;
 }
 
 function obtenerClaseFila(vehiculo: VehiculoFlota) {
@@ -537,11 +555,11 @@ function obtenerClaseFila(vehiculo: VehiculoFlota) {
   const registro = estadoRegistroVehiculo(vehiculo);
 
   return cn(
-    "border-border/80",
-    estadoActivo === "BAJA" && "bg-muted/45 hover:bg-muted/65",
+    "border-border/80 hover:bg-transparent",
+    estadoActivo === "BAJA" && "bg-muted/45 hover:bg-muted/45",
     registro === "ANULADO" &&
-      "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/10",
-    estadoOperativo === "MANTENIMIENTO" && "bg-amber-500/5 hover:bg-amber-500/10",
+      "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/5",
+    estadoOperativo === "MANTENIMIENTO" && "bg-amber-500/5 hover:bg-amber-500/5",
   );
 }
 

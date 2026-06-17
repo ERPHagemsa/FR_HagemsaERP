@@ -5,26 +5,22 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  BarChart3,
+  ArrowLeft,
   Check,
   CheckCircle2,
   ChevronDown,
   Loader2,
   Search,
-  Truck,
-  Undo2,
+  TrendingUp,
   X,
   XCircle,
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
-import {
-  Avatar,
-  AvatarFallback,
-} from "@/compartido/componentes/ui/avatar";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { cn } from "@/compartido/utilidades/utils";
+import { FlotaPageHeader } from "./flota-page-header";
 import { asignarContrato, retirarContrato } from "../servicios/flota-api";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
 import type { ContratoDisponibleFlota } from "../tipos/flota.tipos";
@@ -46,9 +42,11 @@ function DatoVer({
   value?: string | number | null;
 }) {
   return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 break-words">{value || "-"}</dd>
+    <div className="min-w-0 bg-card p-4">
+      <dt className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="mt-1.5 wrap-break-word font-medium">{value || "-"}</dd>
     </div>
   );
 }
@@ -58,13 +56,13 @@ function EstadoUnidadBadge({ estado }: { estado?: string | null }) {
 
   return (
     <Badge
-      variant={operativo ? "outline" : "destructive"}
-      className="h-6 gap-1.5 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+      variant="outline"
+      className="h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
     >
       {operativo ? (
-        <CheckCircle2 className="text-emerald-500" />
+        <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
       ) : (
-        <XCircle className="text-destructive" />
+        <XCircle data-icon="inline-start" className="text-destructive" />
       )}
       {estado || "SIN ESTADO"}
     </Badge>
@@ -256,7 +254,7 @@ export default function DetalleVehiculoClient({
   const [contratoSeleccionado, setContratoSeleccionado] =
     useState<ContratoDisponibleFlota | null>(itemInicial);
 
-  async function onSave(event: React.FormEvent) {
+  async function onSave(event: React.SyntheticEvent) {
     event.preventDefault();
     if (!vehiculo || !contratoSeleccionado) return;
 
@@ -349,69 +347,63 @@ export default function DetalleVehiculoClient({
         </Alert>
       ) : null}
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-4">
-          <Avatar size="lg" className="rounded-lg after:rounded-lg">
-            <AvatarFallback className="rounded-lg bg-primary/10 text-primary">
-              <Truck className="size-5" />
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h1 className="break-words text-2xl font-semibold tracking-normal">
-                {vehiculo.placa ?? vehiculo.placaRodaje ?? unidadId}
-              </h1>
-              <EstadoUnidadBadge estado={vehiculo.estadoOperativo} />
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {vehiculo.marca || "Sin marca"} - {vehiculo.modelo || "Sin modelo"}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <Undo2 />
-            Volver
-          </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/flota/unidades/${encodeURIComponent(unidadId)}/auditoria`}>
-              <BarChart3 />
-              Auditar
-            </Link>
-          </Button>
-          {tieneContrato ? (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => void onRetire()}
-              disabled={loading}
-            >
-              {loading ? <Loader2 className="animate-spin" /> : <XCircle />}
-              Retirar contrato
+      <FlotaPageHeader
+        title={vehiculo.placa ?? vehiculo.placaRodaje ?? unidadId}
+        description={`${vehiculo.marca || "Sin marca"} · ${vehiculo.modelo || "Sin modelo"}`}
+        meta={<EstadoUnidadBadge estado={vehiculo.estadoOperativo} />}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => router.back()}>
+              <ArrowLeft data-icon="inline-start" />
+              Volver
             </Button>
-          ) : null}
-          <Button
-            type="submit"
-            form="contrato-form"
-            size="sm"
-            disabled={loading || !contratoSeleccionado}
-          >
-            {loading ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-            Asignar contrato
-          </Button>
-        </div>
-      </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/flota/unidades/${encodeURIComponent(unidadId)}/auditoria`}>
+                <TrendingUp data-icon="inline-start" />
+                Auditar
+              </Link>
+            </Button>
+            {tieneContrato ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => void onRetire()}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                ) : (
+                  <XCircle data-icon="inline-start" />
+                )}
+                Retirar contrato
+              </Button>
+            ) : null}
+            <Button
+              type="submit"
+              form="contrato-form"
+              size="sm"
+              disabled={loading || !contratoSeleccionado}
+            >
+              {loading ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <CheckCircle2 data-icon="inline-start" />
+              )}
+              Asignar contrato
+            </Button>
+          </>
+        }
+      />
 
-      <dl className="grid grid-cols-1 gap-x-8 gap-y-4 rounded-lg border border-border bg-card p-5 text-sm sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border text-sm sm:grid-cols-2 lg:grid-cols-4">
         <DatoVer label="Placa" value={vehiculo.placa || vehiculo.placaRodaje || "-"} />
         <DatoVer label="Codigo" value={vehiculo.codigo} />
         <DatoVer label="Tipo activo" value={vehiculo.tipoActivo} />
         <DatoVer label="Estado registro" value={vehiculo.estadoRegistro ?? vehiculo.estadoActivo} />
         <DatoVer label="Marca" value={vehiculo.marca ?? vehiculo.vehiculo?.marca} />
         <DatoVer label="Modelo" value={vehiculo.modelo ?? vehiculo.vehiculo?.modelo} />
-        <DatoVer label="Año Fab." value={vehiculo.anioFabricacion} />
+        <DatoVer label="Ano Fab." value={vehiculo.anioFabricacion} />
         <DatoVer label="Color" value={vehiculo.color} />
         <DatoVer label="Serie Chasis" value={vehiculo.serieChasis} />
         <DatoVer label="Serie Motor" value={vehiculo.serieMotor} />
@@ -419,16 +411,16 @@ export default function DetalleVehiculoClient({
         <DatoVer label="Ubicacion" value={vehiculo.ubicacion} />
       </dl>
 
-      <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-        <div className="border-b border-border px-5 py-4">
-          <h2 className="text-lg font-semibold">Asignacion contractual</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+      <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
+        <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
+          <h2 className="text-base font-semibold">Asignacion contractual</h2>
+          <p className="text-sm leading-5 text-muted-foreground">
             Modifica el contrato asociado y revisa la cuenta vinculada.
           </p>
         </div>
 
         <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
-          <dl className="grid grid-cols-1 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border text-sm sm:grid-cols-2">
             <DatoVer
               label="Contrato actual"
               value={
