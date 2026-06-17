@@ -59,14 +59,15 @@ export interface ErrorCampo {
 // helpers de formato-error.ts.
 // La clase ApiError (axios.ts) lo guarda intacto y los helpers lo consumen.
 export interface RespuestaError {
-  readonly tipo: string
-  readonly titulo: string
   readonly estado: number
   readonly codigo: string
+  readonly titulo: string
   readonly detalle: string
-  readonly instancia: string
   readonly fecha: string
   readonly trazaId: string
-  readonly servicio: string
   readonly errores: ReadonlyArray<ErrorCampo> | null
+  // Campos opcionales — no todos los servicios los envían
+  readonly tipo?: string
+  readonly instancia?: string
+  readonly servicio?: string
 }

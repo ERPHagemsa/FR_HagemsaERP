@@ -380,6 +380,34 @@ export type SnapshotHistoricoActivoInventario = {
   fechaRevision: string | null;
 };
 
+export type PerfilFlotaTanque = {
+  tipoTanque: TipoTanqueActivo;
+  capacidad: number;
+  unidadMedida: UnidadMedidaTanque;
+};
+
+export type PerfilFlota = {
+  placa: string | null;
+  clase: PlantillaInventario | null;
+  modelo: string | null;
+  carroceria: string | null;
+  estadoOperativo: EstadoOperativo;
+  ejes: number | null;
+  categoria: string | null;
+  combustible: PerfilFlotaTanque[];
+};
+
+export type PerfilCombustible = {
+  id: number;
+  codigo: string;
+  placa: string | null;
+  capacidadTanqueGalones: number | null;
+  tanques: PerfilFlotaTanque[];
+  estadoCalibracion: EstadoCalibracion;
+  factorCorreccion: number | null;
+  estadoActivo: EstadoActivo;
+};
+
 export type InventarioFisico = {
   id: number;
   codigo: string;
