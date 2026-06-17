@@ -39,7 +39,7 @@ export const URLS_SERVIDOR = {
   comercial:
     process.env.COMERCIAL_API_URL ??
     API_GATEWAY_URL ??
-    "http://localhost:3002/api/v1",
+    "http://localhost:3002/api",
 
   // BC-04 Flota. Lo consumen las server actions de flota (flota-api.ts).
   flota:
