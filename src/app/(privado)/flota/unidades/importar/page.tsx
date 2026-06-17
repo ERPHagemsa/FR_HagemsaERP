@@ -272,13 +272,13 @@ export default function ImportarUnidadesPage() {
                           <TableCell>
                             <Badge
                               variant={
-                                activo.estadoOperativo === "OPERATIVO"
+                                activo.vehiculo?.estadoOperativo === "OPERATIVO"
                                   ? "default"
                                   : "secondary"
                               }
                               className="text-xs"
                             >
-                              {activo.estadoOperativo ?? "—"}
+                              {activo.vehiculo?.estadoOperativo ?? "—"}
                             </Badge>
                           </TableCell>
                         </TableRow>
