@@ -112,7 +112,11 @@ export function crearProxyBackend(opciones: OpcionesProxy) {
       )
     }
 
-    const texto = await respuesta.text()
+    // Leemos el cuerpo como bytes crudos. NO usar respuesta.text(): decodificar a
+    // UTF-8 corrompe binarios (PDF, xlsx, imagenes) y el cliente recibe basura
+    // (sintoma clasico: PDF en blanco). Reenviamos los bytes tal cual; el texto se
+    // decodifica solo cuando hace falta inspeccionar el cuerpo (errores / logging).
+    const cuerpo = await respuesta.arrayBuffer()
     const tipo = respuesta.headers.get("content-type") ?? ""
 
     // Diagnostico: si el backend respondio con error, dejamos rastro server-side
@@ -121,14 +125,14 @@ export function crearProxyBackend(opciones: OpcionesProxy) {
     if (respuesta.status >= 400) {
       const detalle =
         process.env.NODE_ENV !== "production"
-          ? ` body: ${texto.slice(0, 300)}`
+          ? ` body: ${new TextDecoder().decode(cuerpo).slice(0, 300)}`
           : ""
       console.warn(
         `[bff:${opciones.nombre}] ${request.method} ${urlDestino} -> ${respuesta.status} (${tipo || "sin content-type"})${detalle}`,
       )
     }
 
-    if (respuesta.status === 204 || texto.length === 0) {
+    if (respuesta.status === 204 || cuerpo.byteLength === 0) {
       return new NextResponse(null, { status: respuesta.status })
     }
 
@@ -147,7 +151,7 @@ export function crearProxyBackend(opciones: OpcionesProxy) {
       )
     }
 
-    return new NextResponse(texto, {
+    return new NextResponse(cuerpo, {
       status: respuesta.status,
       headers: { "Content-Type": tipo || "application/json" },
     })
