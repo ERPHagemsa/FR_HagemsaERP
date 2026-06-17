@@ -36,6 +36,8 @@ type Props = {
 export function InventariosFisicosListado({ inventariosIniciales }: Props) {
   const router = useRouter();
   const [inventarios, setInventarios] = React.useState(inventariosIniciales);
+  const [pagina, setPagina] = React.useState(1);
+  const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
   const [error, setError] = React.useState<string | null>(null);
   const [creando, setCreando] = React.useState(false);
   const [mostrarApertura, setMostrarApertura] = React.useState(false);
@@ -45,6 +47,19 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
     descripcion: "",
     observacion: "",
   });
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(inventarios.length / registrosPorPagina)
+  );
+  const inicioPagina = (pagina - 1) * registrosPorPagina;
+  const finPagina = inicioPagina + registrosPorPagina;
+  const inventariosVisibles = inventarios.slice(inicioPagina, finPagina);
+  const desdeVisible = inventarios.length ? inicioPagina + 1 : 0;
+  const hastaVisible = Math.min(finPagina, inventarios.length);
+
+  React.useEffect(() => {
+    setPagina((actual) => Math.min(Math.max(actual, 1), totalPaginas));
+  }, [totalPaginas]);
 
   function mostrarError(mensaje: string) {
     setError(mensaje);
@@ -171,7 +186,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {inventarios.map((inventario) => {
+                {inventariosVisibles.map((inventario) => {
                   const inventariados = inventario.detalles.filter(
                     (detalle) => detalle.estadoRevision !== "PENDIENTE"
                   ).length;
@@ -240,6 +255,56 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
               </TableBody>
             </Table>
           </div>
+          {inventarios.length ? (
+            <div className="flex flex-col gap-3 border-t border-border pt-3 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+              <div>
+                Mostrando {desdeVisible}-{hastaVisible} de{" "}
+                {inventarios.length} inventarios
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2">
+                  <span>Filas</span>
+                  <select
+                    className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                    value={registrosPorPagina}
+                    onChange={(event) => {
+                      setRegistrosPorPagina(Number(event.target.value));
+                      setPagina(1);
+                    }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pagina === 1}
+                  onClick={() =>
+                    setPagina((actual) => Math.max(1, actual - 1))
+                  }
+                >
+                  Anterior
+                </Button>
+                <span className="min-w-20 text-center">
+                  {pagina} / {totalPaginas}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pagina === totalPaginas}
+                  onClick={() =>
+                    setPagina((actual) => Math.min(totalPaginas, actual + 1))
+                  }
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
       {mostrarApertura ? (

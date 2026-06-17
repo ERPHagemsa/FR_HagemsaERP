@@ -76,6 +76,9 @@ type Props = {
   imagenes?: ImagenActivo[];
   returnTo?: string;
   tanques?: TanqueActivo[];
+  tituloPagina?: string;
+  subtituloPagina?: string;
+  accionesExtra?: React.ReactNode;
 };
 
 type RegistroResumenData = Record<string, Array<[string, unknown]>>;
@@ -120,6 +123,9 @@ export function ActivoFormulario({
   imagenes = [],
   returnTo,
   tanques = [],
+  tituloPagina,
+  subtituloPagina,
+  accionesExtra,
 }: Props) {
   const router = useRouter();
   const [returnToGuardado, setReturnToGuardado] = React.useState<string | null>(
@@ -165,12 +171,15 @@ export function ActivoFormulario({
   const [selectedImageFileName, setSelectedImageFileName] =
     React.useState<string>("");
   const [localImageUrl, setLocalImageUrl] = React.useState<string>("");
+  const [selectedDocFileName, setSelectedDocFileName] = React.useState<string>("");
+  const [localDocUrl, setLocalDocUrl] = React.useState<string>("");
   const crearActivoMutation = useCrearActivoMutation();
   const actualizarActivoMutation = useActualizarActivoMutation();
   const documentoDraftRef = React.useRef<HTMLDivElement>(null);
   const tanqueDraftRef = React.useRef<HTMLDivElement>(null);
   const imagenDraftRef = React.useRef<HTMLDivElement>(null);
   const imageFileInputRef = React.useRef<HTMLInputElement>(null);
+  const docFileInputRef = React.useRef<HTMLInputElement>(null);
   const formularioRef = React.useRef<HTMLDivElement>(null);
   const isEdit = modo === "editar";
   const returnToEfectivo = returnTo ?? returnToGuardado ?? undefined;
@@ -654,7 +663,7 @@ export function ActivoFormulario({
     const observacion = getValue("observacionDocumento");
     const numeroDocumento = getValue("numeroDocumento");
     const fechaEmision = getValue("fechaEmision");
-    const archivoUrl = "pendiente-storage";
+    const archivoUrl = localDocUrl || getValue("archivoUrlManual") || undefined;
 
     if (!numeroDocumento || !fechaEmision) {
       setActiveTab("documentos");
@@ -674,6 +683,10 @@ export function ActivoFormulario({
         observacion: observacion || undefined,
       },
     ]);
+
+    setSelectedDocFileName("");
+    setLocalDocUrl("");
+    if (docFileInputRef.current) docFileInputRef.current.value = "";
 
     toast.success("Documento agregado", {
       description: "Se guardara junto al activo.",
@@ -754,6 +767,37 @@ export function ActivoFormulario({
       toast.error("No se pudo leer la imagen seleccionada.");
       setSelectedImageFileName("");
       setLocalImageUrl("");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function onDocFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      setSelectedDocFileName("");
+      setLocalDocUrl("");
+      return;
+    }
+
+    const LIMITE_MB = 10;
+    if (file.size > LIMITE_MB * 1024 * 1024) {
+      toast.error(`El archivo supera los ${LIMITE_MB} MB permitidos.`);
+      event.target.value = "";
+      setSelectedDocFileName("");
+      setLocalDocUrl("");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedDocFileName(file.name);
+      setLocalDocUrl(String(reader.result));
+    };
+    reader.onerror = () => {
+      toast.error("No se pudo leer el archivo seleccionado.");
+      setSelectedDocFileName("");
+      setLocalDocUrl("");
     };
     reader.readAsDataURL(file);
   }
@@ -917,17 +961,20 @@ export function ActivoFormulario({
   return (
     <div
       ref={formularioRef}
-      className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]"
+      className="flex flex-col gap-5"
       onChange={actualizarResumen}
       onInput={actualizarResumen}
     >
-      <div className="min-w-0">
-      <Card>
-        <CardHeader className="flex flex-col gap-3 border-b border-border md:flex-row md:items-center md:justify-between">
-          <CardTitle>
-            {isEdit ? "Modificar activo" : "Registrar activo"}
-          </CardTitle>
+      {tituloPagina ? (
+        <section className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-normal">{tituloPagina}</h1>
+            {subtituloPagina ? (
+              <p className="mt-1 text-sm text-muted-foreground">{subtituloPagina}</p>
+            ) : null}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
+            {accionesExtra}
             <Button
               type="button"
               variant="outline"
@@ -936,13 +983,19 @@ export function ActivoFormulario({
               Cancelar
             </Button>
             <Button type="button" disabled={isSaving} onClick={onSubmit}>
-              {isSaving
-                ? "Guardando..."
-                : isEdit
-                  ? "Actualizar"
-                  : "Agregar"}
+              {isSaving ? "Guardando..." : isEdit ? "Actualizar" : "Agregar"}
             </Button>
           </div>
+        </section>
+      ) : null}
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0">
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle>
+            {isEdit ? "Modificar activo" : "Registrar activo"}
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-5">
           {isEdit ? (
@@ -1488,6 +1541,51 @@ export function ActivoFormulario({
                         label="Observacion"
                         placeholder="Comentario funcional si aplica"
                       />
+
+                      <div className="grid gap-3">
+                        <Label>Archivo del documento</Label>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <input
+                            ref={docFileInputRef}
+                            type="file"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                            className="sr-only"
+                            onChange={onDocFileChange}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => docFileInputRef.current?.click()}
+                          >
+                            {selectedDocFileName ? "Cambiar archivo" : "Seleccionar archivo"}
+                          </Button>
+                          {selectedDocFileName ? (
+                            <span className="truncate text-sm text-muted-foreground">
+                              {selectedDocFileName}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              PDF, Word, Excel o imagen — max 10 MB
+                            </span>
+                          )}
+                        </div>
+                        {!selectedDocFileName && (
+                          <div className="flex items-center gap-2">
+                            <div className="h-px flex-1 bg-border" />
+                            <span className="text-xs text-muted-foreground">o pega una URL</span>
+                            <div className="h-px flex-1 bg-border" />
+                          </div>
+                        )}
+                        {!selectedDocFileName && (
+                          <Input
+                            name="archivoUrlManual"
+                            placeholder="https://drive.google.com/..."
+                            className="h-9"
+                          />
+                        )}
+                      </div>
+
                       <div className="flex justify-end">
                         <Button type="button" variant="outline" onClick={agregarDocumento}>
                           Agregar documento
@@ -1524,6 +1622,7 @@ export function ActivoFormulario({
         resumen={resumen}
         tabsDisponibles={tabsDisponibles}
       />
+      </div>
     </div>
   );
 }
