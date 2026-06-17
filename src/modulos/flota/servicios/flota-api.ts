@@ -153,6 +153,7 @@ export type ActivoDisponible = {
   descripcion?: string | null;
   tipoActivo?: string | null;
   estadoActivo?: string | null;
+  estadoOperativo?: string | null;
   placa?: string | null;
   marca?: string | null;
   modelo?: string | null;

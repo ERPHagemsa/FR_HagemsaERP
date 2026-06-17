@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
-import { Download, Loader2, Search, Truck } from "lucide-react";
+import { CheckCircle2, CircleX, Clock, Download, Loader2, Search, Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -238,6 +238,7 @@ export default function ImportarUnidadesPage() {
                       const placa = resolverPlaca(activo);
                       const marca = resolverMarca(activo);
                       const modelo = resolverModelo(activo);
+                      const estadoOperativo = activo.vehiculo?.estadoOperativo ?? activo.estadoOperativo;
                       const isChecked = seleccionados.has(activo.id);
 
                       return (
@@ -270,16 +271,7 @@ export default function ImportarUnidadesPage() {
                             {activo.descripcion ?? activo.codigo ?? "—"}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant={
-                                activo.vehiculo?.estadoOperativo === "OPERATIVO"
-                                  ? "default"
-                                  : "secondary"
-                              }
-                              className="text-xs"
-                            >
-                              {activo.vehiculo?.estadoOperativo ?? "—"}
-                            </Badge>
+                            <EstadoOperativoBadge value={estadoOperativo ?? null} />
                           </TableCell>
                         </TableRow>
                       );
@@ -292,5 +284,39 @@ export default function ImportarUnidadesPage() {
         </div>
       </main>
     </>
+  );
+}
+
+function EstadoOperativoBadge({ value }: { value: string | null }) {
+  if (value === "OPERATIVO") {
+    return (
+      <Badge
+        variant="outline"
+        className="h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+      >
+        <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
+        Operativo
+      </Badge>
+    );
+  }
+  if (value === "MANTENIMIENTO") {
+    return (
+      <Badge
+        variant="outline"
+        className="h-6 gap-1.5 rounded-full border-amber-300/70 bg-amber-50 px-2.5 text-[12px] font-medium text-amber-700 shadow-xs dark:border-amber-800/70 dark:bg-amber-950/40 dark:text-amber-400"
+      >
+        <Clock data-icon="inline-start" className="text-amber-500 dark:text-amber-400" />
+        Mantenimiento
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="h-6 gap-1.5 rounded-full border-destructive/30 bg-destructive/10 px-2.5 text-[12px] font-medium text-destructive shadow-xs"
+    >
+      <CircleX data-icon="inline-start" />
+      {value ?? "—"}
+    </Badge>
   );
 }
