@@ -6,7 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui
 import { Button } from "@/compartido/componentes/ui/button";
 
 import { ActivosTabla } from "../componentes/activos-tabla";
-import { obtenerActivos } from "../servicios/activos-api";
+import { obtenerActivos } from "../servicios/activos-api-servidor";
 
 export async function ActivosInventarioVista() {
   const resultado = await obtenerActivos({ estadoRegistro: "TODOS" })

@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 
-import { obtenerActivos } from "../servicios/activos-api";
+import { obtenerActivos } from "../servicios/activos-api-servidor";
 import type { Activo } from "../tipos/activo.tipos";
 
 export async function ActivoNuevoAcopleVista() {
