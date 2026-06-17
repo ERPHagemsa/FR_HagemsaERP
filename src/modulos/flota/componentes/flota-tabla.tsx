@@ -4,7 +4,6 @@ import Link from "next/link";
 import * as React from "react";
 import {
   CheckCircle2,
-  CircleDashed,
   CircleX,
   Clock,
   Eye,
@@ -93,7 +92,7 @@ type FiltrosFlota = {
 const filtrosIniciales: FiltrosFlota = {
   busqueda: "",
   estadoActivo: "TODOS",
-  estadoRegistro: "TODOS",
+  estadoRegistro: "ACTIVO",
   estadoOperativo: "TODOS",
 };
 
@@ -339,7 +338,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                       />
                     </TableCell>
                     <TableCell>
-                      <EstadoActivoBadge value={estadoActivoVehiculo(vehiculo)} />
+                      <EstadoRegistroBadge value={estadoRegistroVehiculo(vehiculo)} />
                     </TableCell>
                     <TableCell>
                       <EstadoOperativoBadge value={estadoOperativoVehiculo(vehiculo)} />
@@ -489,20 +488,25 @@ function ReferenciaFlota({
   );
 }
 
-function EstadoActivoBadge({ value }: { value: string | null }) {
+function EstadoRegistroBadge({ value }: { value: string | null }) {
   const activo = value === "ACTIVO";
 
   return (
     <Badge
       variant="outline"
-      className="h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+      className={cn(
+        "h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium shadow-xs",
+        activo
+          ? "border-border/70 bg-card text-foreground"
+          : "border-destructive/30 bg-destructive/10 text-destructive",
+      )}
     >
       {activo ? (
         <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
       ) : (
-        <CircleDashed data-icon="inline-start" className="text-muted-foreground" />
+        <CircleX data-icon="inline-start" />
       )}
-      {activo ? "Activo" : formatearEstadoActivo(value)}
+      {activo ? "Activo" : "Anulado"}
     </Badge>
   );
 }
@@ -543,11 +547,6 @@ function EstadoOperativoBadge({ value }: { value: string | null }) {
   );
 }
 
-function formatearEstadoActivo(value?: string | null) {
-  if (value === "ACTIVO") return "Activo";
-  if (value === "INACTIVO" || value === "SINIESTRADO") return "Baja / De baja";
-  return formatear(value);
-}
 
 function obtenerClaseFila(vehiculo: VehiculoFlota) {
   const estadoActivo = estadoActivoVehiculo(vehiculo);
