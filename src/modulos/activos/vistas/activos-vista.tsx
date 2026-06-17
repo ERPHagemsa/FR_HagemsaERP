@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -9,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { extraerMensajeError } from "@/compartido/api";
+import { useConsulta } from "@/compartido/api/use-consulta";
 import {
   Alert,
   AlertDescription,
@@ -33,8 +36,9 @@ import {
 } from "@/compartido/componentes/ui/table";
 
 import { ActivosResumen } from "../componentes/activos-resumen";
-import { obtenerActivos } from "../servicios/activos-api-servidor";
+import { obtenerActivos } from "../servicios/activos-api";
 import type { Activo, EstadoOperativo, TipoActivo } from "../tipos/activo.tipos";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 const DIAS_ALTAS_RECIENTES = 8;
 
@@ -52,15 +56,14 @@ const ESTADOS_OPERATIVOS: EstadoOperativo[] = [
   "NO_OPERATIVO",
 ];
 
-export async function ActivosVista() {
-  const resultado = await obtenerActivos()
-    .then((activos) => ({ activos, error: null }))
-    .catch((error: unknown) => ({
-      activos: [],
-      error: extraerMensajeError(error, "No se pudo cargar activos"),
-    }));
+export function ActivosVista() {
+  const { data, isLoading, isError, error } = useConsulta(
+    () => obtenerActivos(),
+    [],
+  );
 
-  const activosVisibles = resultado.activos.filter(
+  const activos = data ?? [];
+  const activosVisibles = activos.filter(
     (activo) => activo.estadoRegistro !== false,
   );
   const ultimosActivos = [...activosVisibles]
@@ -96,14 +99,24 @@ export async function ActivosVista() {
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
       <div className="flex w-full flex-col gap-5">
-        {resultado.error ? (
+        {isError ? (
           <Alert variant="destructive">
             <AlertTitle>No se pudo cargar activos</AlertTitle>
-            <AlertDescription>{resultado.error}</AlertDescription>
+            <AlertDescription>
+              {extraerMensajeError(error, "No se pudo cargar activos")}
+            </AlertDescription>
           </Alert>
         ) : null}
 
-        <ActivosResumen activos={resultado.activos} />
+        {isLoading ? (
+          <div className="flex flex-col gap-5">
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-72 w-full" />
+            <Skeleton className="h-96 w-full" />
+          </div>
+        ) : (
+          <>
+        <ActivosResumen activos={activos} />
 
         <section className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
           <Card>
@@ -321,6 +334,8 @@ export async function ActivosVista() {
             </Card>
           </div>
         </section>
+          </>
+        )}
       </div>
     </main>
   );

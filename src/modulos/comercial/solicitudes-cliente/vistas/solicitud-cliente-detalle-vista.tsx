@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Mail, Phone, User } from "lucide-react";
 
 import { esError404, extraerMensajeError } from "@/compartido/api";
+import { useConsulta } from "@/compartido/api/use-consulta";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -32,15 +36,21 @@ type Props = {
   id: string;
 };
 
-export async function SolicitudClienteDetalleVista({ id }: Props) {
-  let sc;
-  try {
-    sc = await consultarSolicitudCliente(id);
-  } catch (err) {
-    if (esError404(err)) {
+export function SolicitudClienteDetalleVista({ id }: Props) {
+  const { data: sc, isLoading, isError, error } = useConsulta(
+    () => consultarSolicitudCliente(id),
+    [id],
+  );
+
+  if (isLoading) {
+    return <Skeleton className="h-96 w-full" />;
+  }
+
+  if (isError || !sc) {
+    if (esError404(error)) {
       notFound();
     }
-    const mensaje = extraerMensajeError(err, "No se pudo cargar la solicitud de cliente");
+    const mensaje = extraerMensajeError(error, "No se pudo cargar la solicitud de cliente");
     return (
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">

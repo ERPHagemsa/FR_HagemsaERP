@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, GitBranch, CalendarClock, CalendarX } from "lucide-react";
 
+import { useConsulta } from "@/compartido/api/use-consulta";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { Button } from "@/compartido/componentes/ui/button";
 
 import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
@@ -16,8 +20,15 @@ type Props = {
 
 // Layout denso estilo Odoo: statusbar + pipeline + smart buttons + grupos
 // inline + notebook de versiones (una sola version visible a la vez).
-export async function CotizacionDetalleVista({ id }: Props) {
-  const cotizacion = await consultarCotizacion(id).catch(() => null);
+export function CotizacionDetalleVista({ id }: Props) {
+  const { data: cotizacion, isLoading } = useConsulta(
+    () => consultarCotizacion(id).catch(() => null),
+    [id],
+  );
+
+  if (isLoading) {
+    return <Skeleton className="h-96 w-full" />;
+  }
 
   if (!cotizacion) {
     notFound();

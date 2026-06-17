@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { useConsulta } from "@/compartido/api/use-consulta";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -9,28 +12,40 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { HistorialActivo } from "../componentes/historial-activo";
 import {
   obtenerActivoPorCodigo,
   obtenerConfiguracionHistoricaPorCodigo,
   obtenerHistorialPorCodigo,
-} from "../servicios/activos-api-servidor";
+} from "../servicios/activos-api";
 
 type Props = {
   codigo: string;
 };
 
-export async function ActivoHistorialVista({ codigo }: Props) {
-  const activo = await obtenerActivoPorCodigo(codigo).catch(() => null);
+export function ActivoHistorialVista({ codigo }: Props) {
+  const { data, isLoading } = useConsulta(async () => {
+    const [activo, historial, configuracion] = await Promise.all([
+      obtenerActivoPorCodigo(codigo).catch(() => null),
+      obtenerHistorialPorCodigo(codigo).catch(() => []),
+      obtenerConfiguracionHistoricaPorCodigo(codigo).catch(() => []),
+    ]);
+    return { activo, historial, configuracion };
+  }, [codigo]);
+
+  if (isLoading) {
+    return <Skeleton className="h-64 w-full" />;
+  }
+
+  const activo = data?.activo ?? null;
+  const historial = data?.historial ?? [];
+  const configuracionHistorica = data?.configuracion ?? [];
+  const ultimaConfiguracionHistorica = configuracionHistorica[0];
 
   if (!activo) {
     notFound();
   }
-
-  const historial = await obtenerHistorialPorCodigo(codigo).catch(() => []);
-  const configuracionHistorica =
-    await obtenerConfiguracionHistoricaPorCodigo(codigo).catch(() => []);
-  const ultimaConfiguracionHistorica = configuracionHistorica[0];
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">

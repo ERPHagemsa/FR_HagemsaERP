@@ -1,4 +1,9 @@
+"use client";
+
 import { notFound, redirect } from "next/navigation";
+
+import { useConsulta } from "@/compartido/api/use-consulta";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { ProspectoFormulario } from "../componentes/prospecto-formulario";
 import { consultarProspecto } from "../servicios/prospectos-api";
@@ -7,8 +12,15 @@ type Props = {
   id: string;
 };
 
-export async function ProspectoEditarVista({ id }: Props) {
-  const prospecto = await consultarProspecto(id).catch(() => null);
+export function ProspectoEditarVista({ id }: Props) {
+  const { data: prospecto, isLoading } = useConsulta(
+    () => consultarProspecto(id).catch(() => null),
+    [id],
+  );
+
+  if (isLoading) {
+    return <Skeleton className="h-96 w-full" />;
+  }
 
   if (!prospecto) {
     notFound();

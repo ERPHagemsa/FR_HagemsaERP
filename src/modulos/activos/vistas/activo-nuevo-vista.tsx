@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { FileText, GitCompareArrows } from "lucide-react";
 
+import { useConsulta } from "@/compartido/api/use-consulta";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -9,20 +12,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { ActivoFormulario } from "../componentes/activo-formulario";
 import {
   obtenerActivoPorId,
   obtenerDocumentosPorActivoId,
-} from "../servicios/activos-api-servidor";
+} from "../servicios/activos-api";
 import type { Activo, DocumentoActivo } from "../tipos/activo.tipos";
 
 type Props = {
   origenId?: string;
 };
 
-export async function ActivoNuevoVista({ origenId }: Props) {
-  const { activo: activoOrigen, documentos: documentosOrigen } =
-    await obtenerActivoOrigen(origenId);
+export function ActivoNuevoVista({ origenId }: Props) {
+  const { data, isLoading } = useConsulta(
+    () => obtenerActivoOrigen(origenId),
+    [origenId],
+    { enabled: Boolean(origenId) },
+  );
+
+  const activoOrigen = data?.activo ?? null;
+  const documentosOrigen = data?.documentos ?? [];
   const esAcople = Boolean(origenId);
   const activoBaseAcople = activoOrigen
     ? crearActivoBaseAcople(activoOrigen)
@@ -49,7 +59,9 @@ export async function ActivoNuevoVista({ origenId }: Props) {
         />
 
         {origenId ? (
-          activoOrigen ? (
+          isLoading ? (
+            <Skeleton className="h-64 w-full rounded-xl" />
+          ) : activoOrigen ? (
             <ActivoOrigenCard
               activo={activoOrigen}
               documentos={documentosOrigen}

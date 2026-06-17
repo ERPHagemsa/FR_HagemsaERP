@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type React from "react";
 
+import { useConsulta } from "@/compartido/api/use-consulta";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -9,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import {
   Tabs,
   TabsContent,
@@ -28,8 +32,21 @@ type Props = {
   accion?: string;
 };
 
-export async function ProspectoDetalleVista({ id, accion }: Props) {
-  const prospecto = await consultarProspecto(id).catch(() => null);
+export function ProspectoDetalleVista({ id, accion }: Props) {
+  const { data: prospecto, isLoading } = useConsulta(
+    () => consultarProspecto(id).catch(() => null),
+    [id],
+  );
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </main>
+    );
+  }
 
   if (!prospecto) {
     notFound();

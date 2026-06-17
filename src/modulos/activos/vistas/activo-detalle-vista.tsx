@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type React from "react";
 
+import { useConsulta } from "@/compartido/api/use-consulta";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -23,6 +26,7 @@ import { DocumentosActivo } from "../componentes/documentos-activo";
 import { HistorialActivo } from "../componentes/historial-activo";
 import { ImagenesActivo } from "../componentes/imagenes-activo";
 import { TanquesActivo } from "../componentes/tanques-activo";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import {
   obtenerActivoPorCodigo,
   obtenerConfiguracionHistoricaPorCodigo,
@@ -30,26 +34,46 @@ import {
   obtenerHistorialPorCodigo,
   obtenerImagenesPorCodigo,
   obtenerTanquesPorCodigo,
-} from "../servicios/activos-api-servidor";
+} from "../servicios/activos-api";
 
 type Props = {
   codigo: string;
   accion?: string;
 };
 
-export async function ActivoDetalleVista({ codigo, accion }: Props) {
-  const activo = await obtenerActivoPorCodigo(codigo).catch(() => null);
+export function ActivoDetalleVista({ codigo, accion }: Props) {
+  const { data, isLoading } = useConsulta(async () => {
+    const [activo, imagenes, documentos, tanques, historial, configuracion] =
+      await Promise.all([
+        obtenerActivoPorCodigo(codigo).catch(() => null),
+        obtenerImagenesPorCodigo(codigo).catch(() => []),
+        obtenerDocumentosPorCodigo(codigo).catch(() => []),
+        obtenerTanquesPorCodigo(codigo).catch(() => []),
+        obtenerHistorialPorCodigo(codigo).catch(() => []),
+        obtenerConfiguracionHistoricaPorCodigo(codigo).catch(() => []),
+      ]);
+    return { activo, imagenes, documentos, tanques, historial, configuracion };
+  }, [codigo]);
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
+        <Skeleton className="h-96 w-full" />
+      </main>
+    );
+  }
+
+  const activo = data?.activo ?? null;
 
   if (!activo) {
     notFound();
   }
 
-  const imagenes = await obtenerImagenesPorCodigo(codigo).catch(() => []);
-  const documentos = await obtenerDocumentosPorCodigo(codigo).catch(() => []);
-  const tanques = await obtenerTanquesPorCodigo(codigo).catch(() => []);
-  const historial = await obtenerHistorialPorCodigo(codigo).catch(() => []);
-  const configuracionHistorica =
-    await obtenerConfiguracionHistoricaPorCodigo(codigo).catch(() => []);
+  const imagenes = data?.imagenes ?? [];
+  const documentos = data?.documentos ?? [];
+  const tanques = data?.tanques ?? [];
+  const historial = data?.historial ?? [];
+  const configuracionHistorica = data?.configuracion ?? [];
   const vehiculo = activo.vehiculo;
   const ultimaConfiguracionHistorica = configuracionHistorica[0];
 

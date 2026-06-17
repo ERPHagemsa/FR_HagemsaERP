@@ -1,5 +1,9 @@
+"use client";
+
 import { extraerMensajeError } from "@/compartido/api";
+import { useConsulta } from "@/compartido/api/use-consulta";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { SolicitudesClienteTabla } from "../componentes/solicitudes-cliente-tabla";
 import { listarSolicitudesCliente } from "../servicios/solicitudes-cliente-api";
@@ -9,34 +13,34 @@ type Props = {
   filtros?: FiltrosSolicitudesCliente;
 };
 
-export async function SolicitudesClienteVista({ filtros = {} }: Props) {
-  const resultado = await listarSolicitudesCliente(filtros)
-    .then((respuesta) => ({ respuesta, error: null }))
-    .catch((error: unknown) => ({
-      respuesta: null,
-      error: extraerMensajeError(
-        error,
-        "No se pudo cargar la lista de solicitudes de cliente"
-      ),
-    }));
+export function SolicitudesClienteVista({ filtros = {} }: Props) {
+  const { data, isLoading, isError, error } = useConsulta(
+    () => listarSolicitudesCliente(filtros),
+    [JSON.stringify(filtros)]
+  );
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        {resultado.error ? (
+        {isError ? (
           <Alert variant="destructive">
             <AlertTitle>Error al cargar solicitudes</AlertTitle>
-            <AlertDescription>{resultado.error}</AlertDescription>
+            <AlertDescription>
+              {extraerMensajeError(
+                error,
+                "No se pudo cargar la lista de solicitudes de cliente"
+              )}
+            </AlertDescription>
           </Alert>
-        ) : null}
-
-        {resultado.respuesta ? (
+        ) : isLoading ? (
+          <Skeleton className="h-96 w-full" />
+        ) : (
           <SolicitudesClienteTabla
-            items={resultado.respuesta.data}
+            items={data?.data ?? []}
             filtros={filtros}
-            total={resultado.respuesta.total}
+            total={data?.total ?? 0}
           />
-        ) : null}
+        )}
       </div>
     </main>
   );

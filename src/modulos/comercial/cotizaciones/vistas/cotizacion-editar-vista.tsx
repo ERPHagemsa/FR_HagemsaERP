@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { useConsulta } from "@/compartido/api/use-consulta";
 import { Button } from "@/compartido/componentes/ui/button";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
 import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
@@ -13,8 +17,15 @@ type Props = {
   id: string;
 };
 
-export async function CotizacionEditarVista({ id }: Props) {
-  const cotizacion = await consultarCotizacion(id).catch(() => null);
+export function CotizacionEditarVista({ id }: Props) {
+  const { data: cotizacion, isLoading } = useConsulta(
+    () => consultarCotizacion(id).catch(() => null),
+    [id]
+  );
+
+  if (isLoading) {
+    return <Skeleton className="h-96 w-full" />;
+  }
 
   if (!cotizacion) {
     notFound();

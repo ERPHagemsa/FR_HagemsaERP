@@ -1,23 +1,22 @@
+"use client";
+
 import Link from "next/link";
 import { IconPlus } from "@tabler/icons-react";
 
 import { extraerMensajeError } from "@/compartido/api";
+import { useConsulta } from "@/compartido/api/use-consulta";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 import { Button } from "@/compartido/componentes/ui/button";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { ActivosTabla } from "../componentes/activos-tabla";
-import { obtenerActivos } from "../servicios/activos-api-servidor";
+import { obtenerActivos } from "../servicios/activos-api";
 
-export async function ActivosInventarioVista() {
-  const resultado = await obtenerActivos({ estadoRegistro: "TODOS" })
-    .then((activos) => ({ activos, error: null }))
-    .catch((error: unknown) => ({
-      activos: [],
-      error: extraerMensajeError(
-        error,
-        "No se pudo cargar el inventario de activos",
-      ),
-    }));
+export function ActivosInventarioVista() {
+  const { data, isLoading, isError, error } = useConsulta(
+    () => obtenerActivos({ estadoRegistro: "TODOS" }),
+    [],
+  );
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
@@ -36,14 +35,23 @@ export async function ActivosInventarioVista() {
           </Button>
         </div>
 
-        {resultado.error ? (
+        {isError ? (
           <Alert variant="destructive">
             <AlertTitle>No se pudo cargar listado</AlertTitle>
-            <AlertDescription>{resultado.error}</AlertDescription>
+            <AlertDescription>
+              {extraerMensajeError(
+                error,
+                "No se pudo cargar el inventario de activos",
+              )}
+            </AlertDescription>
           </Alert>
         ) : null}
 
-        <ActivosTabla activos={resultado.activos} />
+        {isLoading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : (
+          <ActivosTabla activos={data ?? []} />
+        )}
       </div>
     </main>
   );

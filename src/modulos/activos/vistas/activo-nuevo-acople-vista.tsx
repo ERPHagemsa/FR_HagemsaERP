@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { GitCompareArrows } from "lucide-react";
 
+import { extraerMensajeError } from "@/compartido/api";
+import { useConsulta } from "@/compartido/api/use-consulta";
+import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -10,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -19,22 +25,18 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 
-import { obtenerActivos } from "../servicios/activos-api-servidor";
+import { obtenerActivos } from "../servicios/activos-api";
 import type { Activo } from "../tipos/activo.tipos";
 
-export async function ActivoNuevoAcopleVista() {
-  const resultado = await obtenerActivos({ estadoRegistro: true })
-    .then((activos) => ({
-      activos: activos.filter((activo) => activo.estadoActivo !== "ACTIVO"),
-      error: null,
-    }))
-    .catch((error) => ({
-      activos: [] as Activo[],
-      error:
-        error instanceof Error
-          ? error.message
-          : "No se pudo cargar activos de baja.",
-    }));
+export function ActivoNuevoAcopleVista() {
+  const { data, isLoading, isError, error } = useConsulta(
+    () => obtenerActivos({ estadoRegistro: true }),
+    []
+  );
+
+  const activos = (data ?? []).filter(
+    (activo) => activo.estadoActivo !== "ACTIVO"
+  );
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
@@ -67,7 +69,7 @@ export async function ActivoNuevoAcopleVista() {
                 </div>
               </div>
               <Badge variant="outline">
-                {resultado.activos.length} de baja
+                {activos.length} de baja
               </Badge>
             </div>
             <div className="mt-4 rounded-xl border border-border bg-muted/20 px-4 py-3">
@@ -90,11 +92,20 @@ export async function ActivoNuevoAcopleVista() {
               </Button>
             </div>
 
-            {resultado.error ? (
-              <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-                {resultado.error}
+            {isError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                  {extraerMensajeError(error, "No se pudo cargar activos de baja.")}
+                </AlertDescription>
+              </Alert>
+            ) : isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
               </div>
-            ) : resultado.activos.length ? (
+            ) : activos.length ? (
               <div className="overflow-hidden rounded-xl border border-border">
                 <Table>
                   <TableHeader>
@@ -108,7 +119,7 @@ export async function ActivoNuevoAcopleVista() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {resultado.activos.map((activo) => (
+                    {activos.map((activo) => (
                       <TableRow key={activo.id}>
                         <TableCell>
                           <div className="font-semibold">

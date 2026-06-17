@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { useConsulta } from "@/compartido/api/use-consulta";
 import { Button } from "@/compartido/componentes/ui/button";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { CotizacionEditorNuevo } from "../../cotizaciones/componentes/cotizacion-editor-nuevo";
 import { EstadoSolicitudBadge } from "../componentes/estado-solicitud-badge";
@@ -12,8 +16,15 @@ type Props = {
   id: string;
 };
 
-export async function SolicitudClienteCotizarVista({ id }: Props) {
-  const sc = await consultarSolicitudCliente(id).catch(() => null);
+export function SolicitudClienteCotizarVista({ id }: Props) {
+  const { data: sc, isLoading } = useConsulta(
+    () => consultarSolicitudCliente(id).catch(() => null),
+    [id],
+  );
+
+  if (isLoading) {
+    return <Skeleton className="h-96 w-full" />;
+  }
 
   if (!sc) {
     notFound();
