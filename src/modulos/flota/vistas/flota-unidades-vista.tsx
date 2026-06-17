@@ -1,4 +1,7 @@
 import { SiteHeader } from "@/compartido/componentes/site-header";
+import Link from "next/link";
+import { Download } from "lucide-react";
+import { Button } from "@/compartido/componentes/ui/button";
 import { FlotaTabla } from "../componentes/flota-tabla";
 import { obtenerUnidades } from "../servicios/flota-api";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
@@ -22,7 +25,16 @@ export async function FlotaUnidadesVista() {
               <h1 className="text-2xl font-semibold tracking-normal">
                 Listar unidades de flota
               </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Unidades registradas en la flota. Usa &quot;Nuevo&quot; para importar desde Activos.
+              </p>
             </div>
+            <Button asChild variant="default" id="btn-importar-unidades">
+              <Link href="/flota/unidades/importar">
+                <Download className="mr-2 size-4" />
+                Nuevo
+              </Link>
+            </Button>
           </div>
 
           <FlotaTabla loading={false} vehiculos={items} />
@@ -33,3 +45,4 @@ export async function FlotaUnidadesVista() {
 }
 
 export default FlotaUnidadesVista;
+
