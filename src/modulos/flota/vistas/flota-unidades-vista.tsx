@@ -1,5 +1,10 @@
+import Link from "next/link";
+import { Download } from "lucide-react";
+
 import { SiteHeader } from "@/compartido/componentes/site-header";
+import { Button } from "@/compartido/componentes/ui/button";
 import { FlotaTabla } from "../componentes/flota-tabla";
+import { FlotaPageHeader } from "../componentes/flota-page-header";
 import { obtenerUnidades } from "../servicios/flota-api";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
 
@@ -17,13 +22,18 @@ export async function FlotaUnidadesVista() {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
-          <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-normal">
-                Listar unidades de flota
-              </h1>
-            </div>
-          </div>
+          <FlotaPageHeader
+            title="Unidades de flota"
+            description="Consulta, filtra y gestiona la asignacion contractual de las unidades."
+            actions={
+              <Button asChild className="w-full sm:w-auto">
+                <Link href="/flota/unidades/importar">
+                  <Download data-icon="inline-start" />
+                  Nuevo
+                </Link>
+              </Button>
+            }
+          />
 
           <FlotaTabla loading={false} vehiculos={items} />
         </div>

@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { obtenerHistorialPorId, obtenerUnidadPorId } from "@/modulos/flota/servicios/flota-api";
 import { FlotaAuditoriaVista } from "@/modulos/flota/vistas/flota-auditoria-vista";
 
@@ -14,15 +13,11 @@ export default async function FlotaAuditoriaPage({
     obtenerUnidadPorId(unidadId),
   ]);
 
-  if (!res) {
-    redirect("/flota/unidades");
-  }
-
   return (
     <FlotaAuditoriaVista
       id={unidadId}
       placa={vehiculo?.placa ?? vehiculo?.placaRodaje ?? null}
-      historial={res.datos || []}
+      historial={res?.datos ?? []}
     />
   );
 }

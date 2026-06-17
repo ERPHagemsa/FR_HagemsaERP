@@ -15,7 +15,7 @@ import type {
 
 type RespuestaOperacion = { success: boolean; mensaje: string };
 type HistorialFlotaItem = {
-  id: string;
+  id: number;
   accion?: string | null;
   fechaAccion?: string | null;
   usuarioAccion?: string | null;
@@ -293,6 +293,74 @@ export async function retirarContrato(unidadId: string): Promise<RespuestaOperac
     }
 
     let mensajeError = "Error al retirar el contrato";
+    try {
+      const errorJson = (await res.json()) as { message?: string };
+      if (errorJson.message) mensajeError = errorJson.message;
+    } catch {}
+
+    return { success: false, mensaje: mensajeError };
+  } catch (error) {
+    limpiarTimeout(timeout);
+    return { success: false, mensaje: mensajeErrorConexion(error) };
+  }
+}
+
+// ── Importación manual de unidades ───────────────────────────────────────────
+
+export type ActivoDisponible = {
+  id: string;
+  codigo?: string | null;
+  descripcion?: string | null;
+  tipoActivo?: string | null;
+  estadoActivo?: string | null;
+  placa?: string | null;
+  marca?: string | null;
+  modelo?: string | null;
+  vehiculo?: {
+    placa?: string | null;
+    placaRodaje?: string | null;
+    marca?: string | null;
+    modelo?: string | null;
+    estadoOperativo?: string | null;
+  } | null;
+};
+
+export async function obtenerActivosDisponibles(): Promise<ActivoDisponible[]> {
+  const url = `${getUnidadesApiUrl()}/disponibles`;
+  const { controller, timeout } = crearAbortController(8000);
+
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: controller.signal });
+    limpiarTimeout(timeout);
+    if (!res.ok) return [];
+    const json = (await res.json()) as { datos?: ActivoDisponible[] };
+    return json.datos ?? [];
+  } catch {
+    limpiarTimeout(timeout);
+    return [];
+  }
+}
+
+export async function importarUnidades(ids: string[]): Promise<RespuestaOperacion> {
+  const url = `${getUnidadesApiUrl()}/importar`;
+  const { controller, timeout } = crearAbortController(10000);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+      signal: controller.signal,
+    });
+    limpiarTimeout(timeout);
+
+    if (res.ok) {
+      revalidatePath("/flota");
+      revalidatePath("/flota/unidades");
+      return { success: true, mensaje: "Unidades importadas correctamente." };
+    }
+
+    let mensajeError = "Error al importar las unidades";
     try {
       const errorJson = (await res.json()) as { message?: string };
       if (errorJson.message) mensajeError = errorJson.message;

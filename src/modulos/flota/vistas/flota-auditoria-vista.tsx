@@ -2,16 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import {
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  History,
-  RotateCcw,
-  Trash2,
-} from "lucide-react";
+import { ArrowLeft, CirclePlus, Eye, Pencil, Trash2 } from "lucide-react";
 
 import { SiteHeader } from "@/compartido/componentes/site-header";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/compartido/componentes/ui/accordion";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -36,9 +35,10 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 import { cn } from "@/compartido/utilidades/utils";
+import { FlotaPageHeader } from "../componentes/flota-page-header";
 
 type HistorialFlotaItem = {
-  id: string;
+  id: number;
   accion?: string | null;
   fechaAccion?: string | null;
   usuarioAccion?: string | null;
@@ -52,20 +52,103 @@ type Props = {
   historial: HistorialFlotaItem[];
 };
 
+function obtenerEstiloAccion(accion?: string | null) {
+  if (accion === "REGISTRO") {
+    return "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
+  }
+  if (accion === "ELIMINACION") {
+    return "border-destructive/30 bg-destructive/10 text-destructive";
+  }
+  return "border-primary/30 bg-primary/10 text-primary";
+}
+
+function obtenerEstiloCabecera(accion?: string | null) {
+  if (accion === "REGISTRO") {
+    return "border-l-emerald-500 bg-emerald-50/70 hover:bg-emerald-50 dark:border-l-emerald-400 dark:bg-emerald-950/30 dark:hover:bg-emerald-950/50";
+  }
+  if (accion === "ELIMINACION") {
+    return "border-l-destructive bg-destructive/10 hover:bg-destructive/5";
+  }
+  return "border-l-primary bg-primary/10 hover:bg-primary/5";
+}
+
+function etiquetaAccion(accion?: string | null) {
+  if (accion === "REGISTRO") return "Registro";
+  if (accion === "MODIFICACION") return "Modificacion";
+  if (accion === "ELIMINACION") return "Eliminacion";
+  return accion ?? "Movimiento";
+}
+
+function IconoAccion({ accion }: { accion?: string | null }) {
+  if (accion === "REGISTRO") return <CirclePlus data-icon="inline-start" />;
+  if (accion === "ELIMINACION") return <Trash2 data-icon="inline-start" />;
+  return <Pencil data-icon="inline-start" />;
+}
+
+function formatearFecha(fecha?: string | null) {
+  if (!fecha) return "-";
+  const valor = new Date(fecha);
+  if (Number.isNaN(valor.getTime())) return fecha;
+  return new Intl.DateTimeFormat("es-PE", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(valor);
+}
+
+function formatearValor(valor: unknown) {
+  if (valor === undefined || valor === null) return "Sin asignar";
+  if (typeof valor === "string") return valor;
+  if (typeof valor === "number" || typeof valor === "boolean") return String(valor);
+  if (typeof valor === "object") {
+    const record = valor as Record<string, unknown>;
+    return String(record.codigo ?? record.nombre ?? record.id ?? JSON.stringify(record));
+  }
+  return String(valor);
+}
+
+function generarNumerosPaginas(paginaActual: number, totalPaginas: number) {
+  const paginas: (number | string)[] = [];
+  const maxPaginasVisibles = 5;
+
+  if (totalPaginas <= maxPaginasVisibles) {
+    for (let i = 1; i <= totalPaginas; i++) {
+      paginas.push(i);
+    }
+    return paginas;
+  }
+
+  paginas.push(1);
+
+  let inicio = Math.max(2, paginaActual - 1);
+  let fin = Math.min(totalPaginas - 1, paginaActual + 1);
+
+  if (paginaActual <= 2) {
+    fin = Math.min(totalPaginas - 1, 4);
+  } else if (paginaActual >= totalPaginas - 1) {
+    inicio = Math.max(2, totalPaginas - 3);
+  }
+
+  if (inicio > 2) paginas.push("...");
+
+  for (let i = inicio; i <= fin; i++) {
+    paginas.push(i);
+  }
+
+  if (fin < totalPaginas - 1) paginas.push("...");
+
+  paginas.push(totalPaginas);
+  return paginas;
+}
+
 export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
   const [pagina, setPagina] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
-  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
   const totalRegistros = historial.length;
   const totalPaginas = Math.max(1, Math.ceil(totalRegistros / registrosPorPagina));
   const inicio = (pagina - 1) * registrosPorPagina;
   const fin = inicio + registrosPorPagina;
   const registrosPaginados = historial.slice(inicio, fin);
-
-  function toggleExpand(id: string) {
-    setExpandedIds((actual) => ({ ...actual, [id]: !actual[id] }));
-  }
 
   function actualizarRegistrosPorPagina(value: number) {
     setRegistrosPorPagina(value);
@@ -83,45 +166,40 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
         ]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-        <div className="flex w-full flex-col gap-6">
-          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                <h1 className="text-2xl font-semibold tracking-normal">
-                  Auditoria de {placa ?? id}
-                </h1>
-                <Badge
-                  variant="outline"
-                  className="h-6 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
-                >
-                  VEHICULO
-                </Badge>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Revisa los movimientos y cambios registrados para esta unidad.
-              </p>
-            </div>
+        <div className="flex w-full flex-col gap-5">
+          <FlotaPageHeader
+            title={`Auditoria de ${placa ?? id}`}
+            description="Revisa los movimientos y cambios registrados para esta unidad."
+            meta={
+              <Badge
+                variant="outline"
+                className="h-6 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+              >
+                VEHICULO
+              </Badge>
+            }
+            actions={
+              <>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/flota/unidades">
+                    <ArrowLeft data-icon="inline-start" />
+                    Volver
+                  </Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link href={`/flota/unidades/${encodeURIComponent(id)}`}>
+                    <Eye data-icon="inline-start" />
+                    Ver unidad
+                  </Link>
+                </Button>
+              </>
+            }
+          />
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href="/flota/unidades">
-                  <RotateCcw />
-                  Volver
-                </Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href={`/flota/unidades/${encodeURIComponent(id)}`}>
-                  <Eye />
-                  Ver unidad
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-            <div className="border-b border-border px-5 py-4">
-              <h2 className="text-lg font-semibold">Historial de movimientos</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
+          <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
+            <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
+              <h2 className="text-base font-semibold">Historial de movimientos</h2>
+              <p className="text-sm leading-5 text-muted-foreground">
                 Cambios anteriores y nuevos asociados al contrato y cuenta.
               </p>
             </div>
@@ -136,65 +214,70 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
                 </EmptyHeader>
               </Empty>
             ) : (
-              <div className="divide-y divide-border">
+              <Accordion type="multiple" className="m-4 flex w-auto flex-col gap-3 border-0">
                 {registrosPaginados.map((item, index) => {
-                  const isExpanded = Boolean(expandedIds[item.id]);
                   const reverseIndex = totalRegistros - (inicio + index);
 
                   return (
-                    <article key={item.id} className={obtenerClaseMovimiento(item)}>
-                      <button
-                        type="button"
-                        className="flex w-full flex-col gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
-                        onClick={() => toggleExpand(item.id)}
+                    <AccordionItem
+                      key={item.id}
+                      value={String(item.id)}
+                      className="min-w-0 max-w-full overflow-hidden rounded-lg border border-primary/15 bg-background shadow-xs transition-all hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md"
+                    >
+                      <AccordionTrigger
+                        className={cn(
+                          "min-w-0 max-w-full overflow-hidden border-l-4 px-4 py-3 text-left no-underline transition-colors hover:no-underline",
+                          obtenerEstiloCabecera(item.accion),
+                        )}
                       >
-                        <div className="flex min-w-0 items-start gap-3">
-                          <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-sm font-medium">
-                            {reverseIndex}
-                          </span>
+                        <div className="flex min-w-0 max-w-full flex-1 flex-col gap-3 pr-3 md:flex-row md:items-start md:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <MovimientoBadge accion={item.accion} />
-                              <span className="text-sm font-medium">
-                                {formatearFecha(item.fechaAccion)}
+                              <Badge variant="outline">#{reverseIndex}</Badge>
+                              <Badge
+                                variant="outline"
+                                className={cn("gap-1.5 rounded-full", obtenerEstiloAccion(item.accion))}
+                              >
+                                <IconoAccion accion={item.accion} />
+                                {etiquetaAccion(item.accion)}
+                              </Badge>
+                              <span className="rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-primary transition-colors hover:border-primary/30 hover:bg-primary/10">
+                                Click para abrir detalle
                               </span>
                             </div>
-                            <p className="mt-1 truncate text-xs text-muted-foreground">
-                              Movimiento {item.id}
+                            <p className="mt-2 text-sm font-medium">
+                              {formatearFecha(item.fechaAccion)}
                             </p>
                           </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                          <span>{item.usuarioAccion || "Sin usuario"}</span>
-                          {isExpanded ? (
-                            <ChevronUp className="size-4" />
-                          ) : (
-                            <ChevronDown className="size-4" />
-                          )}
-                        </div>
-                      </button>
-
-                      {isExpanded ? (
-                        <div className="border-t border-border bg-background/60 p-5">
-                          <div className="grid gap-3">
-                            <DiffRow
-                              label="Contrato"
-                              oldVal={item.datosAnteriores?.contrato}
-                              newVal={item.datosNuevos?.contrato}
-                            />
-                            <DiffRow
-                              label="Cuenta"
-                              oldVal={item.datosAnteriores?.cuenta}
-                              newVal={item.datosNuevos?.cuenta}
-                            />
+                          <div className="min-w-0 rounded-md border border-primary/15 bg-background px-3 py-2 text-sm md:max-w-xs transition-colors hover:border-primary/25 hover:bg-primary/5">
+                            <span className="text-muted-foreground">Usuario</span>
+                            <p className="truncate font-medium">{item.usuarioAccion || "-"}</p>
                           </div>
                         </div>
-                      ) : null}
-                    </article>
+                      </AccordionTrigger>
+                      <AccordionContent className="min-w-0 max-w-full overflow-hidden">
+                        <div className="grid min-w-0 max-w-full gap-3 overflow-hidden px-4 pb-4 pt-3">
+                          <div className="grid min-w-0 gap-3 overflow-hidden rounded-md bg-primary/5 px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:grid-cols-[minmax(120px,200px)_minmax(0,1fr)_minmax(0,1fr)]">
+                            <span>Campo</span>
+                            <span>Anterior</span>
+                            <span>Nuevo</span>
+                          </div>
+                          <DiffRow
+                            campo="Contrato"
+                            anterior={item.datosAnteriores?.contrato}
+                            nuevo={item.datosNuevos?.contrato}
+                          />
+                          <DiffRow
+                            campo="Cuenta"
+                            anterior={item.datosAnteriores?.cuenta}
+                            nuevo={item.datosNuevos?.cuenta}
+                          />
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
                   );
                 })}
-              </div>
+              </Accordion>
             )}
 
             {historial.length > 0 ? (
@@ -239,9 +322,7 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
                           <PaginationLink
                             onClick={() => setPagina(Number(pageNum))}
                             isActive={pageNum === pagina}
-                            className={
-                              Number(pageNum) === pagina ? "" : "cursor-pointer"
-                            }
+                            className={Number(pageNum) === pagina ? "" : "cursor-pointer"}
                             size="icon"
                           >
                             {pageNum}
@@ -272,130 +353,64 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
   );
 }
 
-function MovimientoBadge({ accion }: { accion?: string | null }) {
-  const isEliminacion = accion === "ELIMINACION";
-  const isRegistro = accion === "REGISTRO";
-
-  return (
-    <Badge
-      variant={isEliminacion ? "destructive" : "outline"}
-      className="h-6 gap-1.5 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
-    >
-      {isEliminacion ? (
-        <Trash2 className="text-destructive" />
-      ) : (
-        <History className={isRegistro ? "text-emerald-500" : "text-amber-500"} />
-      )}
-      {accion || "MOVIMIENTO"}
-    </Badge>
-  );
-}
-
 function DiffRow({
-  label,
-  oldVal,
-  newVal,
+  campo,
+  anterior,
+  nuevo,
 }: {
-  label: string;
-  oldVal: unknown;
-  newVal: unknown;
+  campo: string;
+  anterior: unknown;
+  nuevo: unknown;
 }) {
-  const anterior = formatVal(oldVal);
-  const nuevo = formatVal(newVal);
-  const changed = anterior !== nuevo;
+  const valorAnterior = formatearValor(anterior);
+  const valorNuevo = formatearValor(nuevo);
+  const cambio = valorAnterior !== valorNuevo;
 
   return (
-    <div className="grid overflow-hidden rounded-lg border border-border md:grid-cols-12">
-      <div className="flex items-center border-b border-border bg-muted/30 p-4 md:col-span-3 md:border-b-0 md:border-r">
-        <span className="text-sm font-semibold">{label}</span>
+    <div
+      className={cn(
+        "grid min-w-0 max-w-full gap-3 overflow-hidden rounded-md border border-primary/15 p-3 transition-colors hover:border-primary/25 hover:bg-primary/5 md:grid-cols-[minmax(120px,200px)_minmax(0,1fr)_minmax(0,1fr)] md:items-start",
+        cambio && "border-primary/30 bg-primary/5",
+      )}
+    >
+      <div className="flex min-h-10 min-w-0 items-center">
+        <span className="wrap-break-word text-sm font-medium">{campo}</span>
       </div>
-      <div className="grid md:col-span-9 sm:grid-cols-2">
-        <div
-          className={cn(
-            "border-b border-border p-4 text-sm font-medium sm:border-b-0 sm:border-r",
-            changed
-              ? "bg-destructive/10 text-destructive"
-              : "bg-background text-muted-foreground",
-          )}
-        >
-          {changed ? `- ${anterior}` : anterior}
-        </div>
-        <div
-          className={cn(
-            "p-4 text-sm font-medium",
-            changed
-              ? "bg-emerald-500/10 text-emerald-600"
-              : "bg-background text-muted-foreground",
-          )}
-        >
-          {changed ? `+ ${nuevo}` : nuevo}
-        </div>
-      </div>
+      <ValorDiff tipo="anterior" valor={anterior} cambio={cambio} />
+      <ValorDiff tipo="nuevo" valor={nuevo} cambio={cambio} />
     </div>
   );
 }
 
-function formatVal(value: unknown) {
-  if (value === null || value === undefined) return "Sin asignar";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
-  if (typeof value === "object") {
-    const record = value as Record<string, unknown>;
-    return String(record.codigo ?? record.nombre ?? record.id ?? JSON.stringify(record));
-  }
+function ValorDiff({
+  tipo,
+  valor,
+  cambio,
+}: {
+  tipo: "anterior" | "nuevo";
+  valor: unknown;
+  cambio: boolean;
+}) {
+  const contenido = formatearValor(valor);
 
-  return String(value);
-}
-
-function formatearFecha(fecha?: string | null) {
-  if (!fecha) return "-";
-
-  const valor = new Date(fecha);
-  if (Number.isNaN(valor.getTime())) return fecha;
-
-  return new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(valor);
-}
-
-function obtenerClaseMovimiento(item: HistorialFlotaItem) {
-  return cn(
-    item.accion === "ELIMINACION" && "border-l-4 border-l-destructive",
-    item.accion === "REGISTRO" && "border-l-4 border-l-emerald-500",
+  return (
+    <div
+      className={cn(
+        "min-h-10 min-w-0 overflow-hidden rounded-md border px-3 py-2 text-sm",
+        tipo === "anterior" &&
+          (cambio
+            ? "border-destructive/25 bg-destructive/10 text-destructive"
+            : "border-border bg-muted/30 text-muted-foreground"),
+        tipo === "nuevo" &&
+          (cambio
+            ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+            : "border-border bg-background text-foreground"),
+      )}
+    >
+      <span className={cn("block whitespace-pre-wrap break-all", cambio && "font-medium")}>
+        {cambio ? (tipo === "anterior" ? "- " : "+ ") : ""}
+        {contenido}
+      </span>
+    </div>
   );
-}
-
-function generarNumerosPaginas(paginaActual: number, totalPaginas: number) {
-  const paginas: (number | string)[] = [];
-  const maxPaginasVisibles = 5;
-
-  if (totalPaginas <= maxPaginasVisibles) {
-    for (let i = 1; i <= totalPaginas; i++) {
-      paginas.push(i);
-    }
-    return paginas;
-  }
-
-  paginas.push(1);
-
-  let inicio = Math.max(2, paginaActual - 1);
-  let fin = Math.min(totalPaginas - 1, paginaActual + 1);
-
-  if (paginaActual <= 2) {
-    fin = Math.min(totalPaginas - 1, 4);
-  } else if (paginaActual >= totalPaginas - 1) {
-    inicio = Math.max(2, totalPaginas - 3);
-  }
-
-  if (inicio > 2) paginas.push("...");
-
-  for (let i = inicio; i <= fin; i++) {
-    paginas.push(i);
-  }
-
-  if (fin < totalPaginas - 1) paginas.push("...");
-
-  paginas.push(totalPaginas);
-  return paginas;
 }
