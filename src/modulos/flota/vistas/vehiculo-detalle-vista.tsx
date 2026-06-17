@@ -1,3 +1,7 @@
+"use client";
+
+import { useConsulta } from "@/compartido/api/use-consulta";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import DetalleVehiculoClient from "../componentes/detalle-vehiculo-client";
 import {
@@ -9,12 +13,18 @@ type Props = {
   id: string;
 };
 
-export async function VehiculoDetalleVista({ id }: Props) {
+export function VehiculoDetalleVista({ id }: Props) {
   const unidadId = decodeURIComponent(id);
-  const [vehiculo, contratosDisponibles] = await Promise.all([
-    obtenerUnidadPorId(unidadId),
-    obtenerContratosDisponibles(),
-  ]);
+  const { data, isLoading } = useConsulta(async () => {
+    const [vehiculo, contratosDisponibles] = await Promise.all([
+      obtenerUnidadPorId(unidadId),
+      obtenerContratosDisponibles(),
+    ]);
+    return { vehiculo, contratosDisponibles };
+  }, [unidadId]);
+
+  const vehiculo = data?.vehiculo ?? null;
+  const contratosDisponibles = data?.contratosDisponibles ?? [];
 
   return (
     <>
@@ -28,11 +38,15 @@ export async function VehiculoDetalleVista({ id }: Props) {
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-6">
-          <DetalleVehiculoClient
-            contratosDisponibles={contratosDisponibles}
-            initialData={vehiculo}
-            id={unidadId}
-          />
+          {isLoading ? (
+            <Skeleton className="h-96 w-full" />
+          ) : (
+            <DetalleVehiculoClient
+              contratosDisponibles={contratosDisponibles}
+              initialData={vehiculo}
+              id={unidadId}
+            />
+          )}
         </div>
       </main>
     </>

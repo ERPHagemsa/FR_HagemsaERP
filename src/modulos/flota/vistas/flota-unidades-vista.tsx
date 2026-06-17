@@ -1,15 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import { Download } from "lucide-react";
 
+import { useConsulta } from "@/compartido/api/use-consulta";
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import { Button } from "@/compartido/componentes/ui/button";
 import { FlotaTabla } from "../componentes/flota-tabla";
 import { FlotaPageHeader } from "../componentes/flota-page-header";
 import { obtenerUnidades } from "../servicios/flota-api";
-import type { VehiculoFlota } from "../tipos/flota.tipos";
 
-export async function FlotaUnidadesVista() {
-  const items: VehiculoFlota[] = await obtenerUnidades();
+export function FlotaUnidadesVista() {
+  const { data, isLoading } = useConsulta(() => obtenerUnidades(), []);
 
   return (
     <>
@@ -35,7 +37,7 @@ export async function FlotaUnidadesVista() {
             }
           />
 
-          <FlotaTabla loading={false} vehiculos={items} />
+          <FlotaTabla loading={isLoading} vehiculos={data ?? []} />
         </div>
       </main>
     </>

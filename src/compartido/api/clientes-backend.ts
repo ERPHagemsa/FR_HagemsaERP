@@ -71,6 +71,7 @@ function crearClienteBff(baseURL: string, servicio: ServicioApi) {
 export const clienteActivos = crearClienteBff("/api/activos", "activos")
 export const clienteCombustible = crearClienteBff("/api/combustible", "combustible")
 export const clienteComercial = crearClienteBff("/api/comercial", "comercial")
+export const clienteFlota = crearClienteBff("/api/flota", "flota")
 
 // Socio de Negocios expone DOS grupos de rutas (socios-de-negocio y
 // asignaciones-personal) sobre el mismo backend, por eso su baseURL es `/api`
