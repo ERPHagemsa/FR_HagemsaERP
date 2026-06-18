@@ -148,11 +148,31 @@ export async function retirarContrato(
       `/flota/asignaciones-contratos/${encodeURIComponent(unidadId)}/retirar`,
       {},
     );
-    return { success: true, mensaje: "Contrato retirado exitosamente" };
+    return { success: true, mensaje: "Asignaciones retiradas exitosamente" };
   } catch (error) {
     return {
       success: false,
-      mensaje: mensajeError(error, "Error al retirar el contrato"),
+      mensaje: mensajeError(error, "Error al retirar las asignaciones"),
+    };
+  }
+}
+
+export async function retirarAsignacion(
+  unidadId: string,
+  asignacionId: number,
+): Promise<RespuestaOperacion> {
+  try {
+    await clienteFlota.patch(
+      `/flota/asignaciones-contratos/${encodeURIComponent(
+        unidadId,
+      )}/asignaciones/${asignacionId}/retirar`,
+      {},
+    );
+    return { success: true, mensaje: "Asignacion retirada exitosamente" };
+  } catch (error) {
+    return {
+      success: false,
+      mensaje: mensajeError(error, "Error al retirar la asignacion"),
     };
   }
 }

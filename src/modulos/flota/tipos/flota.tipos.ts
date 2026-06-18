@@ -16,6 +16,7 @@ export type VehiculoFlota = {
   anioFabricacion?: number | null;
   color?: string | null;
   asignaciones?: {
+    id?: number;
     contrato: unknown;
     cuenta: unknown;
     fechaInicio?: string | null;
