@@ -13,6 +13,7 @@ import {
 } from "@/compartido/api";
 
 import { useAgregarCotizacionMutation } from "../../solicitudes-cliente/servicios/solicitudes-cliente-queries";
+import type { OrigenTipo } from "../tipos/cotizaciones.tipos";
 import type { DraftBorrador } from "../servicios/cotizaciones-editor.utils";
 import {
   armarPayloadBorrador,
@@ -23,6 +24,10 @@ import { EditorBorradorCampos } from "./editor-borrador-campos";
 type Props = {
   // SC sobre la que se crea la cotizacion (POST /solicitudes-cliente/:id/cotizaciones).
   solicitudClienteId: string;
+  // Origen de la SC (acota el precio sugerido al historial de este cliente). La vista
+  // que renderiza este editor ya tiene la SC cargada, asi que los pasa desde ahi.
+  clienteTipo?: OrigenTipo;
+  clienteId?: string;
 };
 
 function contarLineas(draft: DraftBorrador): number {
@@ -33,7 +38,7 @@ function contarLineas(draft: DraftBorrador): number {
 // primer "Crear" via POST /solicitudes-cliente/:id/cotizaciones (la cotizacion
 // nace poblada). Al exito redirige al editor de la cotizacion ya creada, donde
 // las ediciones siguientes usan PATCH /borrador.
-export function CotizacionEditorNuevo({ solicitudClienteId }: Props) {
+export function CotizacionEditorNuevo({ solicitudClienteId, clienteTipo, clienteId }: Props) {
   const router = useRouter();
   const [draft, setDraft] = React.useState<DraftBorrador>({
     moneda: "PEN",
@@ -123,6 +128,8 @@ export function CotizacionEditorNuevo({ solicitudClienteId }: Props) {
       setDraft={setDraft}
       erroresCampo={erroresCampo}
       guardando={guardando}
+      clienteTipo={clienteTipo}
+      clienteId={clienteId}
       onGuardar={() => void onCrear()}
       textoFooter="Se creará una nueva cotización en BORRADOR vinculada a esta solicitud."
       textoBoton="Crear cotización"

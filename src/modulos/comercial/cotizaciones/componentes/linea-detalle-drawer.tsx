@@ -33,12 +33,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/compartido/componentes/ui/dialog";
-import { SlidersHorizontalIcon } from "lucide-react";
+import { LightbulbIcon, SlidersHorizontalIcon } from "lucide-react";
 
-import type { TipoLinea } from "../tipos/cotizaciones.tipos";
+import type { Moneda, OrigenTipo, PrecioSugerido, TipoLinea } from "../tipos/cotizaciones.tipos";
 import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
 import type { DraftLinea } from "../servicios/cotizaciones-editor.utils";
 import { montoCargo } from "../servicios/cotizaciones-editor.utils";
+import { usePrecioSugerido } from "../servicios/cotizaciones-queries";
 import { EditorCargos } from "./editor-cargos";
 import { EditorCargasFisicas } from "./editor-cargas-fisicas";
 import { ModalidadSelector } from "./modalidad-selector";
@@ -51,6 +52,10 @@ type Props = {
   opcionesCatalogo: CatalogoCargoAdicional[];
   erroresCampo?: Record<string, string>;
   disabled?: boolean;
+  // Origen de la cotizacion (opcional): acota el precio sugerido al historial de este
+  // cliente (fallback a mercado). Ambos juntos o ninguno. En alta sin origen cargado, undefined.
+  clienteTipo?: OrigenTipo;
+  clienteId?: string;
   onCerrar: () => void;
   onGuardar: (linea: DraftLinea) => void;
 };
@@ -69,6 +74,8 @@ export function LineaDetalleDrawer({
   opcionesCatalogo,
   erroresCampo = {},
   disabled,
+  clienteTipo,
+  clienteId,
   onCerrar,
   onGuardar,
 }: Props) {
@@ -77,6 +84,9 @@ export function LineaDetalleDrawer({
     linea?.claveCliente ?? null
   );
   const [cargosAbierto, setCargosAbierto] = React.useState(false);
+  // Tolerancia de peso para el precio sugerido (§5.3.2). Default ±15% (igual que el backend).
+  // Es decision del ejecutivo: define que tan ancho es el rango de peso de los comparables.
+  const [toleranciaPeso, setToleranciaPeso] = React.useState(0.15);
 
   // Re-sincronizar el borrador cuando entra otra linea (o null), sin useEffect:
   // patron de ajuste de estado durante el render recomendado por React.
@@ -85,6 +95,31 @@ export function LineaDetalleDrawer({
     setClaveActual(claveEntrante);
     setBorrador(linea);
   }
+
+  // Precio sugerido (solo TRANSPORTE): el backend cruza el historico por modalidad +
+  // ruta + carga (API §5.3.2). pesoTotal en TN: sumamos el peso de los items convirtiendo
+  // KG→TN; si queda 0 no se envia (el backend no filtra por peso). El hook gatea el disparo
+  // a los 4 campos requeridos (modalidad + origen + destino + moneda). Va ANTES del early
+  // return para no romper el orden de hooks.
+  const pesoTotalTn = (borrador?.carga.cargas ?? []).reduce((acc, it) => {
+    const p = parseFloat(it.peso);
+    if (isNaN(p) || p <= 0) return acc;
+    return acc + (it.unidadPeso === "KG" ? p / 1000 : p);
+  }, 0);
+  const sugerenciaPrecio = usePrecioSugerido(
+    {
+      modalidadId: borrador?.idModalidad ?? "",
+      origen: borrador?.carga.origen ?? "",
+      destino: borrador?.carga.destino ?? "",
+      moneda: moneda as Moneda,
+      pesoTotal: pesoTotalTn, // requerido; el hook no dispara si es 0
+      toleranciaPeso, // decision del ejecutivo (±%); default 0.15
+      // cliente* solo si vienen ambos (el backend los exige juntos).
+      clienteTipo: clienteTipo && clienteId ? clienteTipo : undefined,
+      clienteId: clienteTipo && clienteId ? clienteId : undefined,
+    },
+    borrador?.tipoLinea === "TRANSPORTE" && !disabled
+  );
 
   if (!borrador) return null;
 
@@ -229,6 +264,49 @@ export function LineaDetalleDrawer({
                 />
               </Campo>
             </div>
+
+            {/* Precio sugerido — solo TRANSPORTE con modalidad + origen + destino + peso.
+                El peso es REQUERIDO por el backend (§5.3.2): si falta, pedirlo. Es una
+                referencia historica: el ejecutivo la usa o cotiza a criterio. */}
+            {borrador.tipoLinea === "TRANSPORTE" &&
+            borrador.idModalidad &&
+            borrador.carga.origen.trim() !== "" &&
+            borrador.carga.destino.trim() !== "" ? (
+              pesoTotalTn > 0 ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-muted-foreground">
+                      Tolerancia de peso del comparable
+                    </Label>
+                    <Select
+                      value={String(toleranciaPeso)}
+                      disabled={disabled}
+                      onValueChange={(v) => setToleranciaPeso(parseFloat(v))}
+                    >
+                      <SelectTrigger size="sm" className="w-24 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0.1">±10%</SelectItem>
+                        <SelectItem value="0.15">±15%</SelectItem>
+                        <SelectItem value="0.2">±20%</SelectItem>
+                        <SelectItem value="0.3">±30%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <SugerenciaPrecio
+                    estado={sugerenciaPrecio}
+                    moneda={moneda}
+                    disabled={disabled}
+                    onUsar={(monto) => set({ precioUnitario: String(monto) })}
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Agregá el peso de la carga para ver el precio sugerido.
+                </p>
+              )
+            ) : null}
 
              {/* Tipo de vehiculo — encima de la seccion de Cargas, solo transporte */}
             {borrador.tipoLinea === "TRANSPORTE" ? (
@@ -375,6 +453,110 @@ export function LineaDetalleDrawer({
 // ---------------------------------------------------------------------------
 // Helpers presentacionales
 // ---------------------------------------------------------------------------
+
+/**
+ * Banda de precio sugerido (API §5.3.2). Estados:
+ *  - cargando → texto discreto;
+ *  - error → no muestra nada (la sugerencia es opcional, no debe alarmar);
+ *  - muestras 0 / monto null → "sin sugerencia" (ruta sin historial, NO es error);
+ *  - con dato → mediana + rango p25-p75, alcance (cliente/mercado), nº de muestras,
+ *    boton "Usar" y los comparables (evidencia) en un detalle colapsable.
+ */
+function SugerenciaPrecio({
+  estado,
+  moneda,
+  disabled,
+  onUsar,
+}: {
+  estado: { data: PrecioSugerido | null; isLoading: boolean; error: unknown };
+  moneda: string;
+  disabled?: boolean;
+  onUsar: (monto: number) => void;
+}) {
+  const { data, isLoading, error } = estado;
+
+  if (isLoading) {
+    return <p className="text-xs text-muted-foreground">Buscando precio sugerido…</p>;
+  }
+  if (error || !data) return null;
+  if (data.muestras === 0 || data.monto === null) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Sin sugerencia para esta ruta todavia (sin historial comparable).
+      </p>
+    );
+  }
+
+  const monto = data.monto;
+  const hayRango = data.montoMin !== null && data.montoMax !== null;
+  const alcanceEtiqueta =
+    data.alcance === "cliente" ? "de este cliente" : "de mercado";
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-0.5">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <LightbulbIcon className="size-3.5" />
+            Precio sugerido
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              {alcanceEtiqueta}
+            </span>
+            <span className="text-muted-foreground/70">· {data.muestras} muestras</span>
+          </span>
+          <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
+            {formatearMoneda(monto, moneda)}
+            {hayRango ? (
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                rango {formatearMoneda(data.montoMin as number, moneda)}–
+                {formatearMoneda(data.montoMax as number, moneda)}
+              </span>
+            ) : null}
+          </span>
+          {!data.ajustadoPorPeso ? (
+            <span className="text-[11px] text-muted-foreground">
+              Referencia aproximada de la ruta (sin historial de peso similar).
+            </span>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          disabled={disabled}
+          onClick={() => onUsar(monto)}
+        >
+          Usar
+        </Button>
+      </div>
+
+      {/* Evidencia: cotizaciones que respaldan la sugerencia (capeadas a 10 por el backend). */}
+      {data.comparables.length > 0 ? (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+            Ver comparables ({data.comparables.length})
+          </summary>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {data.comparables.map((c) => (
+              <li
+                key={c.cotizacionId}
+                className="flex items-center justify-between gap-3 border-t border-border/60 pt-1"
+              >
+                <span className="truncate text-muted-foreground">
+                  {c.tipoVehiculo || "Sin unidad"} · {c.estado} · {c.ejecutivo}
+                </span>
+                <span className="shrink-0 font-mono tabular-nums text-foreground">
+                  {formatearMoneda(c.precioUnitario, moneda)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
+  );
+}
 
 function Campo({
   label,
