@@ -252,14 +252,18 @@ export default function DetalleVehiculoClient({
   const [vehiculo, setVehiculo] = useState<VehiculoFlota | null>(initialData);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState<MensajeOperacion>(null);
-
-  const contratoInicial = parseRef(initialData?.contrato);
-  const itemInicial = contratoInicial
-    ? contratosDisponibles.find((contrato) => contrato.codigo === contratoInicial.codigo) ??
-      null
-    : null;
   const [contratoSeleccionado, setContratoSeleccionado] =
-    useState<ContratoDisponibleFlota | null>(itemInicial);
+    useState<ContratoDisponibleFlota | null>(null);
+
+  const asignaciones = vehiculo?.asignaciones ?? [];
+  const codigosAsignados = new Set(
+    asignaciones
+      .map((a) => parseRef(a.contrato)?.codigo)
+      .filter((codigo): codigo is string => Boolean(codigo)),
+  );
+  const contratosParaAgregar = contratosDisponibles.filter(
+    (contrato) => !codigosAsignados.has(contrato.codigo),
+  );
 
   async function onSave(event: React.SyntheticEvent) {
     event.preventDefault();
@@ -279,11 +283,14 @@ export default function DetalleVehiculoClient({
         actual
           ? {
               ...actual,
-              contrato: contratoSeleccionado,
-              cuenta: contratoSeleccionado.cuenta,
+              asignaciones: [
+                ...(actual.asignaciones ?? []),
+                { contrato: contratoSeleccionado, cuenta: contratoSeleccionado.cuenta },
+              ],
             }
           : actual,
       );
+      setContratoSeleccionado(null);
       setMensaje({
         tipo: "success",
         descripcion: `Contrato ${contratoSeleccionado.codigo} asignado exitosamente.`,
@@ -305,19 +312,10 @@ export default function DetalleVehiculoClient({
     const result = await retirarContrato(unidadId);
 
     if (result.success) {
-      setVehiculo((actual) =>
-        actual
-          ? {
-              ...actual,
-              contrato: null,
-              cuenta: null,
-            }
-          : actual,
-      );
-      setContratoSeleccionado(null);
+      setVehiculo((actual) => (actual ? { ...actual, asignaciones: [] } : actual));
       setMensaje({
         tipo: "success",
-        descripcion: "Contrato retirado exitosamente.",
+        descripcion: "Todos los contratos fueron retirados exitosamente.",
       });
       router.refresh();
     } else {
@@ -339,9 +337,7 @@ export default function DetalleVehiculoClient({
   }
 
   const unidadId = vehiculo.id ?? id;
-  const contratoActual = parseRef(vehiculo.contrato);
-  const cuentaActual = parseRef(vehiculo.cuenta);
-  const tieneContrato = Boolean(contratoActual?.id);
+  const tieneContratos = asignaciones.length > 0;
 
   return (
     <>
@@ -370,7 +366,7 @@ export default function DetalleVehiculoClient({
                 Auditar
               </Link>
             </Button>
-            {tieneContrato ? (
+            {tieneContratos ? (
               <Button
                 type="button"
                 variant="destructive"
@@ -383,7 +379,7 @@ export default function DetalleVehiculoClient({
                 ) : (
                   <XCircle data-icon="inline-start" />
                 )}
-                Retirar contrato
+                Retirar todos los contratos
               </Button>
             ) : null}
             <Button
@@ -397,7 +393,7 @@ export default function DetalleVehiculoClient({
               ) : (
                 <CheckCircle2 data-icon="inline-start" />
               )}
-              Asignar contrato
+              Agregar contrato
             </Button>
           </>
         }
@@ -422,45 +418,49 @@ export default function DetalleVehiculoClient({
         <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
           <h2 className="text-base font-semibold">Asignacion contractual</h2>
           <p className="text-sm leading-5 text-muted-foreground">
-            Modifica el contrato asociado y revisa la cuenta vinculada.
+            Una unidad puede tener varios contratos simultaneos. Agrega o retira las asignaciones.
           </p>
         </div>
 
         <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
-          <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border text-sm sm:grid-cols-2">
-            <DatoVer
-              label="Contrato actual"
-              value={
-                contratoActual
-                  ? `${contratoActual.codigo} - ${contratoActual.nombre}`
-                  : "Sin contrato"
-              }
-            />
-            <DatoVer
-              label="Cuenta asociada"
-              value={
-                cuentaActual
-                  ? `${cuentaActual.codigo} - ${cuentaActual.nombre}`
-                  : "Sin cuenta"
-              }
-            />
-            <DatoVer
-              label="Vigencia inicio"
-              value={formatearFecha(vehiculo.contratoDetalle?.fechaInicio)}
-            />
-            <DatoVer
-              label="Vigencia fin"
-              value={formatearFecha(vehiculo.contratoDetalle?.fechaFin)}
-            />
-          </dl>
+          <div className="flex flex-col gap-3">
+            {asignaciones.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                Esta unidad no tiene contratos asignados.
+              </div>
+            ) : (
+              asignaciones.map((asignacion, index) => {
+                const contrato = parseRef(asignacion.contrato);
+                const cuenta = parseRef(asignacion.cuenta);
+
+                return (
+                  <dl
+                    key={contrato?.id ?? index}
+                    className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border text-sm sm:grid-cols-2"
+                  >
+                    <DatoVer
+                      label="Contrato"
+                      value={contrato ? `${contrato.codigo} - ${contrato.nombre}` : "-"}
+                    />
+                    <DatoVer
+                      label="Cuenta"
+                      value={cuenta ? `${cuenta.codigo} - ${cuenta.nombre}` : "Sin cuenta"}
+                    />
+                    <DatoVer label="Vigencia inicio" value={formatearFecha(asignacion.fechaInicio)} />
+                    <DatoVer label="Vigencia fin" value={formatearFecha(asignacion.fechaFin)} />
+                  </dl>
+                );
+              })
+            )}
+          </div>
 
           <form id="contrato-form" onSubmit={(event) => void onSave(event)}>
             <div className="grid gap-2">
               <label htmlFor="contrato-search" className="text-sm font-medium">
-                Contrato a asignar
+                Agregar contrato
               </label>
               <ContratoCombobox
-                contratosDisponibles={contratosDisponibles}
+                contratosDisponibles={contratosParaAgregar}
                 value={contratoSeleccionado}
                 onChange={setContratoSeleccionado}
                 disabled={loading}
@@ -470,7 +470,7 @@ export default function DetalleVehiculoClient({
                   ? `Cuenta asociada: ${
                       contratoSeleccionado.cuenta?.nombre || "Sin cuenta asociada"
                     }`
-                  : "Selecciona un contrato para habilitar la asignacion."}
+                  : "Selecciona un contrato para agregarlo a esta unidad."}
               </p>
             </div>
           </form>

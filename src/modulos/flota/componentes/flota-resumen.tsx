@@ -18,6 +18,7 @@ import {
 } from "@/compartido/componentes/ui/card";
 import type { ResumenFlota, VehiculoFlota } from "../tipos/flota.tipos";
 import {
+  asignacionesVehiculo,
   esVisibleEnFlota,
   estadoActivoVehiculo,
   estadoOperativoVehiculo,
@@ -51,7 +52,7 @@ export function FlotaResumen({ resumen, vehiculos }: Props) {
   ];
 
   const asignados = vehiculosVisibles.filter(
-    (vehiculo) => vehiculo.contrato && vehiculo.contrato !== "Sin Contrato",
+    (vehiculo) => asignacionesVehiculo(vehiculo).length > 0,
   );
   const dataContratos = [
     { name: "Asignados", value: asignados.length, color: "#10b981" },
