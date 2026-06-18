@@ -23,13 +23,14 @@ import { cn } from "@/compartido/utilidades/utils";
 import { FlotaPageHeader } from "./flota-page-header";
 import { asignarContrato, retirarContrato } from "../servicios/flota-api";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
-import type { ContratoDisponibleFlota } from "../tipos/flota.tipos";
+import type { ContratoDisponibleFlota, ReferenciaFlota } from "../tipos/flota.tipos";
 import { parseRef } from "./flota-normalizadores";
 
 type MensajeOperacion = { descripcion: string; tipo: "success" | "error" } | null;
 
 type DetalleVehiculoClientProps = {
   contratosDisponibles: ContratoDisponibleFlota[];
+  cuentasDisponibles: ReferenciaFlota[];
   initialData: VehiculoFlota | null;
   id: string;
 };
@@ -76,31 +77,39 @@ function EstadoUnidadBadge({ estado }: { estado?: string | null }) {
   );
 }
 
-function ContratoCombobox({
-  contratosDisponibles,
+function BusquedaCombobox<T>({
+  items,
   value,
   onChange,
   disabled,
+  inputId,
+  placeholder,
+  getKey,
+  getLabel,
+  isSelected,
+  matches,
+  renderOption,
 }: {
-  contratosDisponibles: ContratoDisponibleFlota[];
-  value: ContratoDisponibleFlota | null;
-  onChange: (contrato: ContratoDisponibleFlota | null) => void;
+  items: T[];
+  value: T | null;
+  onChange: (item: T | null) => void;
   disabled?: boolean;
+  inputId: string;
+  placeholder: string;
+  getKey: (item: T) => string;
+  getLabel: (item: T) => string;
+  isSelected: (item: T) => boolean;
+  matches: (item: T, query: string) => boolean;
+  renderOption: (item: T) => React.ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
 
-  const filtered = contratosDisponibles.filter((contrato) => {
+  const filtered = items.filter((item) => {
     const q = query.trim().toLowerCase();
-
-    return (
-      !q ||
-      contrato.codigo.toLowerCase().includes(q) ||
-      contrato.nombre.toLowerCase().includes(q) ||
-      contrato.cuenta?.nombre?.toLowerCase().includes(q)
-    );
+    return !q || matches(item, q);
   });
 
   useEffect(() => {
@@ -131,13 +140,13 @@ function ContratoCombobox({
     };
   }, [open]);
 
-  function selectItem(contrato: ContratoDisponibleFlota) {
-    onChange(contrato);
+  function selectItem(item: T) {
+    onChange(item);
     setQuery("");
     setOpen(false);
   }
 
-  const displayText = value ? `${value.codigo} - ${value.nombre}` : "";
+  const displayText = value ? getLabel(value) : "";
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -150,11 +159,11 @@ function ContratoCombobox({
       >
         <Search className="ml-3 size-4 shrink-0 text-muted-foreground" />
         <input
-          id="contrato-search"
+          id={inputId}
           type="text"
           autoComplete="off"
           disabled={disabled}
-          placeholder={displayText || "Buscar contrato por codigo o nombre"}
+          placeholder={displayText || placeholder}
           value={open ? query : displayText}
           onFocus={() => {
             setQuery("");
@@ -169,7 +178,7 @@ function ContratoCombobox({
         {value && !disabled ? (
           <button
             type="button"
-            aria-label="Limpiar contrato"
+            aria-label="Limpiar seleccion"
             onClick={() => {
               onChange(null);
               setQuery("");
@@ -205,28 +214,20 @@ function ContratoCombobox({
                   </div>
                 ) : (
                   <ul className="max-h-64 overflow-y-auto">
-                    {filtered.map((contrato) => {
-                      const isSelected = value?.codigo === contrato.codigo;
+                    {filtered.map((item) => {
+                      const selected = isSelected(item);
 
                       return (
                         <li
-                          key={contrato.id}
-                          onMouseDown={() => selectItem(contrato)}
+                          key={getKey(item)}
+                          onMouseDown={() => selectItem(item)}
                           className={cn(
                             "flex cursor-pointer items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                            isSelected && "bg-accent/70 font-medium",
+                            selected && "bg-accent/70 font-medium",
                           )}
                         >
-                          <div className="flex min-w-0 flex-col">
-                            <span className="font-mono text-xs text-muted-foreground">
-                              {contrato.codigo}
-                            </span>
-                            <span className="truncate">{contrato.nombre}</span>
-                            <span className="truncate text-xs text-muted-foreground">
-                              {contrato.cuenta?.nombre || "Sin cuenta asociada"}
-                            </span>
-                          </div>
-                          {isSelected ? (
+                          {renderOption(item)}
+                          {selected ? (
                             <Check className="size-4 shrink-0 text-primary" />
                           ) : null}
                         </li>
@@ -245,6 +246,7 @@ function ContratoCombobox({
 
 export default function DetalleVehiculoClient({
   contratosDisponibles,
+  cuentasDisponibles,
   initialData,
   id,
 }: DetalleVehiculoClientProps) {
@@ -254,6 +256,7 @@ export default function DetalleVehiculoClient({
   const [mensaje, setMensaje] = useState<MensajeOperacion>(null);
   const [contratoSeleccionado, setContratoSeleccionado] =
     useState<ContratoDisponibleFlota | null>(null);
+  const [cuentaSeleccionada, setCuentaSeleccionada] = useState<ReferenciaFlota | null>(null);
 
   const asignaciones = vehiculo?.asignaciones ?? [];
   const codigosAsignados = new Set(
@@ -265,18 +268,28 @@ export default function DetalleVehiculoClient({
     (contrato) => !codigosAsignados.has(contrato.codigo),
   );
 
+  function onChangeContrato(contrato: ContratoDisponibleFlota | null) {
+    setContratoSeleccionado(contrato);
+    if (contrato) {
+      setCuentaSeleccionada(contrato.cuenta);
+    }
+  }
+
+  function onChangeCuenta(cuenta: ReferenciaFlota | null) {
+    setCuentaSeleccionada(cuenta);
+    if (contratoSeleccionado && contratoSeleccionado.cuenta?.codigo !== cuenta?.codigo) {
+      setContratoSeleccionado(null);
+    }
+  }
+
   async function onSave(event: React.SyntheticEvent) {
     event.preventDefault();
-    if (!vehiculo || !contratoSeleccionado) return;
+    if (!vehiculo || !cuentaSeleccionada) return;
 
     setLoading(true);
     setMensaje(null);
     const unidadId = vehiculo.id ?? id;
-    const result = await asignarContrato(
-      unidadId,
-      contratoSeleccionado,
-      contratoSeleccionado.cuenta,
-    );
+    const result = await asignarContrato(unidadId, contratoSeleccionado, cuentaSeleccionada);
 
     if (result.success) {
       setVehiculo((actual) =>
@@ -285,16 +298,19 @@ export default function DetalleVehiculoClient({
               ...actual,
               asignaciones: [
                 ...(actual.asignaciones ?? []),
-                { contrato: contratoSeleccionado, cuenta: contratoSeleccionado.cuenta },
+                { contrato: contratoSeleccionado, cuenta: cuentaSeleccionada },
               ],
             }
           : actual,
       );
-      setContratoSeleccionado(null);
       setMensaje({
         tipo: "success",
-        descripcion: `Contrato ${contratoSeleccionado.codigo} asignado exitosamente.`,
+        descripcion: contratoSeleccionado
+          ? `Contrato ${contratoSeleccionado.codigo} asignado exitosamente.`
+          : `Cuenta ${cuentaSeleccionada.codigo} asignada exitosamente.`,
       });
+      setContratoSeleccionado(null);
+      setCuentaSeleccionada(null);
       router.refresh();
     } else {
       setMensaje({ tipo: "error", descripcion: result.mensaje });
@@ -386,14 +402,14 @@ export default function DetalleVehiculoClient({
               type="submit"
               form="contrato-form"
               size="sm"
-              disabled={loading || !contratoSeleccionado}
+              disabled={loading || !cuentaSeleccionada}
             >
               {loading ? (
                 <Loader2 data-icon="inline-start" className="animate-spin" />
               ) : (
                 <CheckCircle2 data-icon="inline-start" />
               )}
-              Agregar contrato
+              Asignar
             </Button>
           </>
         }
@@ -455,23 +471,73 @@ export default function DetalleVehiculoClient({
           </div>
 
           <form id="contrato-form" onSubmit={(event) => void onSave(event)}>
-            <div className="grid gap-2">
-              <label htmlFor="contrato-search" className="text-sm font-medium">
-                Agregar contrato
-              </label>
-              <ContratoCombobox
-                contratosDisponibles={contratosParaAgregar}
-                value={contratoSeleccionado}
-                onChange={setContratoSeleccionado}
-                disabled={loading}
-              />
-              <p className="text-xs text-muted-foreground">
-                {contratoSeleccionado
-                  ? `Cuenta asociada: ${
-                      contratoSeleccionado.cuenta?.nombre || "Sin cuenta asociada"
-                    }`
-                  : "Selecciona un contrato para agregarlo a esta unidad."}
-              </p>
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <label htmlFor="cuenta-search" className="text-sm font-medium">
+                  Cuenta <span className="text-destructive">*</span>
+                </label>
+                <BusquedaCombobox<ReferenciaFlota>
+                  items={cuentasDisponibles}
+                  value={cuentaSeleccionada}
+                  onChange={onChangeCuenta}
+                  disabled={loading}
+                  inputId="cuenta-search"
+                  placeholder="Buscar cuenta por codigo o nombre"
+                  getKey={(cuenta) => cuenta.id}
+                  getLabel={(cuenta) => `${cuenta.codigo} - ${cuenta.nombre}`}
+                  isSelected={(cuenta) => cuenta.codigo === cuentaSeleccionada?.codigo}
+                  matches={(cuenta, q) =>
+                    cuenta.codigo.toLowerCase().includes(q) ||
+                    cuenta.nombre.toLowerCase().includes(q)
+                  }
+                  renderOption={(cuenta) => (
+                    <div className="flex min-w-0 flex-col">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {cuenta.codigo}
+                      </span>
+                      <span className="truncate">{cuenta.nombre}</span>
+                    </div>
+                  )}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <label htmlFor="contrato-search" className="text-sm font-medium">
+                  Contrato (opcional)
+                </label>
+                <BusquedaCombobox<ContratoDisponibleFlota>
+                  items={contratosParaAgregar}
+                  value={contratoSeleccionado}
+                  onChange={onChangeContrato}
+                  disabled={loading}
+                  inputId="contrato-search"
+                  placeholder="Buscar contrato por codigo o nombre"
+                  getKey={(contrato) => contrato.id}
+                  getLabel={(contrato) => `${contrato.codigo} - ${contrato.nombre}`}
+                  isSelected={(contrato) => contrato.codigo === contratoSeleccionado?.codigo}
+                  matches={(contrato, q) =>
+                    contrato.codigo.toLowerCase().includes(q) ||
+                    contrato.nombre.toLowerCase().includes(q) ||
+                    Boolean(contrato.cuenta?.nombre?.toLowerCase().includes(q))
+                  }
+                  renderOption={(contrato) => (
+                    <div className="flex min-w-0 flex-col">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {contrato.codigo}
+                      </span>
+                      <span className="truncate">{contrato.nombre}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {contrato.cuenta?.nombre || "Sin cuenta asociada"}
+                      </span>
+                    </div>
+                  )}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {contratoSeleccionado
+                    ? "La cuenta se actualizo segun el contrato seleccionado."
+                    : "Si seleccionas un contrato, la cuenta se completa automaticamente."}
+                </p>
+              </div>
             </div>
           </form>
         </div>

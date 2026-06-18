@@ -53,6 +53,18 @@ export async function obtenerContratosDisponibles(): Promise<
   }
 }
 
+export async function obtenerCuentasDisponibles(): Promise<ReferenciaFlota[]> {
+  // BC_Flota mantiene una copia local sincronizada desde BC_ConfiguracionGeneral.
+  try {
+    const { data } = await clienteFlota.get<{ datos?: ReferenciaFlota[] }>(
+      "/flota/cuentas",
+    );
+    return data.datos ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function obtenerUnidades(): Promise<VehiculoFlota[]> {
   try {
     const { data } = await clienteFlota.get<{ datos?: VehiculoFlota[] }>(
