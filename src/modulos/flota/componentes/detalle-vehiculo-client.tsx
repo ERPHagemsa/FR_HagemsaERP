@@ -20,6 +20,16 @@ import {
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/compartido/componentes/ui/alert-dialog";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -276,6 +286,10 @@ export default function DetalleVehiculoClient({
   const [contratoSeleccionado, setContratoSeleccionado] =
     useState<ContratoDisponibleFlota | null>(null);
   const [cuentaSeleccionada, setCuentaSeleccionada] = useState<ReferenciaFlota | null>(null);
+  const [confirmarUna, setConfirmarUna] = useState<{ id: number; detalle?: string } | null>(
+    null,
+  );
+  const [confirmarTodas, setConfirmarTodas] = useState(false);
 
   const asignaciones = vehiculo?.asignaciones ?? [];
   const codigosAsignados = new Set(
@@ -343,8 +357,15 @@ export default function DetalleVehiculoClient({
     setLoading(false);
   }
 
-  async function onRetirarUna(asignacionId?: number) {
-    if (!vehiculo || asignacionId == null) return;
+  function pedirConfirmacionUna(asignacionId?: number, detalle?: string) {
+    if (asignacionId == null) return;
+    setConfirmarUna({ id: asignacionId, detalle });
+  }
+
+  async function confirmarRetirarUna() {
+    if (!vehiculo || !confirmarUna) return;
+    const asignacionId = confirmarUna.id;
+    setConfirmarUna(null);
 
     setRetirandoId(asignacionId);
     setMensaje(null);
@@ -360,8 +381,9 @@ export default function DetalleVehiculoClient({
     setRetirandoId(null);
   }
 
-  async function onRetirarTodas() {
+  async function confirmarRetirarTodas() {
     if (!vehiculo) return;
+    setConfirmarTodas(false);
 
     setRetirandoTodas(true);
     setMensaje(null);
@@ -456,7 +478,7 @@ export default function DetalleVehiculoClient({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => void onRetirarTodas()}
+                onClick={() => setConfirmarTodas(true)}
                 disabled={ocupado}
               >
                 {retirandoTodas ? (
@@ -643,7 +665,12 @@ export default function DetalleVehiculoClient({
                           variant="ghost"
                           className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                           disabled={ocupado || asignacion.id == null}
-                          onClick={() => void onRetirarUna(asignacion.id)}
+                          onClick={() =>
+                            pedirConfirmacionUna(
+                              asignacion.id,
+                              contrato?.codigo ?? cuenta?.codigo,
+                            )
+                          }
                         >
                           {retirandoId === asignacion.id ? (
                             <Loader2 data-icon="inline-start" className="animate-spin" />
@@ -671,6 +698,45 @@ export default function DetalleVehiculoClient({
           </div>
         </div>
       </section>
+
+      <AlertDialog open={confirmarUna !== null} onOpenChange={(open) => !open && setConfirmarUna(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retirar asignacion</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmarUna?.detalle
+                ? `¿Quieres retirar la asignacion de ${confirmarUna.detalle}? Esta accion quedara registrada en el historial.`
+                : "¿Quieres retirar esta asignacion? Esta accion quedara registrada en el historial."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => void confirmarRetirarUna()}>
+              Retirar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmarTodas} onOpenChange={setConfirmarTodas}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retirar todas las asignaciones</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Quieres retirar las {asignaciones.length} asignacion
+              {asignaciones.length === 1 ? "" : "es"} vigente
+              {asignaciones.length === 1 ? "" : "s"} de esta unidad? Esta accion quedara
+              registrada en el historial.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => void confirmarRetirarTodas()}>
+              Retirar todas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
