@@ -117,6 +117,13 @@ export async function obtenerHistorialPorId(
 
 // ── Mutaciones ───────────────────────────────────────────────────────────────
 
+function aReferenciaPlana(ref: ReferenciaFlota | null): ReferenciaFlota | null {
+  // Normaliza al shape exacto {id, codigo, nombre}: quien llama puede pasar un
+  // objeto mas rico (p.ej. ContratoDisponibleFlota con su propio `cuenta` anidado),
+  // y el backend rechaza campos no declarados (ValidationPipe whitelist).
+  return ref ? { id: ref.id, codigo: ref.codigo, nombre: ref.nombre } : null;
+}
+
 export async function asignarContrato(
   unidadId: string,
   contrato: ReferenciaFlota | null,
@@ -125,8 +132,8 @@ export async function asignarContrato(
   try {
     await clienteFlota.post("/flota/asignaciones-contratos", {
       unidadId,
-      contrato,
-      cuenta,
+      contrato: aReferenciaPlana(contrato),
+      cuenta: aReferenciaPlana(cuenta),
     });
     return {
       success: true,
