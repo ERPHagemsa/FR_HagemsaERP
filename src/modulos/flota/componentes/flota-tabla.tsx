@@ -4,6 +4,7 @@ import Link from "next/link";
 import * as React from "react";
 import {
   CheckCircle2,
+  CircleDashed,
   CircleX,
   Clock,
   Eye,
@@ -64,9 +65,8 @@ import {
 import { cn } from "@/compartido/utilidades/utils";
 import type { VehiculoFlota } from "../tipos/flota.tipos";
 import {
+  asignacionesVehiculo,
   carroceriaVehiculo,
-  contratoVehiculo,
-  cuentaVehiculo,
   estadoActivoVehiculo,
   estadoOperativoVehiculo,
   estadoRegistroVehiculo,
@@ -106,8 +106,8 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
 
   const resumenConteo = React.useMemo(() => ({
     total: vehiculos.length,
-    conContrato: vehiculos.filter((v) => contratoVehiculo(v) !== null).length,
-    sinContrato: vehiculos.filter((v) => contratoVehiculo(v) === null).length,
+    conContrato: vehiculos.filter((v) => asignacionesVehiculo(v).length > 0).length,
+    sinContrato: vehiculos.filter((v) => asignacionesVehiculo(v).length === 0).length,
     enMantenimiento: vehiculos.filter(
       (v) => estadoOperativoVehiculo(v) === "MANTENIMIENTO",
     ).length,
@@ -298,6 +298,7 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                   <TableHead>Contrato</TableHead>
                   <TableHead>Cuenta</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Registro</TableHead>
                   <TableHead>Condicion</TableHead>
                 </TableRow>
               </TableHeader>
@@ -326,19 +327,16 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <ReferenciaFlota
-                        principal={contratoVehiculo(vehiculo)?.codigo}
-                        secundario={contratoVehiculo(vehiculo)?.nombre}
-                      />
+                      <AsignacionesCelda vehiculo={vehiculo} campo="contrato" />
                     </TableCell>
                     <TableCell>
-                      <ReferenciaFlota
-                        principal={cuentaVehiculo(vehiculo)?.nombre}
-                        secundario={cuentaVehiculo(vehiculo)?.codigo}
-                      />
+                      <AsignacionesCelda vehiculo={vehiculo} campo="cuenta" />
                     </TableCell>
                     <TableCell>
-                      <EstadoRegistroBadge value={estadoRegistroVehiculo(vehiculo)} />
+                      <EstadoActivoBadge value={estadoActivoVehiculo(vehiculo)} />
+                    </TableCell>
+                    <TableCell>
+                      <EstadoActivoBadge value={estadoRegistroVehiculo(vehiculo)} />
                     </TableCell>
                     <TableCell>
                       <EstadoOperativoBadge value={estadoOperativoVehiculo(vehiculo)} />
@@ -449,66 +447,63 @@ function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
   );
 }
 
-function ResumenListado({
-  icon: Icon,
-  label,
-  value,
+function AsignacionesCelda({
+  vehiculo,
+  campo,
 }: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
+  vehiculo: VehiculoFlota;
+  campo: "contrato" | "cuenta";
 }) {
-  return (
-    <div className="min-w-0 rounded-lg border border-border bg-background p-3">
-      <div className="flex items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Icon className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-semibold tabular-nums">{value}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+  const asignaciones = asignacionesVehiculo(vehiculo);
 
-function ReferenciaFlota({
-  principal,
-  secundario,
-}: {
-  principal?: string | null;
-  secundario?: string | null;
-}) {
+  if (asignaciones.length === 0) {
+    return (
+      <div className="flex min-w-44 flex-col">
+        <span className="font-medium">-</span>
+        <span className="text-xs text-muted-foreground">Sin detalle</span>
+      </div>
+    );
+  }
+
+  const primera = asignaciones[0][campo];
+  const restantes = asignaciones.length - 1;
+
   return (
     <div className="flex min-w-44 flex-col">
-      <span className="font-medium">{principal || "-"}</span>
-      <span className="text-xs text-muted-foreground">{secundario || "Sin detalle"}</span>
+      <div className="flex items-center gap-1.5">
+        <span className="font-medium">{primera?.codigo || "-"}</span>
+        {restantes > 0 ? (
+          <Badge variant="outline" className="h-5 rounded-full px-1.5 text-[10px]">
+            +{restantes}
+          </Badge>
+        ) : null}
+      </div>
+      <span className="text-xs text-muted-foreground">{primera?.nombre || "Sin detalle"}</span>
     </div>
   );
 }
 
-function EstadoRegistroBadge({ value }: { value: string | null }) {
+function EstadoActivoBadge({ value }: { value: string | null }) {
   const activo = value === "ACTIVO";
 
   return (
     <Badge
       variant="outline"
-      className={cn(
-        "h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium shadow-xs",
-        activo
-          ? "border-border/70 bg-card text-foreground"
-          : "border-destructive/30 bg-destructive/10 text-destructive",
-      )}
+      className="h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
     >
       {activo ? (
         <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
       ) : (
-        <CircleX data-icon="inline-start" />
+        <CircleDashed data-icon="inline-start" className="text-muted-foreground" />
       )}
-      {activo ? "Activo" : "Anulado"}
+      {activo ? "Activo" : formatearEstadoActivo(value)}
     </Badge>
   );
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "INACTIVO" || value === "SINIESTRADO") return "Baja / De baja";
+  return formatear(value);
 }
 
 function EstadoOperativoBadge({ value }: { value: string | null }) {

@@ -15,19 +15,13 @@ export type VehiculoFlota = {
   serieMotor?: string | null;
   anioFabricacion?: number | null;
   color?: string | null;
-  contrato?: unknown;
-  cuenta?: unknown;
-  contratoDetalle?: {
+  asignaciones?: {
+    id?: number;
+    contrato: unknown;
+    cuenta: unknown;
     fechaInicio?: string | null;
     fechaFin?: string | null;
-    estado?: string | null;
-    descripcion?: string | null;
-  } | null;
-  asignacion?: {
-    fechaModificacion?: string | null;
-    estadoRegistro?: string | null;
-    usuarioModificacion?: string | null;
-  } | null;
+  }[];
   estadoRegistro?: string | null;
   estado?: string | null;
   estadoOperativo?: string | null;
