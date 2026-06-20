@@ -26,24 +26,36 @@ import {
   registrarProspecto,
 } from "./prospectos-api";
 
+import {
+  CLAVE_PROSPECTOS,
+  CLAVE_PROSPECTO_DETALLE,
+  CLAVE_PROSPECTO_HISTORIAL,
+} from "../../claves-consulta";
+
 // ---------------------------------------------------------------------------
 // Consultas (reads)
 // ---------------------------------------------------------------------------
 
 export function useProspectosQuery(filtros: FiltrosProspectos = {}) {
-  return useConsulta(() => listarProspectos(filtros), [JSON.stringify(filtros)]);
+  return useConsulta(
+    () => listarProspectos(filtros),
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_PROSPECTOS }
+  );
 }
 
 export function useProspectoQuery(id: string) {
   return useConsulta(() => consultarProspecto(id), [id], {
     enabled: Boolean(id),
+    clave: CLAVE_PROSPECTO_DETALLE,
   });
 }
 
 export function useHistorialProspectosQuery(filtros: FiltrosHistorial = {}) {
   return useConsulta(
     () => obtenerHistorialProspectos(filtros),
-    [JSON.stringify(filtros)]
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_PROSPECTO_HISTORIAL }
   );
 }
 

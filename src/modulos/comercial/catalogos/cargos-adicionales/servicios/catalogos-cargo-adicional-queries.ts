@@ -1,6 +1,6 @@
 "use client"
 
-import { useConsulta } from "@/compartido/api/use-consulta"
+import { invalidarConsulta, useConsulta } from "@/compartido/api/use-consulta"
 import { useMutar } from "@/compartido/api/use-mutar"
 import {
   actualizarCatalogoCargoAdicional,
@@ -9,6 +9,7 @@ import {
   listarCatalogosCargoAdicional,
 } from "@/modulos/comercial/cotizaciones/servicios/catalogos-cargo-adicional-api"
 import type { FiltrosCatalogosCargoAdicional } from "@/modulos/comercial/cotizaciones/tipos/cotizaciones.tipos"
+import { CLAVE_CARGOS_ADICIONALES } from "@/modulos/comercial/claves-consulta"
 
 export function useCatalogosCargoAdicionalQuery(
   filtros?: FiltrosCatalogosCargoAdicional,
@@ -16,6 +17,7 @@ export function useCatalogosCargoAdicionalQuery(
   return useConsulta(
     () => listarCatalogosCargoAdicional(filtros),
     [JSON.stringify(filtros ?? {})],
+    { clave: CLAVE_CARGOS_ADICIONALES },
   )
 }
 
@@ -29,7 +31,10 @@ export function useCrearCatalogoCargoAdicionalMutation(
 ) {
   return useMutar<Parameters<typeof crearCatalogoCargoAdicional>[0], { id: string }>({
     fn: (payload) => crearCatalogoCargoAdicional(payload),
-    onSuccess: () => opciones.onSuccess?.(),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_CARGOS_ADICIONALES)
+      opciones.onSuccess?.()
+    },
     onError: (err) => opciones.onError?.(err),
   })
 }
@@ -40,7 +45,10 @@ export function useActualizarCatalogoCargoAdicionalMutation(
 ) {
   return useMutar<Parameters<typeof actualizarCatalogoCargoAdicional>[1], void>({
     fn: (payload) => actualizarCatalogoCargoAdicional(id, payload),
-    onSuccess: () => opciones.onSuccess?.(),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_CARGOS_ADICIONALES)
+      opciones.onSuccess?.()
+    },
     onError: (err) => opciones.onError?.(err),
   })
 }
@@ -51,7 +59,10 @@ export function useCambiarEstadoCatalogoCargoAdicionalMutation(
 ) {
   return useMutar<Parameters<typeof cambiarEstadoCatalogoCargoAdicional>[1], void>({
     fn: (payload) => cambiarEstadoCatalogoCargoAdicional(id, payload),
-    onSuccess: () => opciones.onSuccess?.(),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_CARGOS_ADICIONALES)
+      opciones.onSuccess?.()
+    },
     onError: (err) => opciones.onError?.(err),
   })
 }

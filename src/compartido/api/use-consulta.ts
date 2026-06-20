@@ -36,6 +36,31 @@ export interface ResultadoConsulta<T> {
 
 export interface OpcionesConsulta {
   readonly enabled?: boolean
+  // Clave de invalidacion. Si se setea, esta consulta se suscribe a un registro
+  // global: cualquier componente puede llamar invalidarConsulta(clave) para
+  // forzar su refetch SIN pasar refetch por props (sincroniza server-state a
+  // traves del arbol). Distintas instancias con la misma clave se refetchean juntas.
+  readonly clave?: string
+}
+
+// ---------------------------------------------------------------------------
+// Invalidacion por clave (server-state, sin prop-drilling)
+// ---------------------------------------------------------------------------
+// Registro global: clave -> set de refetchs suscritos. Permite que un mutador en
+// cualquier punto del arbol dispare el refetch de todas las consultas que
+// comparten una clave (ej. todas las listas de "comercial/solicitudes-cliente").
+// Es un registro de invalidacion, NO un cache compartido: cada hook sigue con su
+// propio estado/fetch; lo unico que se comparte es la senal "estos datos cambiaron".
+const registroInvalidacion = new Map<string, Set<() => void>>()
+
+// Fuerza el refetch de todas las consultas suscritas a `clave`. No-op si no hay
+// ninguna montada. Llamar tras una mutacion exitosa (crear / editar / eliminar).
+export function invalidarConsulta(clave: string): void {
+  const suscritos = registroInvalidacion.get(clave)
+  if (!suscritos) return
+  suscritos.forEach((refetch) => {
+    void refetch()
+  })
 }
 
 export function useConsulta<T>(
@@ -43,7 +68,7 @@ export function useConsulta<T>(
   deps: ReadonlyArray<unknown>,
   opciones: OpcionesConsulta = {},
 ): ResultadoConsulta<T> {
-  const { enabled = true } = opciones
+  const { enabled = true, clave } = opciones
 
   const [data, setData] = useState<T | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(enabled)
@@ -87,6 +112,23 @@ export function useConsulta<T>(
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, ...deps])
+
+  // Suscripcion al registro de invalidacion por clave. `ejecutar` es estable
+  // (useCallback []), asi que esto corre una vez por clave y, al dispararse,
+  // refetchea con los deps vigentes (via fnRef.current).
+  useEffect(() => {
+    if (!clave) return
+    let suscritos = registroInvalidacion.get(clave)
+    if (!suscritos) {
+      suscritos = new Set()
+      registroInvalidacion.set(clave, suscritos)
+    }
+    suscritos.add(ejecutar)
+    return () => {
+      suscritos.delete(ejecutar)
+      if (suscritos.size === 0) registroInvalidacion.delete(clave)
+    }
+  }, [clave, ejecutar])
 
   return {
     data,

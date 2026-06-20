@@ -1,6 +1,6 @@
 "use client";
 
-import { useConsulta, useMutar } from "@/compartido/api";
+import { invalidarConsulta, useConsulta, useMutar } from "@/compartido/api";
 
 import type {
   PayloadBorrador,
@@ -19,6 +19,15 @@ import {
   registrarSolicitudCliente,
 } from "./solicitudes-cliente-api";
 
+import {
+  CLAVE_COTIZACIONES,
+  CLAVE_SOLICITUD_CLIENTE_DETALLE,
+  CLAVE_SOLICITUDES_CLIENTE,
+} from "../../claves-consulta";
+
+// Re-exportar para que los importadores existentes de este archivo sigan funcionando.
+export { CLAVE_SOLICITUDES_CLIENTE, CLAVE_SOLICITUD_CLIENTE_DETALLE } from "../../claves-consulta";
+
 // ---------------------------------------------------------------------------
 // Mutaciones (migrado desde cotizaciones-queries.ts)
 // ---------------------------------------------------------------------------
@@ -29,6 +38,9 @@ export function useRegistrarSCMutation() {
     Awaited<ReturnType<typeof registrarSolicitudCliente>>
   >({
     fn: registrarSolicitudCliente,
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_SOLICITUDES_CLIENTE);
+    },
   });
 }
 
@@ -39,7 +51,8 @@ export function useRegistrarSCMutation() {
 export function useSolicitudesClienteQuery(filtros: FiltrosSolicitudesCliente = {}) {
   return useConsulta(
     () => listarSolicitudesCliente(filtros),
-    [JSON.stringify(filtros)]
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_SOLICITUDES_CLIENTE }
   );
 }
 
@@ -47,7 +60,7 @@ export function useSolicitudClienteQuery(id: string) {
   return useConsulta(
     () => consultarSolicitudCliente(id),
     [id],
-    { enabled: Boolean(id) }
+    { enabled: Boolean(id), clave: CLAVE_SOLICITUD_CLIENTE_DETALLE }
   );
 }
 
@@ -61,6 +74,11 @@ export function useAgregarCotizacionMutation() {
     Awaited<ReturnType<typeof agregarCotizacion>>
   >({
     fn: ({ id, payload }) => agregarCotizacion(id, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_COTIZACIONES);
+      invalidarConsulta(CLAVE_SOLICITUDES_CLIENTE);
+      invalidarConsulta(CLAVE_SOLICITUD_CLIENTE_DETALLE);
+    },
   });
 }
 
@@ -70,5 +88,9 @@ export function useDescartarSCMutation() {
     Awaited<ReturnType<typeof descartarSolicitudCliente>>
   >({
     fn: ({ id, payload }) => descartarSolicitudCliente(id, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_SOLICITUDES_CLIENTE);
+      invalidarConsulta(CLAVE_SOLICITUD_CLIENTE_DETALLE);
+    },
   });
 }

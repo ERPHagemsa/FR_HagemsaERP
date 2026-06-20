@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { IconPlus } from "@tabler/icons-react";
 
@@ -10,13 +11,27 @@ import { Button } from "@/compartido/componentes/ui/button";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { ActivosTabla } from "../componentes/activos-tabla";
-import { obtenerActivos } from "../servicios/activos-api";
+import { obtenerActivosPaginado } from "../servicios/activos-api";
+
+const LIMITE_DEFECTO = 20;
 
 export function ActivosInventarioVista() {
+  const [pagina, setPagina] = React.useState(1);
+  const [limite, setLimite] = React.useState(LIMITE_DEFECTO);
+
   const { data, isLoading, isError, error } = useConsulta(
-    () => obtenerActivos({ estadoRegistro: "TODOS" }),
-    [],
+    () => obtenerActivosPaginado({ pagina, limite }),
+    [pagina, limite],
   );
+
+  function handleCambiarPagina(nuevaPagina: number) {
+    setPagina(nuevaPagina);
+  }
+
+  function handleCambiarLimite(nuevoLimite: number) {
+    setLimite(nuevoLimite);
+    setPagina(1);
+  }
 
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
@@ -50,7 +65,22 @@ export function ActivosInventarioVista() {
         {isLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : (
-          <ActivosTabla activos={data ?? []} />
+          <ActivosTabla
+            activos={data?.datos ? [...data.datos] : []}
+            paginacionExterna={
+              data?.paginacion
+                ? {
+                    pagina: data.paginacion.pagina,
+                    totalPaginas: data.paginacion.totalPaginas,
+                    total: data.paginacion.total,
+                    tieneSiguiente: data.paginacion.tieneSiguiente,
+                    tieneAnterior: data.paginacion.tieneAnterior,
+                    onCambiarPagina: handleCambiarPagina,
+                    onCambiarLimite: handleCambiarLimite,
+                  }
+                : undefined
+            }
+          />
         )}
       </div>
     </main>

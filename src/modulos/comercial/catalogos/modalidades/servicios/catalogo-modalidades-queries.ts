@@ -1,6 +1,6 @@
 "use client"
 
-import { useConsulta } from "@/compartido/api/use-consulta"
+import { invalidarConsulta, useConsulta } from "@/compartido/api/use-consulta"
 import { useMutar } from "@/compartido/api/use-mutar"
 import {
   actualizarModalidad,
@@ -13,11 +13,13 @@ import type {
   PayloadActualizarModalidad,
   PayloadCrearModalidad,
 } from "@/modulos/comercial/cotizaciones/tipos/cotizaciones.tipos"
+import { CLAVE_MODALIDADES } from "@/modulos/comercial/claves-consulta"
 
 export function useModalidadesQuery(filtros?: FiltrosModalidades) {
   return useConsulta(
     () => listarModalidades(filtros),
     [JSON.stringify(filtros ?? {})],
+    { clave: CLAVE_MODALIDADES },
   )
 }
 
@@ -31,7 +33,10 @@ export function useCrearModalidadMutation(
 ) {
   return useMutar<PayloadCrearModalidad, { id: string }>({
     fn: (payload) => crearModalidad(payload),
-    onSuccess: () => opciones.onSuccess?.(),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_MODALIDADES)
+      opciones.onSuccess?.()
+    },
     onError: (err) => opciones.onError?.(err),
   })
 }
@@ -42,7 +47,10 @@ export function useActualizarModalidadMutation(
 ) {
   return useMutar<PayloadActualizarModalidad, void>({
     fn: (payload) => actualizarModalidad(id, payload),
-    onSuccess: () => opciones.onSuccess?.(),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_MODALIDADES)
+      opciones.onSuccess?.()
+    },
     onError: (err) => opciones.onError?.(err),
   })
 }
@@ -53,7 +61,10 @@ export function useCambiarEstadoModalidadMutation(
 ) {
   return useMutar<{ accion: "ACTIVAR" | "DESACTIVAR" }, void>({
     fn: (payload) => cambiarEstadoModalidad(id, payload),
-    onSuccess: () => opciones.onSuccess?.(),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_MODALIDADES)
+      opciones.onSuccess?.()
+    },
     onError: (err) => opciones.onError?.(err),
   })
 }

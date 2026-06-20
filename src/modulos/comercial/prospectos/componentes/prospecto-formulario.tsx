@@ -9,8 +9,14 @@ import {
   esError409,
   esErrorValidacion,
   extraerMensajeError,
+  invalidarConsulta,
   obtenerErroresPorCampo,
 } from "@/compartido/api";
+import {
+  CLAVE_PROSPECTOS,
+  CLAVE_PROSPECTO_DETALLE,
+  CLAVE_PROSPECTO_HISTORIAL,
+} from "../../claves-consulta";
 import { Alert, AlertDescription } from "@/compartido/componentes/ui/alert";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -200,6 +206,7 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
 
     try {
       const respuesta = await registrarMutation.mutateAsync(resultado.data);
+      invalidarConsulta(CLAVE_PROSPECTOS);
       router.push(`/comercial/prospectos/${respuesta.id}?accion=registrado`);
     } catch (err) {
       aplicarErrorApi(err);
@@ -235,10 +242,12 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
         id: prospecto.id,
         payload: resultado.data,
       });
+      invalidarConsulta(CLAVE_PROSPECTOS);
+      invalidarConsulta(CLAVE_PROSPECTO_DETALLE);
+      invalidarConsulta(CLAVE_PROSPECTO_HISTORIAL);
       router.push(
         `/comercial/prospectos/${prospecto.id}?accion=actualizado`
       );
-      router.refresh();
     } catch (err) {
       aplicarErrorApi(err);
     }

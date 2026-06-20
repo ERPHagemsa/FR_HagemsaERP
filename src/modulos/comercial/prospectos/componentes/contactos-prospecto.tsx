@@ -4,15 +4,15 @@
 // CRUD completo: agregar (Dialog), eliminar (AlertDialog), marcar principal.
 // Guards: no eliminar el unico activo, no eliminar el principal directamente.
 // Terminal-state gating: si esTerminal todas las acciones se deshabilitan.
-// Tras cada mutacion exitosa se llama router.refresh() para refrescar los
-// Server Components padre y obtener la lista de contactos actualizada.
+// Tras cada mutacion exitosa se invalida CLAVE_PROSPECTO_DETALLE para refrescar
+// la consulta del detalle (useProspectoQuery) y traer los contactos actualizados.
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Pencil, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { extraerMensajeError } from "@/compartido/api";
+import { extraerMensajeError, invalidarConsulta } from "@/compartido/api";
+import { CLAVE_PROSPECTO_DETALLE } from "../../claves-consulta";
 import { BotonIconoAccion } from "@/compartido/componentes/ui/boton-icono-accion";
 import {
   AlertDialog,
@@ -251,7 +251,6 @@ type DialogAgregarContactoProps = {
 };
 
 function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
-  const router = useRouter();
   const [abierto, setAbierto] = React.useState(false);
   const [erroresCampo, setErroresCampo] = React.useState<
     Record<string, string>
@@ -316,7 +315,7 @@ function DialogAgregarContacto({ idProspecto }: DialogAgregarContactoProps) {
       toast.success("Contacto agregado", {
         description: "El contacto fue agregado al prospecto.",
       });
-      router.refresh();
+      invalidarConsulta(CLAVE_PROSPECTO_DETALLE);
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo agregar el contacto"));
     } finally {
@@ -471,7 +470,6 @@ function DialogEditarContacto({
   idProspecto,
   contacto,
 }: DialogEditarContactoProps) {
-  const router = useRouter();
   const [abierto, setAbierto] = React.useState(false);
   const [erroresCampo, setErroresCampo] = React.useState<
     Record<string, string>
@@ -528,7 +526,7 @@ function DialogEditarContacto({
       toast.success("Contacto actualizado", {
         description: "Los cambios del contacto fueron guardados.",
       });
-      router.refresh();
+      invalidarConsulta(CLAVE_PROSPECTO_DETALLE);
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo editar el contacto"));
     } finally {
@@ -648,7 +646,6 @@ function DialogEliminarContacto({
   idContacto,
   nombreContacto,
 }: DialogEliminarContactoProps) {
-  const router = useRouter();
   const [abierto, setAbierto] = React.useState(false);
   const [isPending, setIsPending] = React.useState(false);
 
@@ -671,7 +668,7 @@ function DialogEliminarContacto({
       toast.success("Contacto eliminado", {
         description: "El contacto fue eliminado del prospecto.",
       });
-      router.refresh();
+      invalidarConsulta(CLAVE_PROSPECTO_DETALLE);
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo eliminar el contacto"));
     } finally {
@@ -727,7 +724,6 @@ function BotonMarcarPrincipal({
   idProspecto,
   idContacto,
 }: BotonMarcarPrincipalProps) {
-  const router = useRouter();
   const [isPending, setIsPending] = React.useState(false);
 
   const cambiarPrincipalMutation =
@@ -740,7 +736,7 @@ function BotonMarcarPrincipal({
       toast.success("Contacto principal actualizado", {
         description: "Se asigno el nuevo contacto principal del prospecto.",
       });
-      router.refresh();
+      invalidarConsulta(CLAVE_PROSPECTO_DETALLE);
     } catch (err) {
       toast.error(
         extraerMensajeError(err, "No se pudo cambiar el contacto principal")

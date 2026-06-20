@@ -1,4 +1,5 @@
 import { clienteActivos } from "@/compartido/api/clientes-backend";
+import type { RespuestaPaginada } from "@/compartido/api/contrato";
 
 import type {
   Activo,
@@ -19,6 +20,8 @@ import type {
   EstadoRegistro,
   ImagenActivo,
   InventarioFisico,
+  PerfilCombustible,
+  PerfilFlota,
   PlantillaInventario,
   RegistrarRevisionInventarioFisicoPayload,
   SnapshotHistoricoActivoInventario,
@@ -138,43 +141,64 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
 
 type ObtenerActivosParams = {
   estadoRegistro?: EstadoRegistro | "TODOS";
+  /** Limite por defecto alto para cargas de "todo" (dashboard, inventario, etc.) */
+  limite?: number;
+};
+
+export type PaginadoActivosParams = {
+  pagina?: number;
+  limite?: number;
+  estadoRegistro?: EstadoRegistro;
+  placa?: string;
+  tipoActivo?: string;
 };
 
 export async function obtenerActivos(
   params?: ObtenerActivosParams
 ): Promise<Activo[]> {
   if (params?.estadoRegistro === "TODOS") {
+    const limite = params.limite ?? 500;
     const [activos, anulados] = await Promise.all([
-      obtenerActivos({ estadoRegistro: true }),
-      obtenerActivos({ estadoRegistro: false }),
+      obtenerActivos({ estadoRegistro: true, limite }),
+      obtenerActivos({ estadoRegistro: false, limite }),
     ]);
-
     return [...activos, ...anulados];
   }
 
-  const queryParams =
-    params?.estadoRegistro === undefined
-      ? undefined
-      : { estadoRegistro: params.estadoRegistro };
-  const { data } = await clienteActivos.get<unknown>("/activos", {
-    params: queryParams,
-  });
-
-  if (Array.isArray(data)) {
-    return data as Activo[];
+  const queryParams: Record<string, unknown> = {
+    limite: params?.limite ?? 500,
+  };
+  if (params?.estadoRegistro !== undefined) {
+    queryParams.estadoRegistro = params.estadoRegistro;
   }
 
-  if (
-    data &&
-    typeof data === "object" &&
-    Array.isArray((data as { activos?: unknown }).activos)
-  ) {
-    return (data as { activos: Activo[] }).activos;
-  }
-
-  throw new Error(
-    "La API de activos no devolvio una lista. Revisa ACTIVOS_API_URL."
+  const { data } = await clienteActivos.get<RespuestaPaginada<Activo>>(
+    "/activos",
+    { params: queryParams }
   );
+  return [...data.datos];
+}
+
+export async function obtenerActivosPaginado(
+  params?: PaginadoActivosParams
+): Promise<RespuestaPaginada<Activo>> {
+  const queryParams: Record<string, unknown> = {
+    pagina: params?.pagina ?? 1,
+    limite: params?.limite ?? 20,
+  };
+  if (params?.estadoRegistro !== undefined) {
+    queryParams.estadoRegistro = params.estadoRegistro;
+  }
+  if (params?.placa) queryParams.placa = params.placa;
+  if (params?.tipoActivo && params.tipoActivo !== "TODOS") {
+    queryParams.tipoActivo = params.tipoActivo;
+  }
+
+  const { data } = await clienteActivos.get<RespuestaPaginada<Activo>>(
+    "/activos",
+    { params: queryParams }
+  );
+  return data;
 }
 
 export async function obtenerActivoPorCodigo(codigo: string): Promise<Activo> {
@@ -487,4 +511,41 @@ export async function cerrarInventarioFisico(
     payload
   );
   return data;
+}
+
+// ── Búsqueda por placa ────────────────────────────────────────────────────────
+
+export async function buscarActivosPorPlaca(placa: string): Promise<Activo[]> {
+  if (!placa.trim()) return [];
+  const { data } = await clienteActivos.get<RespuestaPaginada<Activo>>(
+    "/activos",
+    { params: { placa: placa.trim(), limite: 50 } }
+  );
+  return [...data.datos];
+}
+
+export async function obtenerPerfilFlotaPorPlaca(
+  placa: string
+): Promise<PerfilFlota | null> {
+  try {
+    const { data } = await clienteActivos.get<PerfilFlota>(
+      `/activos/placa/${encodeURIComponent(placa)}/perfil-flota`
+    );
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export async function obtenerPerfilCombustiblePorPlaca(
+  placa: string
+): Promise<PerfilCombustible | null> {
+  try {
+    const { data } = await clienteActivos.get<PerfilCombustible>(
+      `/activos/placa/${encodeURIComponent(placa)}/perfil-combustible`
+    );
+    return data;
+  } catch {
+    return null;
+  }
 }

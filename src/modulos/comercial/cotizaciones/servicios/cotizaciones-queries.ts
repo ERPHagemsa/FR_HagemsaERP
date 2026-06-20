@@ -25,6 +25,13 @@ import {
 import { listarCatalogosCargoAdicional } from "./catalogos-cargo-adicional-api";
 import { listarModalidades } from "./modalidades-api";
 
+import {
+  CLAVE_CARGOS_ADICIONALES,
+  CLAVE_COTIZACION_DETALLE,
+  CLAVE_COTIZACIONES,
+  CLAVE_MODALIDADES,
+} from "../../claves-consulta";
+
 // ---------------------------------------------------------------------------
 // Consultas (reads)
 // ---------------------------------------------------------------------------
@@ -32,13 +39,15 @@ import { listarModalidades } from "./modalidades-api";
 export function useListarCotizaciones(filtros: FiltrosCotizaciones = {}) {
   return useConsulta(
     () => listarCotizaciones(filtros),
-    [JSON.stringify(filtros)]
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_COTIZACIONES }
   );
 }
 
 export function useConsultarCotizacion(id: string) {
   return useConsulta(() => consultarCotizacion(id), [id], {
     enabled: Boolean(id),
+    clave: CLAVE_COTIZACION_DETALLE,
   });
 }
 
@@ -113,7 +122,8 @@ export function useCancelarCotizacionMutation(id: string) {
 export function useListarModalidades(filtros: FiltrosModalidades = {}) {
   return useConsulta(
     () => listarModalidades(filtros),
-    [JSON.stringify(filtros)]
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_MODALIDADES }
   );
 }
 
@@ -126,6 +136,7 @@ export function useListarCatalogosCargoAdicional(
 ) {
   return useConsulta(
     () => listarCatalogosCargoAdicional(filtros),
-    [JSON.stringify(filtros)]
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_CARGOS_ADICIONALES }
   );
 }

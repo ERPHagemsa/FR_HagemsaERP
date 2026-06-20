@@ -298,7 +298,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
         abierto={crearAbierto}
         onCerrar={() => setCrearAbierto(false)}
         onCreado={() => {
-          router.refresh();
+          // La invalidacion del listado la hace useRegistrarSCMutation en su onSuccess.
           toast.success("Solicitud registrada");
         }}
       />

@@ -1,10 +1,13 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
-import { extraerMensajeError } from "@/compartido/api";
+import { extraerMensajeError, invalidarConsulta } from "@/compartido/api";
+import {
+  CLAVE_SOLICITUDES_CLIENTE,
+  CLAVE_SOLICITUD_CLIENTE_DETALLE,
+} from "../../claves-consulta";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -29,7 +32,6 @@ type Props = {
 };
 
 export function SolicitudClienteDescartarDialog({ id, disabled, onSuccess }: Props) {
-  const router = useRouter();
   const [abierto, setAbierto] = React.useState(false);
   const [motivo, setMotivo] = React.useState("");
   const [errorMotivo, setErrorMotivo] = React.useState<string | null>(null);
@@ -67,8 +69,9 @@ export function SolicitudClienteDescartarDialog({ id, disabled, onSuccess }: Pro
       });
       toast.success("Solicitud descartada correctamente");
       setAbierto(false);
+      invalidarConsulta(CLAVE_SOLICITUDES_CLIENTE);
+      invalidarConsulta(CLAVE_SOLICITUD_CLIENTE_DETALLE);
       onSuccess?.();
-      router.refresh();
     } catch (err) {
       toast.error(
         extraerMensajeError(err, "No se pudo descartar la solicitud")

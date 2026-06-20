@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { Edit, Send, GitBranch, Trophy, XCircle, X, Printer } from "lucide-react";
 import { toast } from "sonner";
@@ -52,13 +51,18 @@ import {
 } from "../servicios/cotizaciones-queries";
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import { normalizarErrorAccion } from "../servicios/cotizaciones-error-handler";
+import { invalidarConsulta } from "@/compartido/api";
+import {
+  CLAVE_COTIZACIONES,
+  CLAVE_COTIZACION_DETALLE,
+  CLAVE_PROSPECTOS,
+} from "@/modulos/comercial/claves-consulta";
 
 type Props = {
   cotizacion: Cotizacion;
 };
 
 export function CotizacionAcciones({ cotizacion }: Props) {
-  const router = useRouter();
   const { id, estado, versionVigente, versiones } = cotizacion;
   const acciones = accionesPermitidas(estado);
 
@@ -73,11 +77,12 @@ export function CotizacionAcciones({ cotizacion }: Props) {
 
   const motivoTerminal = obtenerMotivoTerminal(estado);
 
-  // Callback compartido tras cualquier 204 exitoso: refresca la pagina
-  // (RSC detalle-vista se re-ejecuta con datos frescos del backend).
+  // Callback compartido tras cualquier 204 exitoso: invalida las consultas
+  // montadas para que se refetcheen con datos frescos del backend.
   function alExito(mensaje: string) {
     toast.success(mensaje);
-    router.refresh();
+    invalidarConsulta(CLAVE_COTIZACIONES);
+    invalidarConsulta(CLAVE_COTIZACION_DETALLE);
   }
 
   return (
@@ -141,7 +146,10 @@ export function CotizacionAcciones({ cotizacion }: Props) {
         {acciones.ganar ? (
           <DialogGanada
             idCotizacion={id}
-            onExito={() => alExito("Cotizacion marcada como ganada")}
+            onExito={() => {
+              alExito("Cotizacion marcada como ganada");
+              invalidarConsulta(CLAVE_PROSPECTOS);
+            }}
           />
         ) : (
           <AccionBotonDeshabilitado
