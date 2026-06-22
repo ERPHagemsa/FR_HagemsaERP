@@ -62,8 +62,20 @@ import type {
   EstadoOperativo,
 } from "../tipos/activo.tipos";
 
+type PaginacionExterna = {
+  pagina: number;
+  totalPaginas: number;
+  total: number;
+  tieneSiguiente: boolean;
+  tieneAnterior: boolean;
+  onCambiarPagina: (pagina: number) => void;
+  onCambiarLimite: (limite: number) => void;
+};
+
 type Props = {
   activos: Activo[];
+  /** Cuando se pasa, la tabla usa paginación del servidor en lugar de la interna */
+  paginacionExterna?: PaginacionExterna;
 };
 
 type FiltroRegistro = "ACTIVO" | "ANULADO" | "TODOS";
@@ -90,7 +102,7 @@ const FILTROS_INICIALES: FiltrosActivos = {
   fechaHasta: "",
 };
 
-export function ActivosTabla({ activos }: Props) {
+export function ActivosTabla({ activos, paginacionExterna }: Props) {
   const router = useRouter();
   const [filtrosFormulario, setFiltrosFormulario] =
     React.useState<FiltrosActivos>(FILTROS_INICIALES);
@@ -101,6 +113,7 @@ export function ActivosTabla({ activos }: Props) {
   const [ordenModificacion, setOrdenModificacion] = React.useState<
     "reciente" | "antigua"
   >("reciente");
+  const debounceQueryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activoParaBorrar, setActivoParaBorrar] = React.useState<Activo | null>(
     null
   );
@@ -167,12 +180,29 @@ export function ActivosTabla({ activos }: Props) {
       : fechaA - fechaB;
   });
 
-  const totalPaginas = Math.max(1, Math.ceil(ordenados.length / registrosPorPagina));
+  // Paginación: externa (server-side) o interna (client-side)
+  const usarPaginacionExterna = paginacionExterna !== undefined;
+  const totalPaginas = usarPaginacionExterna
+    ? paginacionExterna.totalPaginas
+    : Math.max(1, Math.ceil(ordenados.length / registrosPorPagina));
   const inicioPagina = (pagina - 1) * registrosPorPagina;
   const finPagina = inicioPagina + registrosPorPagina;
-  const visibles = ordenados.slice(inicioPagina, finPagina);
-  const desdeVisible = ordenados.length ? inicioPagina + 1 : 0;
-  const hastaVisible = Math.min(finPagina, ordenados.length);
+  // Si es server-side los activos ya vienen paginados; no re-sliceamos
+  const visibles = usarPaginacionExterna
+    ? ordenados
+    : ordenados.slice(inicioPagina, finPagina);
+  const totalParaTexto = usarPaginacionExterna
+    ? paginacionExterna.total
+    : ordenados.length;
+  const paginaActual = usarPaginacionExterna ? paginacionExterna.pagina : pagina;
+  const desdeVisible = totalParaTexto
+    ? usarPaginacionExterna
+      ? (paginaActual - 1) * registrosPorPagina + 1
+      : inicioPagina + 1
+    : 0;
+  const hastaVisible = usarPaginacionExterna
+    ? Math.min(paginaActual * registrosPorPagina, paginacionExterna.total)
+    : Math.min(finPagina, ordenados.length);
 
   React.useEffect(() => {
     setPagina(1);
@@ -186,6 +216,15 @@ export function ActivosTabla({ activos }: Props) {
     value: FiltrosActivos[K]
   ) {
     setFiltrosFormulario((actual) => ({ ...actual, [key]: value }));
+  }
+
+  function actualizarQuery(valor: string) {
+    setFiltrosFormulario((actual) => ({ ...actual, query: valor }));
+    if (debounceQueryRef.current) clearTimeout(debounceQueryRef.current);
+    debounceQueryRef.current = setTimeout(() => {
+      setPagina(1);
+      setFiltrosAplicados((actual) => ({ ...actual, query: valor }));
+    }, 300);
   }
 
   function aplicarFiltros() {
@@ -363,7 +402,7 @@ export function ActivosTabla({ activos }: Props) {
                   className="h-9 w-full rounded-4xl pl-9"
                   placeholder="Codigo, placa, marca o modelo"
                   value={filtrosFormulario.query}
-                  onChange={(event) => actualizarFiltro("query", event.target.value)}
+                  onChange={(event) => actualizarQuery(event.target.value)}
                 />
               </div>
               <FiltroSelect
@@ -674,7 +713,7 @@ export function ActivosTabla({ activos }: Props) {
 
         <div className="mx-4 flex flex-col gap-3 border-t border-border pb-4 pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
           <div>
-            Mostrando {desdeVisible}-{hastaVisible} de {ordenados.length} activos
+            Mostrando {desdeVisible}-{hastaVisible} de {totalParaTexto} activos
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2">
@@ -682,9 +721,13 @@ export function ActivosTabla({ activos }: Props) {
               <select
                 className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                 value={registrosPorPagina}
-                onChange={(event) =>
-                  setRegistrosPorPagina(Number(event.target.value))
-                }
+                onChange={(event) => {
+                  const nuevo = Number(event.target.value);
+                  setRegistrosPorPagina(nuevo);
+                  if (usarPaginacionExterna) {
+                    paginacionExterna.onCambiarLimite(nuevo);
+                  }
+                }}
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
@@ -695,22 +738,32 @@ export function ActivosTabla({ activos }: Props) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={pagina === 1}
-              onClick={() => setPagina((actual) => Math.max(1, actual - 1))}
+              disabled={usarPaginacionExterna ? !paginacionExterna.tieneAnterior : pagina === 1}
+              onClick={() => {
+                if (usarPaginacionExterna) {
+                  paginacionExterna.onCambiarPagina(paginaActual - 1);
+                } else {
+                  setPagina((actual) => Math.max(1, actual - 1));
+                }
+              }}
             >
               Anterior
             </Button>
             <span className="min-w-20 text-center">
-              {pagina} / {totalPaginas}
+              {paginaActual} / {totalPaginas}
             </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={pagina === totalPaginas}
-              onClick={() =>
-                setPagina((actual) => Math.min(totalPaginas, actual + 1))
-              }
+              disabled={usarPaginacionExterna ? !paginacionExterna.tieneSiguiente : pagina === totalPaginas}
+              onClick={() => {
+                if (usarPaginacionExterna) {
+                  paginacionExterna.onCambiarPagina(paginaActual + 1);
+                } else {
+                  setPagina((actual) => Math.min(totalPaginas, actual + 1));
+                }
+              }}
             >
               Siguiente
             </Button>

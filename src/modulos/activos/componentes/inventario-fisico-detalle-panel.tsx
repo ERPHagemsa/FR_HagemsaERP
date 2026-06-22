@@ -38,7 +38,6 @@ import {
 import {
   actualizarDetalleInventarioFisico,
   cerrarInventarioFisico,
-  obtenerSnapshotsHistoricosActivoInventario,
   registrarRevisionInventarioFisico,
 } from "../servicios/activos-api";
 import {
@@ -222,6 +221,16 @@ export function InventarioFisicoDetallePanel({
               detalle.id,
               payloadRevision
             );
+
+      if (detalle.id === null) {
+        const nuevoDetalle = actualizado.detalles.find(
+          (d) => d.activoId === detalle.activoId
+        );
+        if (nuevoDetalle) {
+          setDetalleSeleccionadoKey(obtenerDetalleKey(nuevoDetalle));
+        }
+      }
+
       setInventario(actualizado);
     } catch (err) {
       setError(
@@ -483,7 +492,11 @@ function DetalleRow({
 }) {
   return (
     <TableRow className={selected ? "bg-primary/5" : undefined}>
-      <TableCell className="min-w-52 align-top">
+      <TableCell
+        className={`min-w-52 border-l-2 align-top ${
+          resultadoConciliacion(detalle.estadoRevision).acento
+        }`}
+      >
         <div className="grid gap-1">
           <span className="font-semibold">{detalle.codigoActivo}</span>
           <span className="text-xs text-muted-foreground">
@@ -525,9 +538,14 @@ function DetalleRow({
       </TableCell>
       <TableCell className="align-top">
         <div className="grid gap-1 text-xs">
-          <span className="font-medium">
-            {formatear(detalle.estadoRevision)}
-          </span>
+          <Badge
+            variant="outline"
+            className={`w-fit ${
+              resultadoConciliacion(detalle.estadoRevision).clase
+            }`}
+          >
+            {resultadoConciliacion(detalle.estadoRevision).label}
+          </Badge>
           <span className="text-muted-foreground">
             {detalle.fechaRevision
               ? formatearFecha(detalle.fechaRevision)
@@ -588,13 +606,6 @@ function FichaRevisionInventario({
     detalle.observacion ?? ""
   );
   const [guardando, setGuardando] = React.useState(false);
-  const [snapshotsHistoricos, setSnapshotsHistoricos] = React.useState<
-    SnapshotHistoricoActivoInventario[]
-  >([]);
-  const [cargandoSnapshots, setCargandoSnapshots] = React.useState(false);
-  const [errorSnapshots, setErrorSnapshots] = React.useState<string | null>(
-    null
-  );
   const imagenesQuery = useImagenesActivoQuery(detalle.codigoActivo);
   const documentosQuery = useDocumentosActivoQuery(detalle.codigoActivo);
   const tanquesQuery = useTanquesActivoQuery(detalle.codigoActivo);
@@ -623,45 +634,6 @@ function FichaRevisionInventario({
     setUbicacion(detalle.ubicacionEncontrada ?? "");
     setObservacion(detalle.observacion ?? "");
   }, [detalle]);
-
-  React.useEffect(() => {
-    let cancelado = false;
-
-    async function cargarSnapshots() {
-      setCargandoSnapshots(true);
-      setErrorSnapshots(null);
-
-      try {
-        const data = await obtenerSnapshotsHistoricosActivoInventario(
-          detalle.activoId,
-          inventarioId
-        );
-
-        if (!cancelado) {
-          setSnapshotsHistoricos(data);
-        }
-      } catch (error) {
-        if (!cancelado) {
-          setSnapshotsHistoricos([]);
-          setErrorSnapshots(
-            error instanceof Error
-              ? error.message
-              : "No se pudo cargar el comparativo historico"
-          );
-        }
-      } finally {
-        if (!cancelado) {
-          setCargandoSnapshots(false);
-        }
-      }
-    }
-
-    cargarSnapshots();
-
-    return () => {
-      cancelado = true;
-    };
-  }, [detalle.activoId, inventarioId]);
 
   async function guardar() {
     if (!puedeGuardar) return;
@@ -910,12 +882,7 @@ function FichaRevisionInventario({
                 embedded
               />
             )}
-            <TrazabilidadInventarioActivo
-              detalle={detalle}
-              snapshots={snapshotsHistoricos}
-              cargandoSnapshots={cargandoSnapshots}
-              errorSnapshots={errorSnapshots}
-            />
+            <TrazabilidadInventarioActivo detalle={detalle} activo={activo} />
           </CardContent>
         </Card>
 
@@ -1148,52 +1115,233 @@ function HistorialInventario({
 
 function TrazabilidadInventarioActivo({
   detalle,
-  snapshots,
-  cargandoSnapshots,
-  errorSnapshots,
+  activo,
 }: {
   detalle: InventarioFisicoDetalle;
-  snapshots: SnapshotHistoricoActivoInventario[];
-  cargandoSnapshots: boolean;
-  errorSnapshots: string | null;
+  activo?: Activo;
 }) {
   return (
     <section className="mt-6 border-t border-border pt-6">
       <div className="mb-4">
-        <h3 className="font-semibold">Trazabilidad del inventario</h3>
+        <h3 className="font-semibold">Foto de apertura y conciliacion</h3>
         <p className="text-sm text-muted-foreground">
-          Consulta la foto tomada al aperturar este inventario y comparala con
-          inventarios anteriores del mismo activo.
+          Datos del activo copiados al aperturar el inventario y diferencias
+          detectadas en la revision fisica.
         </p>
       </div>
-      <Tabs defaultValue="foto">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="foto">Foto de apertura</TabsTrigger>
-          <TabsTrigger value="comparativo">Comparativo historico</TabsTrigger>
-        </TabsList>
-        <TabsContent value="foto" className="pt-5">
-          <SnapshotInventario detalle={detalle} />
-        </TabsContent>
-        <TabsContent value="comparativo" className="pt-5">
-          <ComparativoHistoricoInventario
-            detalle={detalle}
-            snapshots={snapshots}
-            cargando={cargandoSnapshots}
-            error={errorSnapshots}
-          />
-        </TabsContent>
-      </Tabs>
+      <SnapshotInventario detalle={detalle} activo={activo} />
     </section>
   );
 }
 
-function SnapshotInventario({ detalle }: { detalle: InventarioFisicoDetalle }) {
+function resultadoConciliacion(estado: EstadoRevisionInventario): {
+  label: string;
+  clase: string;
+  acento: string;
+} {
+  switch (estado) {
+    case "ENCONTRADO":
+      return {
+        label: "Encontrado",
+        clase:
+          "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+        acento: "border-l-emerald-500",
+      };
+    case "OBSERVADO":
+      return {
+        label: "Observado",
+        clase:
+          "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+        acento: "border-l-amber-500",
+      };
+    case "FALTANTE":
+      return {
+        label: "No ubicado",
+        clase: "border-destructive/30 bg-destructive/10 text-destructive",
+        acento: "border-l-destructive",
+      };
+    case "NO_APLICA":
+      return {
+        label: "No aplica",
+        clase: "border-border text-muted-foreground",
+        acento: "border-l-transparent",
+      };
+    default:
+      return {
+        label: "Pendiente",
+        clase: "border-border text-muted-foreground",
+        acento: "border-l-transparent",
+      };
+  }
+}
+
+function ConciliacionRevision({
+  detalle,
+  ubicacionApertura,
+}: {
+  detalle: InventarioFisicoDetalle;
+  ubicacionApertura: string;
+}) {
+  const estado = detalle.estadoRevision;
+
+  if (estado === "PENDIENTE") {
+    return (
+      <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+        Este activo todavia no fue revisado. La conciliacion aparece al
+        registrar el resultado fisico.
+      </div>
+    );
+  }
+
+  const apertura = ubicacionApertura.trim();
+  const encontrada = (detalle.ubicacionEncontrada ?? "").trim();
+  const ubicacionDifiere =
+    Boolean(apertura) &&
+    Boolean(encontrada) &&
+    apertura.toUpperCase() !== encontrada.toUpperCase();
+  const resultado = resultadoConciliacion(estado);
+
+  return (
+    <section className="grid gap-3 rounded-xl border border-border bg-muted/10 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-semibold">Conciliacion</h3>
+        <Badge variant="outline" className={`w-fit ${resultado.clase}`}>
+          {resultado.label}
+        </Badge>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Foto de apertura (lo esperado) frente a lo encontrado en la revision
+        fisica.
+      </p>
+
+      <div className="grid grid-cols-[110px_1fr_1fr] items-center gap-x-3 gap-y-2 text-sm">
+        <span></span>
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">
+          Foto de apertura
+        </span>
+        <span className="text-xs uppercase tracking-wide text-muted-foreground">
+          Encontrado
+        </span>
+
+        <span className="text-muted-foreground">Ubicacion</span>
+        <span
+          className={
+            ubicacionDifiere ? "text-muted-foreground line-through" : ""
+          }
+        >
+          {apertura || "—"}
+        </span>
+        {ubicacionDifiere ? (
+          <span className="w-fit rounded-md bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600 dark:text-amber-400">
+            {encontrada}
+          </span>
+        ) : encontrada ? (
+          <span className="font-medium text-emerald-600 dark:text-emerald-400">
+            {encontrada}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+      </div>
+
+      {detalle.observacion ? (
+        <div className="rounded-lg border border-border bg-background px-3 py-2 text-sm">
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            Observacion del inventariador
+          </span>
+          <p className="mt-1">{detalle.observacion}</p>
+        </div>
+      ) : null}
+
+      {detalle.fechaRevision ? (
+        <p className="text-xs text-muted-foreground">
+          Revisado el {formatearFecha(detalle.fechaRevision)}
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function DatoConciliado({
+  label,
+  snapshotRaw,
+  maestroRaw,
+  fmt = (v) => (v ? String(v) : "-"),
+}: {
+  label: string;
+  snapshotRaw?: string | null;
+  maestroRaw?: string | null;
+  fmt?: (v: string | null | undefined) => string;
+}) {
+  const snap = (snapshotRaw ?? "").trim();
+  const maestro = (maestroRaw ?? "").trim();
+  const difiere =
+    snap !== "" &&
+    maestro !== "" &&
+    normalizarComparacion(snap) !== normalizarComparacion(maestro);
+
+  return (
+    <div className="grid gap-1">
+      <span className="text-xs uppercase text-muted-foreground">{label}</span>
+      {difiere ? (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm text-muted-foreground line-through">
+            {fmt(snap)}
+          </span>
+          <span className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+            {fmt(maestro)}
+          </span>
+        </div>
+      ) : (
+        <span className="font-semibold text-foreground">
+          {fmt(snap || maestro) || "-"}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function contarCambiosMaestro(
+  snapshot: Record<string, unknown> | null,
+  activo: Activo | undefined
+): number {
+  if (!snapshot || !activo) return 0;
+  const vehiculo = obtenerObjetoSnapshot(snapshot, "vehiculo");
+  let cambios = 0;
+  const cmp = (a?: string | null, b?: string | null) => {
+    const na = normalizarComparacion(a);
+    const nb = normalizarComparacion(b);
+    if (na && nb && na !== nb) cambios++;
+  };
+  cmp(leerSnapshot(snapshot, "descripcion"), activo.descripcion);
+  cmp(leerSnapshot(snapshot, "ubicacion"), activo.ubicacion);
+  cmp(leerSnapshot(snapshot, "estadoActivo"), activo.estadoActivo);
+  cmp(leerSnapshot(vehiculo, "placa"), activo.vehiculo?.placa);
+  cmp(leerSnapshot(vehiculo, "marca"), activo.vehiculo?.marca);
+  cmp(leerSnapshot(vehiculo, "modelo"), activo.vehiculo?.modelo);
+  cmp(leerSnapshot(vehiculo, "carroceria"), activo.vehiculo?.carroceria);
+  cmp(leerSnapshot(vehiculo, "serieChasis"), activo.vehiculo?.serieChasis);
+  cmp(leerSnapshot(vehiculo, "serieMotor"), activo.vehiculo?.serieMotor);
+  cmp(leerSnapshot(vehiculo, "estadoOperativo"), activo.vehiculo?.estadoOperativo);
+  cmp(leerSnapshot(vehiculo, "estadoCalibracion"), activo.vehiculo?.estadoCalibracion);
+  cmp(leerSnapshot(vehiculo, "plantillaInventario"), activo.vehiculo?.plantillaInventario);
+  return cambios;
+}
+
+function SnapshotInventario({
+  detalle,
+  activo,
+}: {
+  detalle: InventarioFisicoDetalle;
+  activo?: Activo;
+}) {
   const snapshot = detalle.snapshotActivo ?? null;
   const vehiculo = obtenerObjetoSnapshot(snapshot, "vehiculo");
   const documentos = obtenerListaSnapshot(snapshot, "documentos");
   const imagenes = obtenerListaSnapshot(snapshot, "imagenes");
   const tanques = obtenerListaSnapshot(snapshot, "tanques");
   const equipamiento = obtenerListaSnapshot(snapshot, "equipamiento");
+  const cambiosMaestro = contarCambiosMaestro(snapshot, activo);
 
   if (!snapshot) {
     return (
@@ -1207,35 +1355,70 @@ function SnapshotInventario({ detalle }: { detalle: InventarioFisicoDetalle }) {
   return (
     <div className="grid gap-5">
       <div className="rounded-xl border border-border bg-muted/20 p-4">
-        <p className="text-sm font-medium">Foto de apertura</p>
-        <p className="text-sm text-muted-foreground">
-          Foto del activo guardada al aperturar el inventario. Esta informacion
-          no cambia aunque el maestro vivo sea editado despues.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-medium">Foto de apertura</p>
+            <p className="text-sm text-muted-foreground">
+              Datos copiados al aperturar. Los campos en{" "}
+              <span className="font-medium text-amber-600 dark:text-amber-400">
+                ambar
+              </span>{" "}
+              cambiaron en el maestro desde entonces.
+            </p>
+          </div>
+          {cambiosMaestro > 0 ? (
+            <Badge
+              variant="outline"
+              className="border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            >
+              {cambiosMaestro}{" "}
+              {cambiosMaestro === 1 ? "campo modificado" : "campos modificados"}
+            </Badge>
+          ) : activo ? (
+            <Badge
+              variant="outline"
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            >
+              Sin cambios en maestro
+            </Badge>
+          ) : null}
+        </div>
         <Badge className="mt-3 w-fit" variant="outline">
           Fecha snapshot: {formatearFecha(detalle.snapshotFecha)}
         </Badge>
       </div>
 
+      <ConciliacionRevision
+        detalle={detalle}
+        ubicacionApertura={leerSnapshot(snapshot, "ubicacion") ?? ""}
+      />
+
       <section className="grid gap-3">
         <h3 className="font-semibold">Base</h3>
         <FichaGrid>
-          <DatoInventario label="Codigo" value={leerSnapshot(snapshot, "codigo")} />
           <DatoInventario
+            label="Codigo"
+            value={leerSnapshot(snapshot, "codigo") ?? detalle.codigoActivo}
+          />
+          <DatoConciliado
             label="Descripcion"
-            value={leerSnapshot(snapshot, "descripcion")}
+            snapshotRaw={leerSnapshot(snapshot, "descripcion") ?? detalle.descripcionActivo}
+            maestroRaw={activo?.descripcion}
           />
           <DatoInventario
             label="Tipo activo"
-            value={formatear(leerSnapshot(snapshot, "tipoActivo"))}
+            value={formatear(leerSnapshot(snapshot, "tipoActivo") ?? detalle.tipoActivo)}
           />
-          <DatoInventario
+          <DatoConciliado
             label="Ubicacion"
-            value={leerSnapshot(snapshot, "ubicacion")}
+            snapshotRaw={leerSnapshot(snapshot, "ubicacion") ?? detalle.ubicacionEsperada}
+            maestroRaw={activo?.ubicacion}
           />
-          <DatoInventario
+          <DatoConciliado
             label="Estado activo"
-            value={formatearEstadoActivo(leerSnapshot(snapshot, "estadoActivo"))}
+            snapshotRaw={leerSnapshot(snapshot, "estadoActivo") ?? detalle.estadoActivo}
+            maestroRaw={activo?.estadoActivo}
+            fmt={formatearEstadoActivo}
           />
           <DatoInventario
             label="Observacion"
@@ -1247,37 +1430,58 @@ function SnapshotInventario({ detalle }: { detalle: InventarioFisicoDetalle }) {
       <section className="grid gap-3">
         <h3 className="font-semibold">Vehiculo</h3>
         <FichaGrid>
-          <DatoInventario
+          <DatoConciliado
             label="Clase"
-            value={leerSnapshot(vehiculo, "plantillaInventario")}
+            snapshotRaw={leerSnapshot(vehiculo, "plantillaInventario")}
+            maestroRaw={activo?.vehiculo?.plantillaInventario}
+            fmt={formatear}
           />
-          <DatoInventario label="Placa" value={leerSnapshot(vehiculo, "placa")} />
-          <DatoInventario label="Marca" value={leerSnapshot(vehiculo, "marca")} />
-          <DatoInventario label="Modelo" value={leerSnapshot(vehiculo, "modelo")} />
-          <DatoInventario
+          <DatoConciliado
+            label="Placa"
+            snapshotRaw={leerSnapshot(vehiculo, "placa") ?? detalle.placa}
+            maestroRaw={activo?.vehiculo?.placa}
+          />
+          <DatoConciliado
+            label="Marca"
+            snapshotRaw={leerSnapshot(vehiculo, "marca") ?? detalle.marca}
+            maestroRaw={activo?.vehiculo?.marca}
+          />
+          <DatoConciliado
+            label="Modelo"
+            snapshotRaw={leerSnapshot(vehiculo, "modelo") ?? detalle.modelo}
+            maestroRaw={activo?.vehiculo?.modelo}
+          />
+          <DatoConciliado
             label="Carroceria"
-            value={leerSnapshot(vehiculo, "carroceria")}
+            snapshotRaw={leerSnapshot(vehiculo, "carroceria") ?? detalle.carroceria}
+            maestroRaw={activo?.vehiculo?.carroceria}
           />
           <DatoInventario label="Ejes" value={leerSnapshot(vehiculo, "ejes")} />
           <DatoInventario
             label="Categoria"
             value={leerSnapshot(vehiculo, "categoria")}
           />
-          <DatoInventario
+          <DatoConciliado
             label="Serie chasis"
-            value={leerSnapshot(vehiculo, "serieChasis")}
+            snapshotRaw={leerSnapshot(vehiculo, "serieChasis")}
+            maestroRaw={activo?.vehiculo?.serieChasis}
           />
-          <DatoInventario
+          <DatoConciliado
             label="Serie motor"
-            value={leerSnapshot(vehiculo, "serieMotor")}
+            snapshotRaw={leerSnapshot(vehiculo, "serieMotor")}
+            maestroRaw={activo?.vehiculo?.serieMotor}
           />
-          <DatoInventario
+          <DatoConciliado
             label="Condicion activo"
-            value={formatear(leerSnapshot(vehiculo, "estadoOperativo"))}
+            snapshotRaw={leerSnapshot(vehiculo, "estadoOperativo") ?? detalle.estadoOperativo}
+            maestroRaw={activo?.vehiculo?.estadoOperativo}
+            fmt={formatear}
           />
-          <DatoInventario
+          <DatoConciliado
             label="Calibracion"
-            value={formatear(leerSnapshot(vehiculo, "estadoCalibracion"))}
+            snapshotRaw={leerSnapshot(vehiculo, "estadoCalibracion") ?? detalle.estadoCalibracion}
+            maestroRaw={activo?.vehiculo?.estadoCalibracion}
+            fmt={formatear}
           />
         </FichaGrid>
       </section>
@@ -1854,6 +2058,7 @@ function construirDetallesInventario(
         ubicacion: activo.ubicacion,
         estadoActivo: activo.estadoActivo,
         estadoRegistro: activo.estadoRegistro,
+        observacion: activo.observacion,
         vehiculo: vehiculo ?? null,
       },
       snapshotFecha: inventario.fechaApertura,
