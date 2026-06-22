@@ -249,8 +249,8 @@ export type Modalidad = {
   estado: EstadoModalidad;
   tarifaBaseReferencial: number | null;
   moneda: Moneda | null;
-  margenObjetivo: number | null;
   requiereAprobacion: boolean;
+  documentacionRequerida: string[];
   fechaCreacion: string;
   usuarioCreacion: string;
   fechaModificacion: string | null;
@@ -330,8 +330,8 @@ export type PayloadCrearModalidad = {
   tipo?: TipoModalidad;
   tarifaBaseReferencial?: number;
   moneda?: Moneda;
-  margenObjetivo?: number;
   requiereAprobacion?: boolean;
+  documentacionRequerida?: string[];
 };
 
 export type PayloadActualizarModalidad = Partial<PayloadCrearModalidad>;
