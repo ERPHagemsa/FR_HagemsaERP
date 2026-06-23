@@ -232,13 +232,15 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[20%]">Solicitante</TableHead>
-                <TableHead className="w-[20%]">Descripcion del servicio</TableHead>
-                <TableHead className="w-[9%]">Origen</TableHead>
-                <TableHead className="w-[12%]">Estado</TableHead>
-                <TableHead className="w-[11%]">Tomado por</TableHead>
-                <TableHead className="w-[8%] text-center">Cotizaciones</TableHead>
-                <TableHead className="w-[20%] text-right">Accion</TableHead>
+                <TableHead className="w-[8%]">Codigo</TableHead>
+                <TableHead className="w-[16%]">Solicitante</TableHead>
+                <TableHead className="w-[7%]">Origen</TableHead>
+                <TableHead className="w-[15%]">Descripcion del servicio</TableHead>
+                <TableHead className="w-[13%]">Registrada por</TableHead>
+                <TableHead className="w-[8%] text-center whitespace-nowrap">Cotiz.</TableHead>
+                <TableHead className="w-[13%]">Cotizada por</TableHead>
+                <TableHead className="w-[10%]">Estado</TableHead>
+                <TableHead className="w-[10%] text-right">Accion</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -248,7 +250,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
               {!items.length ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={9}
                     className="h-28 text-center text-muted-foreground"
                   >
                     {hayFiltros
@@ -315,6 +317,11 @@ function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
   return (
     <TableRow>
       <TableCell className="text-sm">
+        <span className="font-medium tabular-nums">
+          {item.codigoSolicitud ?? "—"}
+        </span>
+      </TableCell>
+      <TableCell className="text-sm">
         <span className="block truncate font-medium">{item.nombreSolicitante}</span>
         {item.contactoSolicitante ? (
           <span className="block truncate text-xs text-muted-foreground">
@@ -322,30 +329,33 @@ function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
           </span>
         ) : null}
       </TableCell>
+      <TableCell className="text-sm">
+        {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
+      </TableCell>
       <TableCell className="truncate text-sm text-muted-foreground">
         {item.descripcionServicio}
       </TableCell>
       <TableCell className="text-sm">
-        {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
-      </TableCell>
-      <TableCell>
-        <EstadoSolicitudBadge estado={item.estado} />
-      </TableCell>
-      {/* Columna "Tomado por": derivada de cotizacionVigente (presencia de una
-          cotizacion viva), NO de totalCotizaciones. Si todas murieron, la SC
-          vuelve al pool → "Disponible". Cuando el backend exponga el ejecutivo,
-          acá se mostrará el nombre real. */}
-      <TableCell>
-        {vigente == null ? (
-          <Badge variant="outline">Disponible</Badge>
-        ) : (
-          <Badge variant="secondary">Tomada</Badge>
-        )}
+        <span className="block truncate">
+          {item.registradoPor?.nombre ?? "—"}
+        </span>
       </TableCell>
       <TableCell className="text-center">
         <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
           {item.totalCotizaciones}
         </span>
+      </TableCell>
+      {/* "Cotizada por": ejecutivo de la cotizacion viva. Sin cotizacion viva la
+          SC vuelve al pool → "Disponible". */}
+      <TableCell className="text-sm">
+        {vigente == null ? (
+          <Badge variant="outline">Disponible</Badge>
+        ) : (
+          <span className="block truncate">{vigente.ejecutivo.nombre}</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <EstadoSolicitudBadge estado={item.estado} />
       </TableCell>
       {/* Accion primaria adaptativa (solo-icono con tooltip):
           - hay cotizacion viva  -> "Ver cotizacion" (deep-link directo, evita el detalle)
