@@ -47,6 +47,7 @@ import {
   useActualizarActivoMutation,
   useCrearActivoMutation,
 } from "../servicios/activos-queries";
+import { obtenerValoresCatalogo } from "../servicios/maestros-api";
 import type {
   Activo,
   CarroceriaReferencia,
@@ -159,6 +160,36 @@ export function ActivoFormulario({
   const [carroceriasReferencia, setCarroceriasReferencia] = React.useState<
     CarroceriaReferencia[]
   >([]);
+  const [catalogoTiposActivo, setCatalogoTiposActivo] = React.useState<string[]>([
+    "VEHICULO",
+    "EQUIPO",
+    "HERRAMIENTA",
+    "DISPOSITIVO",
+    "OTRO",
+  ]);
+  const [catalogoClasesVehiculo, setCatalogoClasesVehiculo] = React.useState<
+    string[]
+  >(["CAMION", "REMOLCADOR", "SEMIREMOLQUE", "EQUIPO_LIVIANO"]);
+  const [catalogoClasesEuro, setCatalogoClasesEuro] = React.useState<string[]>([
+    "EURO_1",
+    "EURO_2",
+    "EURO_3",
+    "EURO_4",
+    "EURO_5",
+  ]);
+  const [catalogoTiposTransmision, setCatalogoTiposTransmision] = React.useState<
+    string[]
+  >([
+    "AUTOMATICA",
+    "AUTOMATIZADA",
+    "MECANICA_10_VELOCIDADES",
+    "MECANICA_13_VELOCIDADES",
+    "MECANICA_15_VELOCIDADES",
+    "MECANICA_18_VELOCIDADES",
+    "MECANICA_OTRA",
+  ]);
+  const [catalogoEstadosCalibracion, setCatalogoEstadosCalibracion] =
+    React.useState<string[]>(["CALIBRADA", "NO_CALIBRADA", "PENDIENTE", "OBSERVADA"]);
   const [carroceriasError, setCarroceriasError] = React.useState<string | null>(
     null
   );
@@ -234,6 +265,59 @@ export function ActivoFormulario({
       isMounted = false;
     };
   }, [plantillaSeleccionada, selectedCarroceriaReferenciaId]);
+
+  // Catalogos dinamicos (Tipo de Activo, Clase, Clase Euro/NEC, Tipo de
+  // Transmision, Estado de Calibracion): se cargan una sola vez al montar.
+  // Si el fetch falla se conserva el listado hardcodeado de arriba como
+  // fallback (mismo criterio que obtenerCarroceriasReferencia). Se asegura
+  // que el valor ya guardado en el activo siga disponible en el listado
+  // aunque un admin lo haya desactivado luego, para no alterarlo al editar.
+  React.useEffect(() => {
+    let isMounted = true;
+
+    function aplicar(
+      setter: React.Dispatch<React.SetStateAction<string[]>>,
+      valorActual?: string | null
+    ) {
+      return (valores: { codigo: string }[]) => {
+        if (!isMounted || !valores.length) return;
+        const codigos = valores.map((valor) => valor.codigo);
+        setter(
+          valorActual && !codigos.includes(valorActual)
+            ? [valorActual, ...codigos]
+            : codigos
+        );
+      };
+    }
+
+    obtenerValoresCatalogo("TIPO_ACTIVO", true)
+      .then(aplicar(setCatalogoTiposActivo, activo?.tipoActivo))
+      .catch(() => {});
+    obtenerValoresCatalogo("CLASE_VEHICULO", true)
+      .then(
+        aplicar(setCatalogoClasesVehiculo, activo?.vehiculo?.plantillaInventario)
+      )
+      .catch(() => {});
+    obtenerValoresCatalogo("CLASE_EURO", true)
+      .then(aplicar(setCatalogoClasesEuro, activo?.vehiculo?.claseEuro))
+      .catch(() => {});
+    obtenerValoresCatalogo("TIPO_TRANSMISION", true)
+      .then(
+        aplicar(setCatalogoTiposTransmision, activo?.vehiculo?.tipoTransmision)
+      )
+      .catch(() => {});
+    obtenerValoresCatalogo("ESTADO_CALIBRACION", true)
+      .then(
+        aplicar(setCatalogoEstadosCalibracion, activo?.vehiculo?.estadoCalibracion)
+      )
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+    // Solo se cargan una vez al montar: no dependen de otro estado del form.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   React.useEffect(() => {
     if (returnTo || !isEdit) {
@@ -1132,7 +1216,7 @@ export function ActivoFormulario({
                     name="tipoActivo"
                     label="Tipo de activo"
                     defaultValue={activo?.tipoActivo ?? "VEHICULO"}
-                    values={["VEHICULO", "EQUIPO", "HERRAMIENTA", "DISPOSITIVO", "OTRO"]}
+                    values={catalogoTiposActivo}
                     onChange={(value) => {
                       const next = value as TipoActivo;
                       setTipoActivoSeleccionado(next);
@@ -1233,12 +1317,7 @@ export function ActivoFormulario({
                         actualizarResumen();
                       }}
                     >
-                      {[
-                        "CAMION",
-                        "REMOLCADOR",
-                        "SEMIREMOLQUE",
-                        "EQUIPO_LIVIANO",
-                      ].map((value) => (
+                      {catalogoClasesVehiculo.map((value) => (
                         <option key={value} value={value}>
                           {formatLabel(value)}
                         </option>
@@ -1366,7 +1445,7 @@ export function ActivoFormulario({
                     name="claseEuro"
                     label="Clase Euro / NEC"
                     defaultValue={activo?.vehiculo?.claseEuro ?? ""}
-                    values={["", "EURO_1", "EURO_2", "EURO_3", "EURO_4", "EURO_5"]}
+                    values={["", ...catalogoClasesEuro]}
                   />
                   <Field
                     name="ratioCorona"
@@ -1382,16 +1461,7 @@ export function ActivoFormulario({
                     name="tipoTransmision"
                     label="Tipo transmision"
                     defaultValue={activo?.vehiculo?.tipoTransmision ?? ""}
-                    values={[
-                      "",
-                      "AUTOMATICA",
-                      "AUTOMATIZADA",
-                      "MECANICA_10_VELOCIDADES",
-                      "MECANICA_13_VELOCIDADES",
-                      "MECANICA_15_VELOCIDADES",
-                      "MECANICA_18_VELOCIDADES",
-                      "MECANICA_OTRA",
-                    ]}
+                    values={["", ...catalogoTiposTransmision]}
                   />
                 </div>
             </TabsContent>
@@ -1406,7 +1476,7 @@ export function ActivoFormulario({
               />
                 <div className="grid gap-4 md:grid-cols-3">
                   <SelectField name="estadoOperativo" label="Condicion activo" defaultValue={activo?.vehiculo?.estadoOperativo ?? "OPERATIVO"} values={["OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]} />
-                  <SelectField name="estadoCalibracion" label="Estado calibracion" defaultValue={activo?.vehiculo?.estadoCalibracion ?? "PENDIENTE"} values={["CALIBRADA", "NO_CALIBRADA", "PENDIENTE", "OBSERVADA"]} />
+                  <SelectField name="estadoCalibracion" label="Estado calibracion" defaultValue={activo?.vehiculo?.estadoCalibracion ?? "PENDIENTE"} values={catalogoEstadosCalibracion} />
                 </div>
                 <div className="pt-4">
                   <Field name="observacion" label="Observacion" defaultValue={activo?.observacion ?? undefined} />

@@ -62,6 +62,7 @@ const data = {
         { title: "Inventario fisico", url: "/activos/inventario-fisico" },
         { title: "Nuevo activo", url: "/activos/nuevo" },
         { title: "Replaqueo", url: "/activos/nuevo-acople" },
+        { title: "Administrador de maestros", url: "/activos/maestros" },
         { title: "Estados", url: "#" },
         { title: "Documentos", url: "#" },
       ],
