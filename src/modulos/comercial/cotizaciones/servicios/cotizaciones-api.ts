@@ -3,10 +3,12 @@ import { clienteComercial } from "@/compartido/api/clientes-backend";
 import type {
   Cotizacion,
   FiltrosCotizaciones,
+  ParamsPrecioSugerido,
   PayloadBorrador,
   PayloadEnviar,
   PayloadNuevaVersion,
   PayloadPerdida,
+  PrecioSugerido,
   RespuestaPaginadaCotizaciones,
   SugerenciaCarga,
 } from "../tipos/cotizaciones.tipos";
@@ -44,6 +46,25 @@ export async function obtenerSugerenciasCarga(
   const { data } = await clienteComercial.get<SugerenciaCarga[]>(
     "/cotizaciones/cargas/sugerencias",
     { params: { q, limit } }
+  );
+  return data;
+}
+
+// GET /cotizaciones/precio-sugerido (API §5.3.2)
+// Sugiere un precio de referencia para una linea de TRANSPORTE a partir del historico
+// (modalidad + ruta + carga). Solo lectura: no crea ni modifica nada. Es SOLO una
+// referencia — el ejecutivo puede aceptarla o cotizar a criterio.
+// `pesoTotal` (TN, > 0) es REQUERIDO: el backend exige saber el peso para cotizar transporte.
+// Con clienteTipo + clienteId acota al historial de ese cliente (alcance "cliente"),
+// con fallback a mercado si no tiene historial. La respuesta trae `alcance`, `ajustadoPorPeso`
+// y `comparables`. SIN comparables: 200 con montos = null, muestras = 0, comparables [] y
+// ajustadoPorPeso false (NO es error). axios omite del query string los params undefined.
+export async function obtenerPrecioSugerido(
+  params: ParamsPrecioSugerido
+): Promise<PrecioSugerido> {
+  const { data } = await clienteComercial.get<PrecioSugerido>(
+    "/cotizaciones/precio-sugerido",
+    { params }
   );
   return data;
 }

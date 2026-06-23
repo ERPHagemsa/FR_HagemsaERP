@@ -51,9 +51,10 @@ export async function consultarSolicitudCliente(id: string): Promise<SolicitudCl
   return data;
 }
 
-// POST /solicitudes-cliente/:id/cotizaciones — body { secciones?, lineas?, standbys? } → 201 { idCotizacion }
-// La cotizacion nace POBLADA (mismo body que PATCH /borrador). Requiere >=1 linea
-// activa entre secciones + raiz; un body sin lineas devuelve 422.
+// POST /solicitudes-cliente/:id/cotizaciones — body { moneda?, secciones?, standbys?, leadTimes? } → 201 { idCotizacion }
+// La cotizacion nace POBLADA (mismo body que PATCH /borrador, §5.4). NO existe canal de
+// lineas raiz: toda linea va dentro de secciones[].lineas. Requiere >=1 linea activa entre
+// las secciones; un body sin lineas devuelve 422.
 export async function agregarCotizacion(
   id: string,
   payload: PayloadBorrador

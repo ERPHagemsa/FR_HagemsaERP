@@ -76,6 +76,48 @@ export type SugerenciaCarga = {
   unidadPeso: UnidadPeso | null;
 };
 
+// Precio sugerido para una linea de TRANSPORTE (API §5.3.2). Lectura: a partir del
+// historico de cotizaciones que salieron al cliente y matchean modalidad + ruta + carga,
+// devuelve la mediana (monto) y el rango tipico p25-p75 (montoMin-montoMax).
+// Sin comparables: monto/montoMin/montoMax = null y muestras = 0 (NO es error).
+export type ParamsPrecioSugerido = {
+  modalidadId: string;   // UUID de la modalidad (implica el tipo de linea)
+  origen: string;        // texto plano; el backend normaliza para el match
+  destino: string;       // texto plano; el backend normaliza para el match
+  moneda: Moneda;        // PEN | USD — no se mezclan, cada moneda tiene su estadistica
+  pesoTotal: number;     // TN, > 0 — REQUERIDO (no se cotiza transporte sin saber el peso).
+                         // Define el rango de peso de los comparables (±15% default)
+  toleranciaPeso?: number; // fraccion (0, 1); fuera de rango el backend usa 0.15
+  // Alcance por cliente (opcional, ambos juntos): acota la sugerencia al historial de ese
+  // cliente; si no tiene historial cae a mercado (alcance "mercado"). Sin estos, siempre mercado.
+  clienteTipo?: OrigenTipo; // PROSPECTO | CLIENTE
+  clienteId?: string;       // UUID del cliente/prospecto a acotar
+};
+
+// Evidencia: una cotizacion historica que alimento la estadistica. El backend la capea a 10
+// (ordenadas por fecha desc), pero la estadistica usa TODAS las `muestras`, no solo estas.
+export type ComparablePrecioSugerido = {
+  cotizacionId: string;
+  tipoVehiculo: string | null;
+  precioUnitario: number;
+  fecha: string;            // ISO
+  estado: EstadoCotizacion; // nunca BORRADOR ni CANCELADA (solo las que salieron al cliente)
+  ejecutivo: string;
+};
+
+export type AlcancePrecioSugerido = "cliente" | "mercado";
+
+export type PrecioSugerido = {
+  monto: number | null;    // mediana del precio unitario historico; null sin comparables
+  montoMin: number | null; // percentil 25 (piso del rango tipico)
+  montoMax: number | null; // percentil 75 (techo del rango tipico)
+  muestras: number;        // cantidad de lineas historicas que respaldan la estadistica; 0 = sin sugerencia
+  moneda: Moneda;          // espeja la del query
+  alcance: AlcancePrecioSugerido; // "cliente" si salio del historial del cliente; "mercado" si general/fallback
+  ajustadoPorPeso: boolean; // true = solo comparables dentro del rango de peso; false = referencia aproximada de la ruta
+  comparables: ComparablePrecioSugerido[]; // evidencia (capeada a 10); [] sin comparables
+};
+
 // El transporte de la linea: ruta + vehiculo + los items fisicos que mueve.
 // Antes era un objeto plano con dimensiones unicas; ahora las dimensiones bajan a cargas[].
 export type CargaHijo = {
@@ -207,8 +249,8 @@ export type Modalidad = {
   estado: EstadoModalidad;
   tarifaBaseReferencial: number | null;
   moneda: Moneda | null;
-  margenObjetivo: number | null;
   requiereAprobacion: boolean;
+  documentacionRequerida: string[];
   fechaCreacion: string;
   usuarioCreacion: string;
   fechaModificacion: string | null;
@@ -288,8 +330,8 @@ export type PayloadCrearModalidad = {
   tipo?: TipoModalidad;
   tarifaBaseReferencial?: number;
   moneda?: Moneda;
-  margenObjetivo?: number;
   requiereAprobacion?: boolean;
+  documentacionRequerida?: string[];
 };
 
 export type PayloadActualizarModalidad = Partial<PayloadCrearModalidad>;
