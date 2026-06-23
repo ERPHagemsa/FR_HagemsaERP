@@ -101,8 +101,23 @@ type EstadoFormulario = {
   unidadCobro: UnidadCobro | ""
   moneda: Moneda | ""
   tarifaBaseReferencial: string
-  margenObjetivo: string
   requiereAprobacion: string // "SI" | "NO"
+  documentacionRequerida: string // un documento por linea
+}
+
+// Convierte el textarea (un documento por linea) en array sin vacios ni duplicados.
+function parsearDocumentacion(texto: string): string[] {
+  const vistos = new Set<string>()
+  const docs: string[] = []
+  for (const linea of texto.split("\n")) {
+    const doc = linea.trim()
+    if (!doc) continue
+    const clave = doc.toLowerCase()
+    if (vistos.has(clave)) continue
+    vistos.add(clave)
+    docs.push(doc)
+  }
+  return docs
 }
 
 const FORMULARIO_VACIO: EstadoFormulario = {
@@ -114,8 +129,8 @@ const FORMULARIO_VACIO: EstadoFormulario = {
   unidadCobro: "",
   moneda: "",
   tarifaBaseReferencial: "",
-  margenObjetivo: "",
   requiereAprobacion: "NO",
+  documentacionRequerida: "",
 }
 
 function formularioDesdeModalidad(item: Modalidad): EstadoFormulario {
@@ -128,8 +143,8 @@ function formularioDesdeModalidad(item: Modalidad): EstadoFormulario {
     unidadCobro: item.unidadCobro,
     moneda: item.moneda ?? "",
     tarifaBaseReferencial: item.tarifaBaseReferencial != null ? String(item.tarifaBaseReferencial) : "",
-    margenObjetivo: item.margenObjetivo != null ? String(item.margenObjetivo) : "",
     requiereAprobacion: item.requiereAprobacion ? "SI" : "NO",
+    documentacionRequerida: item.documentacionRequerida.join("\n"),
   }
 }
 
@@ -152,11 +167,9 @@ function payloadDesdeFormulario(form: EstadoFormulario): PayloadCrearModalidad |
     const n = Number(form.tarifaBaseReferencial)
     if (!isNaN(n)) payload.tarifaBaseReferencial = n
   }
-  if (form.margenObjetivo.trim()) {
-    const n = Number(form.margenObjetivo)
-    if (!isNaN(n)) payload.margenObjetivo = n
-  }
   payload.requiereAprobacion = form.requiereAprobacion === "SI"
+  // Siempre se envia (incluso vacio) para permitir limpiar la lista al editar.
+  payload.documentacionRequerida = parsearDocumentacion(form.documentacionRequerida)
 
   return payload
 }
@@ -300,20 +313,6 @@ function CamposFormulario({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="form-margen">Margen objetivo % (opcional)</Label>
-        <Input
-          id="form-margen"
-          type="number"
-          min={0}
-          max={100}
-          step="0.01"
-          value={form.margenObjetivo}
-          onChange={(e) => onChange({ margenObjetivo: e.target.value })}
-          placeholder="0.00"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
         <Label>Requiere aprobacion</Label>
         <Select
           value={form.requiereAprobacion}
@@ -327,6 +326,21 @@ function CamposFormulario({
             <SelectItem value="SI">Si</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="form-documentacion">Documentacion requerida (opcional)</Label>
+        <Textarea
+          id="form-documentacion"
+          value={form.documentacionRequerida}
+          onChange={(e) => onChange({ documentacionRequerida: e.target.value })}
+          placeholder={"Un documento por linea. Ej:\nPermiso de transito SUTRAN\nAutorizacion de ruta\nEscolta"}
+          rows={3}
+        />
+        <p className="text-xs text-muted-foreground">
+          Documentos que exige esta modalidad (ej. sobredimensionado: permisos de transito,
+          escolta). Uno por linea.
+        </p>
       </div>
     </div>
   )
@@ -778,7 +792,27 @@ export function CatalogoModalidadesListado({
                 filas.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="truncate font-mono text-sm">{item.codigo}</TableCell>
-                    <TableCell className="truncate text-sm font-medium">{item.nombre}</TableCell>
+                    <TableCell className="text-sm font-medium">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate">{item.nombre}</span>
+                        {item.documentacionRequerida.length > 0 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="secondary" className="shrink-0 font-normal">
+                                {item.documentacionRequerida.length} doc.
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <ul className="list-disc pl-4">
+                                {item.documentacionRequerida.map((doc, i) => (
+                                  <li key={i}>{doc}</li>
+                                ))}
+                              </ul>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : null}
+                      </div>
+                    </TableCell>
                     <TableCell className="truncate text-sm">{etiquetaTipo(item.tipoLinea)}</TableCell>
                     <TableCell className="truncate text-sm">
                       {etiquetaUnidadCobro(item.unidadCobro)}

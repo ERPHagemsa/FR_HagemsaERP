@@ -16,6 +16,7 @@ import {
 } from "@/compartido/componentes/ui/table";
 import { FieldSet, FieldLegend } from "@/compartido/componentes/ui/field";
 
+import type { OrigenTipo } from "../tipos/cotizaciones.tipos";
 import type {
   DraftCargoAdicional,
   DraftLinea,
@@ -46,6 +47,10 @@ type Props = {
   moneda: string;
   erroresCampo?: Record<string, string>;
   disabled?: boolean;
+  // Origen de la cotizacion (opcional): acota el precio sugerido de cada linea de
+  // transporte al historial de este cliente. Se reenvia tal cual al drawer.
+  clienteTipo?: OrigenTipo;
+  clienteId?: string;
   onChange: (secciones: DraftSeccion[]) => void;
 };
 
@@ -65,6 +70,8 @@ export function EditorContenido({
   moneda,
   erroresCampo = {},
   disabled,
+  clienteTipo,
+  clienteId,
   onChange,
 }: Props) {
   // Edicion de una linea EXISTENTE (ya en la grilla).
@@ -662,6 +669,8 @@ export function EditorContenido({
         opcionesCatalogo={opcionesCatalogo}
         erroresCampo={lineaExistente ? errores.porLinea[lineaExistente.claveCliente] : undefined}
         disabled={disabled}
+        clienteTipo={clienteTipo}
+        clienteId={clienteId}
         onCerrar={cerrarDrawer}
         onGuardar={aplicarDrawer}
       />

@@ -6,6 +6,7 @@ import type {
   FiltrosCatalogosCargoAdicional,
   FiltrosCotizaciones,
   FiltrosModalidades,
+  ParamsPrecioSugerido,
   PayloadBorrador,
   PayloadEnviar,
   PayloadNuevaVersion,
@@ -20,6 +21,7 @@ import {
   marcarGanada,
   marcarPerdida,
   nuevaVersion,
+  obtenerPrecioSugerido,
   obtenerSugerenciasCarga,
 } from "./cotizaciones-api";
 import { listarCatalogosCargoAdicional } from "./catalogos-cargo-adicional-api";
@@ -60,6 +62,39 @@ export function useSugerenciasCarga(q: string, limit = 10) {
     () => obtenerSugerenciasCarga(termino, limit),
     [termino, limit],
     { enabled: termino.length >= 2 }
+  );
+}
+
+// Precio sugerido para una linea de TRANSPORTE (API §5.3.2). El backend exige 5 campos
+// del query (modalidadId, origen, destino, moneda y pesoTotal > 0); por eso la query SOLO
+// dispara cuando los cinco estan presentes — sin peso no hay sugerencia (es requerido).
+// OJO: igual que useSugerenciasCarga, useConsulta NO limpia `data` al deshabilitarse —
+// el consumidor debe gatear el render por la misma condicion de `habilitado`.
+export function usePrecioSugerido(
+  params: ParamsPrecioSugerido,
+  habilitado = true
+) {
+  const origen = params.origen.trim();
+  const destino = params.destino.trim();
+  const listo =
+    habilitado &&
+    Boolean(params.modalidadId) &&
+    origen.length > 0 &&
+    destino.length > 0 &&
+    params.pesoTotal > 0;
+  return useConsulta(
+    () => obtenerPrecioSugerido({ ...params, origen, destino }),
+    [
+      params.modalidadId,
+      origen,
+      destino,
+      params.moneda,
+      params.pesoTotal,
+      params.toleranciaPeso,
+      params.clienteTipo,
+      params.clienteId,
+    ],
+    { enabled: listo }
   );
 }
 

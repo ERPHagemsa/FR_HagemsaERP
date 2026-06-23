@@ -109,6 +109,9 @@ export function CotizacionEditor({ cotizacion }: Props) {
       erroresCampo={erroresCampo}
       guardando={guardando}
       sucio={sucio}
+      // Origen de la cotizacion: acota el precio sugerido al historial de este cliente.
+      clienteTipo={cotizacion.origenTipo}
+      clienteId={cotizacion.origenId}
       onGuardar={() => void onGuardar()}
       textoFooter="El borrador reemplaza el contenido anterior al guardarse."
       textoBoton="Guardar borrador"

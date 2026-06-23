@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
-import type { Moneda } from "../tipos/cotizaciones.tipos";
+import type { Moneda, OrigenTipo } from "../tipos/cotizaciones.tipos";
 import type { DraftBorrador, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
 import { EditorContenido } from "./editor-contenido";
 import { EditorLeadtimes } from "./editor-leadtimes";
@@ -54,6 +54,9 @@ type Props = {
   // Cambios sin guardar respecto al ultimo estado persistido. El contenedor de
   // edicion lo calcula contra un snapshot; el de creacion lo omite (sin baseline).
   sucio?: boolean;
+  // Origen de la cotizacion (opcional): acota el precio sugerido al historial del cliente.
+  clienteTipo?: OrigenTipo;
+  clienteId?: string;
 };
 
 export function EditorBorradorCampos({
@@ -66,6 +69,8 @@ export function EditorBorradorCampos({
   textoBoton,
   textoBotonGuardando,
   sucio,
+  clienteTipo,
+  clienteId,
 }: Props) {
   function actualizarSecciones(secciones: DraftSeccion[]) {
     setDraft((d) => ({ ...d, secciones }));
@@ -111,6 +116,8 @@ export function EditorBorradorCampos({
             moneda={draft.moneda}
             erroresCampo={erroresCampo}
             disabled={guardando}
+            clienteTipo={clienteTipo}
+            clienteId={clienteId}
             onChange={actualizarSecciones}
           />
         </CardContent>

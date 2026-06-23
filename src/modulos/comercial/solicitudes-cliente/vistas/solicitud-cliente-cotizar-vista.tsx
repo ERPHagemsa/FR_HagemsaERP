@@ -66,7 +66,11 @@ export function SolicitudClienteCotizarVista({ id }: Props) {
           <h2 className="text-base font-semibold">
             Cotización (BORRADOR) — arma el contenido y créala
           </h2>
-          <CotizacionEditorNuevo solicitudClienteId={id} />
+          <CotizacionEditorNuevo
+            solicitudClienteId={id}
+            clienteTipo={sc.origenTipo}
+            clienteId={sc.origenId}
+          />
         </section>
       </div>
     </main>
