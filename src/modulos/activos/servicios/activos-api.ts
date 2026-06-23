@@ -2,6 +2,13 @@ import { clienteActivos } from "@/compartido/api/clientes-backend";
 import type { RespuestaPaginada } from "@/compartido/api/contrato";
 
 import type {
+  CargaMasiva,
+  CargaMasivaDocumentosPayload,
+  CargaMasivaDocumentosResultado,
+  CargaMasivaPayload,
+} from "../tipos/carga-masiva.tipos";
+
+import type {
   Activo,
   ActivoConfiguracionHistorica,
   ActivoHistorial,
@@ -280,6 +287,40 @@ function obtenerCarroceriasFallback(plantillaInventario?: PlantillaInventario) {
 
 export async function crearActivo(payload: CrearActivoPayload): Promise<Activo> {
   const { data } = await clienteActivos.post<Activo>("/activos", payload);
+  return data;
+}
+
+export async function procesarCargaMasiva(
+  payload: CargaMasivaPayload
+): Promise<CargaMasiva> {
+  const { data } = await clienteActivos.post<CargaMasiva>(
+    "/activos/carga-masiva",
+    payload
+  );
+  return data;
+}
+
+export async function procesarCargaMasivaDocumentos(
+  payload: CargaMasivaDocumentosPayload
+): Promise<CargaMasivaDocumentosResultado> {
+  const { data } = await clienteActivos.post<CargaMasivaDocumentosResultado>(
+    "/activos/carga-masiva-documentos",
+    payload
+  );
+  return data;
+}
+
+export async function listarCargasMasivas(): Promise<CargaMasiva[]> {
+  const { data } = await clienteActivos.get<CargaMasiva[]>(
+    "/activos/cargas-masivas"
+  );
+  return data;
+}
+
+export async function obtenerCargaMasiva(id: number): Promise<CargaMasiva> {
+  const { data } = await clienteActivos.get<CargaMasiva>(
+    `/activos/cargas-masivas/${id}`
+  );
   return data;
 }
 
