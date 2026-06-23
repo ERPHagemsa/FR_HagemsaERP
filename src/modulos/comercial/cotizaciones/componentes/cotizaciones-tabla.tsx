@@ -31,6 +31,9 @@ import {
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
 
+import {
+  etiquetaCodigoCotizacion,
+} from "../tipos/cotizaciones.tipos";
 import type {
   Cotizacion,
   EstadoCotizacion,
@@ -202,12 +205,13 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[18%]">Origen</TableHead>
-                <TableHead className="w-[12%]">Estado</TableHead>
-                <TableHead className="w-[8%] text-right">Version</TableHead>
-                <TableHead className="w-[16%]">Ejecutivo</TableHead>
-                <TableHead className="w-[14%]">Creado</TableHead>
-                <TableHead className="w-[14%]">Actualizado</TableHead>
+                <TableHead className="w-[13%]">Codigo</TableHead>
+                <TableHead className="w-[15%]">Origen</TableHead>
+                <TableHead className="w-[11%]">Estado</TableHead>
+                <TableHead className="w-[7%] text-right">Version</TableHead>
+                <TableHead className="w-[15%]">Ejecutivo</TableHead>
+                <TableHead className="w-[13%]">Creado</TableHead>
+                <TableHead className="w-[13%]">Actualizado</TableHead>
                 <TableHead className="w-[7%] text-center">Accion</TableHead>
               </TableRow>
             </TableHeader>
@@ -218,7 +222,7 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
               {!cotizaciones.length ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="h-28 text-center text-muted-foreground"
                   >
                     No se encontraron cotizaciones con los filtros aplicados.
@@ -268,6 +272,17 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
 function FilaCotizacion({ cotizacion }: { cotizacion: Cotizacion }) {
   return (
     <TableRow>
+      <TableCell className="text-sm">
+        {cotizacion.codigoCotizacion ? (
+          <span className="font-medium tabular-nums">
+            {cotizacion.codigoCotizacion}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            {etiquetaCodigoCotizacion(cotizacion)}
+          </span>
+        )}
+      </TableCell>
       <TableCell>
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate text-xs font-medium text-muted-foreground">
@@ -285,7 +300,7 @@ function FilaCotizacion({ cotizacion }: { cotizacion: Cotizacion }) {
         {cotizacion.versionVigente ?? "—"}
       </TableCell>
       <TableCell className="truncate text-sm text-muted-foreground">
-        {cotizacion.idEjecutivoResponsable}
+        {cotizacion.ejecutivoResponsable.nombre}
       </TableCell>
       <TableCell className="truncate text-sm text-muted-foreground">
         {formatearFecha(cotizacion.fechaCreacion)}

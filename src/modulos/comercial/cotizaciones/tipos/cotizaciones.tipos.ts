@@ -34,6 +34,13 @@ export type EstadoModalidad = "ACTIVA" | "INACTIVA";
 
 export type TipoModalidad = "SPOT" | "PROYECTO" | "OTRO";
 
+// Ref del ejecutivo (snapshot { id, nombre }). id = AuthContext.accountId
+// (no es un correo); sin token MVP = { id: "mvp-sin-auth", nombre: "Usuario MVP" }.
+export type EjecutivoRef = {
+  id: string;
+  nombre: string;
+};
+
 export type UnidadCobro =
   | "VIAJE"
   | "DIA"
@@ -229,8 +236,11 @@ export type Cotizacion = {
   contactoOrigenId: string;
   estado: EstadoCotizacion;
   motivoPerdida: string | null;
-  idEjecutivoResponsable: string;
+  ejecutivoResponsable: EjecutivoRef;
   solicitudClienteId: string | null;
+  numeroCotizacion: number | null;
+  anioCotizacion: number | null;
+  codigoCotizacion: string | null;
   versionVigente: number | null;
   versiones: Version[];
   fechaCreacion: string;
@@ -525,4 +535,11 @@ export function accionesPermitidas(estado: EstadoCotizacion): AccionesPermitidas
     case "VENCIDA":
       return { editar: false, enviar: false, nuevaVersion: false, ganar: false, perder: false, cancelar: false };
   }
+}
+
+export function etiquetaCodigoCotizacion(
+  cotizacion: Pick<Cotizacion, "codigoCotizacion" | "estado">
+): string {
+  if (cotizacion.codigoCotizacion) return cotizacion.codigoCotizacion;
+  return cotizacion.estado === "BORRADOR" ? "Borrador" : "—";
 }

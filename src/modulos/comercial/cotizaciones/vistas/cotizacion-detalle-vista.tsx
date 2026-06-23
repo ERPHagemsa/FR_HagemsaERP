@@ -12,6 +12,7 @@ import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
+import { etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
 import type { Cotizacion, EstadoCotizacion } from "../tipos/cotizaciones.tipos";
 
 type Props = {
@@ -59,7 +60,12 @@ export function CotizacionDetalleVista({ id }: Props) {
                 </h1>
                 <EstadoCotizacionBadge estado={cotizacion.estado} />
               </div>
-              <p className="truncate font-mono text-xs text-muted-foreground">{cotizacion.id}</p>
+              <p
+                className="truncate font-mono text-xs text-muted-foreground"
+                title={cotizacion.id}
+              >
+                {etiquetaCodigoCotizacion(cotizacion)}
+              </p>
             </div>
           </div>
 
@@ -108,7 +114,7 @@ export function CotizacionDetalleVista({ id }: Props) {
           </Grupo>
 
           <Grupo titulo="Trazabilidad">
-            <Campo label="Ejecutivo responsable" value={cotizacion.idEjecutivoResponsable} />
+            <Campo label="Ejecutivo responsable" value={cotizacion.ejecutivoResponsable.nombre} />
             <Campo label="Fecha de creacion" value={formatearFechaHora(cotizacion.fechaCreacion)} />
             <Campo
               label="Ultima modificacion"
