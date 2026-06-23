@@ -6,6 +6,7 @@ import type {
   CargaMasivaDocumentosPayload,
   CargaMasivaDocumentosResultado,
   CargaMasivaPayload,
+  TipoDocumentoMaestro,
 } from "../tipos/carga-masiva.tipos";
 
 import type {
@@ -308,6 +309,13 @@ export async function procesarCargaMasivaDocumentos(
     payload
   );
   return data;
+}
+
+export async function obtenerTiposDocumento(): Promise<TipoDocumentoMaestro[]> {
+  const { data } = await clienteActivos.get<TipoDocumentoMaestro[]>(
+    "/activos/tipos-documento"
+  );
+  return Array.isArray(data) ? data : [];
 }
 
 export async function listarCargasMasivas(): Promise<CargaMasiva[]> {

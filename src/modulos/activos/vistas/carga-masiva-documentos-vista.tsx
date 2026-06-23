@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CheckCircle2, FileUp, Trash2, Upload, XCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  FileUp,
+  Layers,
+  Trash2,
+  Upload,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -31,12 +38,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
+import { Textarea } from "@/compartido/componentes/ui/textarea";
 import { cn } from "@/compartido/utilidades/utils";
-import { procesarCargaMasivaDocumentos } from "../servicios/activos-api";
+import {
+  obtenerTiposDocumento,
+  procesarCargaMasivaDocumentos,
+} from "../servicios/activos-api";
 import type {
   ArchivoDocumentoMasivo,
   CargaMasivaDocumentosResultado,
   TipoDocumentoCarga,
+  TipoDocumentoMaestro,
 } from "../tipos/carga-masiva.tipos";
 
 type Paso = "configurar" | "revisar" | "resultado";
@@ -60,6 +72,18 @@ function identificadorDesdeNombre(nombre: string): string {
   return sinExtension.split("_")[0].trim().toUpperCase();
 }
 
+/** Separa placas/codigos escritos por el usuario (saltos, comas, espacios). */
+function parsearPlacas(texto: string): string[] {
+  return Array.from(
+    new Set(
+      texto
+        .split(/[\s,;]+/)
+        .map((valor) => valor.trim().toUpperCase())
+        .filter((valor) => valor.length > 0),
+    ),
+  );
+}
+
 function archivoADataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -75,15 +99,54 @@ export function CargaMasivaDocumentosVista() {
     React.useState<TipoDocumentoCarga>("SOAT");
   const [fechaVencimiento, setFechaVencimiento] = React.useState("");
   const [archivos, setArchivos] = React.useState<ArchivoDocumentoMasivo[]>([]);
+  const [placasTexto, setPlacasTexto] = React.useState("");
   const [procesando, setProcesando] = React.useState(false);
   const [resultado, setResultado] =
     React.useState<CargaMasivaDocumentosResultado | null>(null);
+  const [tiposMaestro, setTiposMaestro] = React.useState<
+    TipoDocumentoMaestro[]
+  >([]);
+
+  // Maestro Documentario: define alcance y si el tipo requiere vencimiento.
+  React.useEffect(() => {
+    let activo = true;
+    obtenerTiposDocumento()
+      .then((tipos) => {
+        if (activo) setTiposMaestro(tipos);
+      })
+      .catch(() => {
+        // Si falla, se asume comportamiento INDIVIDUAL (como antes).
+      });
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const tipoMeta = React.useMemo(
+    () => tiposMaestro.find((tipo) => tipo.codigo === tipoDocumento),
+    [tiposMaestro, tipoDocumento],
+  );
+  const esCompartido = tipoMeta?.alcance === "COMPARTIDO";
+  const requiereVencimiento = tipoMeta?.requiereVencimiento ?? false;
+  const placasCompartido = React.useMemo(
+    () => parsearPlacas(placasTexto),
+    [placasTexto],
+  );
 
   function reiniciar() {
     setPaso("configurar");
     setArchivos([]);
     setResultado(null);
     setFechaVencimiento("");
+    setPlacasTexto("");
+  }
+
+  function cambiarTipo(valor: TipoDocumentoCarga) {
+    setTipoDocumento(valor);
+    // El alcance cambia el flujo: reiniciamos la seleccion para evitar mezclas.
+    setArchivos([]);
+    setPlacasTexto("");
+    setPaso("configurar");
   }
 
   async function onArchivos(event: React.ChangeEvent<HTMLInputElement>) {
@@ -91,12 +154,33 @@ export function CargaMasivaDocumentosVista() {
     event.target.value = "";
     if (lista.length === 0) return;
 
-    const nuevos: ArchivoDocumentoMasivo[] = [];
+    const validos: File[] = [];
     for (const file of lista) {
       if (file.size > TAM_MAX_MB * 1024 * 1024) {
         toast.error(`${file.name} supera ${TAM_MAX_MB} MB y se omitio.`);
         continue;
       }
+      validos.push(file);
+    }
+    if (validos.length === 0) return;
+
+    if (esCompartido) {
+      // Un solo documento (ej. poliza) que luego se abre a varias placas.
+      const file = validos[0];
+      setArchivos([
+        {
+          nombreArchivo: file.name,
+          identificador: "",
+          tipoDocumento,
+          fechaVencimiento: fechaVencimiento || undefined,
+          contenidoBase64: await archivoADataUrl(file),
+        },
+      ]);
+      return;
+    }
+
+    const nuevos: ArchivoDocumentoMasivo[] = [];
+    for (const file of validos) {
       nuevos.push({
         nombreArchivo: file.name,
         identificador: identificadorDesdeNombre(file.name),
@@ -105,8 +189,6 @@ export function CargaMasivaDocumentosVista() {
         contenidoBase64: await archivoADataUrl(file),
       });
     }
-
-    if (nuevos.length === 0) return;
     setArchivos((actuales) => [...actuales, ...nuevos]);
     setPaso("revisar");
   }
@@ -117,6 +199,15 @@ export function CargaMasivaDocumentosVista() {
 
   async function confirmar() {
     if (archivos.length === 0) return;
+    if (requiereVencimiento && !fechaVencimiento) {
+      toast.error("Este tipo de documento requiere fecha de vencimiento.");
+      return;
+    }
+    if (esCompartido && placasCompartido.length === 0) {
+      toast.error("Indica al menos una placa o codigo que cubra el documento.");
+      return;
+    }
+
     setProcesando(true);
     try {
       const datos = await procesarCargaMasivaDocumentos({
@@ -124,6 +215,12 @@ export function CargaMasivaDocumentosVista() {
           ...archivo,
           tipoDocumento,
           fechaVencimiento: fechaVencimiento || archivo.fechaVencimiento,
+          ...(esCompartido
+            ? {
+                identificador: placasCompartido[0],
+                identificadores: placasCompartido,
+              }
+            : {}),
         })),
       });
       setResultado(datos);
@@ -146,39 +243,53 @@ export function CargaMasivaDocumentosVista() {
           <CardHeader>
             <CardTitle>Carga masiva de documentos</CardTitle>
             <CardDescription>
-              Sube varios documentos (SOAT, polizas, etc.) y se asocian solos al
-              activo segun el nombre del archivo.
+              Sube documentos (SOAT, polizas, etc.) y se asocian solos al
+              activo. El tipo define si el documento es de un activo o
+              compartido por varios.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-              <p className="font-medium">Como nombrar los archivos</p>
-              <p className="mt-1 text-muted-foreground">
-                El nombre debe empezar con la{" "}
-                <strong>placa o el codigo</strong> del activo. Ejemplos:
-              </p>
-              <ul className="mt-2 list-inside list-disc text-muted-foreground">
-                <li>
-                  <code>BTZ-750.pdf</code> &rarr; activo con placa BTZ-750
-                </li>
-                <li>
-                  <code>BTZ-750_SOAT.pdf</code> &rarr; placa BTZ-750 (lo de
-                  despues del &quot;_&quot; se ignora)
-                </li>
-                <li>
-                  <code>ACT-000901.pdf</code> &rarr; activo con codigo ACT-000901
-                </li>
-              </ul>
-            </div>
+            {esCompartido ? (
+              <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-4 text-sm dark:border-sky-900 dark:bg-sky-950/30">
+                <p className="flex items-center gap-2 font-medium text-sky-800 dark:text-sky-300">
+                  <Layers className="size-4" />
+                  Documento compartido
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Este tipo cubre <strong>varios activos</strong> (ej. una
+                  poliza de flota). Sube <strong>un solo archivo</strong> e
+                  indica las placas o codigos que cubre. Se asociara a cada uno.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-lg border bg-muted/40 p-4 text-sm">
+                <p className="font-medium">Como nombrar los archivos</p>
+                <p className="mt-1 text-muted-foreground">
+                  El nombre debe empezar con la{" "}
+                  <strong>placa o el codigo</strong> del activo. Ejemplos:
+                </p>
+                <ul className="mt-2 list-inside list-disc text-muted-foreground">
+                  <li>
+                    <code>BTZ-750.pdf</code> &rarr; activo con placa BTZ-750
+                  </li>
+                  <li>
+                    <code>BTZ-750_SOAT.pdf</code> &rarr; placa BTZ-750 (lo de
+                    despues del &quot;_&quot; se ignora)
+                  </li>
+                  <li>
+                    <code>ACT-000901.pdf</code> &rarr; activo con codigo
+                    ACT-000901
+                  </li>
+                </ul>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Tipo de documento</Label>
                 <Select
                   value={tipoDocumento}
-                  onValueChange={(v) =>
-                    setTipoDocumento(v as TipoDocumentoCarga)
-                  }
+                  onValueChange={(v) => cambiarTipo(v as TipoDocumentoCarga)}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -192,15 +303,29 @@ export function CargaMasivaDocumentosVista() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Aplica a todos los archivos de este lote.
+                  {esCompartido
+                    ? "Compartido: un archivo para varias placas."
+                    : "Aplica a todos los archivos de este lote."}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>Fecha de vencimiento (opcional)</Label>
+                <Label>
+                  Fecha de vencimiento{" "}
+                  {requiereVencimiento ? (
+                    <span className="text-destructive">(obligatorio)</span>
+                  ) : (
+                    "(opcional)"
+                  )}
+                </Label>
                 <Input
                   type="date"
                   value={fechaVencimiento}
                   onChange={(e) => setFechaVencimiento(e.target.value)}
+                  className={cn(
+                    requiereVencimiento &&
+                      !fechaVencimiento &&
+                      "border-destructive",
+                  )}
                 />
                 <p className="text-xs text-muted-foreground">
                   Comun para SOAT/poliza del mismo periodo.
@@ -208,22 +333,60 @@ export function CargaMasivaDocumentosVista() {
               </div>
             </div>
 
-            <label htmlFor="archivos-docs">
-              <input
-                id="archivos-docs"
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png"
-                className="hidden"
-                onChange={onArchivos}
-              />
-              <Button type="button" asChild>
-                <span className="cursor-pointer">
-                  <Upload className="size-4" />
-                  Seleccionar documentos
-                </span>
-              </Button>
-            </label>
+            {esCompartido && (
+              <div className="space-y-2">
+                <Label>Placas o codigos que cubre</Label>
+                <Textarea
+                  rows={3}
+                  placeholder="Ej: ABC-123, DEF-456, ACT-000901"
+                  value={placasTexto}
+                  onChange={(e) => setPlacasTexto(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Separa por coma, espacio o salto de linea.{" "}
+                  {placasCompartido.length > 0 &&
+                    `${placasCompartido.length} placa(s) detectada(s).`}
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label htmlFor="archivos-docs">
+                <input
+                  id="archivos-docs"
+                  type="file"
+                  multiple={!esCompartido}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={onArchivos}
+                />
+                <Button type="button" asChild>
+                  <span className="cursor-pointer">
+                    <Upload className="size-4" />
+                    {esCompartido
+                      ? "Seleccionar documento"
+                      : "Seleccionar documentos"}
+                  </span>
+                </Button>
+              </label>
+
+              {esCompartido && archivos.length > 0 && (
+                <>
+                  <span className="text-sm text-muted-foreground">
+                    {archivos[0].nombreArchivo}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="ml-auto"
+                    disabled={placasCompartido.length === 0}
+                    onClick={() => setPaso("revisar")}
+                  >
+                    Continuar
+                  </Button>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -235,51 +398,78 @@ export function CargaMasivaDocumentosVista() {
               <div>
                 <CardTitle>Revisar documentos</CardTitle>
                 <CardDescription>
-                  {archivos.length} archivo(s). Verifica que el identificador
-                  (placa/codigo) sea correcto antes de cargar.
+                  {esCompartido
+                    ? `1 documento para ${placasCompartido.length} activo(s).`
+                    : `${archivos.length} archivo(s). Verifica que el identificador (placa/codigo) sea correcto antes de cargar.`}
                 </CardDescription>
               </div>
-              <Badge variant="outline">
-                {TIPOS_DOCUMENTO.find((t) => t.valor === tipoDocumento)?.etiqueta}
+              <Badge variant={esCompartido ? "default" : "outline"}>
+                {esCompartido && <Layers className="mr-1 size-3" />}
+                {TIPOS_DOCUMENTO.find((t) => t.valor === tipoDocumento)
+                  ?.etiqueta}
+                {esCompartido ? " - compartido" : ""}
               </Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="max-h-[26rem] overflow-auto rounded-lg border">
-              <Table>
-                <TableHeader className="sticky top-0 bg-muted">
-                  <TableRow>
-                    <TableHead>Archivo</TableHead>
-                    <TableHead>Identificador (placa/codigo)</TableHead>
-                    <TableHead className="w-16"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {archivos.map((archivo, i) => (
-                    <TableRow key={`${archivo.nombreArchivo}-${i}`}>
-                      <TableCell>{archivo.nombreArchivo}</TableCell>
-                      <TableCell className="font-medium">
-                        {archivo.identificador || (
-                          <span className="text-destructive">
-                            (nombre invalido)
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => quitarArchivo(i)}
-                        >
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      </TableCell>
+            {esCompartido ? (
+              <div className="space-y-3">
+                <div className="rounded-lg border p-3 text-sm">
+                  <span className="text-muted-foreground">Documento:</span>{" "}
+                  <span className="font-medium">
+                    {archivos[0]?.nombreArchivo}
+                  </span>
+                </div>
+                <div>
+                  <p className="mb-2 text-sm text-muted-foreground">
+                    Se asociara a estas placas/codigos:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {placasCompartido.map((placa) => (
+                      <Badge key={placa} variant="secondary">
+                        {placa}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="max-h-[26rem] overflow-auto rounded-lg border">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-muted">
+                    <TableRow>
+                      <TableHead>Archivo</TableHead>
+                      <TableHead>Identificador (placa/codigo)</TableHead>
+                      <TableHead className="w-16"></TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {archivos.map((archivo, i) => (
+                      <TableRow key={`${archivo.nombreArchivo}-${i}`}>
+                        <TableCell>{archivo.nombreArchivo}</TableCell>
+                        <TableCell className="font-medium">
+                          {archivo.identificador || (
+                            <span className="text-destructive">
+                              (nombre invalido)
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => quitarArchivo(i)}
+                          >
+                            <Trash2 className="size-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex gap-2">
                 <Button
@@ -289,22 +479,24 @@ export function CargaMasivaDocumentosVista() {
                 >
                   Volver
                 </Button>
-                <label htmlFor="archivos-docs-mas">
-                  <input
-                    id="archivos-docs-mas"
-                    type="file"
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    className="hidden"
-                    onChange={onArchivos}
-                  />
-                  <Button type="button" variant="outline" asChild>
-                    <span className="cursor-pointer">
-                      <FileUp className="size-4" />
-                      Agregar mas
-                    </span>
-                  </Button>
-                </label>
+                {!esCompartido && (
+                  <label htmlFor="archivos-docs-mas">
+                    <input
+                      id="archivos-docs-mas"
+                      type="file"
+                      multiple
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="hidden"
+                      onChange={onArchivos}
+                    />
+                    <Button type="button" variant="outline" asChild>
+                      <span className="cursor-pointer">
+                        <FileUp className="size-4" />
+                        Agregar mas
+                      </span>
+                    </Button>
+                  </label>
+                )}
               </div>
               <Button
                 type="button"
@@ -313,7 +505,9 @@ export function CargaMasivaDocumentosVista() {
               >
                 {procesando
                   ? "Cargando..."
-                  : `Cargar ${archivos.length} documento(s)`}
+                  : esCompartido
+                    ? `Cargar a ${placasCompartido.length} activo(s)`
+                    : `Cargar ${archivos.length} documento(s)`}
               </Button>
             </div>
           </CardContent>

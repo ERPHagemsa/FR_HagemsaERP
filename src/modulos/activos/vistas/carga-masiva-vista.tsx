@@ -35,6 +35,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/compartido/componentes/ui/sheet";
+import { extraerMensajeError } from "@/compartido/api";
 import { cn } from "@/compartido/utilidades/utils";
 import {
   COLUMNAS_POR_TIPO,
@@ -44,8 +52,12 @@ import {
   descargarPlantilla,
   parsearArchivo,
 } from "../servicios/carga-masiva-excel";
-import { procesarCargaMasiva } from "../servicios/activos-api";
-import type { TipoActivo } from "../tipos/activo.tipos";
+import {
+  obtenerDocumentosPorCodigo,
+  procesarCargaMasiva,
+} from "../servicios/activos-api";
+import { DocumentosActivo } from "../componentes/documentos-activo";
+import type { DocumentoActivo, TipoActivo } from "../tipos/activo.tipos";
 import type {
   CargaMasiva,
   FilaPrevisualizada,
@@ -151,7 +163,23 @@ export function CargaMasivaVista() {
       );
     } catch (error) {
       console.error(error);
-      toast.error("No se pudo procesar la carga masiva.");
+      const mensaje = extraerMensajeError(
+        error,
+        "No se pudo procesar la carga masiva.",
+      );
+      // El backend repite el mismo error por cada fila; lo resumimos y le
+      // quitamos el prefijo tecnico "filas.N." para que se entienda.
+      const motivos = Array.from(
+        new Set(
+          mensaje.split(/,\s*/).map((m) => m.replace(/^filas\.\d+\./, "")),
+        ),
+      );
+      const descripcion =
+        motivos.slice(0, 3).join(" · ") +
+        (motivos.length > 3 ? ` (+${motivos.length - 3} mas)` : "");
+      toast.error("No se pudo procesar la carga masiva.", {
+        description: descripcion,
+      });
     } finally {
       setProcesando(false);
     }
@@ -454,6 +482,9 @@ function PasoResultado({
 }) {
   const detalles = resultado.detalles ?? [];
   const creados = detalles.filter((d) => d.estado === "CREADO");
+  const [activoSeleccionado, setActivoSeleccionado] = React.useState<
+    string | null
+  >(null);
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader>
@@ -484,7 +515,7 @@ function PasoResultado({
                 <TableHead className="w-28">Estado</TableHead>
                 <TableHead>Codigo</TableHead>
                 <TableHead>Detalle</TableHead>
-                <TableHead className="w-32">Accion</TableHead>
+                <TableHead className="w-48">Accion</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -508,11 +539,23 @@ function PasoResultado({
                   </TableCell>
                   <TableCell>
                     {detalle.estado === "CREADO" && detalle.codigoActivo ? (
-                      <Button asChild variant="outline" size="sm">
-                        <Link href={`/activos/${detalle.codigoActivo}`}>
-                          Abrir
-                        </Link>
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() =>
+                            setActivoSeleccionado(detalle.codigoActivo)
+                          }
+                        >
+                          <FileText className="size-4" />
+                          Documentos
+                        </Button>
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/activos/${detalle.codigoActivo}`}>
+                            Abrir
+                          </Link>
+                        </Button>
+                      </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
@@ -541,6 +584,51 @@ function PasoResultado({
           </div>
         </div>
       </CardContent>
+
+      <Sheet
+        open={activoSeleccionado !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) setActivoSeleccionado(null);
+        }}
+      >
+        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle>Documentos — {activoSeleccionado}</SheetTitle>
+            <SheetDescription>
+              Sube el SOAT, poliza u otros documentos de este activo. Al cerrar
+              vuelves a la lista para seguir con el siguiente.
+            </SheetDescription>
+          </SheetHeader>
+          {activoSeleccionado ? (
+            <div className="px-4 pb-6">
+              <DocumentosDrawerContenido codigo={activoSeleccionado} />
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </Card>
+  );
+}
+
+/** Carga los documentos del activo y los muestra en el panel; recarga al cambiar. */
+function DocumentosDrawerContenido({ codigo }: { codigo: string }) {
+  const [documentos, setDocumentos] = React.useState<DocumentoActivo[]>([]);
+
+  const recargar = React.useCallback(() => {
+    obtenerDocumentosPorCodigo(codigo)
+      .then(setDocumentos)
+      .catch(() => setDocumentos([]));
+  }, [codigo]);
+
+  React.useEffect(() => {
+    recargar();
+  }, [recargar]);
+
+  return (
+    <DocumentosActivo
+      codigo={codigo}
+      documentos={documentos}
+      onCambio={recargar}
+    />
   );
 }
