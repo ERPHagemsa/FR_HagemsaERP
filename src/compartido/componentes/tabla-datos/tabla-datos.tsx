@@ -91,7 +91,7 @@ export function TablaDatos<T>({
       {barraHerramientas ? <div>{barraHerramientas}</div> : null}
 
       <div className="overflow-hidden rounded-xl border border-border">
-        <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
+        <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2 ">
           <TableHeader>
             <TableRow>
               {columnas.map((columna) => (
@@ -107,7 +107,7 @@ export function TablaDatos<T>({
                 </TableHead>
               ))}
               {tieneAcciones ? (
-                <TableHead className="w-[7%] text-center">Acción</TableHead>
+                <TableHead className="w-[7%] text-right">Acción</TableHead>
               ) : null}
             </TableRow>
           </TableHeader>
@@ -132,7 +132,7 @@ export function TablaDatos<T>({
                     </TableCell>
                   ))}
                   {tieneAcciones ? (
-                    <TableCell className="text-center">
+                    <TableCell className="text-right">
                       <CeldaAcciones acciones={acciones!(fila)} fila={fila} />
                     </TableCell>
                   ) : null}

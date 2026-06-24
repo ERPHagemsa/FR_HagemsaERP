@@ -9,12 +9,10 @@ import type {
   AccionTabla,
   ColumnaTabla,
 } from "@/compartido/componentes/tabla-datos/tabla-datos.tipos";
-import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
@@ -68,26 +66,19 @@ const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
     encabezado: "Codigo",
     ancho: "w-[8%]",
     celda: (item) => (
-      <span className="text-sm font-medium tabular-nums">
+      <span className="text-sm tabular-nums">
         {item.codigoSolicitud ?? "—"}
       </span>
     ),
   },
   {
     id: "solicitante",
-    encabezado: "Solicitante",
+    encabezado: "Empresa solicitante",
     ancho: "w-[16%]",
     celda: (item) => (
-      <>
-        <span className="block truncate text-sm font-medium">
-          {item.nombreSolicitante}
-        </span>
-        {item.contactoSolicitante ? (
-          <span className="block truncate text-xs text-muted-foreground">
-            {item.contactoSolicitante.nombre}
-          </span>
-        ) : null}
-      </>
+      <span className="block truncate text-sm font-medium">
+        {item.nombreSolicitante}
+      </span>
     ),
   },
   {
@@ -104,7 +95,7 @@ const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
     id: "descripcion",
     encabezado: "Descripcion del servicio",
     ancho: "w-[15%]",
-    className: "truncate text-sm text-muted-foreground",
+    className: "truncate text-sm",
     celda: (item) => item.descripcionServicio,
   },
   {
@@ -121,7 +112,7 @@ const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
     id: "cotizaciones",
     encabezado: "Cotiz.",
     ancho: "w-[8%]",
-    alineacion: "centro",
+    alineacion: "derecha",
     className: "whitespace-nowrap",
     celda: (item) => (
       <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
@@ -137,7 +128,10 @@ const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
     ancho: "w-[13%]",
     celda: (item) =>
       item.cotizacionVigente == null ? (
-        <Badge variant="outline">Disponible</Badge>
+        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+          <span className="size-2 rounded-full bg-amber-500" aria-hidden />
+          Disponible
+        </span>
       ) : (
         <span className="block truncate text-sm">
           {item.cotizacionVigente.ejecutivo.nombre}
@@ -193,10 +187,8 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   const porPagina = filtros.porPagina ?? 10;
 
   const [busquedaLocal, setBusquedaLocal] = React.useState(filtros.busqueda ?? "");
+  const [estadoLocal, setEstadoLocal] = React.useState(filtros.estado ?? "TODOS");
   const [origenLocal, setOrigenLocal] = React.useState(filtros.origenTipo ?? "TODOS");
-
-  // El estado activo del segmento se deriva directamente del filtro recibido por props.
-  const estadoSegmento = filtros.estado ?? "TODOS";
 
   function construirUrl(params: Record<string, string | number | undefined>) {
     const sp = new URLSearchParams();
@@ -212,7 +204,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   function aplicarFiltros() {
     router.push(
       construirUrl({
-        estado: estadoSegmento,
+        estado: estadoLocal,
         origenTipo: origenLocal,
         busqueda: busquedaLocal,
         pagina: 1,
@@ -221,20 +213,9 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
     );
   }
 
-  function cambiarSegmento(valor: string) {
-    router.push(
-      construirUrl({
-        estado: valor,
-        origenTipo: filtros.origenTipo,
-        busqueda: filtros.busqueda,
-        pagina: 1,
-        porPagina: filtros.porPagina,
-      })
-    );
-  }
-
   function limpiarFiltros() {
     setBusquedaLocal("");
+    setEstadoLocal("TODOS");
     setOrigenLocal("TODOS");
     router.push(pathname);
   }
@@ -256,44 +237,17 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
 
   return (
     <Card>
-      <CardHeader className="border-b border-border">
+      <CardHeader>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <CardTitle>Solicitudes de cliente</CardTitle>
-            <CardDescription>
-              {total} {total === 1 ? "solicitud" : "solicitudes"} encontradas
-            </CardDescription>
-          </div>
+          <CardTitle>Solicitudes de cliente</CardTitle>
           <Button onClick={() => setCrearAbierto(true)}>
             <Plus data-icon="inline-start" />
             Nueva solicitud
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 pt-5">
-        {/* Control segmentado de estado — pool de trabajo */}
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-muted p-1 self-start">
-          {SEGMENTOS_ESTADO.map((seg) => {
-            const activo = estadoSegmento === seg.valor;
-            return (
-              <button
-                key={seg.valor}
-                type="button"
-                onClick={() => cambiarSegmento(seg.valor)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  activo
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {seg.etiqueta}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Filtros secundarios */}
+      <CardContent className="flex flex-col gap-4">
+        {/* Filtros */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid min-w-64 flex-1 gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">
@@ -310,6 +264,14 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
               />
             </div>
           </div>
+          <FiltroSelect
+            className="min-w-40 flex-1"
+            label="Estado"
+            value={estadoLocal}
+            valores={SEGMENTOS_ESTADO.map((s) => s.valor)}
+            etiquetas={SEGMENTOS_ESTADO.map((s) => s.etiqueta)}
+            onChange={setEstadoLocal}
+          />
           <FiltroSelect
             className="min-w-36 flex-1"
             label="Origen"

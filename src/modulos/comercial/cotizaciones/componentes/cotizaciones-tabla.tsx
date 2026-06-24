@@ -14,7 +14,6 @@ import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
@@ -78,7 +77,7 @@ const COLUMNAS: ColumnaTabla<CotizacionResumen>[] = [
     ancho: "w-[12%]",
     celda: (cotizacion) =>
       cotizacion.codigoCotizacion ? (
-        <span className="text-sm font-medium tabular-nums">
+        <span className="text-sm tabular-nums">
           {cotizacion.codigoCotizacion}
         </span>
       ) : (
@@ -88,25 +87,48 @@ const COLUMNAS: ColumnaTabla<CotizacionResumen>[] = [
       ),
   },
   {
-    id: "origen",
-    encabezado: "Origen",
-    ancho: "w-[20%]",
-    celda: (cotizacion) => (
-      <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="truncate text-sm font-medium">
-          {cotizacion.origenNombre}
-        </span>
-        <span className="truncate text-xs text-muted-foreground">
-          {ETIQUETA_ORIGEN[cotizacion.origenTipo]}
-        </span>
-      </div>
-    ),
+    id: "empresa",
+    encabezado: "Empresa solicitante",
+    ancho: "w-[17%]",
+    className: "truncate text-sm font-medium",
+    celda: (cotizacion) => cotizacion.origenNombre,
   },
   {
-    id: "estado",
-    encabezado: "Estado",
-    ancho: "w-[11%]",
-    celda: (cotizacion) => <EstadoCotizacionBadge estado={cotizacion.estado} />,
+    id: "tipo",
+    encabezado: "Tipo",
+    ancho: "w-[8%]",
+    className: "text-sm",
+    celda: (cotizacion) => ETIQUETA_ORIGEN[cotizacion.origenTipo],
+  },
+  {
+    id: "ejecutivo",
+    encabezado: "Cotizado por",
+    ancho: "w-[14%]",
+    className: "truncate text-sm",
+    celda: (cotizacion) => cotizacion.ejecutivoResponsable.nombre,
+  },
+  {
+    id: "vencimiento",
+    encabezado: "Vencimiento",
+    ancho: "w-[12%]",
+    className: "truncate text-sm",
+    celda: (cotizacion) =>
+      cotizacion.fechaVencimiento ? (
+        formatearFecha(cotizacion.fechaVencimiento)
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
+  {
+    id: "version",
+    encabezado: "Version",
+    ancho: "w-[8%]",
+    celda: (cotizacion) => (
+      <Badge variant="outline" className="tabular-nums">
+        v{cotizacion.versionVigente ?? "—"}
+        {cotizacion.totalVersiones > 1 ? `/${cotizacion.totalVersiones}` : ""}
+      </Badge>
+    ),
   },
   {
     id: "monto",
@@ -118,33 +140,10 @@ const COLUMNAS: ColumnaTabla<CotizacionResumen>[] = [
       formatearMonto(cotizacion.montoTotal, cotizacion.moneda),
   },
   {
-    id: "version",
-    encabezado: "Version",
-    ancho: "w-[8%]",
-    alineacion: "centro",
-    celda: (cotizacion) => (
-      <Badge variant="outline" className="tabular-nums">
-        v{cotizacion.versionVigente ?? "—"}
-        {cotizacion.totalVersiones > 1 ? `/${cotizacion.totalVersiones}` : ""}
-      </Badge>
-    ),
-  },
-  {
-    id: "ejecutivo",
-    encabezado: "Ejecutivo",
-    ancho: "w-[14%]",
-    className: "truncate text-sm text-muted-foreground",
-    celda: (cotizacion) => cotizacion.ejecutivoResponsable.nombre,
-  },
-  {
-    id: "vencimiento",
-    encabezado: "Vencimiento",
-    ancho: "w-[12%]",
-    className: "truncate text-sm text-muted-foreground",
-    celda: (cotizacion) =>
-      cotizacion.fechaVencimiento
-        ? formatearFecha(cotizacion.fechaVencimiento)
-        : "—",
+    id: "estado",
+    encabezado: "Estado",
+    ancho: "w-[11%]",
+    celda: (cotizacion) => <EstadoCotizacionBadge estado={cotizacion.estado} />,
   },
 ];
 
@@ -225,15 +224,10 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
 
   return (
     <Card>
-      <CardHeader className="border-b border-border">
-        <div>
-          <CardTitle>Cotizaciones</CardTitle>
-          <CardDescription>
-            {total} {total === 1 ? "cotizacion" : "cotizaciones"} encontradas
-          </CardDescription>
-        </div>
+      <CardHeader>
+        <CardTitle>Cotizaciones</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 pt-5">
+      <CardContent className="flex flex-col gap-4">
         {/* Filtros */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid min-w-64 flex-1 gap-1.5">
