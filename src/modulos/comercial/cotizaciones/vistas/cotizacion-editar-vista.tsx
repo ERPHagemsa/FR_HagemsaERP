@@ -9,7 +9,7 @@ import { Button } from "@/compartido/componentes/ui/button";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
-import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
+import { accionesPermitidas, etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
 import { CotizacionEditor } from "../componentes/cotizacion-editor";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 
@@ -61,7 +61,12 @@ export function CotizacionEditarVista({ id }: Props) {
                 </h1>
                 <EstadoCotizacionBadge estado={cotizacion.estado} />
               </div>
-              <p className="truncate font-mono text-xs text-muted-foreground">{cotizacion.id}</p>
+              <p
+                className="truncate font-mono text-xs text-muted-foreground"
+                title={cotizacion.id}
+              >
+                {etiquetaCodigoCotizacion(cotizacion)}
+              </p>
             </div>
           </div>
 

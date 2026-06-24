@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
+import { obtenerTiposDocumento } from "../servicios/activos-api";
 import {
   useCrearDocumentoActivoMutation,
   useEliminarDocumentoActivoMutation,
@@ -27,11 +28,14 @@ import type {
   EstadoDocumentoActivo,
   TipoDocumentoActivo,
 } from "../tipos/activo.tipos";
+import type { TipoDocumentoMaestro } from "../tipos/carga-masiva.tipos";
 
 type Props = {
   codigo: string;
   documentos: DocumentoActivo[];
   editable?: boolean;
+  /** Se llama tras crear o eliminar, para que el contenedor recargue la lista. */
+  onCambio?: () => void;
 };
 
 const tiposDocumento: TipoDocumentoActivo[] = [
@@ -45,15 +49,62 @@ const tiposDocumento: TipoDocumentoActivo[] = [
   "OTRO",
 ];
 
-export function DocumentosActivo({ codigo, documentos, editable = true }: Props) {
+export function DocumentosActivo({
+  codigo,
+  documentos,
+  editable = true,
+  onCambio,
+}: Props) {
   const router = useRouter();
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [archivoNombre, setArchivoNombre] = React.useState("");
   const [archivoDataUrl, setArchivoDataUrl] = React.useState("");
+  const [tiposMaestro, setTiposMaestro] = React.useState<TipoDocumentoMaestro[]>(
+    [],
+  );
+  const [tipoSeleccionado, setTipoSeleccionado] = React.useState<string>("SOAT");
   const crearDocumentoMutation = useCrearDocumentoActivoMutation(codigo);
   const eliminarDocumentoMutation = useEliminarDocumentoActivoMutation(codigo);
+
+  // Maestro Documentario: tipos disponibles, alcance y vencimiento obligatorio.
+  React.useEffect(() => {
+    let activo = true;
+    obtenerTiposDocumento()
+      .then((tipos) => {
+        if (activo) setTiposMaestro(tipos);
+      })
+      .catch(() => {
+        // Si falla, se usa la lista de respaldo (comportamiento anterior).
+      });
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const opcionesTipo = React.useMemo(() => {
+    if (tiposMaestro.length > 0) {
+      return tiposMaestro
+        .filter((tipo) => tipo.activo)
+        .map((tipo) => ({
+          codigo: tipo.codigo,
+          nombre: tipo.nombre,
+          alcance: tipo.alcance,
+          requiereVencimiento: tipo.requiereVencimiento,
+        }));
+    }
+    return tiposDocumento.map((codigo) => ({
+      codigo,
+      nombre: formatear(codigo),
+      alcance: "INDIVIDUAL" as const,
+      requiereVencimiento: false,
+    }));
+  }, [tiposMaestro]);
+
+  const metaTipo = opcionesTipo.find((tipo) => tipo.codigo === tipoSeleccionado);
+  const requiereVencimiento = metaTipo?.requiereVencimiento ?? false;
+  const esCompartido = metaTipo?.alcance === "COMPARTIDO";
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -71,9 +122,15 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
       return;
     }
 
+    if (requiereVencimiento && !fechaVencimiento) {
+      toast.error("Este tipo de documento requiere fecha de vencimiento.");
+      setIsSaving(false);
+      return;
+    }
+
     try {
       await crearDocumentoMutation.mutateAsync({
-        tipoDocumento: String(formData.get("tipoDocumento")) as TipoDocumentoActivo,
+        tipoDocumento: tipoSeleccionado as TipoDocumentoActivo,
         numero: String(formData.get("numero") ?? "").trim(),
         fechaEmision: String(formData.get("fechaEmision") ?? ""),
         fechaVencimiento: fechaVencimiento || undefined,
@@ -88,6 +145,7 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
       setArchivoDataUrl("");
       setMostrarFormulario(false);
       toast.success("Documento registrado correctamente.");
+      onCambio?.();
       router.refresh();
     } catch (error) {
       toast.error(extraerMensajeError(error, "No se pudo registrar el documento."));
@@ -123,6 +181,7 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
     try {
       await eliminarDocumentoMutation.mutateAsync(documento.id);
       toast.success("Documento eliminado correctamente.");
+      onCambio?.();
       router.refresh();
     } catch (error) {
       toast.error(extraerMensajeError(error, "No se pudo eliminar el documento."));
@@ -155,18 +214,35 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
       {editable && mostrarFormulario ? (
         <form
           onSubmit={onSubmit}
-          className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4"
+          className="@container grid gap-4 rounded-xl border border-border bg-muted/20 p-4"
         >
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <SelectField
-              name="tipoDocumento"
-              label="Tipo documento"
-              values={tiposDocumento}
-              required
-            />
+          <div className="grid gap-4 @lg:grid-cols-2 @3xl:grid-cols-3">
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-foreground">
+                Tipo documento<span className="ml-1 text-destructive">*</span>
+              </span>
+              <select
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                name="tipoDocumento"
+                required
+                value={tipoSeleccionado}
+                onChange={(event) => setTipoSeleccionado(event.target.value)}
+              >
+                {opcionesTipo.map((tipo) => (
+                  <option key={tipo.codigo} value={tipo.codigo}>
+                    {tipo.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Field name="numero" label="Numero" required />
             <Field name="fechaEmision" label="Fecha emision" type="date" required />
-            <Field name="fechaVencimiento" label="Fecha vencimiento" type="date" />
+            <Field
+              name="fechaVencimiento"
+              label="Fecha vencimiento"
+              type="date"
+              required={requiereVencimiento}
+            />
             <div className="grid gap-2">
               <Label htmlFor="documento-archivo">
                 Documento desde equipo
@@ -197,6 +273,13 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
               required
             />
           </div>
+          {esCompartido ? (
+            <p className="rounded-md border border-sky-200 bg-sky-50/60 px-3 py-2 text-xs text-sky-800 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300">
+              Este tipo es compartido (cubre varios activos). Aqui se guardara
+              solo en este activo. Para cubrir varias placas a la vez, usa la
+              Carga masiva de documentos.
+            </p>
+          ) : null}
           <Field
             name="observacion"
             label="Observacion"
@@ -348,38 +431,6 @@ function Field({
       </Label>
       <Input id={`documento-${name}`} name={name} required={required} {...props} />
     </div>
-  );
-}
-
-function SelectField({
-  label,
-  name,
-  values,
-  required = false,
-}: {
-  label: string;
-  name: string;
-  values: string[];
-  required?: boolean;
-}) {
-  return (
-    <label className="grid gap-2">
-      <span className="text-sm font-medium text-foreground">
-        {label}
-        {required ? <span className="ml-1 text-destructive">*</span> : null}
-      </span>
-      <select
-        className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-        name={name}
-        required={required}
-      >
-        {values.map((value) => (
-          <option key={value} value={value}>
-            {formatear(value)}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 

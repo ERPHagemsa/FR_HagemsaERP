@@ -72,6 +72,11 @@ export function SolicitudClienteDetalleVista({ id }: Props) {
         {/* Hero: identidad + acciones de registro */}
         <section className="flex flex-col gap-4 rounded-xl border border-border bg-card px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-col gap-2">
+            {sc.codigoSolicitud ? (
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground tabular-nums">
+                {sc.codigoSolicitud}
+              </span>
+            ) : null}
             <h1 className="text-2xl font-semibold leading-tight">
               {sc.nombreSolicitante}
             </h1>
@@ -167,6 +172,10 @@ export function SolicitudClienteDetalleVista({ id }: Props) {
               <CardContent>
                 <dl className="flex flex-col gap-3.5">
                   <Meta label="Canal de entrada" value={formatearCanal(sc.canalEntrada)} />
+                  <Meta
+                    label="Registrada por"
+                    value={sc.registradoPor?.nombre ?? "—"}
+                  />
                   <Meta label="Fecha de creacion" value={formatearFecha(sc.fechaCreacion)} />
                   {sc.fechaRequerida ? (
                     <Meta

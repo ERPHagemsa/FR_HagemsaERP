@@ -76,10 +76,25 @@ export type TipoDocumentoCarga =
 
 export type EstadoArchivoMasivo = "ASOCIADO" | "SIN_ACTIVO" | "ERROR";
 
+export type AlcanceDocumento = "INDIVIDUAL" | "COMPARTIDO";
+
+/** Una fila del Maestro Documentario (catalogo de tipos de documento). */
+export type TipoDocumentoMaestro = {
+  id: number;
+  codigo: string;
+  nombre: string;
+  alcance: AlcanceDocumento;
+  requiereVencimiento: boolean;
+  orden: number;
+  activo: boolean;
+};
+
 /** Un archivo listo para enviar, ya emparejado por placa/codigo. */
 export type ArchivoDocumentoMasivo = {
   nombreArchivo: string;
   identificador: string;
+  /** Para tipos COMPARTIDO: las placas/codigos que cubre el documento. */
+  identificadores?: string[];
   tipoDocumento: TipoDocumentoCarga;
   numero?: string;
   fechaEmision?: string;

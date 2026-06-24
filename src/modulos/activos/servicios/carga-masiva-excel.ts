@@ -228,7 +228,9 @@ function convertirValor(
     }
     case "fecha": {
       const fecha = normalizarFecha(valorCrudo);
-      if (!fecha) return { error: "Fecha invalida (use AAAA-MM-DD)" };
+      if (!fecha) {
+        return { error: "Fecha invalida (use AAAA-MM-DD o DD/MM/AAAA)" };
+      }
       return { valor: fecha };
     }
     case "opciones": {
@@ -254,17 +256,52 @@ function convertirValor(
   }
 }
 
+/**
+ * Devuelve la fecha como "AAAA-MM-DD" o null si no es valida.
+ * Acepta ISO ("2026-05-29", "2026/05/29"), formato peruano ("29/05/2026",
+ * "29-05-2026") y fechas reales de Excel (que llegan ya como "AAAA-MM-DD"
+ * desde `limpiar`). Rechaza fechas imposibles (ej. 31/02) para que salgan
+ * marcadas en la previsualizacion y nunca lleguen al backend.
+ */
 function normalizarFecha(valor: string): string | null {
-  // Acepta "2026-05-29", "2026/05/29" o una fecha ya formateada por SheetJS.
   const limpio = valor.trim();
-  const iso = limpio.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-  if (iso) {
-    const [, anio, mes, dia] = iso;
-    return `${anio}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+  if (!limpio) return null;
+
+  // ISO: AAAA-MM-DD o AAAA/MM/DD
+  const iso = limpio.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (iso) return construirFecha(iso[1], iso[2], iso[3]);
+
+  // Peruano: DD/MM/AAAA o DD-MM-AAAA
+  const peruano = limpio.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (peruano) return construirFecha(peruano[3], peruano[2], peruano[1]);
+
+  return null;
+}
+
+/** Valida que (anio, mes, dia) sea una fecha real y la formatea AAAA-MM-DD. */
+function construirFecha(
+  anioStr: string,
+  mesStr: string,
+  diaStr: string,
+): string | null {
+  const anio = Number(anioStr);
+  const mes = Number(mesStr);
+  const dia = Number(diaStr);
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+
+  // El round-trip detecta dias inexistentes (31/02 se corre a marzo y falla).
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia));
+  if (
+    fecha.getUTCFullYear() !== anio ||
+    fecha.getUTCMonth() !== mes - 1 ||
+    fecha.getUTCDate() !== dia
+  ) {
+    return null;
   }
-  const fecha = new Date(limpio);
-  if (Number.isNaN(fecha.getTime())) return null;
-  return fecha.toISOString().slice(0, 10);
+
+  const mm = String(mes).padStart(2, "0");
+  const dd = String(dia).padStart(2, "0");
+  return `${anio}-${mm}-${dd}`;
 }
 
 function limpiar(valor: unknown): string {

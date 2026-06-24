@@ -41,3 +41,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent / claude tooling (local setup, not part of the product repo)
+.agents/
+.atl/
+.claude/
