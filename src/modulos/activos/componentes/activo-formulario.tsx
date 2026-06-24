@@ -846,23 +846,25 @@ export function ActivoFormulario({
   }
 
   function renderImagenesSection() {
+    // En edicion, ImagenesActivo ya trae su propia Card con encabezado; la
+    // mostramos directa (un solo cuadro, igual que en la ficha del activo).
+    if (isEdit) {
+      return (
+        <div className="mt-5">
+          <ImagenesActivo codigo={activo!.codigo} imagenes={imagenes} />
+        </div>
+      );
+    }
     return (
       <Card className="mt-5">
         <CardHeader className="border-b border-border">
           <SectionIntro
             icon={IconPhotoPlus}
             title="Imagenes del activo"
-            description={
-              isEdit
-                ? "Fotografias y evidencias visuales registradas para el activo."
-                : "Fotografias y evidencias visuales que se guardaran junto al activo."
-            }
+            description="Fotografias y evidencias visuales que se guardaran junto al activo."
           />
         </CardHeader>
         <CardContent className="p-5">
-          {isEdit ? (
-            <ImagenesActivo codigo={activo!.codigo} imagenes={imagenes} />
-          ) : (
             <div className="grid gap-4">
               <div
                 ref={imagenDraftRef}
@@ -952,7 +954,6 @@ export function ActivoFormulario({
                 }
               />
             </div>
-          )}
         </CardContent>
       </Card>
     );
