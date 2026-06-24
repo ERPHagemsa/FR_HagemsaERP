@@ -1,10 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { Eye, RefreshCw, Search } from "lucide-react";
 
+import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos";
+import type {
+  AccionTabla,
+  ColumnaTabla,
+} from "@/compartido/componentes/tabla-datos/tabla-datos.tipos";
+import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -21,21 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
 
-import {
-  etiquetaCodigoCotizacion,
-} from "../tipos/cotizaciones.tipos";
+import { formatearMonto } from "../servicios/cotizaciones-formato";
+import { etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
 import type {
-  Cotizacion,
+  CotizacionResumen,
   EstadoCotizacion,
   OrigenTipo,
   RespuestaPaginadaCotizaciones,
@@ -70,6 +66,100 @@ const ORIGENES: Array<{ valor: OrigenTipo | "TODOS"; etiqueta: string }> = [
   { valor: "CLIENTE", etiqueta: "Cliente" },
 ];
 
+const ETIQUETA_ORIGEN: Record<OrigenTipo, string> = {
+  PROSPECTO: "Prospecto",
+  CLIENTE: "Cliente",
+};
+
+const COLUMNAS: ColumnaTabla<CotizacionResumen>[] = [
+  {
+    id: "codigo",
+    encabezado: "Codigo",
+    ancho: "w-[12%]",
+    celda: (cotizacion) =>
+      cotizacion.codigoCotizacion ? (
+        <span className="text-sm font-medium tabular-nums">
+          {cotizacion.codigoCotizacion}
+        </span>
+      ) : (
+        <span className="text-xs text-muted-foreground">
+          {etiquetaCodigoCotizacion(cotizacion)}
+        </span>
+      ),
+  },
+  {
+    id: "origen",
+    encabezado: "Origen",
+    ancho: "w-[20%]",
+    celda: (cotizacion) => (
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="truncate text-sm font-medium">
+          {cotizacion.origenNombre}
+        </span>
+        <span className="truncate text-xs text-muted-foreground">
+          {ETIQUETA_ORIGEN[cotizacion.origenTipo]}
+        </span>
+      </div>
+    ),
+  },
+  {
+    id: "estado",
+    encabezado: "Estado",
+    ancho: "w-[11%]",
+    celda: (cotizacion) => <EstadoCotizacionBadge estado={cotizacion.estado} />,
+  },
+  {
+    id: "monto",
+    encabezado: "Monto",
+    ancho: "w-[13%]",
+    alineacion: "derecha",
+    className: "text-sm tabular-nums",
+    celda: (cotizacion) =>
+      formatearMonto(cotizacion.montoTotal, cotizacion.moneda),
+  },
+  {
+    id: "version",
+    encabezado: "Version",
+    ancho: "w-[8%]",
+    alineacion: "centro",
+    celda: (cotizacion) => (
+      <Badge variant="outline" className="tabular-nums">
+        v{cotizacion.versionVigente ?? "—"}
+        {cotizacion.totalVersiones > 1 ? `/${cotizacion.totalVersiones}` : ""}
+      </Badge>
+    ),
+  },
+  {
+    id: "ejecutivo",
+    encabezado: "Ejecutivo",
+    ancho: "w-[14%]",
+    className: "truncate text-sm text-muted-foreground",
+    celda: (cotizacion) => cotizacion.ejecutivoResponsable.nombre,
+  },
+  {
+    id: "vencimiento",
+    encabezado: "Vencimiento",
+    ancho: "w-[12%]",
+    className: "truncate text-sm text-muted-foreground",
+    celda: (cotizacion) =>
+      cotizacion.fechaVencimiento
+        ? formatearFecha(cotizacion.fechaVencimiento)
+        : "—",
+  },
+];
+
+function accionesCotizacion(
+  cotizacion: CotizacionResumen
+): AccionTabla<CotizacionResumen>[] {
+  return [
+    {
+      etiqueta: "Ver detalle",
+      icono: Eye,
+      href: () => `/comercial/cotizaciones/${cotizacion.id}`,
+    },
+  ];
+}
+
 export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -85,10 +175,6 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
   const [origenLocal, setOrigenLocal] = React.useState(
     filtrosActivos.origenTipo ?? "TODOS"
   );
-
-  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
-  const desdeVisible = total ? (pagina - 1) * porPagina + 1 : 0;
-  const hastaVisible = Math.min(pagina * porPagina, total);
 
   function construirUrl(params: Record<string, string | number | undefined>) {
     const sp = new URLSearchParams();
@@ -200,125 +286,17 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
           </div>
         ) : null}
 
-        {/* Tabla */}
-        <div className="overflow-hidden rounded-xl border border-border">
-          <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[13%]">Codigo</TableHead>
-                <TableHead className="w-[15%]">Origen</TableHead>
-                <TableHead className="w-[11%]">Estado</TableHead>
-                <TableHead className="w-[7%] text-right">Version</TableHead>
-                <TableHead className="w-[15%]">Ejecutivo</TableHead>
-                <TableHead className="w-[13%]">Creado</TableHead>
-                <TableHead className="w-[13%]">Actualizado</TableHead>
-                <TableHead className="w-[7%] text-center">Accion</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {cotizaciones.map((cotizacion) => (
-                <FilaCotizacion key={cotizacion.id} cotizacion={cotizacion} />
-              ))}
-              {!cotizaciones.length ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="h-28 text-center text-muted-foreground"
-                  >
-                    No se encontraron cotizaciones con los filtros aplicados.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Paginacion */}
-        <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div>
-            {total > 0
-              ? `Mostrando ${desdeVisible}-${hastaVisible} de ${total} cotizaciones`
-              : "Sin resultados"}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina <= 1}
-              onClick={() => irAPagina(pagina - 1)}
-            >
-              Anterior
-            </Button>
-            <span className="min-w-20 text-center">
-              {pagina} / {totalPaginas}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina >= totalPaginas}
-              onClick={() => irAPagina(pagina + 1)}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
+        <TablaDatos
+          columnas={COLUMNAS}
+          datos={cotizaciones}
+          obtenerId={(cotizacion) => cotizacion.id}
+          acciones={accionesCotizacion}
+          paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
+          vacioTitulo="Sin cotizaciones"
+          vacioDescripcion="No se encontraron cotizaciones con los filtros aplicados."
+        />
       </CardContent>
     </Card>
-  );
-}
-
-function FilaCotizacion({ cotizacion }: { cotizacion: Cotizacion }) {
-  return (
-    <TableRow>
-      <TableCell className="text-sm">
-        {cotizacion.codigoCotizacion ? (
-          <span className="font-medium tabular-nums">
-            {cotizacion.codigoCotizacion}
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {etiquetaCodigoCotizacion(cotizacion)}
-          </span>
-        )}
-      </TableCell>
-      <TableCell>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-xs font-medium text-muted-foreground">
-            {cotizacion.origenTipo}
-          </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {cotizacion.origenId.slice(0, 8)}…
-          </span>
-        </div>
-      </TableCell>
-      <TableCell>
-        <EstadoCotizacionBadge estado={cotizacion.estado} />
-      </TableCell>
-      <TableCell className="text-right text-sm">
-        {cotizacion.versionVigente ?? "—"}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {cotizacion.ejecutivoResponsable.nombre}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {formatearFecha(cotizacion.fechaCreacion)}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {cotizacion.fechaModificacion
-          ? formatearFecha(cotizacion.fechaModificacion)
-          : "—"}
-      </TableCell>
-      <TableCell className="text-center">
-        <Button asChild size="icon-sm" variant="outline">
-          <Link href={`/comercial/cotizaciones/${cotizacion.id}`}>
-            <Eye />
-            <span className="sr-only">Ver</span>
-          </Link>
-        </Button>
-      </TableCell>
-    </TableRow>
   );
 }
 

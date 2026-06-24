@@ -1,10 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { Eye, FilePlusCorner, FileText, Plus, RefreshCw, Search } from "lucide-react";
 
+import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos";
+import type {
+  AccionTabla,
+  ColumnaTabla,
+} from "@/compartido/componentes/tabla-datos/tabla-datos.tipos";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -23,19 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/compartido/componentes/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/compartido/componentes/ui/tooltip";
 import { cn } from "@/compartido/utilidades";
 
 import { accionesPermitidasSC } from "../tipos/solicitud-cliente.tipos";
@@ -69,6 +60,129 @@ const ORIGENES: Array<{ valor: TipoOrigen | "TODOS"; etiqueta: string }> = [
   { valor: "CLIENTE", etiqueta: "Cliente" },
 ];
 
+// Columnas propias de esta pantalla. La tabla genérica solo las renderiza;
+// el QUÉ mostrar y CÓMO se decide acá.
+const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
+  {
+    id: "codigo",
+    encabezado: "Codigo",
+    ancho: "w-[8%]",
+    celda: (item) => (
+      <span className="text-sm font-medium tabular-nums">
+        {item.codigoSolicitud ?? "—"}
+      </span>
+    ),
+  },
+  {
+    id: "solicitante",
+    encabezado: "Solicitante",
+    ancho: "w-[16%]",
+    celda: (item) => (
+      <>
+        <span className="block truncate text-sm font-medium">
+          {item.nombreSolicitante}
+        </span>
+        {item.contactoSolicitante ? (
+          <span className="block truncate text-xs text-muted-foreground">
+            {item.contactoSolicitante.nombre}
+          </span>
+        ) : null}
+      </>
+    ),
+  },
+  {
+    id: "origen",
+    encabezado: "Origen",
+    ancho: "w-[7%]",
+    celda: (item) => (
+      <span className="text-sm">
+        {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
+      </span>
+    ),
+  },
+  {
+    id: "descripcion",
+    encabezado: "Descripcion del servicio",
+    ancho: "w-[15%]",
+    className: "truncate text-sm text-muted-foreground",
+    celda: (item) => item.descripcionServicio,
+  },
+  {
+    id: "registradoPor",
+    encabezado: "Registrada por",
+    ancho: "w-[13%]",
+    celda: (item) => (
+      <span className="block truncate text-sm">
+        {item.registradoPor?.nombre ?? "—"}
+      </span>
+    ),
+  },
+  {
+    id: "cotizaciones",
+    encabezado: "Cotiz.",
+    ancho: "w-[8%]",
+    alineacion: "centro",
+    className: "whitespace-nowrap",
+    celda: (item) => (
+      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
+        {item.totalCotizaciones}
+      </span>
+    ),
+  },
+  {
+    // "Cotizada por": ejecutivo de la cotizacion viva. Sin cotizacion viva la
+    // SC vuelve al pool → "Disponible".
+    id: "cotizadaPor",
+    encabezado: "Cotizada por",
+    ancho: "w-[13%]",
+    celda: (item) =>
+      item.cotizacionVigente == null ? (
+        <Badge variant="outline">Disponible</Badge>
+      ) : (
+        <span className="block truncate text-sm">
+          {item.cotizacionVigente.ejecutivo.nombre}
+        </span>
+      ),
+  },
+  {
+    id: "estado",
+    encabezado: "Estado",
+    ancho: "w-[10%]",
+    celda: (item) => <EstadoSolicitudBadge estado={item.estado} />,
+  },
+];
+
+// Acciones del menú `⋯`. Adaptativas según el estado de la solicitud:
+//  - hay cotizacion viva  → "Ver cotizacion" (deep-link directo)
+//  - no hay viva y se puede cotizar → "Cotizar"
+//  - "Ver detalle" (el expediente) queda SIEMPRE disponible.
+function accionesSolicitud(
+  item: SolicitudClienteResumen
+): AccionTabla<SolicitudClienteResumen>[] {
+  const vigente = item.cotizacionVigente;
+  const puedeCotizar = accionesPermitidasSC(item.estado).agregarCotizacion;
+
+  return [
+    {
+      etiqueta: "Ver cotizacion",
+      icono: FileText,
+      href: () => `/comercial/cotizaciones/${vigente?.id}`,
+      oculta: () => vigente == null,
+    },
+    {
+      etiqueta: "Cotizar",
+      icono: FilePlusCorner,
+      href: () => `/comercial/solicitudes-cliente/${item.id}/cotizar`,
+      oculta: () => !(vigente == null && puedeCotizar),
+    },
+    {
+      etiqueta: "Ver detalle",
+      icono: Eye,
+      href: () => `/comercial/solicitudes-cliente/${item.id}`,
+    },
+  ];
+}
+
 export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -83,10 +197,6 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
 
   // El estado activo del segmento se deriva directamente del filtro recibido por props.
   const estadoSegmento = filtros.estado ?? "TODOS";
-
-  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
-  const desdeVisible = total ? (pagina - 1) * porPagina + 1 : 0;
-  const hastaVisible = Math.min(pagina * porPagina, total);
 
   function construirUrl(params: Record<string, string | number | undefined>) {
     const sp = new URLSearchParams();
@@ -227,73 +337,19 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
           </div>
         ) : null}
 
-        {/* Tabla */}
-        <div className="overflow-hidden rounded-xl border border-border">
-          <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[8%]">Codigo</TableHead>
-                <TableHead className="w-[16%]">Solicitante</TableHead>
-                <TableHead className="w-[7%]">Origen</TableHead>
-                <TableHead className="w-[15%]">Descripcion del servicio</TableHead>
-                <TableHead className="w-[13%]">Registrada por</TableHead>
-                <TableHead className="w-[8%] text-center whitespace-nowrap">Cotiz.</TableHead>
-                <TableHead className="w-[13%]">Cotizada por</TableHead>
-                <TableHead className="w-[10%]">Estado</TableHead>
-                <TableHead className="w-[10%] text-right">Accion</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <FilaSolicitud key={item.id} item={item} />
-              ))}
-              {!items.length ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="h-28 text-center text-muted-foreground"
-                  >
-                    {hayFiltros
-                      ? "No se encontraron solicitudes con los filtros aplicados. Intenta ampliar la busqueda."
-                      : "No hay solicitudes de cliente registradas."}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Paginacion */}
-        <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div>
-            {total > 0
-              ? `Mostrando ${desdeVisible}-${hastaVisible} de ${total} solicitudes`
-              : "Sin resultados"}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina <= 1}
-              onClick={() => irAPagina(pagina - 1)}
-            >
-              Anterior
-            </Button>
-            <span className="min-w-20 text-center">
-              {pagina} / {totalPaginas}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina >= totalPaginas}
-              onClick={() => irAPagina(pagina + 1)}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
+        <TablaDatos
+          columnas={COLUMNAS}
+          datos={items}
+          obtenerId={(item) => item.id}
+          acciones={accionesSolicitud}
+          paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
+          vacioTitulo={hayFiltros ? "Sin coincidencias" : "Sin solicitudes"}
+          vacioDescripcion={
+            hayFiltros
+              ? "No se encontraron solicitudes con los filtros aplicados. Intenta ampliar la busqueda."
+              : "No hay solicitudes de cliente registradas."
+          }
+        />
       </CardContent>
 
       <SolicitudClienteNuevaSheet
@@ -305,104 +361,6 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
         }}
       />
     </Card>
-  );
-}
-
-function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
-  // La cotizacion viva mas reciente (o null). Es la fuente para el deep-link y
-  // para "Tomado por" — NO usar totalCotizaciones (cuenta tambien las terminales).
-  const vigente = item.cotizacionVigente;
-  const puedeCotizar = accionesPermitidasSC(item.estado).agregarCotizacion;
-
-  return (
-    <TableRow>
-      <TableCell className="text-sm">
-        <span className="font-medium tabular-nums">
-          {item.codigoSolicitud ?? "—"}
-        </span>
-      </TableCell>
-      <TableCell className="text-sm">
-        <span className="block truncate font-medium">{item.nombreSolicitante}</span>
-        {item.contactoSolicitante ? (
-          <span className="block truncate text-xs text-muted-foreground">
-            {item.contactoSolicitante.nombre}
-          </span>
-        ) : null}
-      </TableCell>
-      <TableCell className="text-sm">
-        {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {item.descripcionServicio}
-      </TableCell>
-      <TableCell className="text-sm">
-        <span className="block truncate">
-          {item.registradoPor?.nombre ?? "—"}
-        </span>
-      </TableCell>
-      <TableCell className="text-center">
-        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
-          {item.totalCotizaciones}
-        </span>
-      </TableCell>
-      {/* "Cotizada por": ejecutivo de la cotizacion viva. Sin cotizacion viva la
-          SC vuelve al pool → "Disponible". */}
-      <TableCell className="text-sm">
-        {vigente == null ? (
-          <Badge variant="outline">Disponible</Badge>
-        ) : (
-          <span className="block truncate">{vigente.ejecutivo.nombre}</span>
-        )}
-      </TableCell>
-      <TableCell>
-        <EstadoSolicitudBadge estado={item.estado} />
-      </TableCell>
-      {/* Accion primaria adaptativa (solo-icono con tooltip):
-          - hay cotizacion viva  -> "Ver cotizacion" (deep-link directo, evita el detalle)
-          - no hay viva y se puede cotizar -> "Cotizar"
-          - no hay viva y la SC es terminal -> sin accion primaria
-          "Ver detalle" (el expediente) queda SIEMPRE como accion secundaria. */}
-      <TableCell className="text-right">
-        <div className="flex items-center justify-end gap-1.5">
-          {vigente != null ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild size="icon-sm" variant="default">
-                  <Link href={`/comercial/cotizaciones/${vigente.id}`}>
-                    <FileText />
-                    <span className="sr-only">Ver cotización</span>
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Ver cotización</TooltipContent>
-            </Tooltip>
-          ) : puedeCotizar ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild size="icon-sm" variant="default">
-                  <Link href={`/comercial/solicitudes-cliente/${item.id}/cotizar`}>
-                    <FilePlusCorner />
-                    <span className="sr-only">Cotizar</span>
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Cotizar</TooltipContent>
-            </Tooltip>
-          ) : null}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button asChild size="icon-sm" variant="outline">
-                <Link href={`/comercial/solicitudes-cliente/${item.id}`}>
-                  <Eye />
-                  <span className="sr-only">Ver detalle</span>
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Ver detalle</TooltipContent>
-          </Tooltip>
-        </div>
-      </TableCell>
-    </TableRow>
   );
 }
 

@@ -5,8 +5,11 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, FileText, GitBranch, CalendarClock, CalendarX } from "lucide-react";
 
 import { useConsulta } from "@/compartido/api/use-consulta";
+import { Badge } from "@/compartido/componentes/ui/badge";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { Button } from "@/compartido/componentes/ui/button";
+
+import { formatearMonto } from "../servicios/cotizaciones-formato";
 
 import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
@@ -43,8 +46,8 @@ export function CotizacionDetalleVista({ id }: Props) {
     <main className="min-h-screen bg-background text-foreground">
       {/* === Statusbar sticky: volver + identidad + pipeline + acciones === */}
       <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 px-5 py-3 lg:px-8 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 px-5 py-3 lg:px-8 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-center">
+          <div className="flex min-w-0 items-center gap-3">
             {cotizacion.solicitudClienteId ? (
               <Button asChild variant="outline" size="sm" className="shrink-0 text-xs">
                 <Link href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}>
@@ -55,10 +58,12 @@ export function CotizacionDetalleVista({ id }: Props) {
             ) : null}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-semibold">
-                  Cotizacion {cotizacion.origenTipo === "PROSPECTO" ? "· Prospecto" : "· Cliente"}
+                <h1 className="truncate text-base font-semibold">
+                  {cotizacion.origenNombre}
                 </h1>
-                <EstadoCotizacionBadge estado={cotizacion.estado} />
+                <Badge variant="outline">
+                  {formatearOrigenTipo(cotizacion.origenTipo)}
+                </Badge>
               </div>
               <p
                 className="truncate font-mono text-xs text-muted-foreground"
@@ -69,8 +74,11 @@ export function CotizacionDetalleVista({ id }: Props) {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-5">
+          <div className="xl:justify-self-center">
             <Pipeline estado={cotizacion.estado} />
+          </div>
+
+          <div className="xl:justify-self-end">
             <CotizacionAcciones cotizacion={cotizacion} />
           </div>
         </div>
@@ -82,11 +90,7 @@ export function CotizacionDetalleVista({ id }: Props) {
           <SmartButton
             icono={<FileText className="size-4" />}
             label="Monto total"
-            valor={
-              vigente?.montoTotal != null
-                ? `${formatearMonto(vigente.montoTotal)} ${vigente.moneda}`
-                : "—"
-            }
+            valor={formatearMonto(vigente?.montoTotal ?? null, vigente?.moneda ?? null)}
           />
           <SmartButton
             icono={<GitBranch className="size-4" />}
@@ -109,7 +113,7 @@ export function CotizacionDetalleVista({ id }: Props) {
         <div className="grid gap-x-10 gap-y-6 rounded-xl border border-border bg-card p-5 md:grid-cols-2">
           <Grupo titulo="Origen">
             <Campo label="Tipo de origen" value={formatearOrigenTipo(cotizacion.origenTipo)} />
-            <Campo label="ID origen" value={cotizacion.origenId} mono />
+            <Campo label="Razon social" value={cotizacion.origenNombre} />
             <CampoSC cotizacion={cotizacion} />
           </Grupo>
 
@@ -149,11 +153,9 @@ export function CotizacionDetalleVista({ id }: Props) {
 // ---------------------------------------------------------------------------
 
 function Pipeline({ estado }: { estado: EstadoCotizacion }) {
-  // Estados fuera del happy path (EN_REVISION/CANCELADA/VENCIDA): el pipeline no
-  // puede mostrar progresion y solo repetiria lo que ya dice EstadoCotizacionBadge.
-  // Se omite para no duplicar el estado en pantalla.
+  // Fuera del happy path no hay progresion que mostrar: cae al badge de estado.
   if (estado === "CANCELADA" || estado === "VENCIDA" || estado === "EN_REVISION") {
-    return null;
+    return <EstadoCotizacionBadge estado={estado} />;
   }
 
   const pasos: { clave: EstadoCotizacion; texto: string }[] = [
@@ -296,9 +298,3 @@ function formatearFechaHora(value: string) {
   }).format(new Date(value));
 }
 
-function formatearMonto(valor: number) {
-  return new Intl.NumberFormat("es-PE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(valor);
-}

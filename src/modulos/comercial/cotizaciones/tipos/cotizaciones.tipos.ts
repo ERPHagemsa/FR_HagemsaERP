@@ -233,6 +233,7 @@ export type Cotizacion = {
   id: string;
   origenTipo: OrigenTipo;
   origenId: string;
+  origenNombre: string;
   contactoOrigenId: string;
   estado: EstadoCotizacion;
   motivoPerdida: string | null;
@@ -266,12 +267,36 @@ export type Modalidad = {
   fechaModificacion: string | null;
 };
 
+// CotizacionResumen — listado (GET /cotizaciones, API §5.2). Plano, sin versiones[].
+
+export type CotizacionResumen = {
+  id: string;
+  codigoCotizacion: string | null;
+  numeroCotizacion: number | null;
+  anioCotizacion: number | null;
+  estado: EstadoCotizacion;
+  motivoPerdida: string | null;
+  origenTipo: OrigenTipo;
+  origenId: string;
+  origenNombre: string;
+  ejecutivoResponsable: EjecutivoRef;
+  solicitudClienteId: string | null;
+  moneda: Moneda | null;
+  montoTotal: number | null;
+  versionVigente: number | null;
+  totalVersiones: number;
+  fechaEnvio: string | null;
+  fechaVencimiento: string | null;
+  fechaCreacion: string;
+  fechaModificacion: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Paginacion propia (NO reutiliza RespuestaPaginada de compartido — forma distinta)
 // ---------------------------------------------------------------------------
 
 export type RespuestaPaginadaCotizaciones = {
-  data: Cotizacion[];
+  data: CotizacionResumen[];
   total: number;
   pagina: number;
   porPagina: number;
@@ -538,7 +563,7 @@ export function accionesPermitidas(estado: EstadoCotizacion): AccionesPermitidas
 }
 
 export function etiquetaCodigoCotizacion(
-  cotizacion: Pick<Cotizacion, "codigoCotizacion" | "estado">
+  cotizacion: { codigoCotizacion: string | null; estado: EstadoCotizacion }
 ): string {
   if (cotizacion.codigoCotizacion) return cotizacion.codigoCotizacion;
   return cotizacion.estado === "BORRADOR" ? "Borrador" : "—";
