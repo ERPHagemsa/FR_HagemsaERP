@@ -106,6 +106,7 @@ export function CargaMasivaDocumentosVista() {
   const [tiposMaestro, setTiposMaestro] = React.useState<
     TipoDocumentoMaestro[]
   >([]);
+  const [codigosLote, setCodigosLote] = React.useState<string[]>([]);
 
   // Maestro Documentario: define alcance y si el tipo requiere vencimiento.
   React.useEffect(() => {
@@ -120,6 +121,25 @@ export function CargaMasivaDocumentosVista() {
     return () => {
       activo = false;
     };
+  }, []);
+
+  // Si llegamos desde "Agregar documentos a estos activos" (carga masiva de
+  // activos), traemos los codigos del lote para prellenar placas si el
+  // siguiente documento resulta ser compartido (ej. poliza de flota).
+  React.useEffect(() => {
+    const guardado = window.sessionStorage.getItem(
+      "activos:loteParaDocumentos",
+    );
+    if (!guardado) return;
+    window.sessionStorage.removeItem("activos:loteParaDocumentos");
+    try {
+      const codigos = JSON.parse(guardado);
+      if (Array.isArray(codigos) && codigos.length > 0) {
+        setCodigosLote(codigos);
+      }
+    } catch {
+      // Dato corrupto: se ignora, el usuario escribe las placas a mano.
+    }
   }, []);
 
   const tipoMeta = React.useMemo(
@@ -145,7 +165,15 @@ export function CargaMasivaDocumentosVista() {
     setTipoDocumento(valor);
     // El alcance cambia el flujo: reiniciamos la seleccion para evitar mezclas.
     setArchivos([]);
-    setPlacasTexto("");
+    const metaNuevoTipo = tiposMaestro.find((tipo) => tipo.codigo === valor);
+    const esCompartidoNuevo = metaNuevoTipo?.alcance === "COMPARTIDO";
+    // Si venimos de un lote recien creado y el tipo es compartido (poliza),
+    // prellenamos las placas con ese lote en vez de dejarlo en blanco.
+    setPlacasTexto(
+      esCompartidoNuevo && codigosLote.length > 0
+        ? codigosLote.join(", ")
+        : "",
+    );
     setPaso("configurar");
   }
 
@@ -336,6 +364,13 @@ export function CargaMasivaDocumentosVista() {
             {esCompartido && (
               <div className="space-y-2">
                 <Label>Placas o codigos que cubre</Label>
+                {codigosLote.length > 0 &&
+                placasTexto === codigosLote.join(", ") ? (
+                  <p className="text-xs text-sky-700 dark:text-sky-400">
+                    Prellenado con los {codigosLote.length} activo(s) que
+                    acabas de crear. Quita los que no apliquen.
+                  </p>
+                ) : null}
                 <Textarea
                   rows={3}
                   placeholder="Ej: ABC-123, DEF-456, ACT-000901"

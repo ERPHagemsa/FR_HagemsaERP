@@ -16,6 +16,15 @@ import {
   IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
+import {
+  AlertTriangle,
+  Boxes,
+  CheckCircle2,
+  CircleAlert,
+  CircleDashed,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 
 import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -160,6 +169,21 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
         fechaModificacion <= filtrosAplicados.fechaHasta)
     );
   });
+
+  const resumen = {
+    total: activosPorRegistro.length,
+    operativos: activosPorRegistro.filter(
+      (activo) => activo.vehiculo?.estadoOperativo === "OPERATIVO"
+    ).length,
+    mantenimiento: activosPorRegistro.filter(
+      (activo) => activo.vehiculo?.estadoOperativo === "MANTENIMIENTO"
+    ).length,
+    noCalibrados: activosPorRegistro.filter((activo) =>
+      ["NO_CALIBRADA", "OBSERVADA"].includes(
+        activo.vehiculo?.estadoCalibracion ?? ""
+      )
+    ).length,
+  };
 
   const hayFiltros =
     filtrosAplicados.query ||
@@ -378,11 +402,43 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Consulta de activos</h2>
-        <p className="text-sm text-muted-foreground">
-          {filtrados.length} de {activosPorRegistro.length} activos consultados
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{resumen.total} registros</Badge>
+            <h2 className="text-lg font-semibold">Consulta de activos</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Busca y filtra el maestro de unidades. Mostrando {filtrados.length} de{" "}
+            {activosPorRegistro.length}.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <ResumenMini
+            icon={Boxes}
+            label="Total"
+            value={resumen.total}
+            tono="text-foreground"
+          />
+          <ResumenMini
+            icon={CheckCircle2}
+            label="Operativos"
+            value={resumen.operativos}
+            tono="text-emerald-600 dark:text-emerald-400"
+          />
+          <ResumenMini
+            icon={Wrench}
+            label="Mantenimiento"
+            value={resumen.mantenimiento}
+            tono="text-amber-500 dark:text-amber-400"
+          />
+          <ResumenMini
+            icon={AlertTriangle}
+            label="No calibrados"
+            value={resumen.noCalibrados}
+            tono="text-destructive"
+          />
+        </div>
       </div>
 
       <Card className="overflow-hidden">
@@ -875,6 +931,32 @@ function coincideEstadoActivo(estadoActivo: EstadoActivo, filtro: string) {
   return estadoActivo === filtro;
 }
 
+function ResumenMini({
+  icon: Icon,
+  label,
+  value,
+  tono,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  tono: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+        <Icon className={cn("size-4", tono)} />
+      </span>
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate text-[11px] text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-lg font-semibold leading-none">{value}</span>
+      </div>
+    </div>
+  );
+}
+
 function EstadoBadge({
   value,
   variant,
@@ -882,11 +964,38 @@ function EstadoBadge({
   value: string;
   variant: BadgeVariant;
 }) {
+  const { Icono, iconClassName } = estiloEstado(variant);
   return (
-    <Badge className="max-w-44" variant={variant}>
+    <Badge
+      variant="outline"
+      className="h-6 max-w-44 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground"
+    >
+      <Icono className={cn("size-3.5 shrink-0", iconClassName)} />
       <span className="truncate">{formatearEstadoActivo(value)}</span>
     </Badge>
   );
+}
+
+/**
+ * Color e icono semanticos del estado: el variant ya clasifica el estado
+ * (default = bueno, destructive = alerta, secondary = neutral); aqui solo se
+ * pinta. Verde para lo bueno, rojo solo para lo malo, gris para lo neutral,
+ * para que se distingan de un vistazo (antes todo salia rojo).
+ */
+function estiloEstado(variant: BadgeVariant): {
+  Icono: LucideIcon;
+  iconClassName: string;
+} {
+  if (variant === "default") {
+    return {
+      Icono: CheckCircle2,
+      iconClassName: "text-emerald-600 dark:text-emerald-400",
+    };
+  }
+  if (variant === "destructive") {
+    return { Icono: CircleAlert, iconClassName: "text-destructive" };
+  }
+  return { Icono: CircleDashed, iconClassName: "text-muted-foreground" };
 }
 
 function estadoActivoVariant(value: EstadoActivo): BadgeVariant {
