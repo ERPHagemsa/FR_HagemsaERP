@@ -25,10 +25,12 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 
+import { useCatalogosActivos } from "../ganchos/use-catalogos-activos";
 import { obtenerActivos } from "../servicios/activos-api";
 import type { Activo } from "../tipos/activo.tipos";
 
 export function ActivoNuevoAcopleVista() {
+  const catalogos = useCatalogosActivos();
   const { data, isLoading, isError, error } = useConsulta(
     () => obtenerActivos({ estadoRegistro: true }),
     []
@@ -134,7 +136,10 @@ export function ActivoNuevoAcopleVista() {
                             {activo.descripcion}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {activo.tipoActivo}
+                            {catalogos.nombrePorId(
+                              "TIPO_ACTIVO",
+                              activo.tipoActivoReferenciaId
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

@@ -11,7 +11,6 @@ export type AccionHistorialCatalogo = "REGISTRO" | "MODIFICACION" | "ELIMINACION
 export interface ValorCatalogo {
   id: number;
   tipoCatalogo: TipoCatalogoMaestro;
-  codigo: string;
   nombre: string;
   descripcion: string | null;
   estadoRegistro: boolean;

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CircleCheck, CircleX, Pencil, Plus } from "lucide-react";
+import Link from "next/link";
+import { CircleCheck, CircleX, History, MoreVertical, Pencil, Plus } from "lucide-react";
 
 import { extraerMensajeError } from "@/compartido/api/formato-error";
 import {
@@ -19,13 +20,15 @@ import {
 } from "@/compartido/componentes/ui/alert-dialog";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
+import { Card, CardContent } from "@/compartido/componentes/ui/card";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/compartido/componentes/ui/dropdown-menu";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -55,18 +58,13 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/compartido/componentes/ui/tooltip";
-import type { TipoCatalogoMaestro, ValorCatalogo } from "../../tipos/maestros.tipos";
+import type { TipoCatalogoMaestro, ValorCatalogo } from "../tipos/maestros.tipos";
 import {
   useActualizarValorCatalogoMutation,
   useCambiarEstadoRegistroValorCatalogoMutation,
   useCrearValorCatalogoMutation,
   useValoresCatalogoQuery,
-} from "../../servicios/maestros-queries";
+} from "../servicios/maestros-queries";
 
 // ---------------------------------------------------------------------------
 // Dialog — Nuevo valor
@@ -246,7 +244,7 @@ function DialogEditarValor({
         <SheetHeader className="border-b border-border">
           <SheetTitle>Editar valor</SheetTitle>
           <SheetDescription>
-            El codigo interno ({item?.codigo}) no se modifica al editar.
+            Modifica el nombre o la descripcion de este valor de catalogo.
           </SheetDescription>
         </SheetHeader>
 
@@ -434,7 +432,7 @@ export function CatalogoValoresListado({
   notaSoloLectura,
 }: PropsCatalogoValoresListado) {
   const [estadoFiltro, setEstadoFiltro] = useState<"TODOS" | "true" | "false">(
-    "TODOS"
+    "true"
   );
   const consulta = useValoresCatalogoQuery(
     tipoCatalogo,
@@ -452,129 +450,132 @@ export function CatalogoValoresListado({
   }
 
   return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle>{titulo}</CardTitle>
-            <CardDescription>
-              {valores.length} {valores.length === 1 ? "registro" : "registros"}
-              {notaSoloLectura ? ` · ${notaSoloLectura}` : ""}
-            </CardDescription>
-          </div>
-          {permiteCrear ? (
-            <Button onClick={() => setDialogCrearAbierto(true)}>
-              <Plus />
-              Nuevo valor
-            </Button>
-          ) : null}
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{titulo}</h2>
+          <p className="text-sm text-muted-foreground">
+            {valores.length} {valores.length === 1 ? "registro" : "registros"}
+            {notaSoloLectura ? ` · ${notaSoloLectura}` : ""}
+          </p>
         </div>
-      </CardHeader>
-
-      <CardContent className="flex flex-col gap-4 pt-5">
-        {consulta.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>No se pudo cargar la informacion</AlertTitle>
-            <AlertDescription>{extraerMensajeError(consulta.error)}</AlertDescription>
-          </Alert>
+        {permiteCrear ? (
+          <Button onClick={() => setDialogCrearAbierto(true)}>
+            <Plus />
+            Nuevo valor
+          </Button>
         ) : null}
+      </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="grid min-w-36 gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">Estado</span>
-            <Select value={estadoFiltro} onValueChange={(v) => setEstadoFiltro(v as typeof estadoFiltro)}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="TODOS">Todos</SelectItem>
-                <SelectItem value="true">Activos</SelectItem>
-                <SelectItem value="false">Inactivos</SelectItem>
-              </SelectContent>
-            </Select>
+      <Card>
+        <CardContent className="flex flex-col gap-4 pt-5">
+          {consulta.error ? (
+            <Alert variant="destructive">
+              <AlertTitle>No se pudo cargar la informacion</AlertTitle>
+              <AlertDescription>{extraerMensajeError(consulta.error)}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="grid min-w-36 gap-1.5">
+              <Select value={estadoFiltro} onValueChange={(v) => setEstadoFiltro(v as typeof estadoFiltro)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TODOS">Estado: Todos</SelectItem>
+                  <SelectItem value="true">Activos</SelectItem>
+                  <SelectItem value="false">Inactivos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        </div>
 
-        <div className="overflow-hidden rounded-xl border border-border">
-          <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[14%]">Codigo</TableHead>
-                <TableHead className="w-[24%]">Nombre</TableHead>
-                <TableHead className="w-[32%]">Descripcion</TableHead>
-                <TableHead className="w-[12%]">Estado</TableHead>
-                <TableHead className="w-[18%] text-center">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {consulta.isLoading ? (
-                Array.from({ length: 4 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={5}>
-                      <Skeleton className="h-7 w-full" />
+          <div className="overflow-hidden rounded-xl border border-border">
+            <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[8%] text-center">Accion</TableHead>
+                  <TableHead className="w-[30%]">Nombre</TableHead>
+                  <TableHead className="w-[38%]">Descripcion</TableHead>
+                  <TableHead className="w-[24%]">Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {consulta.isLoading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell colSpan={4}>
+                        <Skeleton className="h-7 w-full" />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : valores.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-28 text-center text-muted-foreground">
+                      No hay valores para los filtros aplicados.
                     </TableCell>
                   </TableRow>
-                ))
-              ) : valores.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
-                    No hay valores para los filtros aplicados.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                valores.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="truncate font-mono text-sm">{item.codigo}</TableCell>
-                    <TableCell className="truncate text-sm font-medium">{item.nombre}</TableCell>
-                    <TableCell className="truncate text-sm text-muted-foreground">
-                      {item.descripcion ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={item.estadoRegistro ? "default" : "secondary"}>
-                        {item.estadoRegistro ? "Activo" : "Inactivo"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-center gap-1.5">
-                        {permiteCrear ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                size="icon-sm"
-                                variant="outline"
-                                onClick={() => setItemEditando(item)}
-                                aria-label="Editar"
-                              >
-                                <Pencil />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Editar</TooltipContent>
-                          </Tooltip>
-                        ) : null}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
+                ) : (
+                  valores.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="text-center">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button
+                              type="button"
                               size="icon-sm"
                               variant="outline"
-                              onClick={() => setItemCambiandoEstado(item)}
-                              aria-label={item.estadoRegistro ? "Eliminar" : "Restaurar"}
+                              aria-label={`Acciones de ${item.nombre}`}
                             >
-                              {item.estadoRegistro ? <CircleX /> : <CircleCheck />}
+                              <MoreVertical />
                             </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {item.estadoRegistro ? "Eliminar" : "Restaurar"}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="min-w-48">
+                            <DropdownMenuGroup>
+                              <DropdownMenuItem asChild>
+                                <Link
+                                  href={`/activos/maestros/${tipoCatalogo}/${item.id}/historial`}
+                                >
+                                  <History />
+                                  Auditar
+                                </Link>
+                              </DropdownMenuItem>
+                              {permiteCrear ? (
+                                <DropdownMenuItem onSelect={() => setItemEditando(item)}>
+                                  <Pencil />
+                                  Editar
+                                </DropdownMenuItem>
+                              ) : null}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant={item.estadoRegistro ? "destructive" : "default"}
+                                onSelect={() => setItemCambiandoEstado(item)}
+                              >
+                                {item.estadoRegistro ? <CircleX /> : <CircleCheck />}
+                                {item.estadoRegistro ? "Eliminar" : "Restaurar"}
+                              </DropdownMenuItem>
+                            </DropdownMenuGroup>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                      <TableCell className="truncate text-sm font-medium">{item.nombre}</TableCell>
+                      <TableCell className="truncate text-sm text-muted-foreground">
+                        {item.descripcion ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={item.estadoRegistro ? "default" : "secondary"}>
+                          {item.estadoRegistro ? "Activo" : "Inactivo"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       <DialogCrearValor
         tipoCatalogo={tipoCatalogo}
@@ -594,6 +595,6 @@ export function CatalogoValoresListado({
         onCerrar={() => setItemCambiandoEstado(null)}
         onActualizado={handleRefetch}
       />
-    </Card>
+    </section>
   );
 }

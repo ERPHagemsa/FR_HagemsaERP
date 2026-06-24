@@ -36,18 +36,26 @@ import {
 } from "@/compartido/componentes/ui/table";
 
 import { ActivosResumen } from "../componentes/activos-resumen";
+import {
+  TIPO_ACTIVO_DISPOSITIVO_ID,
+  TIPO_ACTIVO_EQUIPO_ID,
+  TIPO_ACTIVO_HERRAMIENTA_ID,
+  TIPO_ACTIVO_OTRO_ID,
+  TIPO_ACTIVO_VEHICULO_ID,
+  useCatalogosActivos,
+} from "../ganchos/use-catalogos-activos";
 import { obtenerActivos } from "../servicios/activos-api";
-import type { Activo, EstadoOperativo, TipoActivo } from "../tipos/activo.tipos";
+import type { Activo, EstadoOperativo } from "../tipos/activo.tipos";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 const DIAS_ALTAS_RECIENTES = 8;
 
-const TIPOS_ACTIVO: TipoActivo[] = [
-  "VEHICULO",
-  "EQUIPO",
-  "HERRAMIENTA",
-  "DISPOSITIVO",
-  "OTRO",
+const TIPOS_ACTIVO: number[] = [
+  TIPO_ACTIVO_VEHICULO_ID,
+  TIPO_ACTIVO_EQUIPO_ID,
+  TIPO_ACTIVO_HERRAMIENTA_ID,
+  TIPO_ACTIVO_DISPOSITIVO_ID,
+  TIPO_ACTIVO_OTRO_ID,
 ];
 
 const ESTADOS_OPERATIVOS: EstadoOperativo[] = [
@@ -57,6 +65,7 @@ const ESTADOS_OPERATIVOS: EstadoOperativo[] = [
 ];
 
 export function ActivosVista() {
+  const catalogos = useCatalogosActivos();
   const { data, isLoading, isError, error } = useConsulta(
     () => obtenerActivos(),
     [],
@@ -78,8 +87,10 @@ export function ActivosVista() {
   const dataAltas = agruparAltasRecientes(activosVisibles);
   const maxAltas = Math.max(1, ...dataAltas.map((item) => item.total));
   const distribucionTipo = TIPOS_ACTIVO.map((tipo) => ({
-    label: formatear(tipo),
-    total: activosVisibles.filter((activo) => activo.tipoActivo === tipo).length,
+    label: catalogos.nombrePorId("TIPO_ACTIVO", tipo) || "-",
+    total: activosVisibles.filter(
+      (activo) => activo.tipoActivoReferenciaId === tipo,
+    ).length,
   }));
   const distribucionOperativa = ESTADOS_OPERATIVOS.map((estado) => ({
     label: formatear(estado),
@@ -90,10 +101,14 @@ export function ActivosVista() {
   const alertasMantenimiento = activosVisibles.filter(
     (activo) => activo.vehiculo?.estadoOperativo === "MANTENIMIENTO",
   ).length;
-  const alertasCalibracion = activosVisibles.filter((activo) =>
-    ["NO_CALIBRADA", "OBSERVADA"].includes(
-      activo.vehiculo?.estadoCalibracion ?? "",
-    ),
+  const idsCalibracionAlerta = [
+    catalogos.idPorNombre("ESTADO_CALIBRACION", "No calibrada"),
+    catalogos.idPorNombre("ESTADO_CALIBRACION", "Observada"),
+  ];
+  const alertasCalibracion = activosVisibles.filter(
+    (activo) =>
+      activo.vehiculo?.estadoCalibracionReferenciaId != null &&
+      idsCalibracionAlerta.includes(activo.vehiculo.estadoCalibracionReferenciaId),
   ).length;
 
   return (
@@ -222,7 +237,10 @@ export function ActivosVista() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {formatear(activo.tipoActivo)}
+                            {catalogos.nombrePorId(
+                              "TIPO_ACTIVO",
+                              activo.tipoActivoReferenciaId,
+                            ) || "-"}
                           </Badge>
                         </TableCell>
                         <TableCell className="max-w-44 truncate">
@@ -240,7 +258,10 @@ export function ActivosVista() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">
-                            {formatear(activo.vehiculo?.estadoCalibracion)}
+                            {catalogos.nombrePorId(
+                              "ESTADO_CALIBRACION",
+                              activo.vehiculo?.estadoCalibracionReferenciaId,
+                            ) || "-"}
                           </Badge>
                         </TableCell>
                         <TableCell>{formatearFecha(activo.updatedAt)}</TableCell>

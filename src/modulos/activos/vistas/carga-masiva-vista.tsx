@@ -36,16 +36,22 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades/utils";
+import { useCatalogosActivos } from "../ganchos/use-catalogos-activos";
+import type { CatalogosActivos } from "../ganchos/use-catalogos-activos";
 import {
   COLUMNAS_POR_TIPO,
   ETIQUETA_TIPO_ACTIVO,
+  TIPO_ACTIVO_DISPOSITIVO_ID,
+  TIPO_ACTIVO_EQUIPO_ID,
+  TIPO_ACTIVO_HERRAMIENTA_ID,
+  TIPO_ACTIVO_OTRO_ID,
+  TIPO_ACTIVO_VEHICULO_ID,
 } from "../servicios/carga-masiva-columnas";
 import {
   descargarPlantilla,
   parsearArchivo,
 } from "../servicios/carga-masiva-excel";
 import { procesarCargaMasiva } from "../servicios/activos-api";
-import type { TipoActivo } from "../tipos/activo.tipos";
 import type {
   CargaMasiva,
   FilaPrevisualizada,
@@ -53,30 +59,30 @@ import type {
 
 type Paso = "tipo" | "cargar" | "revisar" | "resultado";
 
-const TIPOS: Array<{ tipo: TipoActivo; icono: React.ReactNode; detalle: string }> =
+const TIPOS: Array<{ tipo: number; icono: React.ReactNode; detalle: string }> =
   [
     {
-      tipo: "VEHICULO",
+      tipo: TIPO_ACTIVO_VEHICULO_ID,
       icono: <Car className="size-6" />,
       detalle: "Unidades con placa, motor, dimensiones y tanques.",
     },
     {
-      tipo: "EQUIPO",
+      tipo: TIPO_ACTIVO_EQUIPO_ID,
       icono: <Boxes className="size-6" />,
       detalle: "Equipos con dimensiones y control operativo.",
     },
     {
-      tipo: "DISPOSITIVO",
+      tipo: TIPO_ACTIVO_DISPOSITIVO_ID,
       icono: <Cpu className="size-6" />,
       detalle: "Dispositivos con marca, modelo y serie.",
     },
     {
-      tipo: "HERRAMIENTA",
+      tipo: TIPO_ACTIVO_HERRAMIENTA_ID,
       icono: <Wrench className="size-6" />,
       detalle: "Herramientas y activos menores.",
     },
     {
-      tipo: "OTRO",
+      tipo: TIPO_ACTIVO_OTRO_ID,
       icono: <Package className="size-6" />,
       detalle: "Otros activos con datos basicos.",
     },
@@ -90,8 +96,9 @@ const PASOS: Array<{ id: Paso; titulo: string }> = [
 ];
 
 export function CargaMasivaVista() {
+  const catalogos = useCatalogosActivos();
   const [paso, setPaso] = React.useState<Paso>("tipo");
-  const [tipo, setTipo] = React.useState<TipoActivo | null>(null);
+  const [tipo, setTipo] = React.useState<number | null>(null);
   const [nombreArchivo, setNombreArchivo] = React.useState<string>("");
   const [filas, setFilas] = React.useState<FilaPrevisualizada[]>([]);
   const [procesando, setProcesando] = React.useState(false);
@@ -108,7 +115,7 @@ export function CargaMasivaVista() {
     setResultado(null);
   }
 
-  function elegirTipo(nuevoTipo: TipoActivo) {
+  function elegirTipo(nuevoTipo: number) {
     setTipo(nuevoTipo);
     setFilas([]);
     setNombreArchivo("");
@@ -121,7 +128,7 @@ export function CargaMasivaVista() {
     if (!archivo || !tipo) return;
 
     try {
-      const parseadas = await parsearArchivo(archivo, tipo);
+      const parseadas = await parsearArchivo(archivo, tipo, catalogos);
       if (parseadas.length === 0) {
         toast.error("El archivo no tiene filas de datos.");
         return;
@@ -140,7 +147,7 @@ export function CargaMasivaVista() {
     setProcesando(true);
     try {
       const carga = await procesarCargaMasiva({
-        tipoActivo: tipo,
+        tipoActivoReferenciaId: tipo,
         nombreArchivo,
         filas: validas.map((fila) => ({ fila: fila.fila, activo: fila.activo })),
       });
@@ -166,6 +173,7 @@ export function CargaMasivaVista() {
       {paso === "cargar" && tipo && (
         <PasoCargar
           tipo={tipo}
+          catalogos={catalogos}
           onArchivo={onArchivo}
           onVolver={() => setPaso("tipo")}
         />
@@ -231,7 +239,7 @@ function Pasos({ pasoActual }: { pasoActual: Paso }) {
   );
 }
 
-function PasoTipo({ onElegir }: { onElegir: (tipo: TipoActivo) => void }) {
+function PasoTipo({ onElegir }: { onElegir: (tipo: number) => void }) {
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader>
@@ -266,10 +274,12 @@ function PasoTipo({ onElegir }: { onElegir: (tipo: TipoActivo) => void }) {
 
 function PasoCargar({
   tipo,
+  catalogos,
   onArchivo,
   onVolver,
 }: {
-  tipo: TipoActivo;
+  tipo: number;
+  catalogos: CatalogosActivos;
   onArchivo: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onVolver: () => void;
 }) {
@@ -295,7 +305,7 @@ function PasoCargar({
           <Button
             type="button"
             variant="outline"
-            onClick={() => descargarPlantilla(tipo)}
+            onClick={() => descargarPlantilla(tipo, catalogos)}
           >
             <Download className="size-4" />
             Descargar plantilla
@@ -344,7 +354,7 @@ function PasoRevisar({
   onConfirmar,
   onVolver,
 }: {
-  tipo: TipoActivo;
+  tipo: number;
   nombreArchivo: string;
   filas: FilaPrevisualizada[];
   validas: number;

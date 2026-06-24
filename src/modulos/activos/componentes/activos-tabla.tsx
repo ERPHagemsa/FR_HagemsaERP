@@ -51,6 +51,10 @@ import {
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
 import {
+  useCatalogosActivos,
+  type CatalogosActivos,
+} from "../ganchos/use-catalogos-activos";
+import {
   useCambiarEstadoRegistroMutation,
   useCrearActivoMutation,
 } from "../servicios/activos-queries";
@@ -58,7 +62,6 @@ import type {
   Activo,
   CrearActivoPayload,
   EstadoActivo,
-  EstadoCalibracion,
   EstadoOperativo,
 } from "../tipos/activo.tipos";
 
@@ -104,6 +107,7 @@ const FILTROS_INICIALES: FiltrosActivos = {
 
 export function ActivosTabla({ activos, paginacionExterna }: Props) {
   const router = useRouter();
+  const catalogos = useCatalogosActivos();
   const [filtrosFormulario, setFiltrosFormulario] =
     React.useState<FiltrosActivos>(FILTROS_INICIALES);
   const [filtrosAplicados, setFiltrosAplicados] =
@@ -147,13 +151,13 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
     return (
       coincideTexto &&
       (filtrosAplicados.tipoActivo === "TODOS" ||
-        activo.tipoActivo === filtrosAplicados.tipoActivo) &&
+        activo.tipoActivoReferenciaId === Number(filtrosAplicados.tipoActivo)) &&
       coincideEstadoActivo(activo.estadoActivo, filtrosAplicados.estadoActivo) &&
       (filtrosAplicados.estadoOperativo === "TODOS" ||
         activo.vehiculo?.estadoOperativo === filtrosAplicados.estadoOperativo) &&
       (filtrosAplicados.estadoCalibracion === "TODOS" ||
-        activo.vehiculo?.estadoCalibracion ===
-          filtrosAplicados.estadoCalibracion) &&
+        activo.vehiculo?.estadoCalibracionReferenciaId ===
+          Number(filtrosAplicados.estadoCalibracion)) &&
       (!filtrosAplicados.fechaDesde ||
         fechaModificacion >= filtrosAplicados.fechaDesde) &&
       (!filtrosAplicados.fechaHasta ||
@@ -246,11 +250,14 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
           .filter(Boolean)
           .join(" ") || activo.descripcion,
       Placa: activo.vehiculo?.placa ?? "",
-      Tipo: formatear(activo.tipoActivo),
+      Tipo: catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId),
       Ubicacion: activo.ubicacion,
       Estado: formatearEstadoActivo(activo.estadoActivo),
       Condicion: formatear(activo.vehiculo?.estadoOperativo),
-      Calibracion: formatear(activo.vehiculo?.estadoCalibracion),
+      Calibracion: catalogos.nombrePorId(
+        "ESTADO_CALIBRACION",
+        activo.vehiculo?.estadoCalibracionReferenciaId
+      ),
       Modificado: formatearFecha(activo.updatedAt),
     }));
     const csv = convertirCsv(filas);
@@ -269,7 +276,9 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                 .join(" ") || activo.descripcion
             )}</td>
             <td>${escaparHtml(activo.vehiculo?.placa ?? "")}</td>
-            <td>${escaparHtml(formatear(activo.tipoActivo))}</td>
+            <td>${escaparHtml(
+              catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId)
+            )}</td>
             <td>${escaparHtml(activo.ubicacion)}</td>
             <td>${escaparHtml(formatearEstadoActivo(activo.estadoActivo))}</td>
             <td>${escaparHtml(formatear(activo.vehiculo?.estadoOperativo))}</td>
@@ -411,11 +420,10 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                 onChange={(value) => actualizarFiltro("tipoActivo", value)}
                 values={[
                   { value: "TODOS", label: "Tipo: todos" },
-                  { value: "VEHICULO", label: "Vehiculo" },
-                  { value: "EQUIPO", label: "Equipo" },
-                  { value: "HERRAMIENTA", label: "Herramienta" },
-                  { value: "DISPOSITIVO", label: "Dispositivo" },
-                  { value: "OTRO", label: "Otro" },
+                  ...catalogos.tiposActivo.map((opcion) => ({
+                    value: String(opcion.id),
+                    label: opcion.nombre,
+                  })),
                 ]}
               />
               <FiltroSelect
@@ -445,10 +453,10 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                 onChange={(value) => actualizarFiltro("estadoCalibracion", value)}
                 values={[
                   { value: "TODOS", label: "Calibracion: todos" },
-                  { value: "CALIBRADA", label: "Calibrada" },
-                  { value: "NO_CALIBRADA", label: "No calibrada" },
-                  { value: "PENDIENTE", label: "Pendiente" },
-                  { value: "OBSERVADA", label: "Observada" },
+                  ...catalogos.estadosCalibracion.map((opcion) => ({
+                    value: String(opcion.id),
+                    label: opcion.nombre,
+                  })),
                 ]}
               />
               <FiltroSelect
@@ -660,7 +668,9 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                     {activo.vehiculo?.placa ?? "Sin placa"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{formatear(activo.tipoActivo)}</Badge>
+                    <Badge variant="outline">
+                      {catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId)}
+                    </Badge>
                   </TableCell>
                   <TableCell className="truncate">
                     {activo.ubicacion}
@@ -685,9 +695,15 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                   </TableCell>
                   <TableCell>
                     <EstadoBadge
-                      value={activo.vehiculo?.estadoCalibracion ?? "SIN_DETALLE"}
+                      value={
+                        catalogos.nombrePorId(
+                          "ESTADO_CALIBRACION",
+                          activo.vehiculo?.estadoCalibracionReferenciaId
+                        ) || "SIN_DETALLE"
+                      }
                       variant={estadoCalibracionVariant(
-                        activo.vehiculo?.estadoCalibracion
+                        activo.vehiculo?.estadoCalibracionReferenciaId,
+                        catalogos
                       )}
                     />
                   </TableCell>
@@ -838,7 +854,7 @@ type BadgeVariant = React.ComponentProps<typeof Badge>["variant"];
 function crearPayloadReintegro(activo: Activo): CrearActivoPayload {
   return {
     codigo: activo.codigo,
-    tipoActivo: activo.tipoActivo,
+    tipoActivoReferenciaId: activo.tipoActivoReferenciaId,
     descripcion: activo.descripcion,
     ubicacion: activo.ubicacion,
     estadoActivo: "ACTIVO",
@@ -851,7 +867,8 @@ function crearPayloadReintegro(activo: Activo): CrearActivoPayload {
     vehiculo: activo.vehiculo
       ? {
           ...activo.vehiculo,
-          plantillaInventario: activo.vehiculo.plantillaInventario,
+          estadoCalibracionReferenciaId:
+            activo.vehiculo.estadoCalibracionReferenciaId ?? 0,
         }
       : undefined,
   };
@@ -904,10 +921,16 @@ function estadoOperativoVariant(
 }
 
 function estadoCalibracionVariant(
-  value: EstadoCalibracion | null | undefined
+  value: number | null | undefined,
+  catalogos: CatalogosActivos
 ): BadgeVariant {
-  if (value === "CALIBRADA") return "default";
-  if (value === "OBSERVADA" || value === "NO_CALIBRADA") return "destructive";
+  if (value == null) return "secondary";
+  if (value === catalogos.idPorNombre("ESTADO_CALIBRACION", "Calibrada")) return "default";
+  if (
+    value === catalogos.idPorNombre("ESTADO_CALIBRACION", "Observada") ||
+    value === catalogos.idPorNombre("ESTADO_CALIBRACION", "No calibrada")
+  )
+    return "destructive";
   return "secondary";
 }
 

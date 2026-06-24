@@ -1,35 +1,10 @@
 export type EstadoActivo = "ACTIVO" | "INACTIVO" | "SINIESTRADO";
 export type EstadoRegistro = boolean;
-export type TipoActivo =
-  | "VEHICULO"
-  | "EQUIPO"
-  | "HERRAMIENTA"
-  | "DISPOSITIVO"
-  | "OTRO";
 export type EstadoOperativo = "OPERATIVO" | "MANTENIMIENTO" | "NO_OPERATIVO";
-export type EstadoCalibracion =
-  | "CALIBRADA"
-  | "NO_CALIBRADA"
-  | "PENDIENTE"
-  | "OBSERVADA";
-export type ClaseEuro = "EURO_1" | "EURO_2" | "EURO_3" | "EURO_4" | "EURO_5";
-export type TipoTransmision =
-  | "AUTOMATICA"
-  | "AUTOMATIZADA"
-  | "MECANICA_10_VELOCIDADES"
-  | "MECANICA_13_VELOCIDADES"
-  | "MECANICA_15_VELOCIDADES"
-  | "MECANICA_18_VELOCIDADES"
-  | "MECANICA_OTRA";
-export type PlantillaInventario =
-  | "CAMION"
-  | "REMOLCADOR"
-  | "SEMIREMOLQUE"
-  | "EQUIPO_LIVIANO";
 
 export type CarroceriaReferencia = {
   id: number;
-  plantillaInventario: PlantillaInventario;
+  claseVehiculoReferenciaId: number;
   nombre: string;
   descripcion: string | null;
   anchoSugerido: number | null;
@@ -41,7 +16,7 @@ export type CarroceriaReferencia = {
 };
 
 export type VehiculoDetalle = {
-  plantillaInventario: PlantillaInventario;
+  claseVehiculoReferenciaId: number;
   carroceriaReferenciaId: number | null;
   tarjetaPropiedad: string | null;
   tarjetaMercancias: string | null;
@@ -82,17 +57,17 @@ export type VehiculoDetalle = {
   tipoSuspension: string | null;
   tipoTornamesa: string | null;
   capacidadTanqueGalones: number | null;
-  estadoCalibracion: EstadoCalibracion | null;
+  estadoCalibracionReferenciaId: number | null;
   factorCorreccion: number | null;
-  claseEuro: ClaseEuro | null;
+  claseEuroReferenciaId: number | null;
   ratioCorona: number | null;
-  tipoTransmision: TipoTransmision | null;
+  tipoTransmisionReferenciaId: number | null;
 };
 
 export type Activo = {
   id: number;
   codigo: string;
-  tipoActivo: TipoActivo;
+  tipoActivoReferenciaId: number;
   descripcion: string;
   ubicacion: string;
   estadoActivo: EstadoActivo;
@@ -169,7 +144,7 @@ export type CrearConfiguracionHistoricaPayload = {
 
 export type CrearActivoPayload = {
   codigo: string;
-  tipoActivo: TipoActivo;
+  tipoActivoReferenciaId: number;
   descripcion: string;
   ubicacion: string;
   estadoActivo: EstadoActivo;
@@ -180,7 +155,8 @@ export type CrearActivoPayload = {
   numeroFactura?: string | null;
   fechaFactura?: string | null;
   vehiculo?: Partial<VehiculoDetalle> & {
-    plantillaInventario: PlantillaInventario;
+    claseVehiculoReferenciaId: number;
+    estadoCalibracionReferenciaId: number;
   };
 };
 
@@ -388,7 +364,7 @@ export type PerfilFlotaTanque = {
 
 export type PerfilFlota = {
   placa: string | null;
-  clase: PlantillaInventario | null;
+  claseVehiculoReferenciaId: number | null;
   modelo: string | null;
   carroceria: string | null;
   estadoOperativo: EstadoOperativo;
@@ -403,7 +379,7 @@ export type PerfilCombustible = {
   placa: string | null;
   capacidadTanqueGalones: number | null;
   tanques: PerfilFlotaTanque[];
-  estadoCalibracion: EstadoCalibracion;
+  estadoCalibracionReferenciaId: number | null;
   factorCorreccion: number | null;
   estadoActivo: EstadoActivo;
 };
