@@ -34,6 +34,13 @@ export type EstadoModalidad = "ACTIVA" | "INACTIVA";
 
 export type TipoModalidad = "SPOT" | "PROYECTO" | "OTRO";
 
+// Ref del ejecutivo (snapshot { id, nombre }). id = AuthContext.accountId
+// (no es un correo); sin token MVP = { id: "mvp-sin-auth", nombre: "Usuario MVP" }.
+export type EjecutivoRef = {
+  id: string;
+  nombre: string;
+};
+
 export type UnidadCobro =
   | "VIAJE"
   | "DIA"
@@ -226,11 +233,15 @@ export type Cotizacion = {
   id: string;
   origenTipo: OrigenTipo;
   origenId: string;
+  origenNombre: string;
   contactoOrigenId: string;
   estado: EstadoCotizacion;
   motivoPerdida: string | null;
-  idEjecutivoResponsable: string;
+  ejecutivoResponsable: EjecutivoRef;
   solicitudClienteId: string | null;
+  numeroCotizacion: number | null;
+  anioCotizacion: number | null;
+  codigoCotizacion: string | null;
   versionVigente: number | null;
   versiones: Version[];
   fechaCreacion: string;
@@ -256,12 +267,36 @@ export type Modalidad = {
   fechaModificacion: string | null;
 };
 
+// CotizacionResumen — listado (GET /cotizaciones, API §5.2). Plano, sin versiones[].
+
+export type CotizacionResumen = {
+  id: string;
+  codigoCotizacion: string | null;
+  numeroCotizacion: number | null;
+  anioCotizacion: number | null;
+  estado: EstadoCotizacion;
+  motivoPerdida: string | null;
+  origenTipo: OrigenTipo;
+  origenId: string;
+  origenNombre: string;
+  ejecutivoResponsable: EjecutivoRef;
+  solicitudClienteId: string | null;
+  moneda: Moneda | null;
+  montoTotal: number | null;
+  versionVigente: number | null;
+  totalVersiones: number;
+  fechaEnvio: string | null;
+  fechaVencimiento: string | null;
+  fechaCreacion: string;
+  fechaModificacion: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Paginacion propia (NO reutiliza RespuestaPaginada de compartido — forma distinta)
 // ---------------------------------------------------------------------------
 
 export type RespuestaPaginadaCotizaciones = {
-  data: Cotizacion[];
+  data: CotizacionResumen[];
   total: number;
   pagina: number;
   porPagina: number;
@@ -525,4 +560,11 @@ export function accionesPermitidas(estado: EstadoCotizacion): AccionesPermitidas
     case "VENCIDA":
       return { editar: false, enviar: false, nuevaVersion: false, ganar: false, perder: false, cancelar: false };
   }
+}
+
+export function etiquetaCodigoCotizacion(
+  cotizacion: { codigoCotizacion: string | null; estado: EstadoCotizacion }
+): string {
+  if (cotizacion.codigoCotizacion) return cotizacion.codigoCotizacion;
+  return cotizacion.estado === "BORRADOR" ? "Borrador" : "—";
 }
