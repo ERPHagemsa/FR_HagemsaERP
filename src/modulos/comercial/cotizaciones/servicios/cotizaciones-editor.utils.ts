@@ -103,7 +103,8 @@ export type DraftLinea = {
   tipoLinea: TipoLinea;
   descripcion: string; // nombre/identificacion de la linea
   cantidad: string; // entero >=1
-  precioUnitario: string; // requerido (>=0)
+  precioBase: string; // requerido (>=0) — precio base de la empresa por unidad
+  margenPct: string;  // requerido (0 <= x < 100) — margen sobre la venta en %; se precarga de la modalidad
   // Hijos polimorficos (solo uno se usa segun tipoLinea; los demas ignorados en armarPayload)
   carga: DraftCargaHijo;
   equipo: DraftEquipoHijo;
@@ -189,7 +190,8 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
     tipoLinea,
     descripcion: "",
     cantidad: "1",
-    precioUnitario: "0",
+    precioBase: "0",
+    margenPct: "0",
     carga: cargaVacia(),
     equipo: equipoVacio(),
     almacenaje: almacenajeVacio(),
@@ -237,6 +239,25 @@ export function cargoAdicionalVacio(): DraftCargoAdicional {
  */
 export function montoCargo(c: DraftCargoAdicional): number {
   return (parseFloat(c.cantidad) || 0) * (parseFloat(c.precioUnitario) || 0);
+}
+
+/**
+ * precioVentaLinea — espejo del calculo del backend para mostrar el precio de venta
+ * por unidad en la UI: precioBase / (1 − margenPct/100), redondeado a 2 decimales.
+ * El margen se clampa a [0, 100): un margen >= 100 anularia el divisor (venta infinita),
+ * asi que devolvemos 0 en ese caso (la validacion ya lo rechaza antes de enviar).
+ */
+export function precioVentaLinea(l: Pick<DraftLinea, "precioBase" | "margenPct">): number {
+  const base = parseFloat(l.precioBase) || 0;
+  const margen = parseFloat(l.margenPct) || 0;
+  if (margen >= 100 || margen < 0) return 0;
+  const venta = base / (1 - margen / 100);
+  return Math.round(venta * 100) / 100;
+}
+
+/** totalVentaLinea — precioVenta × cantidad (espejo de precioVentaTotal del backend). */
+export function totalVentaLinea(l: Pick<DraftLinea, "precioBase" | "margenPct" | "cantidad">): number {
+  return precioVentaLinea(l) * (parseFloat(l.cantidad) || 0);
 }
 
 export function seccionVacia(esDefecto = false): DraftSeccion {
@@ -371,7 +392,8 @@ function lineaReadADraft(l: Linea): DraftLinea {
     tipoLinea: l.tipoLinea,
     descripcion: l.descripcion ?? "", // read model ahora puede venir null (descripcion opcional)
     cantidad: String(l.cantidad),
-    precioUnitario: String(l.precioUnitario),
+    precioBase: String(l.precioBase),
+    margenPct: String(l.margenPct),
     // Poblar el hijo correspondiente; el resto queda en valores por defecto
     carga: l.carga ? cargaReadADraft(l.carga) : cargaVacia(),
     equipo: l.equipo ? equipoReadADraft(l.equipo) : equipoVacio(),
@@ -546,8 +568,9 @@ function personalAPayload(p: DraftPersonalHijo): PayloadPersonalHijo {
  * Emite el hijo polimorfico correcto segun tipoLinea.
  * TRANSPORTE → carga; ALQUILER_EQUIPO → equipo; ALMACENAJE → almacenaje; PERSONAL → personal.
  * AGENCIAMIENTO / SERVICIO_AUXILIAR → sin hijo.
- * Emite precioUnitario (requerido, >=0) y cantidad (entero >=1); NUNCA emitir
- * idSeccion, precioTotal, subtotal ni totales (los calcula el backend).
+ * Emite precioBase (requerido, >=0), margenPct (requerido, 0<=x<100) y cantidad
+ * (entero >=1); NUNCA emitir idSeccion, precioVenta, precioVentaTotal, subtotal ni
+ * totales (los calcula el backend).
  * NUNCA emitir moneda en linea (moneda es de version).
  * cargosAdicionales a nivel linea: incluir cuando existen (contrato bc03).
  */
@@ -555,7 +578,8 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
   const base: PayloadLinea = {
     idModalidad: l.idModalidad,
     tipoLinea: l.tipoLinea,
-    precioUnitario: parseNumero(l.precioUnitario),
+    precioBase: parseNumero(l.precioBase),
+    margenPct: parseNumero(l.margenPct),
     cantidad: l.cantidad !== "" ? parseNumero(l.cantidad) : 1,
   };
 
@@ -729,6 +753,16 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
           errores[`secciones.${i}.lineas.${k}.cantidad`] = "La cantidad debe ser un entero mayor o igual a 1.";
         }
       }
+      // Precio base: requerido, >= 0
+      const baseNum = parseFloat(l.precioBase);
+      if (isNaN(baseNum) || baseNum < 0) {
+        errores[`secciones.${i}.lineas.${k}.precioBase`] = "El precio base debe ser >= 0.";
+      }
+      // Margen: requerido, 0 <= x < 100 (el divisor 1 − margen/100 debe ser > 0)
+      const margenNum = parseFloat(l.margenPct);
+      if (isNaN(margenNum) || margenNum < 0 || margenNum >= 100) {
+        errores[`secciones.${i}.lineas.${k}.margenPct`] = "El margen debe ser >= 0 y menor a 100.";
+      }
       // Items de carga (solo TRANSPORTE): nombre obligatorio, dimensiones/peso >= 0
       if (l.tipoLinea === "TRANSPORTE") {
         l.carga.cargas.forEach((it, j) => {
@@ -782,7 +816,7 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
  *
  * Contrato 2026-06: SOLO secciones[]; NO hay canal de lineas raiz. El bucket por
  * defecto se emite como seccion sin nombre (caso plano).
- * Nunca emite: claveCliente, idSeccion, precioTotal, subtotal ni totales.
+ * Nunca emite: claveCliente, idSeccion, precioVenta, precioVentaTotal, subtotal ni totales.
  * Nunca emite: moneda en linea, cargosAdicionales en raiz, standbys en secciones.
  * El draft completo se re-envía siempre (replacement idempotente — ADR-10).
  */

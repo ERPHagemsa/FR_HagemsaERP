@@ -40,7 +40,7 @@ import {
   totalLinea,
 } from "./lineas-grid.utils";
 
-const COLUMNAS = 8;
+const COLUMNAS = 9;
 
 type Props = {
   secciones: DraftSeccion[];
@@ -294,8 +294,9 @@ export function EditorContenido({
                 <TableHead className="min-w-[200px]">Descripcion</TableHead>
                 <TableHead className="min-w-[180px]">Detalle</TableHead>
                 <TableHead className="w-20 text-right">Cant.</TableHead>
-                <TableHead className="w-32 text-right">P. unitario</TableHead>
-                <TableHead className="w-32 text-right">Total</TableHead>
+                <TableHead className="w-28 text-right">P. base</TableHead>
+                <TableHead className="w-24 text-right">Margen %</TableHead>
+                <TableHead className="w-32 text-right">Total venta</TableHead>
                 <TableHead className="w-20 text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -438,16 +439,34 @@ export function EditorContenido({
 
                           <TableCell>
                             <Input
-                              className="h-8 w-28 border-transparent bg-transparent px-2 text-right text-sm tabular-nums shadow-none hover:border-border focus-visible:border-border"
+                              className="h-8 w-24 border-transparent bg-transparent px-2 text-right text-sm tabular-nums shadow-none hover:border-border focus-visible:border-border"
                               type="number"
                               min={0}
                               step="0.01"
-                              value={linea.precioUnitario}
+                              value={linea.precioBase}
                               disabled={disabled}
-                              aria-invalid={Boolean(errLinea.precioUnitario)}
+                              aria-invalid={Boolean(errLinea.precioBase)}
                               onChange={(e) =>
                                 actualizarLinea(linea.claveCliente, {
-                                  precioUnitario: e.target.value,
+                                  precioBase: e.target.value,
+                                })
+                              }
+                            />
+                          </TableCell>
+
+                          <TableCell>
+                            <Input
+                              className="h-8 w-20 border-transparent bg-transparent px-2 text-right text-sm tabular-nums shadow-none hover:border-border focus-visible:border-border"
+                              type="number"
+                              min={0}
+                              max={99.99}
+                              step="0.01"
+                              value={linea.margenPct}
+                              disabled={disabled}
+                              aria-invalid={Boolean(errLinea.margenPct)}
+                              onChange={(e) =>
+                                actualizarLinea(linea.claveCliente, {
+                                  margenPct: e.target.value,
                                 })
                               }
                             />

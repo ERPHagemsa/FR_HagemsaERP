@@ -75,8 +75,8 @@ export async function obtenerPrecioSugerido(
 
 // PATCH /cotizaciones/:id/borrador → 204
 // El body es el shape ANIDADO por seccion (ver PayloadBorrador).
-// CRITICO: nunca enviar idSeccion, precioTotal ni totales (los calcula el backend).
-// precioUnitario (requerido) y cantidad (opcional) SI viajan a nivel de linea.
+// CRITICO: nunca enviar idSeccion, precioVenta, precioVentaTotal ni totales (los calcula el backend).
+// precioBase y margenPct (requeridos) y cantidad (opcional) SI viajan a nivel de linea.
 export async function actualizarBorrador(
   id: string,
   payload: PayloadBorrador

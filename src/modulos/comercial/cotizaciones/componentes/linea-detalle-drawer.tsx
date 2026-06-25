@@ -38,7 +38,7 @@ import { LightbulbIcon, SlidersHorizontalIcon } from "lucide-react";
 import type { Moneda, OrigenTipo, PrecioSugerido, TipoLinea } from "../tipos/cotizaciones.tipos";
 import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
 import type { DraftLinea } from "../servicios/cotizaciones-editor.utils";
-import { montoCargo } from "../servicios/cotizaciones-editor.utils";
+import { montoCargo, precioVentaLinea, totalVentaLinea } from "../servicios/cotizaciones-editor.utils";
 import { usePrecioSugerido } from "../servicios/cotizaciones-queries";
 import { EditorCargos } from "./editor-cargos";
 import { EditorCargasFisicas } from "./editor-cargas-fisicas";
@@ -126,12 +126,11 @@ export function LineaDetalleDrawer({
   const set = (patch: Partial<DraftLinea>) =>
     setBorrador((b) => (b ? { ...b, ...patch } : b));
 
-  // Aporte real de la linea = base (cantidad × precioUnitario) + Σ cargos adicionales de la linea.
+  // Aporte real de la linea = venta (precioVentaTotal) + Σ cargos adicionales de la linea.
   // Es lo que la linea suma al subtotal de la seccion (los cargos de linea SI suman; ver API §5.4).
-  const base =
-    (parseFloat(borrador.cantidad) || 0) * (parseFloat(borrador.precioUnitario) || 0);
+  const ventaLinea = totalVentaLinea(borrador);
   const totalCargos = borrador.cargosAdicionales.reduce((acc, c) => acc + montoCargo(c), 0);
-  const aporteLinea = base + totalCargos;
+  const aporteLinea = ventaLinea + totalCargos;
 
   return (
     <Sheet open={abierto} onOpenChange={(v) => (!v ? onCerrar() : undefined)}>
@@ -190,7 +189,14 @@ export function LineaDetalleDrawer({
                   value={borrador.idModalidad}
                   tipoLinea={borrador.tipoLinea}
                   disabled={disabled}
-                  onValueChange={(id) => set({ idModalidad: id })}
+                  // Al elegir modalidad, precargar el margen de la modalidad (editable luego).
+                  onValueChange={(id, modalidad) =>
+                    set(
+                      modalidad?.margenPct != null
+                        ? { idModalidad: id, margenPct: String(modalidad.margenPct) }
+                        : { idModalidad: id }
+                    )
+                  }
                 />
               </Campo>
             </div>
@@ -239,8 +245,8 @@ export function LineaDetalleDrawer({
               </Grupo>
             ) : null}
 
-            {/* Cantidad + precio */}
-            <div className="grid gap-4 sm:grid-cols-2">
+            {/* Cantidad + precio base + margen */}
+            <div className="grid gap-4 sm:grid-cols-3">
               <Campo label="Cantidad" error={erroresCampo.cantidad}>
                 <Input
                   type="number"
@@ -252,17 +258,40 @@ export function LineaDetalleDrawer({
                   onChange={(e) => set({ cantidad: e.target.value })}
                 />
               </Campo>
-              <Campo label="Precio unitario" obligatorio error={erroresCampo.precioUnitario}>
+              <Campo label="Precio base" obligatorio error={erroresCampo.precioBase}>
                 <Input
                   type="number"
                   min={0}
                   step="0.01"
-                  value={borrador.precioUnitario}
+                  value={borrador.precioBase}
                   disabled={disabled}
-                  aria-invalid={Boolean(erroresCampo.precioUnitario)}
-                  onChange={(e) => set({ precioUnitario: e.target.value })}
+                  aria-invalid={Boolean(erroresCampo.precioBase)}
+                  onChange={(e) => set({ precioBase: e.target.value })}
                 />
               </Campo>
+              <Campo label="Margen %" obligatorio error={erroresCampo.margenPct}>
+                <Input
+                  type="number"
+                  min={0}
+                  max={99.99}
+                  step="0.01"
+                  value={borrador.margenPct}
+                  disabled={disabled}
+                  aria-invalid={Boolean(erroresCampo.margenPct)}
+                  onChange={(e) => set({ margenPct: e.target.value })}
+                />
+              </Campo>
+            </div>
+
+            {/* Precio de venta calculado (read-only): precioBase / (1 − margen/100). */}
+            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <span className="text-xs text-muted-foreground">
+                Precio de venta (calculado)
+              </span>
+              <span className="font-mono text-sm font-semibold tabular-nums">
+                {formatearMoneda(precioVentaLinea(borrador), moneda)}
+                <span className="ml-1 text-xs font-normal text-muted-foreground">/ unidad</span>
+              </span>
             </div>
 
             {/* Precio sugerido — solo TRANSPORTE con modalidad + origen + destino + peso.
@@ -298,7 +327,14 @@ export function LineaDetalleDrawer({
                     estado={sugerenciaPrecio}
                     moneda={moneda}
                     disabled={disabled}
-                    onUsar={(monto) => set({ precioUnitario: String(monto) })}
+                    // La sugerencia es un precio de VENTA. Despejamos la base con el margen
+                    // actual para que el precioVenta calculado coincida con la sugerencia:
+                    // precioBase = ventaSugerida × (1 − margen/100).
+                    onUsar={(monto) => {
+                      const margen = parseFloat(borrador.margenPct) || 0;
+                      const base = margen >= 100 ? monto : monto * (1 - margen / 100);
+                      set({ precioBase: String(Math.round(base * 100) / 100) });
+                    }}
                   />
                 </div>
               ) : (
@@ -547,7 +583,10 @@ function SugerenciaPrecio({
                   {c.tipoVehiculo || "Sin unidad"} · {c.estado} · {c.ejecutivo}
                 </span>
                 <span className="shrink-0 font-mono tabular-nums text-foreground">
-                  {formatearMoneda(c.precioUnitario, moneda)}
+                  {formatearMoneda(c.precioVenta, moneda)}
+                  <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+                    ({c.margenPct}% mg)
+                  </span>
                 </span>
               </li>
             ))}

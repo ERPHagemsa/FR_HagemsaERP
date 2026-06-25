@@ -106,7 +106,8 @@ export type ParamsPrecioSugerido = {
 export type ComparablePrecioSugerido = {
   cotizacionId: string;
   tipoVehiculo: string | null;
-  precioUnitario: number;
+  precioVenta: number;      // precio de venta cotizado historicamente (lo que se cobro)
+  margenPct: number;        // margen sobre venta con el que se cotizo ese comparable
   fecha: string;            // ISO
   estado: EstadoCotizacion; // nunca BORRADOR ni CANCELADA (solo las que salieron al cliente)
   ejecutivo: string;
@@ -115,7 +116,7 @@ export type ComparablePrecioSugerido = {
 export type AlcancePrecioSugerido = "cliente" | "mercado";
 
 export type PrecioSugerido = {
-  monto: number | null;    // mediana del precio unitario historico; null sin comparables
+  monto: number | null;    // mediana del precio de venta historico; null sin comparables
   montoMin: number | null; // percentil 25 (piso del rango tipico)
   montoMax: number | null; // percentil 75 (techo del rango tipico)
   muestras: number;        // cantidad de lineas historicas que respaldan la estadistica; 0 = sin sugerencia
@@ -202,8 +203,10 @@ export type Linea = {
   orden: number;
   descripcion: string | null; // nombre/identificacion de la linea (opcional; en TRANSPORTE suele venir null)
   cantidad: number;
-  precioUnitario: number;
-  precioTotal: number; // calculado por el backend: precioUnitario × cantidad (solo lectura)
+  precioBase: number;       // precio base de la empresa por unidad (input, >= 0)
+  margenPct: number;        // margen sobre la venta en % (input, 0 <= x < 100)
+  precioVenta: number;      // calculado por el backend: precioBase / (1 − margenPct/100), 2 decimales (solo lectura)
+  precioVentaTotal: number; // calculado por el backend: precioVenta × cantidad (solo lectura)
   idSeccion: string | null;
   carga?: CargaHijo;
   equipo?: EquipoHijo;
@@ -217,7 +220,8 @@ export type Version = {
   moneda: Moneda;        // unica moneda de la version (antes era por linea)
   congelada: boolean;
   motivo: string | null;
-  montoTotal: number | null; // suma de precioTotal de las lineas activas; calculado por el backend
+  montoBase: number | null;  // Σ (precioBase × cantidad) de las lineas activas (total sin margen); calculado por el backend
+  montoTotal: number | null; // Σ subtotal de las secciones activas (total de venta, con margen); calculado por el backend. Ganancia = montoTotal − montoBase
   validezDias: number | null;
   fechaVencimiento: string | null;
   fechaEnvio: string | null;
@@ -382,9 +386,10 @@ export type FiltrosCatalogosCargoAdicional = {
 
 // ---------------------------------------------------------------------------
 // DTOs de escritura (write model — anidado, lo que acepta el backend)
-// CRITICO: NUNCA enviar idSeccion, precioTotal ni totales (los calcula el backend).
-// `precioUnitario` (requerido) y `cantidad` (opcional, default 1) SI se envian a nivel
-// de linea; el backend calcula `precioTotal = precioUnitario × cantidad`.
+// CRITICO: NUNCA enviar idSeccion, precioVenta, precioVentaTotal ni totales (los calcula el backend).
+// `precioBase` y `margenPct` (ambos requeridos) y `cantidad` (opcional, default 1) SI se envian a
+// nivel de linea; el backend calcula `precioVenta = precioBase / (1 − margenPct/100)` y
+// `precioVentaTotal = precioVenta × cantidad`.
 // ---------------------------------------------------------------------------
 
 // --- PayloadLeadTime (nivel version) ---
@@ -452,15 +457,17 @@ export type PayloadPersonalHijo = {
   rol: string; // requerido si se envia el objeto
 };
 
-// Linea sin idSeccion ni totales. `precioUnitario` (requerido, >=0) y `cantidad`
-// (entero >=1, default 1) SI se envian — el backend calcula precioTotal = precioUnitario × cantidad.
+// Linea sin idSeccion ni totales. `precioBase` (requerido, >=0), `margenPct` (requerido,
+// 0 <= x < 100) y `cantidad` (entero >=1, default 1) SI se envian — el backend calcula
+// precioVenta = precioBase / (1 − margenPct/100) y precioVentaTotal = precioVenta × cantidad.
 // NUNCA enviar moneda en linea — moneda es de version.
 // cargosAdicionales a nivel linea: ahora permitidos (contrato bc03).
 export type PayloadLinea = {
   idModalidad: string;
   tipoLinea: TipoLinea;
   descripcion?: string; // opcional; el backend convierte vacio/espacios a null
-  precioUnitario: number;
+  precioBase: number;
+  margenPct: number;
   cantidad?: number;
   carga?: PayloadCargaHijo;
   equipo?: PayloadEquipoHijo;

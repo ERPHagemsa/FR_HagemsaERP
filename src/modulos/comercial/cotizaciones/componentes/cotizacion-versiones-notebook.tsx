@@ -110,6 +110,17 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Base (sin margen) y ganancia = montoTotal − montoBase (ver API §4). */}
+          {version.montoBase != null && version.montoTotal != null ? (
+            <div className="hidden flex-col items-end text-xs text-muted-foreground sm:flex">
+              <span className="tabular-nums">
+                Base: {formatearMonto(version.montoBase)} {version.moneda}
+              </span>
+              <span className="tabular-nums">
+                Ganancia: {formatearMonto(version.montoTotal - version.montoBase)} {version.moneda}
+              </span>
+            </div>
+          ) : null}
           <div className="flex items-baseline gap-2">
             <span className="text-xs uppercase text-muted-foreground">Monto total</span>
             <span className="text-lg font-semibold tabular-nums">
@@ -350,7 +361,7 @@ function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
           <th className="px-3 py-2 text-left font-medium">Descripcion</th>
           <th className="px-3 py-2 text-left font-medium">Tipo</th>
           <th className="px-3 py-2 text-right font-medium">Cant.</th>
-          <th className="px-3 py-2 text-right font-medium">P. unitario</th>
+          <th className="px-3 py-2 text-right font-medium">P. venta</th>
           <th className="px-3 py-2 text-right font-medium">Total</th>
         </tr>
       </thead>
@@ -371,10 +382,10 @@ function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{linea.cantidad}</td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {formatearMonto(linea.precioUnitario)}
+                    {formatearMonto(linea.precioVenta)}
                   </td>
                   <td className="px-3 py-2 text-right font-medium tabular-nums">
-                    {formatearMonto(linea.precioTotal)} {moneda}
+                    {formatearMonto(linea.precioVentaTotal)} {moneda}
                   </td>
                 </tr>
                 {tieneDetalle(linea) ? (
