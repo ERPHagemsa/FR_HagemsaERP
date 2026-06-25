@@ -22,7 +22,6 @@ import {
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import type {
   CargaHijo,
-  CargaItem,
   EquipoHijo,
   AlmacenajeHijo,
   PersonalHijo,
@@ -75,7 +74,7 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
   const totalLineas = version.lineas.length;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+    <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
       {/* Barra de version: selector + estado + total */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
@@ -147,41 +146,12 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
       ) : null}
 
       {/* Notebook: pestañas del detalle de la version */}
-      <Tabs defaultValue="resumen" className="mt-1">
+      <Tabs defaultValue="lineas" className="mt-1">
         <TabsList variant="line">
-          <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="lineas">Lineas ({totalLineas})</TabsTrigger>
           <TabsTrigger value="leadtimes">Lead times ({leadTimes.length})</TabsTrigger>
           <TabsTrigger value="standby">Standby ({standbys.length})</TabsTrigger>
         </TabsList>
-
-        {/* --- Resumen --- */}
-        <TabsContent value="resumen" className="pt-4">
-          <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-            <DatoInline
-              label="Validez (dias)"
-              value={version.validezDias !== null ? String(version.validezDias) : null}
-            />
-            <DatoInline
-              label="Fecha de envio"
-              value={version.fechaEnvio ? formatearFecha(version.fechaEnvio) : null}
-            />
-            <DatoInline
-              label="Fecha de vencimiento"
-              value={version.fechaVencimiento ? formatearFecha(version.fechaVencimiento) : null}
-            />
-          </div>
-          {version.condiciones || version.notas ? (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              {version.condiciones ? (
-                <BloqueTexto label="Condiciones" texto={version.condiciones} />
-              ) : null}
-              {version.notas ? (
-                <BloqueTexto label="Notas" texto={version.notas} />
-              ) : null}
-            </div>
-          ) : null}
-        </TabsContent>
 
         {/* --- Lineas --- */}
         <TabsContent value="lineas" className="pt-4">
@@ -353,95 +323,110 @@ function SeccionBloque({
 // Tabla de lineas (con detalle polimorfico expandible inline)
 // ---------------------------------------------------------------------------
 
+// Tabla estilo documento: Ruta · Concepto · Descripcion · Cant · Costo base ·
+// P. venta · Monto total. La Ruta (comun a todas las lineas) se combina con
+// rowSpan. Cada cargo adicional de la linea es su PROPIA fila: su monto cae en
+// la columna Monto total y el Concepto se combina (rowSpan) sobre linea+cargos.
 function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
+  const ordenadas = lineas.slice().sort((a, b) => a.orden - b.orden);
+  const rutaComun = ordenadas.map(rutaLinea).find(Boolean) ?? "—";
+  // Cada linea ocupa 1 fila + 1 por cada cargo adicional.
+  const totalFilas = ordenadas.reduce(
+    (acc, l) => acc + 1 + (l.cargosAdicionales?.length ?? 0),
+    0,
+  );
   return (
-    <table className="w-full text-sm">
+    <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-border/60 [&_th]:border [&_th]:border-border/60">
       <thead>
-        <tr className="border-b border-border text-xs text-muted-foreground">
+        <tr className="text-xs text-muted-foreground">
+          <th className="px-3 py-2 text-left font-medium">Ruta</th>
+          <th className="px-3 py-2 text-left font-medium">Concepto</th>
           <th className="px-3 py-2 text-left font-medium">Descripcion</th>
-          <th className="px-3 py-2 text-left font-medium">Tipo</th>
           <th className="px-3 py-2 text-right font-medium">Cant.</th>
+          <th className="px-3 py-2 text-right font-medium">Costo base</th>
           <th className="px-3 py-2 text-right font-medium">P. venta</th>
-          <th className="px-3 py-2 text-right font-medium">Total</th>
+          <th className="px-3 py-2 text-right font-medium">Monto total</th>
         </tr>
       </thead>
       <tbody>
-        {lineas
-          .slice()
-          .sort((a, b) => a.orden - b.orden)
-          .map((linea) => {
-            const cargosLinea = linea.cargosAdicionales ?? [];
-            return (
-              <React.Fragment key={linea.id}>
-                <tr className="border-b border-border/60 last:border-0">
-                  <td className="px-3 py-2 font-medium">{linea.descripcion}</td>
-                  <td className="px-3 py-2">
-                    <Badge variant="outline" className="text-xs">
-                      {formatearTipoLinea(linea.tipoLinea)}
-                    </Badge>
+        {ordenadas.map((linea, i) => {
+          const tipoLabel = formatearTipoLinea(linea.tipoLinea);
+          // Transporte: el concepto es el vehiculo (no se repite en descripcion).
+          const concepto = linea.carga
+            ? linea.carga.tipoVehiculo ?? tipoLabel
+            : linea.descripcion ?? tipoLabel;
+          const cargos = linea.cargosAdicionales ?? [];
+          return (
+            <React.Fragment key={linea.id}>
+              <tr className="align-top">
+                {i === 0 ? (
+                  <td
+                    rowSpan={totalFilas}
+                    className="whitespace-nowrap px-3 py-2 align-middle font-medium text-muted-foreground"
+                  >
+                    {rutaComun}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{linea.cantidad}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {formatearMonto(linea.precioVenta)}
+                ) : null}
+                <td rowSpan={1 + cargos.length} className="px-3 py-2 font-medium">
+                  {concepto}
+                </td>
+                <td className="px-3 py-2">
+                  <DescripcionLinea linea={linea} />
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  {linea.cantidad}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  {formatearMonto(linea.precioBase)}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                  {formatearMonto(linea.precioVenta)}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
+                  {formatearMonto(linea.precioVentaTotal)} {moneda}
+                </td>
+              </tr>
+              {cargos.map((c) => (
+                <tr key={c.id} className="align-top">
+                  <td className="px-3 py-2 font-medium">{c.descripcion}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                    {c.cantidad}
                   </td>
-                  <td className="px-3 py-2 text-right font-medium tabular-nums">
-                    {formatearMonto(linea.precioVentaTotal)} {moneda}
+                  <td className="px-3 py-2 text-right text-muted-foreground">—</td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
+                    {formatearMonto(c.precioUnitario)}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
+                    {formatearMonto(c.monto)} {moneda}
                   </td>
                 </tr>
-                {tieneDetalle(linea) ? (
-                  <tr className="border-b border-border/60 last:border-0">
-                    <td colSpan={5} className="px-3 pb-2">
-                      <DetalleLinea linea={linea} />
-                    </td>
-                  </tr>
-                ) : null}
-                {cargosLinea.length > 0 ? (
-                  <tr className="border-b border-border/60 last:border-0">
-                    <td colSpan={5} className="px-3 pb-2 pt-1">
-                      <div className="rounded-md bg-muted/20 px-3 py-2">
-                        <p className="mb-1 text-xs font-medium text-muted-foreground">Cargos de la linea</p>
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="text-muted-foreground">
-                              <th className="py-0.5 text-left font-medium">Descripcion</th>
-                              <th className="py-0.5 text-left font-medium">Unidad</th>
-                              <th className="py-0.5 text-right font-medium">Cant.</th>
-                              <th className="py-0.5 text-right font-medium">P. unitario</th>
-                              <th className="py-0.5 text-right font-medium">Monto</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {cargosLinea.map((c) => (
-                              <tr key={c.id} className="border-t border-border/30">
-                                <td className="py-0.5">{c.descripcion}</td>
-                                <td className="py-0.5 text-muted-foreground">{c.unidadCobro ?? "—"}</td>
-                                <td className="py-0.5 text-right tabular-nums">{c.cantidad ?? "—"}</td>
-                                <td className="py-0.5 text-right tabular-nums">{c.precioUnitario !== undefined ? formatearMonto(c.precioUnitario) : "—"}</td>
-                                <td className="py-0.5 text-right tabular-nums">{formatearMonto(c.monto)} {moneda}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </td>
-                  </tr>
-                ) : null}
-              </React.Fragment>
-            );
-          })}
+              ))}
+            </React.Fragment>
+          );
+        })}
       </tbody>
     </table>
   );
+}
+
+// Ruta de una linea de transporte (origen → destino); null si no aplica.
+function rutaLinea(linea: Linea): string | null {
+  const carga = linea.carga;
+  if (!carga || (!carga.origen && !carga.destino)) return null;
+  return `${carga.origen ?? "—"} → ${carga.destino ?? "—"}`;
 }
 
 function tieneDetalle(linea: Linea): boolean {
   return Boolean(linea.carga || linea.equipo || linea.almacenaje || linea.personal);
 }
 
-function DetalleLinea({ linea }: { linea: Linea }) {
+function DescripcionLinea({ linea }: { linea: Linea }) {
+  if (!tieneDetalle(linea)) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-md bg-muted/30 px-3 py-2 text-xs md:grid-cols-4">
-      {linea.carga ? <CargaDetalle carga={linea.carga} /> : null}
+    <div className="flex flex-col gap-1.5 text-xs">
+      {linea.carga ? <CargaDescripcion carga={linea.carga} /> : null}
       {linea.equipo ? <EquipoDetalle equipo={linea.equipo} /> : null}
       {linea.almacenaje ? <AlmacenajeDetalle almacenaje={linea.almacenaje} /> : null}
       {linea.personal ? <PersonalDetalle personal={linea.personal} /> : null}
@@ -449,97 +434,92 @@ function DetalleLinea({ linea }: { linea: Linea }) {
   );
 }
 
-function CargaDetalle({ carga }: { carga: CargaHijo }) {
+// Transporte: cada item fisico con su nombre (arriba) y dimensiones L/A/H/P
+// (debajo). Una sola grilla compartida (8 columnas: 4 pares etiqueta+valor)
+// mantiene L/A/H/P alineados verticalmente entre todos los items, como Excel.
+function CargaDescripcion({ carga }: { carga: CargaHijo }) {
+  if (carga.cargas.length === 0) {
+    return <span className="text-muted-foreground">—</span>;
+  }
   return (
-    <>
-      <MiniDato label="Vehiculo" value={carga.tipoVehiculo} />
-      <MiniDato label="Origen" value={carga.origen} />
-      <MiniDato label="Destino" value={carga.destino} />
-      <MiniDato
-        label="Cargas"
-        value={carga.cargas.length > 0 ? String(carga.cargas.length) : null}
-      />
-      {carga.cargas.map((it) => (
-        <MiniDato key={it.id} label={it.nombre || "Carga"} value={resumenCargaItem(it)} />
+    <div className="grid grid-cols-[auto_auto_auto_auto_auto_auto_auto_auto] gap-x-1 gap-y-0.5 tabular-nums">
+      {carga.cargas.map((it, idx) => (
+        <React.Fragment key={it.id}>
+          <span
+            className={idx === 0 ? "col-span-8 font-medium" : "col-span-8 mt-1.5 font-medium"}
+          >
+            {it.nombre || "Carga"}
+          </span>
+          <span className="text-muted-foreground/70">L:</span>
+          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.largoM, "m")}</span>
+          <span className="text-muted-foreground/70">A:</span>
+          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.anchoM, "m")}</span>
+          <span className="text-muted-foreground/70">H:</span>
+          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.altoM, "m")}</span>
+          <span className="text-muted-foreground/70">P:</span>
+          <span className="text-right text-muted-foreground">
+            {valorDim(it.peso, it.unidadPeso ?? "TN")}
+          </span>
+        </React.Fragment>
       ))}
-    </>
+    </div>
   );
 }
 
-// Resumen de un item fisico para el detalle read-only: dimensiones · peso.
-function resumenCargaItem(it: CargaItem): string | null {
-  const partes: string[] = [];
-  if (it.largoM !== null && it.anchoM !== null && it.altoM !== null) {
-    partes.push(`${it.largoM} x ${it.anchoM} x ${it.altoM} m`);
-  }
-  if (it.peso !== null) {
-    partes.push(`${it.peso} ${it.unidadPeso ?? "TN"}`);
-  }
-  return partes.length > 0 ? partes.join(" · ") : null;
+// Valor de una dimension; "—" si no viene cargada (mantiene la columna alineada).
+function valorDim(valor: number | null, unidad: string): string {
+  return valor !== null ? `${valor} ${unidad}` : "—";
 }
 
 function EquipoDetalle({ equipo }: { equipo: EquipoHijo }) {
+  const marcaModelo = [equipo.marca, equipo.modelo].filter(Boolean).join(" ") || null;
+  const minimos =
+    [
+      equipo.horasMinimas !== null ? `${equipo.horasMinimas} h min` : null,
+      equipo.diasContratoMin !== null ? `${equipo.diasContratoMin} dias contrato min` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ") || null;
   return (
-    <>
-      <MiniDato label="Tipo de equipo" value={equipo.equipoTipo} />
-      <MiniDato label="Marca" value={equipo.marca} />
-      <MiniDato label="Modelo" value={equipo.modelo} />
-      <MiniDato label="Capacidad" value={equipo.capacidad} />
-      <MiniDato
-        label="Horas minimas"
-        value={equipo.horasMinimas !== null ? String(equipo.horasMinimas) : null}
-      />
-      <MiniDato
-        label="Dias contrato min."
-        value={equipo.diasContratoMin !== null ? String(equipo.diasContratoMin) : null}
-      />
-    </>
+    <div className="flex flex-col gap-0.5">
+      <DetalleFila label="Equipo" valor={equipo.equipoTipo} />
+      <DetalleFila label="Marca/Modelo" valor={marcaModelo} />
+      <DetalleFila label="Capacidad" valor={equipo.capacidad} />
+      <DetalleFila label="Minimos" valor={minimos} />
+    </div>
   );
 }
 
 function AlmacenajeDetalle({ almacenaje }: { almacenaje: AlmacenajeHijo }) {
   return (
-    <>
-      <MiniDato label="Area (m2)" value={almacenaje.areaM2 !== null ? String(almacenaje.areaM2) : null} />
-      <MiniDato
-        label="Periodo (dias)"
-        value={almacenaje.periodoDias !== null ? String(almacenaje.periodoDias) : null}
+    <div className="flex flex-col gap-0.5">
+      <DetalleFila
+        label="Area"
+        valor={almacenaje.areaM2 !== null ? `${almacenaje.areaM2} m2` : null}
       />
-    </>
+      <DetalleFila
+        label="Periodo"
+        valor={almacenaje.periodoDias !== null ? `${almacenaje.periodoDias} dias` : null}
+      />
+    </div>
   );
 }
 
 function PersonalDetalle({ personal }: { personal: PersonalHijo }) {
-  return <MiniDato label="Rol" value={personal.rol} />;
+  return <DetalleFila label="Rol" valor={personal.rol} />;
 }
 
 // ---------------------------------------------------------------------------
 // Atomos
 // ---------------------------------------------------------------------------
 
-function DatoInline({ label, value }: { label: string; value: string | null | undefined }) {
+// Dato inline "label: valor"; se omite por completo si no hay valor (adaptativo).
+function DetalleFila({ label, valor }: { label: string; valor: string | null | undefined }) {
+  if (!valor) return null;
   return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-border/40 pb-1">
-      <span className="text-xs uppercase text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium">{value ?? "—"}</span>
-    </div>
-  );
-}
-
-function BloqueTexto({ label, texto }: { label: string; texto: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-muted/20 p-3">
-      <p className="mb-1 text-xs uppercase text-muted-foreground">{label}</p>
-      <p className="text-sm whitespace-pre-wrap">{texto}</p>
-    </div>
-  );
-}
-
-function MiniDato({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div>
-      <span className="text-muted-foreground">{label}: </span>
-      <span className="font-medium">{value ?? "—"}</span>
+    <div className="flex flex-wrap items-baseline gap-x-1.5">
+      <span className="text-muted-foreground">{label}:</span>
+      <span className="font-medium">{valor}</span>
     </div>
   );
 }
@@ -558,14 +538,6 @@ function formatearTipoLinea(tipo: string) {
     SERVICIO_AUXILIAR: "Servicio auxiliar",
   };
   return mapa[tipo] ?? tipo;
-}
-
-function formatearFecha(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
 }
 
 function formatearMonto(valor: number) {
