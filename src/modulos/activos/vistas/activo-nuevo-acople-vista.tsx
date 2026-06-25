@@ -36,8 +36,15 @@ export function ActivoNuevoAcopleVista() {
     []
   );
 
+  const idsConReemplazo = new Set(
+    (data ?? [])
+      .map((activo) => activo.activoOrigenId)
+      .filter((id): id is number => id !== null)
+  );
+
   const activos = (data ?? []).filter(
-    (activo) => activo.estadoActivo !== "ACTIVO"
+    (activo) =>
+      activo.estadoActivo !== "ACTIVO" && !idsConReemplazo.has(activo.id)
   );
 
   return (

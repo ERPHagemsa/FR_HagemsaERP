@@ -2017,6 +2017,12 @@ function SelectField({
     ? opciones.map((opcion) => ({ value: String(opcion.id), texto: opcion.nombre }))
     : (values ?? []).map((value) => ({ value, texto: labels?.[value] ?? value }));
 
+  // Si `opciones` viene de un catalogo que carga async, el <select> puede montarse
+  // antes de que existan las <option> reales y queda pegado en la primera opcion
+  // disponible. `defaultValue` solo se aplica en el montaje, asi que una vez listo
+  // el catalogo forzamos un remount (via `key`) para que vuelva a matchear el valor real.
+  const catalogoListo = !opciones || opciones.length > 0;
+
   return (
     <label className="grid gap-2">
       <span className="text-sm font-medium text-foreground">
@@ -2024,6 +2030,7 @@ function SelectField({
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </span>
       <select
+        key={catalogoListo ? `${name}-listo` : `${name}-cargando`}
         name={name}
         defaultValue={defaultValue}
         required={required}
