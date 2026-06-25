@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, useState } from "react"
+import { type FormEvent, type ReactNode, useState } from "react"
 import {
   ArchiveRestore,
   Ban,
@@ -25,6 +25,15 @@ import {
 } from "@/compartido/componentes/ui/alert-dialog"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/compartido/componentes/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,14 +61,21 @@ import {
 } from "@/compartido/componentes/ui/table"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
 import { cn } from "@/compartido/utilidades/utils"
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 import { PaginationControls } from "@/modulos/socio-negocios/componentes/pagination-controls"
 
 import {
-  useConfiguracionGeneralQuery,
+  CamposMaestro,
+  construirPayloadModificacion,
+  type CatalogosMaestro,
+} from "./campos-maestro"
+import {
   useAnularConfiguracionGeneralMutation,
+  useConfiguracionGeneralQuery,
   useExportarConfiguracionGeneralQuery,
   useInhabilitarConfiguracionGeneralMutation,
-  useModificarConfiguracionGeneralMutation,
+  useListarPorTipoQuery,
+  useModificarPorTipoMutation,
   useReactivarConfiguracionGeneralMutation,
 } from "../servicios/configuracion-general-queries"
 import type {
@@ -71,6 +87,17 @@ import type {
 } from "../tipos/configuracion-general"
 
 type TipoListado = TipoDatoMaestro | "TODOS"
+type TipoJerarquico = "ALMACEN" | "AREA" | "CARGO" | "CONTRATO" | "SEDE"
+
+function esTipoJerarquico(tipo: TipoListado): tipo is TipoJerarquico {
+  return (
+    tipo === "ALMACEN" ||
+    tipo === "AREA" ||
+    tipo === "CARGO" ||
+    tipo === "CONTRATO" ||
+    tipo === "SEDE"
+  )
+}
 
 const detalleListado: Record<TipoListado, { descripcion: string; titulo: string }> = {
   TODOS: {
@@ -95,16 +122,34 @@ const detalleListado: Record<TipoListado, { descripcion: string; titulo: string 
   },
   CUENTA: {
     titulo: "Cuentas",
-    descripcion: "Cuentas comerciales disponibles para contratos.",
+    descripcion: "Cuentas comerciales y su nivel en la jerarquia.",
   },
   CONTRATO: {
     titulo: "Contratos",
-    descripcion: "Contratos comerciales y sus relaciones con cuentas.",
+    descripcion: "Contratos comerciales, su nivel y su cuenta o contrato padre.",
   },
   CARGO: {
     titulo: "Cargos",
     descripcion: "Puestos de trabajo y jerarquias de cargo.",
   },
+  REGIMEN: {
+    titulo: "Regimenes",
+    descripcion: "Regimenes laborales con su ciclo de trabajo/descanso y jornada.",
+  },
+}
+
+// Catalogos que cada tipo necesita exclusivamente para alimentar el formulario
+// de edicion. Los nombres relacionados ya llegan en la respuesta del backend.
+const catalogosRequeridos: Record<TipoListado, TipoDatoMaestro[]> = {
+  TODOS: [],
+  UBICACION: [],
+  SEDE: ["UBICACION"],
+  AREA: ["SEDE", "AREA"],
+  ALMACEN: ["UBICACION", "SEDE"],
+  CUENTA: [],
+  CONTRATO: ["CUENTA", "CONTRATO"],
+  CARGO: ["CARGO"],
+  REGIMEN: [],
 }
 
 function obtenerMensajeError(error: unknown) {
@@ -121,6 +166,13 @@ function formatearFecha(fecha?: string | null) {
   }).format(valor)
 }
 
+function formatearDia(fecha?: string | null) {
+  if (!fecha) return "-"
+  const valor = new Date(fecha)
+  if (Number.isNaN(valor.getTime())) return fecha
+  return new Intl.DateTimeFormat("es-PE", { dateStyle: "short" }).format(valor)
+}
+
 function textoEstado(dato: ConfiguracionGeneralResponse) {
   if (dato.estadoRegistro === "ANULADO") return "Anulado"
   if (dato.estado === "INACTIVO") return "Inactivo"
@@ -133,18 +185,144 @@ function varianteEstado(dato: ConfiguracionGeneralResponse) {
   return "outline"
 }
 
-function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
-  if (dato.tipoDatoMaestro === "UBICACION") return dato.direccion || dato.tipoUbicacion || "-"
-  if (dato.tipoDatoMaestro === "SEDE") return dato.ubicacionId || "-"
-  if (dato.tipoDatoMaestro === "AREA") return dato.nivelArea || dato.sedeId || "-"
-  if (dato.tipoDatoMaestro === "ALMACEN") return dato.esTemporal ? "Temporal" : "Fijo"
-  if (dato.tipoDatoMaestro === "CUENTA") return `Nivel ${dato.nivelCuentaContrato ?? 1}`
-  if (dato.tipoDatoMaestro === "CONTRATO") return `Nivel ${dato.nivelCuentaContrato ?? "-"}`
-  return dato.cargoSuperiorId || "-"
+function referenciaTexto(nombre?: string | null, id?: number | null) {
+  if (nombre) return nombre
+  return id == null ? "-" : String(id)
 }
 
-function formatearCount(count?: number | null) {
-  return typeof count === "number" ? String(count) : "-"
+interface ColumnaTipo {
+  header: string
+  className?: string
+  render: (dato: ConfiguracionGeneralResponse) => ReactNode
+}
+
+// Columnas propias de cada tipo: cada maestro muestra SOLO sus campos, sin la
+// columna generica "detalle especifico" que aplastaba toda la jerarquia.
+const columnasPorTipo: Record<TipoListado, ColumnaTipo[]> = {
+  TODOS: [
+    {
+      header: "Tipo",
+      render: (dato) => <Badge variant="secondary">{dato.tipoDatoMaestro}</Badge>,
+    },
+  ],
+  CARGO: [
+    {
+      header: "Cargo superior",
+      render: (dato) => referenciaTexto(dato.cargoSuperiorNombre, dato.cargoSuperiorId),
+    },
+  ],
+  UBICACION: [
+    {
+      header: "Tipo",
+      render: (dato) => (dato.tipoUbicacion ? <Badge variant="outline">{dato.tipoUbicacion}</Badge> : "-"),
+    },
+    {
+      header: "Ubicacion",
+      render: (dato) => {
+        const ubigeo = [dato.distrito, dato.provincia, dato.departamento]
+          .filter(Boolean)
+          .join(", ")
+        return (
+          <div className="flex min-w-44 flex-col">
+            <span>{ubigeo || dato.pais || "-"}</span>
+            {dato.direccion ? (
+              <span className="text-xs text-muted-foreground">{dato.direccion}</span>
+            ) : null}
+          </div>
+        )
+      },
+    },
+  ],
+  SEDE: [
+    {
+      header: "Ubicacion",
+      render: (dato) => referenciaTexto(dato.ubicacionNombre, dato.ubicacionId),
+    },
+  ],
+  AREA: [
+    {
+      header: "Nivel",
+      render: (dato) => (dato.nivelArea ? <Badge variant="outline">{dato.nivelArea}</Badge> : "-"),
+    },
+    {
+      header: "Sede",
+      render: (dato) => referenciaTexto(dato.sedeNombre, dato.sedeId),
+    },
+    {
+      header: "Gerencia",
+      render: (dato) =>
+        dato.nivelArea === "AREA"
+          ? referenciaTexto(dato.gerenciaNombre, dato.gerenciaId)
+          : "-",
+    },
+  ],
+  ALMACEN: [
+    {
+      header: "Ubicacion",
+      render: (dato) => referenciaTexto(dato.ubicacionNombre, dato.ubicacionId),
+    },
+    {
+      header: "Sede",
+      render: (dato) => referenciaTexto(dato.sedeNombre, dato.sedeId),
+    },
+    {
+      header: "Modalidad",
+      render: (dato) => (
+        <Badge variant={dato.esTemporal ? "secondary" : "outline"}>
+          {dato.esTemporal ? "Temporal" : "Fijo"}
+        </Badge>
+      ),
+    },
+    {
+      header: "Vigencia",
+      render: (dato) =>
+        dato.esTemporal
+          ? `${formatearDia(dato.fechaInicio)} - ${formatearDia(dato.fechaFin)}`
+          : "-",
+    },
+  ],
+  CUENTA: [
+    {
+      header: "Nivel",
+      className: "text-right",
+      render: (dato) => (
+        <span className="tabular-nums">{dato.nivelCuentaContrato ?? "-"}</span>
+      ),
+    },
+  ],
+  CONTRATO: [
+    {
+      header: "Nivel",
+      className: "text-right",
+      render: (dato) => (
+        <span className="tabular-nums">{dato.nivelCuentaContrato ?? "-"}</span>
+      ),
+    },
+    {
+      header: "Padre",
+      render: (dato) => referenciaTexto(dato.contratoPadreNombre, dato.contratoPadreId),
+    },
+  ],
+  REGIMEN: [
+    {
+      header: "Codigo",
+      render: (dato) => dato.regimenCodigo ?? "-",
+    },
+    {
+      header: "Ciclo (T/D)",
+      className: "text-right",
+      render: (dato) => (
+        <span className="tabular-nums">
+          {dato.diasTrabajo ?? "-"} / {dato.diasDescanso ?? "-"}
+        </span>
+      ),
+    },
+    {
+      header: "Horas/dia",
+      className: "text-right",
+      render: (dato) => <span className="tabular-nums">{dato.horasPorDia ?? "-"}</span>,
+    },
+  ],
 }
 
 function actualizarQuery(
@@ -208,6 +386,36 @@ function DatoFicha({
   )
 }
 
+// Carga, para un tipo de listado, solo los catalogos que necesita para resolver
+// referencias y alimentar el formulario de edicion.
+function useCatalogosParaTipo(tipo: TipoListado, enabled: boolean): CatalogosMaestro {
+  const requeridos = catalogosRequeridos[tipo]
+  const queryCatalogo: ConsultarConfiguracionGeneralQuery = {
+    estado: "ACTIVO",
+    estadoRegistro: "ACTIVO",
+    page: 1,
+    pageSize: 100,
+    sortBy: "nombre",
+    sortOrder: "asc",
+  }
+
+  const ubicacionesQuery = useListarPorTipoQuery("UBICACION", queryCatalogo, enabled && requeridos.includes("UBICACION"))
+  const sedesQuery = useListarPorTipoQuery("SEDE", queryCatalogo, enabled && requeridos.includes("SEDE"))
+  const areasQuery = useListarPorTipoQuery("AREA", queryCatalogo, enabled && requeridos.includes("AREA"))
+  const cargosQuery = useListarPorTipoQuery("CARGO", queryCatalogo, enabled && requeridos.includes("CARGO"))
+  const cuentasQuery = useListarPorTipoQuery("CUENTA", queryCatalogo, enabled && requeridos.includes("CUENTA"))
+  const contratosQuery = useListarPorTipoQuery("CONTRATO", queryCatalogo, enabled && requeridos.includes("CONTRATO"))
+
+  const ubicaciones = ubicacionesQuery.data?.datos ?? []
+  const sedes = sedesQuery.data?.datos ?? []
+  const areas = areasQuery.data?.datos ?? []
+  const cargos = cargosQuery.data?.datos ?? []
+  const cuentas = cuentasQuery.data?.datos ?? []
+  const contratos = contratosQuery.data?.datos ?? []
+
+  return { ubicaciones, sedes, areas, cargos, cuentas, contratos }
+}
+
 type AccionMaestro = "inhabilitar" | "reactivar" | "anular" | null
 
 function AccionesConfiguracion({
@@ -221,20 +429,22 @@ function AccionesConfiguracion({
   onError: (mensaje: string) => void
   onMensaje: (mensaje: string) => void
 }) {
-  const modificarMutation = useModificarConfiguracionGeneralMutation(dato.id, {
+  const { usuario } = useSesion()
+  const modificarMutation = useModificarPorTipoMutation(dato.tipoDatoMaestro, dato.id, {
     onSuccess: onActualizado,
   })
-  const inhabilitarMutation = useInhabilitarConfiguracionGeneralMutation(dato.id, {
+  const inhabilitarMutation = useInhabilitarConfiguracionGeneralMutation(dato.id, dato.tipoDatoMaestro, {
     onSuccess: onActualizado,
   })
-  const reactivarMutation = useReactivarConfiguracionGeneralMutation(dato.id, {
+  const reactivarMutation = useReactivarConfiguracionGeneralMutation(dato.id, dato.tipoDatoMaestro, {
     onSuccess: onActualizado,
   })
-  const anularMutation = useAnularConfiguracionGeneralMutation(dato.id, {
+  const anularMutation = useAnularConfiguracionGeneralMutation(dato.id, dato.tipoDatoMaestro, {
     onSuccess: onActualizado,
   })
   const [fichaAbierta, setFichaAbierta] = useState(false)
   const [modificarAbierto, setModificarAbierto] = useState(false)
+  const catalogos = useCatalogosParaTipo(dato.tipoDatoMaestro, modificarAbierto)
   const [accion, setAccion] = useState<AccionMaestro>(null)
   const [motivo, setMotivo] = useState("")
   const procesando =
@@ -247,6 +457,7 @@ function AccionesConfiguracion({
   const puedeInhabilitar = dato.estado === "ACTIVO" && !anulado
   const puedeReactivar = dato.estado === "INACTIVO" && !anulado
   const puedeAnular = !anulado
+  const usuarioActual = usuario?.email ?? "admin"
 
   function abrirAccion(nuevaAccion: Exclude<AccionMaestro, null>) {
     setMotivo(nuevaAccion === "anular" ? "Registro creado por error" : "")
@@ -258,20 +469,20 @@ function AccionesConfiguracion({
       if (accion === "inhabilitar") {
         await inhabilitarMutation.mutateAsync({
           motivo: motivo.trim(),
-          usuarioModificacion: "admin",
+          usuarioModificacion: usuarioActual,
         })
         onMensaje(`${dato.nombre} fue inhabilitado.`)
       }
 
       if (accion === "reactivar") {
-        await reactivarMutation.mutateAsync({ usuarioModificacion: "admin" })
+        await reactivarMutation.mutateAsync({ usuarioModificacion: usuarioActual })
         onMensaje(`${dato.nombre} fue reactivado.`)
       }
 
       if (accion === "anular") {
         await anularMutation.mutateAsync({
           motivo: motivo.trim(),
-          usuarioModificacion: "admin",
+          usuarioModificacion: usuarioActual,
         })
         onMensaje(`${dato.nombre} fue borrado.`)
       }
@@ -289,11 +500,13 @@ function AccionesConfiguracion({
     const descripcion = String(formData.get("descripcion") ?? "").trim()
 
     try {
-      await modificarMutation.mutateAsync({
-        nombre,
-        descripcion: descripcion || null,
-        usuarioModificacion: "admin",
-      })
+      await modificarMutation.mutateAsync(
+        construirPayloadModificacion(dato.tipoDatoMaestro, formData, {
+          nombre,
+          descripcion: descripcion || null,
+          usuarioModificacion: usuarioActual,
+        }),
+      )
       setModificarAbierto(false)
       onMensaje(`${dato.nombre} fue modificado.`)
     } catch (error) {
@@ -353,17 +566,17 @@ function AccionesConfiguracion({
           <AlertDialogHeader>
             <AlertDialogTitle>Ficha del maestro</AlertDialogTitle>
             <AlertDialogDescription>
-              Datos vigentes del registro #{dato.count}.
+              Datos vigentes del registro #{dato.id}.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="grid gap-3 md:grid-cols-3">
-            <DatoFicha label="Count" value={dato.count} />
+            <DatoFicha label="ID" value={dato.id} />
             <DatoFicha label="Tipo" value={dato.tipoDatoMaestro} />
             <DatoFicha label="Codigo" value={dato.codigo} />
             <DatoFicha label="Nombre" value={dato.nombre} />
             <DatoFicha label="Estado" value={textoEstado(dato)} />
             <DatoFicha label="Registro" value={dato.estadoRegistro} />
-            <DatoFicha label="Detalle" value={detalleEspecifico(dato)} />
+            <FichaEspecifica dato={dato} />
             <DatoFicha label="Creacion" value={formatearFecha(dato.fechaCreacion)} />
             <DatoFicha label="Modificacion" value={formatearFecha(dato.fechaModificacion)} />
           </div>
@@ -379,21 +592,38 @@ function AccionesConfiguracion({
         open={modificarAbierto}
         onOpenChange={(open) => !open && setModificarAbierto(false)}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <form onSubmit={(event) => void modificarDato(event)}>
             <AlertDialogHeader>
-              <AlertDialogTitle>Editar maestro</AlertDialogTitle>
+              <AlertDialogTitle>Editar {dato.tipoDatoMaestro.toLowerCase()}</AlertDialogTitle>
               <AlertDialogDescription>
-                Actualiza nombre y descripcion del registro #{dato.count}.
+                Actualiza los datos del registro #{dato.id}.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="grid gap-3 py-4">
-              <Input name="nombre" defaultValue={dato.nombre} required />
-              <Textarea
-                name="descripcion"
-                defaultValue={dato.descripcion ?? ""}
-                placeholder="Descripcion"
-              />
+              <div className="grid gap-2">
+                <label className="text-sm font-medium" htmlFor={`nombre-${dato.id}`}>Nombre</label>
+                <Input id={`nombre-${dato.id}`} name="nombre" defaultValue={dato.nombre} required />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium" htmlFor={`descripcion-${dato.id}`}>
+                  Descripcion
+                </label>
+                <Textarea
+                  id={`descripcion-${dato.id}`}
+                  name="descripcion"
+                  defaultValue={dato.descripcion ?? ""}
+                  placeholder="Descripcion"
+                />
+              </div>
+              <div className="grid gap-3 border-t border-border pt-3 md:grid-cols-2">
+                <CamposMaestro
+                  tipo={dato.tipoDatoMaestro}
+                  catalogos={catalogos}
+                  valoresIniciales={dato}
+                  esEdicion
+                />
+              </div>
             </div>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={modificarMutation.isPending}>
@@ -455,21 +685,491 @@ function AccionesConfiguracion({
   )
 }
 
-function TablaListadoConfiguracion({
+// Resumen del campo propio del tipo, dentro de la ficha de detalle.
+function FichaEspecifica({ dato }: { dato: ConfiguracionGeneralResponse }) {
+  switch (dato.tipoDatoMaestro) {
+    case "CARGO":
+      return <DatoFicha label="Cargo superior" value={referenciaTexto(dato.cargoSuperiorNombre, dato.cargoSuperiorId)} />
+    case "UBICACION":
+      return (
+        <DatoFicha
+          label="Ubicacion"
+          value={[dato.tipoUbicacion, dato.distrito, dato.provincia, dato.departamento]
+            .filter(Boolean)
+            .join(" / ")}
+        />
+      )
+    case "SEDE":
+      return <DatoFicha label="Ubicacion" value={referenciaTexto(dato.ubicacionNombre, dato.ubicacionId)} />
+    case "AREA":
+      return <DatoFicha label="Nivel / sede" value={`${dato.nivelArea ?? "-"} · ${referenciaTexto(dato.sedeNombre, dato.sedeId)}`} />
+    case "ALMACEN":
+      return (
+        <DatoFicha
+          label="Almacen"
+          value={`${dato.esTemporal ? "Temporal" : "Fijo"} · ${referenciaTexto(dato.ubicacionNombre, dato.ubicacionId)}`}
+        />
+      )
+    case "CUENTA":
+      return <DatoFicha label="Nivel" value={dato.nivelCuentaContrato ?? "-"} />
+    default:
+      return <DatoFicha label="Nivel / padre" value={`${dato.nivelCuentaContrato ?? "-"} · ${referenciaTexto(dato.contratoPadreNombre, dato.contratoPadreId)}`} />
+  }
+}
+
+interface NodoJerarquia {
+  clave: string
+  titulo: string
+  descripcion: string
+  etiqueta: string
+  dato?: ConfiguracionGeneralResponse
+  hijos: NodoJerarquia[]
+}
+
+function ordenarPorNombre(
+  datos: ConfiguracionGeneralResponse[],
+): ConfiguracionGeneralResponse[] {
+  return [...datos].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+}
+
+function construirJerarquiaCargos(
+  datos: ConfiguracionGeneralResponse[],
+): NodoJerarquia[] {
+  const mapa = new Map(datos.map((dato) => [dato.id, dato]))
+  const hijosPorPadre = new Map<number, ConfiguracionGeneralResponse[]>()
+
+  datos.forEach((dato) => {
+    if (dato.cargoSuperiorId == null || !mapa.has(dato.cargoSuperiorId)) return
+    const hijos = hijosPorPadre.get(dato.cargoSuperiorId) ?? []
+    hijos.push(dato)
+    hijosPorPadre.set(dato.cargoSuperiorId, hijos)
+  })
+
+  const visitados = new Set<number>()
+  const crearNodo = (
+    dato: ConfiguracionGeneralResponse,
+    ruta: Set<number>,
+  ): NodoJerarquia => {
+    visitados.add(dato.id)
+    const siguienteRuta = new Set(ruta).add(dato.id)
+    const hijos = ordenarPorNombre(hijosPorPadre.get(dato.id) ?? [])
+      .filter((hijo) => !siguienteRuta.has(hijo.id))
+      .map((hijo) => crearNodo(hijo, siguienteRuta))
+
+    return {
+      clave: `cargo-${dato.id}`,
+      titulo: dato.nombre,
+      descripcion: dato.descripcion || dato.codigo,
+      etiqueta: dato.cargoSuperiorId == null ? "Cargo raiz" : "Reporta a cargo superior",
+      dato,
+      hijos,
+    }
+  }
+
+  const raices = ordenarPorNombre(
+    datos.filter(
+      (dato) => dato.cargoSuperiorId == null || !mapa.has(dato.cargoSuperiorId),
+    ),
+  ).map((dato) => crearNodo(dato, new Set()))
+
+  ordenarPorNombre(datos)
+    .filter((dato) => !visitados.has(dato.id))
+    .forEach((dato) => raices.push(crearNodo(dato, new Set())))
+
+  return raices
+}
+
+function construirJerarquiaAreas(
+  datos: ConfiguracionGeneralResponse[],
+): NodoJerarquia[] {
+  const gruposSede = new Map<string, ConfiguracionGeneralResponse[]>()
+
+  datos.forEach((dato) => {
+    const clave = `${dato.sedeId ?? "sin-sede"}:${dato.sedeNombre ?? "Sin sede"}`
+    const grupo = gruposSede.get(clave) ?? []
+    grupo.push(dato)
+    gruposSede.set(clave, grupo)
+  })
+
+  return [...gruposSede.entries()]
+    .sort(([, a], [, b]) =>
+      (a[0]?.sedeNombre ?? "Sin sede").localeCompare(
+        b[0]?.sedeNombre ?? "Sin sede",
+        "es",
+      ),
+    )
+    .map(([claveSede, grupo]) => {
+      const gerencias = ordenarPorNombre(
+        grupo.filter((dato) => dato.nivelArea === "GERENCIA"),
+      )
+      const areas = ordenarPorNombre(
+        grupo.filter((dato) => dato.nivelArea !== "GERENCIA"),
+      )
+      const idsGerencia = new Set(gerencias.map((gerencia) => gerencia.id))
+      const nodosGerencia = gerencias.map((gerencia) => ({
+        clave: `area-${gerencia.id}`,
+        titulo: gerencia.nombre,
+        descripcion: gerencia.descripcion || gerencia.codigo,
+        etiqueta: "Gerencia",
+        dato: gerencia,
+        hijos: areas
+          .filter((area) => area.gerenciaId === gerencia.id)
+          .map((area) => ({
+            clave: `area-${area.id}`,
+            titulo: area.nombre,
+            descripcion: area.descripcion || area.codigo,
+            etiqueta: "Area",
+            dato: area,
+            hijos: [],
+          })),
+      }))
+      const areasSinGerencia = areas
+        .filter(
+          (area) => area.gerenciaId == null || !idsGerencia.has(area.gerenciaId),
+        )
+        .map((area) => ({
+          clave: `area-${area.id}`,
+          titulo: area.nombre,
+          descripcion: area.descripcion || area.codigo,
+          etiqueta: area.gerenciaNombre
+            ? `Area de ${area.gerenciaNombre}`
+            : "Area sin gerencia",
+          dato: area,
+          hijos: [],
+        }))
+
+      return {
+        clave: `sede-${claveSede}`,
+        titulo: grupo[0]?.sedeNombre || "Sin sede asignada",
+        descripcion: "Estructura organizacional de la sede",
+        etiqueta: "Sede",
+        hijos: [...nodosGerencia, ...areasSinGerencia],
+      }
+    })
+}
+
+function construirJerarquiaSedes(
+  datos: ConfiguracionGeneralResponse[],
+): NodoJerarquia[] {
+  const gruposUbicacion = new Map<string, ConfiguracionGeneralResponse[]>()
+
+  datos.forEach((dato) => {
+    const clave = `${dato.ubicacionId ?? "sin-ubicacion"}:${dato.ubicacionNombre ?? "Sin ubicacion"}`
+    const grupo = gruposUbicacion.get(clave) ?? []
+    grupo.push(dato)
+    gruposUbicacion.set(clave, grupo)
+  })
+
+  return [...gruposUbicacion.entries()]
+    .sort(([, a], [, b]) =>
+      (a[0]?.ubicacionNombre ?? "Sin ubicacion").localeCompare(
+        b[0]?.ubicacionNombre ?? "Sin ubicacion",
+        "es",
+      ),
+    )
+    .map(([clave, grupo]) => ({
+      clave: `ubicacion-${clave}`,
+      titulo: grupo[0]?.ubicacionNombre || "Sin ubicacion asignada",
+      descripcion: "Ubicacion fisica",
+      etiqueta: "Ubicacion",
+      hijos: ordenarPorNombre(grupo).map((sede) => ({
+        clave: `sede-${sede.id}`,
+        titulo: sede.nombre,
+        descripcion: sede.descripcion || sede.codigo,
+        etiqueta: "Sede",
+        dato: sede,
+        hijos: [],
+      })),
+    }))
+}
+
+function construirJerarquiaAlmacenes(
+  datos: ConfiguracionGeneralResponse[],
+): NodoJerarquia[] {
+  const gruposUbicacion = new Map<string, ConfiguracionGeneralResponse[]>()
+
+  datos.forEach((dato) => {
+    const clave = `${dato.ubicacionId ?? "sin-ubicacion"}:${dato.ubicacionNombre ?? "Sin ubicacion"}`
+    const grupo = gruposUbicacion.get(clave) ?? []
+    grupo.push(dato)
+    gruposUbicacion.set(clave, grupo)
+  })
+
+  return [...gruposUbicacion.entries()]
+    .sort(([, a], [, b]) =>
+      (a[0]?.ubicacionNombre ?? "Sin ubicacion").localeCompare(
+        b[0]?.ubicacionNombre ?? "Sin ubicacion",
+        "es",
+      ),
+    )
+    .map(([claveUbicacion, grupo]) => {
+      const gruposSede = new Map<string, ConfiguracionGeneralResponse[]>()
+      const sinSede: ConfiguracionGeneralResponse[] = []
+
+      grupo.forEach((almacen) => {
+        if (almacen.sedeId == null) {
+          sinSede.push(almacen)
+          return
+        }
+        const claveSede = `${almacen.sedeId}:${almacen.sedeNombre ?? "Sin nombre"}`
+        const almacenes = gruposSede.get(claveSede) ?? []
+        almacenes.push(almacen)
+        gruposSede.set(claveSede, almacenes)
+      })
+
+      const crearNodoAlmacen = (almacen: ConfiguracionGeneralResponse): NodoJerarquia => ({
+        clave: `almacen-${almacen.id}`,
+        titulo: almacen.nombre,
+        descripcion: almacen.descripcion || almacen.codigo,
+        etiqueta: almacen.esTemporal ? "Almacen temporal" : "Almacen fijo",
+        dato: almacen,
+        hijos: [],
+      })
+      const sedes = [...gruposSede.entries()]
+        .sort(([, a], [, b]) =>
+          (a[0]?.sedeNombre ?? "Sin sede").localeCompare(
+            b[0]?.sedeNombre ?? "Sin sede",
+            "es",
+          ),
+        )
+        .map(([claveSede, almacenes]) => ({
+          clave: `sede-almacen-${claveSede}`,
+          titulo: almacenes[0]?.sedeNombre || "Sin sede asignada",
+          descripcion: "Sede operativa",
+          etiqueta: "Sede",
+          hijos: ordenarPorNombre(almacenes).map(crearNodoAlmacen),
+        }))
+
+      return {
+        clave: `ubicacion-almacen-${claveUbicacion}`,
+        titulo: grupo[0]?.ubicacionNombre || "Sin ubicacion asignada",
+        descripcion: "Ubicacion de almacenamiento",
+        etiqueta: "Ubicacion",
+        hijos: [
+          ...sedes,
+          ...ordenarPorNombre(sinSede).map(crearNodoAlmacen),
+        ],
+      }
+    })
+}
+
+function construirJerarquiaContratos(
+  datos: ConfiguracionGeneralResponse[],
+): NodoJerarquia[] {
+  const mapa = new Map(datos.map((dato) => [dato.id, dato]))
+  const hijosPorPadre = new Map<number, ConfiguracionGeneralResponse[]>()
+  const raices: ConfiguracionGeneralResponse[] = []
+
+  datos.forEach((dato) => {
+    const padre = dato.contratoPadreId == null ? undefined : mapa.get(dato.contratoPadreId)
+    const nivel = dato.nivelCuentaContrato ?? 2
+    const padreEsContrato =
+      nivel > 2 &&
+      padre != null &&
+      (padre.nivelCuentaContrato ?? 0) < nivel
+
+    if (!padreEsContrato || !padre) {
+      raices.push(dato)
+      return
+    }
+
+    const hijos = hijosPorPadre.get(padre.id) ?? []
+    hijos.push(dato)
+    hijosPorPadre.set(padre.id, hijos)
+  })
+
+  const crearNodo = (dato: ConfiguracionGeneralResponse): NodoJerarquia => ({
+    clave: `contrato-${dato.id}`,
+    titulo: dato.nombre,
+    descripcion: dato.descripcion || dato.codigo,
+    etiqueta: `Contrato · nivel ${dato.nivelCuentaContrato ?? "-"}`,
+    dato,
+    hijos: ordenarPorNombre(hijosPorPadre.get(dato.id) ?? []).map(crearNodo),
+  })
+  const gruposRaiz = new Map<string, ConfiguracionGeneralResponse[]>()
+
+  raices.forEach((dato) => {
+    const clave = `${dato.contratoPadreId ?? "sin-padre"}:${dato.contratoPadreNombre ?? "Sin padre"}`
+    const grupo = gruposRaiz.get(clave) ?? []
+    grupo.push(dato)
+    gruposRaiz.set(clave, grupo)
+  })
+
+  return [...gruposRaiz.entries()]
+    .sort(([, a], [, b]) =>
+      (a[0]?.contratoPadreNombre ?? "Sin padre").localeCompare(
+        b[0]?.contratoPadreNombre ?? "Sin padre",
+        "es",
+      ),
+    )
+    .map(([clave, grupo]) => ({
+      clave: `padre-${clave}`,
+      titulo: grupo[0]?.contratoPadreNombre || "Sin padre asignado",
+      descripcion: "Origen de la relacion contractual",
+      etiqueta: "Cuenta o contrato padre",
+      hijos: ordenarPorNombre(grupo).map(crearNodo),
+    }))
+}
+
+function construirJerarquia(
+  tipo: TipoJerarquico,
+  datos: ConfiguracionGeneralResponse[],
+) {
+  if (tipo === "CARGO") return construirJerarquiaCargos(datos)
+  if (tipo === "AREA") return construirJerarquiaAreas(datos)
+  if (tipo === "SEDE") return construirJerarquiaSedes(datos)
+  if (tipo === "ALMACEN") return construirJerarquiaAlmacenes(datos)
+  return construirJerarquiaContratos(datos)
+}
+
+function NodoJerarquiaCard({
+  nodo,
+  profundidad,
+  onActualizado,
+  onError,
+  onMensaje,
+}: {
+  nodo: NodoJerarquia
+  profundidad: number
+  onActualizado: () => void
+  onError: (mensaje: string) => void
+  onMensaje: (mensaje: string) => void
+}) {
+  return (
+    <div className={cn("relative", profundidad > 0 && "pl-6 md:pl-10")}>
+      {profundidad > 0 ? (
+        <span className="absolute left-0 top-0 h-8 w-5 rounded-bl-lg border-b border-l border-border md:w-9" />
+      ) : null}
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle className={cn(nodo.dato && obtenerClaseContenido(nodo.dato))}>
+            {nodo.titulo}
+          </CardTitle>
+          <CardDescription>{nodo.descripcion}</CardDescription>
+          {nodo.dato ? (
+            <CardAction>
+              <AccionesConfiguracion
+                dato={nodo.dato}
+                onActualizado={onActualizado}
+                onError={onError}
+                onMensaje={onMensaje}
+              />
+            </CardAction>
+          ) : null}
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Badge variant={nodo.dato ? "outline" : "secondary"}>
+            {nodo.etiqueta}
+          </Badge>
+          {nodo.dato ? (
+            <>
+              <Badge variant={varianteEstado(nodo.dato)}>
+                {textoEstado(nodo.dato)}
+              </Badge>
+              <Badge variant="outline">{nodo.dato.codigo}</Badge>
+            </>
+          ) : null}
+        </CardContent>
+        <CardFooter className="text-xs text-muted-foreground">
+          {nodo.hijos.length === 0
+            ? "Sin elementos dependientes"
+            : `${nodo.hijos.length} ${nodo.hijos.length === 1 ? "dependencia" : "dependencias"}`}
+        </CardFooter>
+      </Card>
+      {nodo.hijos.length > 0 ? (
+        <div className="mt-3 flex flex-col gap-3 border-l border-border pl-0">
+          {nodo.hijos.map((hijo) => (
+            <NodoJerarquiaCard
+              key={hijo.clave}
+              nodo={hijo}
+              profundidad={profundidad + 1}
+              onActualizado={onActualizado}
+              onError={onError}
+              onMensaje={onMensaje}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function VistaJerarquicaConfiguracion({
   cargando,
   datos,
-  mostrarTipo,
+  tipo,
   onActualizado,
   onError,
   onMensaje,
 }: {
   cargando?: boolean
   datos: ConfiguracionGeneralResponse[]
-  mostrarTipo: boolean
+  tipo: TipoJerarquico
   onActualizado: () => void
   onError: (mensaje: string) => void
   onMensaje: (mensaje: string) => void
 }) {
+  if (cargando) {
+    return (
+      <div className="flex flex-col gap-3 p-4">
+        <Skeleton className="h-28 w-full" />
+        <Skeleton className="ml-10 h-28 w-[calc(100%-2.5rem)]" />
+        <Skeleton className="ml-20 h-28 w-[calc(100%-5rem)]" />
+      </div>
+    )
+  }
+
+  if (datos.length === 0) {
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        No existen registros para la consulta aplicada.
+      </div>
+    )
+  }
+
+  const nodos = construirJerarquia(tipo, datos)
+
+  return (
+    <div className="flex flex-col gap-5 p-4 md:p-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="secondary">Vista jerarquica</Badge>
+        <span className="text-sm text-muted-foreground">
+          Lee la estructura de arriba hacia abajo: cada tarjeta indentada depende de la anterior.
+        </span>
+      </div>
+      <div className="flex flex-col gap-5">
+        {nodos.map((nodo) => (
+          <NodoJerarquiaCard
+            key={nodo.clave}
+            nodo={nodo}
+            profundidad={0}
+            onActualizado={onActualizado}
+            onError={onError}
+            onMensaje={onMensaje}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TablaListadoConfiguracion({
+  cargando,
+  datos,
+  tipo,
+  onActualizado,
+  onError,
+  onMensaje,
+}: {
+  cargando?: boolean
+  datos: ConfiguracionGeneralResponse[]
+  tipo: TipoListado
+  onActualizado: () => void
+  onError: (mensaje: string) => void
+  onMensaje: (mensaje: string) => void
+}) {
+  const columnas = columnasPorTipo[tipo]
+
   if (cargando) {
     return (
       <div className="flex flex-col gap-3 p-4">
@@ -494,11 +1194,14 @@ function TablaListadoConfiguracion({
         <TableHeader>
           <TableRow>
             <TableHead className="w-10">Acciones</TableHead>
-            {mostrarTipo ? <TableHead>Tipo</TableHead> : null}
             <TableHead className="w-16 text-right">#</TableHead>
             <TableHead>Codigo</TableHead>
             <TableHead>Nombre</TableHead>
-            <TableHead>Detalle</TableHead>
+            {columnas.map((columna) => (
+              <TableHead key={columna.header} className={columna.className}>
+                {columna.header}
+              </TableHead>
+            ))}
             <TableHead>Estado</TableHead>
             <TableHead>Registro</TableHead>
             <TableHead>Actualizacion</TableHead>
@@ -509,7 +1212,10 @@ function TablaListadoConfiguracion({
             const claseContenido = obtenerClaseContenido(dato)
 
             return (
-              <TableRow key={dato.id} className={obtenerClaseFila(dato)}>
+              <TableRow
+                key={`${dato.tipoDatoMaestro}-${dato.id}`}
+                className={obtenerClaseFila(dato)}
+              >
                 <TableCell>
                   <AccionesConfiguracion
                     dato={dato}
@@ -518,13 +1224,8 @@ function TablaListadoConfiguracion({
                     onMensaje={onMensaje}
                   />
                 </TableCell>
-                {mostrarTipo ? (
-                  <TableCell>
-                    <Badge variant="secondary">{dato.tipoDatoMaestro}</Badge>
-                  </TableCell>
-                ) : null}
                 <TableCell className="text-right font-medium tabular-nums">
-                  <span className={claseContenido}>{formatearCount(dato.count)}</span>
+                  <span className={claseContenido}>{dato.id}</span>
                 </TableCell>
                 <TableCell className="font-mono text-xs">
                   <span className={claseContenido}>{dato.codigo}</span>
@@ -535,9 +1236,11 @@ function TablaListadoConfiguracion({
                     <span className="text-xs text-muted-foreground">{dato.descripcion || "Sin descripcion"}</span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <span className={claseContenido}>{detalleEspecifico(dato)}</span>
-                </TableCell>
+                {columnas.map((columna) => (
+                  <TableCell key={columna.header} className={columna.className}>
+                    <span className={claseContenido}>{columna.render(dato)}</span>
+                  </TableCell>
+                ))}
                 <TableCell>
                   <Badge variant={varianteEstado(dato)}>{textoEstado(dato)}</Badge>
                 </TableCell>
@@ -567,22 +1270,36 @@ function TablaListadoConfiguracion({
 
 export function ConfiguracionGeneralListadoPorTipoVista({ tipo }: { tipo: TipoListado }) {
   const detalle = detalleListado[tipo]
+  const jerarquico = esTipoJerarquico(tipo)
   const filtrosBase = limpiarQuery({
-    ...(tipo === "TODOS" ? {} : { tipoDatoMaestro: tipo }),
     estado: "ACTIVO",
     estadoRegistro: "ACTIVO",
   })
   const [query, setQuery] = useState<ConsultarConfiguracionGeneralQuery>({
     ...filtrosBase,
     page: 1,
-    pageSize: 20,
-    sortBy: "count",
+    pageSize: jerarquico ? 100 : 20,
+    sortBy: "id",
     sortOrder: "desc",
   })
   const [mensajeOperacion, setMensajeOperacion] = useState<string | null>(null)
   const [errorOperacion, setErrorOperacion] = useState<string | null>(null)
-  const consulta = useConfiguracionGeneralQuery(query)
-  const exportacion = useExportarConfiguracionGeneralQuery(query, false)
+
+  // Para un tipo concreto usamos su recurso dedicado; "TODOS" sigue con la
+  // consulta generica (filtrando por tipoDatoMaestro cuando aplique).
+  const esTodos = tipo === "TODOS"
+  const consultaTipo = useListarPorTipoQuery(
+    esTodos ? "UBICACION" : tipo,
+    query,
+    !esTodos,
+  )
+  const consultaTodos = useConfiguracionGeneralQuery(query, esTodos)
+  const consulta = esTodos ? consultaTodos : consultaTipo
+
+  const exportacion = useExportarConfiguracionGeneralQuery(
+    esTodos ? query : { ...query, tipoDatoMaestro: tipo },
+    false,
+  )
   const datos = consulta.data?.datos ?? []
   const metaPaginacion = consulta.data?.paginacion
   const total = consulta.data?.paginacion?.total ?? datos.length
@@ -696,7 +1413,7 @@ export function ConfiguracionGeneralListadoPorTipoVista({ tipo }: { tipo: TipoLi
               ...filtrosBase,
               page: 1,
               pageSize: query.pageSize ?? 20,
-              sortBy: "count",
+              sortBy: "id",
               sortOrder: "desc",
             })
           }
@@ -705,20 +1422,37 @@ export function ConfiguracionGeneralListadoPorTipoVista({ tipo }: { tipo: TipoLi
         </Button>
       </div>
 
-      <TablaListadoConfiguracion
-        datos={datos}
-        cargando={consulta.isLoading}
-        mostrarTipo={tipo === "TODOS"}
-        onActualizado={() => void consulta.refetch()}
-        onMensaje={(mensaje) => {
-          setErrorOperacion(null)
-          setMensajeOperacion(mensaje)
-        }}
-        onError={(mensaje) => {
-          setMensajeOperacion(null)
-          setErrorOperacion(mensaje)
-        }}
-      />
+      {jerarquico ? (
+        <VistaJerarquicaConfiguracion
+          datos={datos}
+          tipo={tipo}
+          cargando={consulta.isLoading}
+          onActualizado={() => void consulta.refetch()}
+          onMensaje={(mensaje) => {
+            setErrorOperacion(null)
+            setMensajeOperacion(mensaje)
+          }}
+          onError={(mensaje) => {
+            setMensajeOperacion(null)
+            setErrorOperacion(mensaje)
+          }}
+        />
+      ) : (
+        <TablaListadoConfiguracion
+          datos={datos}
+          tipo={tipo}
+          cargando={consulta.isLoading}
+          onActualizado={() => void consulta.refetch()}
+          onMensaje={(mensaje) => {
+            setErrorOperacion(null)
+            setMensajeOperacion(mensaje)
+          }}
+          onError={(mensaje) => {
+            setMensajeOperacion(null)
+            setErrorOperacion(mensaje)
+          }}
+        />
+      )}
       {datos.length > 0 && metaPaginacion ? (
         <PaginationControls
           meta={metaPaginacion}
@@ -761,4 +1495,8 @@ export function ConfiguracionGeneralContratosListarVista() {
 
 export function ConfiguracionGeneralCargosListarVista() {
   return <ConfiguracionGeneralListadoPorTipoVista tipo="CARGO" />
+}
+
+export function ConfiguracionGeneralRegimenesListarVista() {
+  return <ConfiguracionGeneralListadoPorTipoVista tipo="REGIMEN" />
 }

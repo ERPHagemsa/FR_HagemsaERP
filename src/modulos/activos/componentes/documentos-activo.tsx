@@ -22,6 +22,7 @@ import { obtenerTiposDocumento } from "../servicios/activos-api";
 import {
   useCrearDocumentoActivoMutation,
   useEliminarDocumentoActivoMutation,
+  useQuitarCoberturaDocumentoCompartidoMutation,
 } from "../servicios/activos-queries";
 import type {
   DocumentoActivo,
@@ -36,6 +37,8 @@ type Props = {
   editable?: boolean;
   /** Se llama tras crear o eliminar, para que el contenedor recargue la lista. */
   onCambio?: () => void;
+  /** Vista reducida (ej. dentro del panel lateral): oculta columnas secundarias. */
+  compacto?: boolean;
 };
 
 const tiposDocumento: TipoDocumentoActivo[] = [
@@ -54,6 +57,7 @@ export function DocumentosActivo({
   documentos,
   editable = true,
   onCambio,
+  compacto = false,
 }: Props) {
   const router = useRouter();
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
@@ -67,6 +71,8 @@ export function DocumentosActivo({
   const [tipoSeleccionado, setTipoSeleccionado] = React.useState<string>("SOAT");
   const crearDocumentoMutation = useCrearDocumentoActivoMutation(codigo);
   const eliminarDocumentoMutation = useEliminarDocumentoActivoMutation(codigo);
+  const quitarCoberturaMutation =
+    useQuitarCoberturaDocumentoCompartidoMutation(codigo);
 
   // Maestro Documentario: tipos disponibles, alcance y vencimiento obligatorio.
   React.useEffect(() => {
@@ -179,8 +185,13 @@ export function DocumentosActivo({
     setDeletingId(documento.id);
 
     try {
-      await eliminarDocumentoMutation.mutateAsync(documento.id);
-      toast.success("Documento eliminado correctamente.");
+      if (documento.alcance === "COMPARTIDO") {
+        await quitarCoberturaMutation.mutateAsync(documento.id);
+        toast.success("Se quito este activo del documento compartido.");
+      } else {
+        await eliminarDocumentoMutation.mutateAsync(documento.id);
+        toast.success("Documento eliminado correctamente.");
+      }
       onCambio?.();
       router.refresh();
     } catch (error) {
@@ -305,11 +316,17 @@ export function DocumentosActivo({
           <TableHeader>
             <TableRow>
               <TableHead>Tipo</TableHead>
-              <TableHead>Numero</TableHead>
+              <TableHead className={compacto ? "hidden" : undefined}>
+                Numero
+              </TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Emision</TableHead>
+              <TableHead className={compacto ? "hidden" : undefined}>
+                Emision
+              </TableHead>
               <TableHead>Vencimiento</TableHead>
-              <TableHead>Usuario</TableHead>
+              <TableHead className={compacto ? "hidden" : undefined}>
+                Usuario
+              </TableHead>
               <TableHead>Sustento</TableHead>
               {editable ? <TableHead className="text-center">Accion</TableHead> : null}
             </TableRow>
@@ -318,15 +335,29 @@ export function DocumentosActivo({
             {documentos.map((documento) => (
               <TableRow key={documento.id}>
                 <TableCell className="font-medium">
-                  {formatear(documento.tipoDocumento)}
+                  <span className="flex items-center gap-2">
+                    {formatear(documento.tipoDocumento)}
+                    {documento.alcance === "COMPARTIDO" ? (
+                      <Badge variant="outline" className="font-normal">
+                        Compartido
+                        {documento.coberturaTotal
+                          ? ` (${documento.coberturaTotal})`
+                          : ""}
+                      </Badge>
+                    ) : null}
+                  </span>
                 </TableCell>
-                <TableCell>{documento.numero ?? "-"}</TableCell>
+                <TableCell className={compacto ? "hidden" : undefined}>
+                  {documento.numero ?? "-"}
+                </TableCell>
                 <TableCell>
                   <EstadoDocumentoBadge value={documento.estadoDocumento} />
                 </TableCell>
-                <TableCell>{formatearFecha(documento.fechaEmision)}</TableCell>
+                <TableCell className={compacto ? "hidden" : undefined}>
+                  {formatearFecha(documento.fechaEmision)}
+                </TableCell>
                 <TableCell>{formatearFecha(documento.fechaVencimiento)}</TableCell>
-                <TableCell>
+                <TableCell className={compacto ? "hidden" : undefined}>
                   {documento.usuarioActualizacion ??
                     documento.usuarioCarga ??
                     "-"}
@@ -356,7 +387,11 @@ export function DocumentosActivo({
                       onClick={() => eliminarDocumento(documento)}
                     >
                       <IconTrash />
-                      {deletingId === documento.id ? "Eliminando..." : "Eliminar"}
+                      {deletingId === documento.id
+                        ? "Quitando..."
+                        : documento.alcance === "COMPARTIDO"
+                          ? "Quitar"
+                          : "Eliminar"}
                     </Button>
                   </TableCell>
                 ) : null}

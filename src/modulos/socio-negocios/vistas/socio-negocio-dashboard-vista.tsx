@@ -104,28 +104,35 @@ function formatearFecha(fecha?: string) {
 }
 
 function totalPorEstado(
-  items: ResumenSociosDeNegocioResponse["porEstado"],
+  items: NonNullable<ResumenSociosDeNegocioResponse["porEstado"]>,
   estado: EstadoSocioDeNegocio,
 ) {
   return items.find((item) => item.estado === estado)?.total ?? 0
 }
 
 function totalPorEstadoRegistro(
-  items: ResumenSociosDeNegocioResponse["porEstadoRegistro"],
+  items: NonNullable<ResumenSociosDeNegocioResponse["porEstadoRegistro"]>,
   estadoRegistro: EstadoRegistro,
 ) {
   return items.find((item) => item.estadoRegistro === estadoRegistro)?.total ?? 0
 }
 
-function completarPorTipo(items: ResumenSociosDeNegocioResponse["porTipo"]) {
+function completarPorTipo(resumen?: ResumenSociosDeNegocioResponse | null) {
+  const items = resumen?.porTipo ?? []
+  const totalesSimples: Record<(typeof tiposSocio)[number], number | undefined> = {
+    CLIENTE: resumen?.clientes,
+    PROVEEDOR: resumen?.proveedores,
+    PERSONAL: resumen?.personal,
+  }
+
   return tiposSocio.map((tipo) => ({
     tipo,
-    total: items.find((item) => item.tipo === tipo)?.total ?? 0,
+    total: items.find((item) => item.tipo === tipo)?.total ?? totalesSimples[tipo] ?? 0,
     fill: `var(--color-${tipo})`,
   }))
 }
 
-function completarPorEstado(items: ResumenSociosDeNegocioResponse["porEstado"]) {
+function completarPorEstado(items: NonNullable<ResumenSociosDeNegocioResponse["porEstado"]>) {
   return [
     {
       estado: "ACTIVOS",
@@ -141,8 +148,15 @@ function completarPorEstado(items: ResumenSociosDeNegocioResponse["porEstado"]) 
 }
 
 function completarMatrizTipoEstado(
-  items: ResumenSociosDeNegocioResponse["porTipoYEstado"],
+  items: NonNullable<ResumenSociosDeNegocioResponse["porTipoYEstado"]>,
+  resumen?: ResumenSociosDeNegocioResponse | null,
 ) {
+  const totalesSimples: Record<(typeof tiposSocio)[number], number | undefined> = {
+    CLIENTE: resumen?.clientes,
+    PROVEEDOR: resumen?.proveedores,
+    PERSONAL: resumen?.personal,
+  }
+
   return tiposSocio.map((tipo) => {
     const activos = items.find(
       (item) =>
@@ -160,12 +174,14 @@ function completarMatrizTipoEstado(
       .filter((item) => item.tipo === tipo && item.estadoRegistro === "ANULADO")
       .reduce((acc, item) => acc + item.total, 0)
 
+    const totalCalculado = activos + inactivos + anulados
+
     return {
       tipo,
       activos,
       inactivos,
       anulados,
-      total: activos + inactivos + anulados,
+      total: totalCalculado || (totalesSimples[tipo] ?? 0),
     }
   })
 }
@@ -324,7 +340,7 @@ export function SocioNegocioDashboardVista() {
   )
   const bajasRecientes = useMemo(() => resumen?.bajasRecientes ?? [], [resumen])
   const dataPorTipo = useMemo(
-    () => completarPorTipo(resumen?.porTipo ?? []),
+    () => completarPorTipo(resumen),
     [resumen],
   )
   const dataPorEstado = useMemo(
@@ -332,10 +348,12 @@ export function SocioNegocioDashboardVista() {
     [resumen],
   )
   const matrizTipoEstado = useMemo(
-    () => completarMatrizTipoEstado(resumen?.porTipoYEstado ?? []),
+    () => completarMatrizTipoEstado(resumen?.porTipoYEstado ?? [], resumen),
     [resumen],
   )
   const vigentes = totalPorEstadoRegistro(resumen?.porEstadoRegistro ?? [], "ACTIVO")
+  const totalSocios = resumen?.totalSocios ?? resumen?.total ?? 0
+  const operativosActivos = resumen?.operativosActivos ?? totalSocios
 
   return (
     <>
@@ -347,20 +365,20 @@ export function SocioNegocioDashboardVista() {
         <div className="flex w-full flex-col gap-5">
           <SocioNegocioPageHeader
             title="Socio de negocio"
-            description="Administra clientes, proveedores y personal desde un centro simple para registrar, aprobar, consultar y auditar."
+            description="Administra clientes, proveedores y personal desde un centro simple para registrar, consultar y auditar."
             meta={<Badge variant="secondary">Centro de control</Badge>}
             actions={
               <>
                 <Button asChild variant="outline">
                   <Link href="/socio-negocios/listar">
                     <Users data-icon="inline-start" />
-                    Listar
+                    Consultar maestro
                   </Link>
                 </Button>
                 <Button asChild>
                   <Link href="/socio-negocios/nuevo?tipo=CLIENTE">
                     <Plus data-icon="inline-start" />
-                    Nuevo
+                    Nuevo socio
                   </Link>
                 </Button>
               </>
@@ -376,17 +394,78 @@ export function SocioNegocioDashboardVista() {
             </Alert>
           ) : null}
 
+          <section className="grid gap-3 lg:grid-cols-3">
+            <Card className="border-primary/15 shadow-xs lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Flujo de trabajo</CardTitle>
+                <CardDescription>
+                  Ruta simple para mantener limpio el maestro de socios de negocio.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <Badge variant="secondary">1. Registrar</Badge>
+                  <p className="mt-3 text-sm font-medium">Crea cliente, proveedor o personal.</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Elige el tipo correcto desde el inicio para mostrar solo los campos necesarios.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <Badge variant="secondary">2. Validar</Badge>
+                  <p className="mt-3 text-sm font-medium">Revisa estado, aprobacion y SAP.</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Usa el listado para ubicar pendientes, corregir datos o reactivar registros.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <Badge variant="secondary">3. Auditar</Badge>
+                  <p className="mt-3 text-sm font-medium">Consulta historial y exporta.</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Cada baja, anulacion o correccion queda disponible para revision interna.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-primary/15 shadow-xs">
+              <CardHeader>
+                <CardTitle>Atajos por tipo</CardTitle>
+                <CardDescription>Entra directo al listado que necesitas.</CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-2">
+                <Button asChild variant="outline" className="justify-between">
+                  <Link href="/socio-negocios/clientes">
+                    Clientes
+                    <ArrowRight data-icon="inline-end" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="justify-between">
+                  <Link href="/socio-negocios/proveedores">
+                    Proveedores
+                    <ArrowRight data-icon="inline-end" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="justify-between">
+                  <Link href="/socio-negocios/personal">
+                    Personal
+                    <ArrowRight data-icon="inline-end" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </section>
+
           <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Total socios"
-              value={resumen?.totalSocios ?? 0}
+              value={totalSocios}
               detail="Clientes, proveedores y personal registrados."
               icon={Users}
               loading={resumenQuery.isLoading}
             />
             <MetricCard
               label="Operativos"
-              value={resumen?.operativosActivos ?? 0}
+              value={operativosActivos}
               detail="Activos y vigentes para usar en operaciones."
               icon={CheckCircle2}
               loading={resumenQuery.isLoading}
@@ -596,7 +675,7 @@ export function SocioNegocioDashboardVista() {
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">Operativos activos</span>
                       <span className="font-medium tabular-nums">
-                        {resumen?.operativosActivos ?? 0}
+                        {operativosActivos}
                       </span>
                     </div>
                   </div>

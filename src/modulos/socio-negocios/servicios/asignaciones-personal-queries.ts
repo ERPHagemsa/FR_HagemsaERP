@@ -4,14 +4,22 @@ import { useConsulta } from "@/compartido/api/use-consulta"
 import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
-  aprobarAsignacionPersonal,
+  aprobarAprobacionCuentaContrato,
   consultarAsignacionesPorPersonal,
+  consultarOpcionesConfiguracionGeneral,
   consultarHistorialAsignacionPersonal,
   crearAsignacionPersonal,
   modificarAsignacionPersonal,
   obtenerAsignacionPersonal,
+  obtenerOpcionesFormularioAsignacion,
+  rechazarAprobacionCuentaContrato,
   reemplazarCuentasContratos,
 } from "./asignaciones-personal-api"
+
+import type {
+  ConsultarConfiguracionGeneralOpcionesQuery,
+  DecidirAprobacionCuentaContratoRequest,
+} from "../tipos/asignacion-personal"
 
 export interface OpcionesMutacionAsignacionPersonal {
   readonly onSuccess?: () => unknown
@@ -35,6 +43,32 @@ export function useAsignacionPersonalQuery(
   return useConsulta(() => obtenerAsignacionPersonal(id), [String(id)], {
     enabled,
   })
+}
+
+/**
+ * Opciones consolidadas del formulario de asignacion en una sola request. Usar
+ * en vez de pedir cargos/sedes/areas/cuentas/contratos/tareo por separado.
+ */
+export function useOpcionesFormularioAsignacionQuery(
+  soloActivos = true,
+  enabled = true,
+) {
+  return useConsulta(
+    () => obtenerOpcionesFormularioAsignacion(soloActivos),
+    ["opciones-formulario-asignacion", String(soloActivos)],
+    { enabled },
+  )
+}
+
+export function useOpcionesConfiguracionGeneralAsignacionQuery(
+  query?: ConsultarConfiguracionGeneralOpcionesQuery,
+  enabled = true,
+) {
+  return useConsulta(
+    () => consultarOpcionesConfiguracionGeneral(query),
+    ["opciones-configuracion-general-asignacion", JSON.stringify(query ?? {})],
+    { enabled },
+  )
 }
 
 export function useHistorialAsignacionPersonalQuery(
@@ -86,15 +120,35 @@ export function useReemplazarCuentasContratosMutation(
   })
 }
 
-export function useAprobarAsignacionPersonalMutation(
-  id: string | number,
+/** Payload de una decision de aprobacion: identifica el detalle, la firma y el cuerpo. */
+export interface DecisionAprobacionCuentaContrato {
+  detalleId: string | number
+  aprobacionId: string | number
+  decision?: DecidirAprobacionCuentaContratoRequest
+}
+
+export function useAprobarAprobacionCuentaContratoMutation(
+  asignacionId: string | number,
   opciones: OpcionesMutacionAsignacionPersonal = {},
 ) {
-  return useMutar<
-    Parameters<typeof aprobarAsignacionPersonal>[1],
-    Awaited<ReturnType<typeof aprobarAsignacionPersonal>>
-  >({
-    fn: (payload) => aprobarAsignacionPersonal(id, payload),
+  return useMutar<DecisionAprobacionCuentaContrato, Awaited<
+    ReturnType<typeof aprobarAprobacionCuentaContrato>
+  >>({
+    fn: ({ detalleId, aprobacionId, decision }) =>
+      aprobarAprobacionCuentaContrato(asignacionId, detalleId, aprobacionId, decision),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useRechazarAprobacionCuentaContratoMutation(
+  asignacionId: string | number,
+  opciones: OpcionesMutacionAsignacionPersonal = {},
+) {
+  return useMutar<DecisionAprobacionCuentaContrato, Awaited<
+    ReturnType<typeof rechazarAprobacionCuentaContrato>
+  >>({
+    fn: ({ detalleId, aprobacionId, decision }) =>
+      rechazarAprobacionCuentaContrato(asignacionId, detalleId, aprobacionId, decision),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }
