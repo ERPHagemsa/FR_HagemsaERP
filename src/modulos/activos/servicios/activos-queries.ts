@@ -26,6 +26,7 @@ import {
   obtenerDocumentosPorCodigo,
   obtenerImagenesPorCodigo,
   obtenerTanquesPorCodigo,
+  quitarCoberturaDocumentoCompartidoPorCodigo,
   siniestrarActivo,
 } from "./activos-api";
 
@@ -133,6 +134,16 @@ export function useEliminarDocumentoActivoMutation(codigo: string) {
       fn: (documentoId) => eliminarDocumentoPorCodigo(codigo, documentoId),
     }
   );
+}
+
+export function useQuitarCoberturaDocumentoCompartidoMutation(codigo: string) {
+  return useMutar<
+    number,
+    Awaited<ReturnType<typeof quitarCoberturaDocumentoCompartidoPorCodigo>>
+  >({
+    fn: (documentoCompartidoId) =>
+      quitarCoberturaDocumentoCompartidoPorCodigo(codigo, documentoCompartidoId),
+  });
 }
 
 export function useCrearImagenActivoMutation(codigo: string) {

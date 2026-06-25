@@ -233,6 +233,10 @@ export type EstadoDocumentoActivo =
 export type DocumentoActivo = {
   id: number;
   activoId: number;
+  /** INDIVIDUAL: documento propio de este activo. COMPARTIDO: poliza que cubre varios activos. */
+  alcance: "INDIVIDUAL" | "COMPARTIDO";
+  /** Cantidad de activos cubiertos. Solo presente si alcance es COMPARTIDO. */
+  coberturaTotal?: number;
   tipoDocumento: TipoDocumentoActivo;
   estadoDocumento: EstadoDocumentoActivo;
   numero: string | null;

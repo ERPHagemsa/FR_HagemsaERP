@@ -2,11 +2,14 @@ import { clienteSocioNegocios } from "@/compartido/api/clientes-backend"
 
 import type { RespuestaDto } from "../tipos/socio-negocio"
 import type {
-  AprobarAsignacionPersonalRequest,
   AsignacionPersonalHistorialResponse,
   AsignacionPersonalResponse,
+  ConfiguracionGeneralOpcionResponse,
+  ConsultarConfiguracionGeneralOpcionesQuery,
   CrearAsignacionPersonalRequest,
+  DecidirAprobacionCuentaContratoRequest,
   ModificarAsignacionPersonalRequest,
+  OpcionesFormularioAsignacionResponse,
   ReemplazarCuentasContratosRequest,
 } from "../tipos/asignacion-personal"
 
@@ -71,6 +74,45 @@ export async function consultarAsignacionesPorPersonal(
   return consulta
 }
 
+/**
+ * Trae en una sola llamada todas las opciones para el formulario de asignacion:
+ * cargos, sedes, areas, cuentas, contratos (desde Configuracion General, ya
+ * resueltos por BC-01), tipos de tareo, configuraciones laborales y los
+ * catalogos de disponibilidad. Reemplaza el patron de pedir combo por combo.
+ */
+export async function obtenerOpcionesFormularioAsignacion(
+  soloActivos = true,
+): Promise<OpcionesFormularioAsignacionResponse> {
+  const query = soloActivos ? "" : "?soloActivos=false"
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<OpcionesFormularioAsignacionResponse>
+  >(`${BASE_ENDPOINT}/opciones-formulario${query}`)
+  return data.datos
+}
+
+/**
+ * Lista opciones de Configuracion General ya resueltas por BC-01 para un combo
+ * puntual (o varios via `tiposDatoMaestro`). Para inicializar el formulario
+ * completo, preferir `obtenerOpcionesFormularioAsignacion`.
+ */
+export async function consultarOpcionesConfiguracionGeneral(
+  query?: ConsultarConfiguracionGeneralOpcionesQuery,
+): Promise<ConfiguracionGeneralOpcionResponse[]> {
+  const params = new URLSearchParams()
+  if (query?.tipoDatoMaestro) params.set("tipoDatoMaestro", query.tipoDatoMaestro)
+  if (query?.tiposDatoMaestro?.length) {
+    params.set("tiposDatoMaestro", query.tiposDatoMaestro.join(","))
+  }
+  if (query?.busqueda) params.set("busqueda", query.busqueda)
+  if (query?.soloActivos === false) params.set("soloActivos", "false")
+  const queryString = params.toString()
+
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<ConfiguracionGeneralOpcionResponse[]>
+  >(`${BASE_ENDPOINT}/configuracion-general/opciones${queryString ? `?${queryString}` : ""}`)
+  return data.datos
+}
+
 export async function obtenerAsignacionPersonal(
   id: string | number,
 ): Promise<AsignacionPersonalResponse> {
@@ -111,13 +153,43 @@ export async function reemplazarCuentasContratos(
   return data.datos
 }
 
-export async function aprobarAsignacionPersonal(
+/**
+ * Aprueba una firma de aprobacion de un detalle cuenta/contrato. La decision es
+ * secuencial: el backend solo deja decidir la firma pendiente de menor orden.
+ */
+export async function aprobarAprobacionCuentaContrato(
   id: string | number,
-  payload: AprobarAsignacionPersonalRequest,
+  detalleId: string | number,
+  aprobacionId: string | number,
+  payload: DecidirAprobacionCuentaContratoRequest = {},
 ): Promise<AsignacionPersonalResponse> {
   const { data } = await clienteSocioNegocios.patch<
     RespuestaDto<AsignacionPersonalResponse>
-  >(`${BASE_ENDPOINT}/${encodeURIComponent(String(id))}/aprobar`, payload)
+  >(
+    `${BASE_ENDPOINT}/${encodeURIComponent(String(id))}/cuentas-contratos/${encodeURIComponent(
+      String(detalleId),
+    )}/aprobaciones/${encodeURIComponent(String(aprobacionId))}/aprobar`,
+    payload,
+  )
+  invalidarAsignacionesPorPersonal(data.datos.personalId)
+  return data.datos
+}
+
+/** Rechaza una firma de aprobacion; el detalle cuenta/contrato queda RECHAZADO. */
+export async function rechazarAprobacionCuentaContrato(
+  id: string | number,
+  detalleId: string | number,
+  aprobacionId: string | number,
+  payload: DecidirAprobacionCuentaContratoRequest = {},
+): Promise<AsignacionPersonalResponse> {
+  const { data } = await clienteSocioNegocios.patch<
+    RespuestaDto<AsignacionPersonalResponse>
+  >(
+    `${BASE_ENDPOINT}/${encodeURIComponent(String(id))}/cuentas-contratos/${encodeURIComponent(
+      String(detalleId),
+    )}/aprobaciones/${encodeURIComponent(String(aprobacionId))}/rechazar`,
+    payload,
+  )
   invalidarAsignacionesPorPersonal(data.datos.personalId)
   return data.datos
 }

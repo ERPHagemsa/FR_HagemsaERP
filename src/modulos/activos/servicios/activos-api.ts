@@ -447,6 +447,20 @@ export async function eliminarDocumentoPorCodigo(
   );
 }
 
+/**
+ * Quita la cobertura de este activo sobre un documento COMPARTIDO (poliza).
+ * Si era el unico activo cubierto, el documento se borra por completo; si
+ * cubre otros activos, sigue existiendo para ellos.
+ */
+export async function quitarCoberturaDocumentoCompartidoPorCodigo(
+  codigo: string,
+  documentoCompartidoId: number
+): Promise<void> {
+  await clienteActivos.delete(
+    `/activos/codigo/${codigo}/documentos-compartidos/${documentoCompartidoId}`
+  );
+}
+
 export async function obtenerTanquesPorCodigo(
   codigo: string
 ): Promise<TanqueActivo[]> {

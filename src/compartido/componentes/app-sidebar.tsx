@@ -48,8 +48,10 @@ const data = {
       url: "/socio-negocios",
       icon: <Users />,
       items: [
-        { title: "Listar socios", url: "/socio-negocios/listar" },
-        { title: "Registrar socio", url: "/socio-negocios/nuevo" },
+        { title: "Listar clientes", url: "/socio-negocios/clientes" },
+        { title: "Listar proveedores", url: "/socio-negocios/proveedores" },
+        { title: "Listar personal", url: "/socio-negocios/personal" },
+        { title: "Configuracion de tareo", url: "/socio-negocios/tareo" },
         { title: "Historial", url: "/socio-negocios/historial" },
       ],
     },

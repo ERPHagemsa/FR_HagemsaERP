@@ -4,17 +4,23 @@ import type {
   AprobarSocioDeNegocioRequest,
   ClientePorDocumentoResponse,
   ConsultarSapPorDocumentoQuery,
+  ConsultarEventosSocioDeNegocioQuery,
   ConsultarHistorialSocioDeNegocioQuery,
+  ConsultarPersonalQuery,
   ConsultarSociosDeNegocioQuery,
   DarDeBajaSocioDeNegocioRequest,
   EstadoBcResponse,
   EventoSocioDeNegocioResponse,
   ExportarSociosDeNegocioQuery,
   HistorialSocioDeNegocioResponse,
+  LineaHistoricaPersonalResponse,
   ModificarSocioDeNegocioRequest,
   PaginatedResponse,
+  PersonalListadoResponse,
   ReactivarSocioDeNegocioRequest,
   RechazarSocioDeNegocioRequest,
+  ReemplazarSocioDeNegocioRequest,
+  ReenviarAprobacionSocioDeNegocioRequest,
   RegistrarClienteDesdeComercialRequest,
   RegistrarDesdeSapRequest,
   RegistrarSocioDeNegocioRequest,
@@ -25,15 +31,56 @@ import type {
   SapBusinessPartnerResumenResponse,
   SapSessionQuery,
   SocioDeNegocioResponse,
+  SocioEmpresaListadoResponse,
+  TipoSocioDeNegocio,
 } from "../tipos/socio-negocio"
 
-const BASE_ENDPOINT = "/socio-negocios/socios-de-negocio"
+const BASE_ENDPOINT = "/socios-de-negocio"
+
+type RespuestaPaginadaBackend<T> = {
+  datos: T[]
+  paginacion: {
+    totalItems?: number
+    totalPaginas?: number
+    paginaActual?: number
+    tamanioPagina?: number
+    pagina?: number
+    limite?: number
+    total?: number
+    tieneSiguiente?: boolean
+    tieneAnterior?: boolean
+  }
+}
+
+function normalizarRespuestaPaginada<T>(
+  respuesta: RespuestaPaginadaBackend<T>,
+): PaginatedResponse<T> {
+  const paginacion = respuesta.paginacion
+  const pagina = paginacion.pagina ?? paginacion.paginaActual ?? 1
+  const limite = paginacion.limite ?? paginacion.tamanioPagina ?? respuesta.datos.length
+  const total = paginacion.total ?? paginacion.totalItems ?? respuesta.datos.length
+  const totalPaginas = paginacion.totalPaginas ?? Math.max(1, Math.ceil(total / Math.max(limite, 1)))
+
+  return {
+    datos: respuesta.datos,
+    paginacion: {
+      pagina,
+      limite,
+      total,
+      totalPaginas,
+      tieneSiguiente: paginacion.tieneSiguiente ?? pagina < totalPaginas,
+      tieneAnterior: paginacion.tieneAnterior ?? pagina > 1,
+    },
+  }
+}
 
 function crearQueryString(
   query?:
     | ConsultarSociosDeNegocioQuery
+    | ConsultarPersonalQuery
     | ExportarSociosDeNegocioQuery
     | ConsultarHistorialSocioDeNegocioQuery
+    | ConsultarEventosSocioDeNegocioQuery
     | ConsultarSapPorDocumentoQuery
     | SapSessionQuery,
 ): string {
@@ -94,6 +141,17 @@ export async function modificarSocioDeNegocio(
   return data.datos
 }
 
+export async function reemplazarSocioDeNegocio(
+  id: string | number,
+  payload: ReemplazarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.post<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/reemplazo`,
+    payload,
+  )
+  return data.datos
+}
+
 export async function aprobarSocioDeNegocio(
   id: string | number,
   payload: AprobarSocioDeNegocioRequest,
@@ -111,6 +169,17 @@ export async function rechazarSocioDeNegocio(
 ): Promise<SocioDeNegocioResponse> {
   const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
     `${BASE_ENDPOINT}/${id}/rechazar`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function reenviarAprobacionSocioDeNegocio(
+  id: string | number,
+  payload: ReenviarAprobacionSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/reenviar-aprobacion`,
     payload,
   )
   return data.datos
@@ -142,9 +211,36 @@ export async function consultarSociosDeNegocio(
   query?: ConsultarSociosDeNegocioQuery,
 ): Promise<PaginatedResponse<SocioDeNegocioResponse>> {
   const { data } = await clienteSocioNegocios.get<
-    PaginatedResponse<SocioDeNegocioResponse>
+    RespuestaPaginadaBackend<SocioDeNegocioResponse>
   >(`${BASE_ENDPOINT}${crearQueryString(query)}`)
-  return data
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarClientesSociosDeNegocio(
+  query?: ConsultarSociosDeNegocioQuery,
+): Promise<PaginatedResponse<SocioEmpresaListadoResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<SocioEmpresaListadoResponse>
+  >(`${BASE_ENDPOINT}/clientes${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarProveedoresSociosDeNegocio(
+  query?: ConsultarSociosDeNegocioQuery,
+): Promise<PaginatedResponse<SocioEmpresaListadoResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<SocioEmpresaListadoResponse>
+  >(`${BASE_ENDPOINT}/proveedores${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarPersonalSociosDeNegocio(
+  query?: ConsultarPersonalQuery,
+): Promise<PaginatedResponse<PersonalListadoResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<PersonalListadoResponse>
+  >(`${BASE_ENDPOINT}/personal${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
 }
 
 export async function consultarSapBusinessPartnerPorDocumento(
@@ -199,9 +295,9 @@ export async function consultarHistorialSociosDeNegocio(
   query?: ConsultarHistorialSocioDeNegocioQuery,
 ): Promise<PaginatedResponse<HistorialSocioDeNegocioResponse>> {
   const { data } = await clienteSocioNegocios.get<
-    PaginatedResponse<HistorialSocioDeNegocioResponse>
+    RespuestaPaginadaBackend<HistorialSocioDeNegocioResponse>
   >(`${BASE_ENDPOINT}/historial${crearQueryString(query)}`)
-  return data
+  return normalizarRespuestaPaginada(data)
 }
 
 export async function consultarHistorialSocioDeNegocio(
@@ -209,27 +305,28 @@ export async function consultarHistorialSocioDeNegocio(
   query?: ConsultarHistorialSocioDeNegocioQuery,
 ): Promise<PaginatedResponse<HistorialSocioDeNegocioResponse>> {
   const { data } = await clienteSocioNegocios.get<
-    PaginatedResponse<HistorialSocioDeNegocioResponse>
+    RespuestaPaginadaBackend<HistorialSocioDeNegocioResponse>
   >(`${BASE_ENDPOINT}/${id}/historial${crearQueryString(query)}`)
-  return data
+  return normalizarRespuestaPaginada(data)
 }
 
-export async function consultarEventosSociosDeNegocio(): Promise<
-  EventoSocioDeNegocioResponse[]
-> {
+export async function consultarEventosSociosDeNegocio(
+  query?: ConsultarEventosSocioDeNegocioQuery,
+): Promise<PaginatedResponse<EventoSocioDeNegocioResponse>> {
   const { data } = await clienteSocioNegocios.get<
-    RespuestaDto<EventoSocioDeNegocioResponse[]>
-  >(`${BASE_ENDPOINT}/eventos`)
-  return data.datos
+    RespuestaPaginadaBackend<EventoSocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/eventos${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
 }
 
 export async function consultarEventosSocioDeNegocio(
   id: string | number,
-): Promise<EventoSocioDeNegocioResponse[]> {
+  query?: ConsultarEventosSocioDeNegocioQuery,
+): Promise<PaginatedResponse<EventoSocioDeNegocioResponse>> {
   const { data } = await clienteSocioNegocios.get<
-    RespuestaDto<EventoSocioDeNegocioResponse[]>
-  >(`${BASE_ENDPOINT}/${id}/eventos`)
-  return data.datos
+    RespuestaPaginadaBackend<EventoSocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/${id}/eventos${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
 }
 
 export async function exportarSociosDeNegocio(
@@ -237,11 +334,11 @@ export async function exportarSociosDeNegocio(
 ): Promise<PaginatedResponse<ReporteSociosDeNegocioResponse>> {
   const { data } =
     await clienteSocioNegocios.get<
-      PaginatedResponse<ReporteSociosDeNegocioResponse>
+      RespuestaPaginadaBackend<ReporteSociosDeNegocioResponse>
     >(
       `${BASE_ENDPOINT}/exportar${crearQueryString(query)}`,
     )
-  return data
+  return normalizarRespuestaPaginada(data)
 }
 
 export async function obtenerSocioDeNegocio(
@@ -251,4 +348,40 @@ export async function obtenerSocioDeNegocio(
     `${BASE_ENDPOINT}/${id}`,
   )
   return data.datos
+}
+
+export async function obtenerSocioDeNegocioPorTipo(
+  id: string,
+  tipo: TipoSocioDeNegocio,
+): Promise<SocioDeNegocioResponse> {
+  const segmentosPorTipo: Record<TipoSocioDeNegocio, string> = {
+    CLIENTE: "clientes",
+    PROVEEDOR: "proveedores",
+    PERSONAL: "personal",
+  }
+  const { data } = await clienteSocioNegocios.get<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${segmentosPorTipo[tipo]}/${id}`,
+  )
+  return data.datos
+}
+
+export async function obtenerLineaHistoricaPersonal(
+  id: string | number,
+): Promise<LineaHistoricaPersonalResponse> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<LineaHistoricaPersonalResponse>
+  >(`${BASE_ENDPOINT}/personal/${id}/linea-historica`)
+  return data.datos
+}
+
+export async function obtenerSocioDeNegocioDetalle(
+  id: string,
+  tipo?: TipoSocioDeNegocio,
+): Promise<SocioDeNegocioResponse> {
+  if (tipo) {
+    return obtenerSocioDeNegocioPorTipo(id, tipo)
+  }
+
+  const socio = await obtenerSocioDeNegocio(id)
+  return obtenerSocioDeNegocioPorTipo(id, socio.tipo)
 }

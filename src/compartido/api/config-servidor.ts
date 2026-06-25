@@ -48,7 +48,7 @@ export const URLS_SERVIDOR = {
     "http://localhost:8084/api",
 
   // BC-01 Socio de Negocios. Lo consumen los Route Handlers
-  // /api/socio-negocios/* y /api/asignaciones-personal/* (mismo backend).
+  // /api/socios-de-negocio/* y /api/asignaciones-personal/* (mismo backend).
   socioNegocios:
     process.env.SOCIO_NEGOCIOS_API_URL ??
     API_GATEWAY_URL ??

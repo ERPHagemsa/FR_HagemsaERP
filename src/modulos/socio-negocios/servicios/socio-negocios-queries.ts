@@ -5,8 +5,11 @@ import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
   aprobarSocioDeNegocio,
+  consultarClientesSociosDeNegocio,
   consultarEventosSocioDeNegocio,
   consultarEventosSociosDeNegocio,
+  consultarPersonalSociosDeNegocio,
+  consultarProveedoresSociosDeNegocio,
   consultarSapBusinessPartnerPorCodigo,
   consultarSapBusinessPartnerPorDocumento,
   consultarHistorialSocioDeNegocio,
@@ -17,20 +20,26 @@ import {
   modificarSocioDeNegocio,
   obtenerEstadoBcSocioDeNegocio,
   obtenerClientePorDocumento,
+  obtenerLineaHistoricaPersonal,
   obtenerResumenSociosDeNegocio,
-  obtenerSocioDeNegocio,
+  obtenerSocioDeNegocioDetalle,
   registrarClienteDesdeComercial,
   registrarSocioDesdeSap,
   registrarSocioDeNegocio,
   rechazarSocioDeNegocio,
+  reemplazarSocioDeNegocio,
+  reenviarAprobacionSocioDeNegocio,
   reactivarSocioDeNegocio,
 } from "./socio-negocios-api"
 import type {
   ConsultarSapPorDocumentoQuery,
+  ConsultarEventosSocioDeNegocioQuery,
   ConsultarHistorialSocioDeNegocioQuery,
+  ConsultarPersonalQuery,
   ConsultarSociosDeNegocioQuery,
   ExportarSociosDeNegocioQuery,
   SapSessionQuery,
+  TipoSocioDeNegocio,
 } from "../tipos/socio-negocio"
 
 export function useEstadoBcSocioDeNegocioQuery() {
@@ -48,8 +57,35 @@ export function useSociosDeNegocioQuery(query?: ConsultarSociosDeNegocioQuery) {
   )
 }
 
-export function useSocioDeNegocioQuery(id: string) {
-  return useConsulta(() => obtenerSocioDeNegocio(id), [id], {
+export function useClientesSociosDeNegocioQuery(query?: ConsultarSociosDeNegocioQuery) {
+  return useConsulta(
+    () => consultarClientesSociosDeNegocio(query),
+    [JSON.stringify(query ?? {})],
+  )
+}
+
+export function useProveedoresSociosDeNegocioQuery(query?: ConsultarSociosDeNegocioQuery) {
+  return useConsulta(
+    () => consultarProveedoresSociosDeNegocio(query),
+    [JSON.stringify(query ?? {})],
+  )
+}
+
+export function usePersonalSociosDeNegocioQuery(query?: ConsultarPersonalQuery) {
+  return useConsulta(
+    () => consultarPersonalSociosDeNegocio(query),
+    [JSON.stringify(query ?? {})],
+  )
+}
+
+export function useSocioDeNegocioQuery(id: string, tipo?: TipoSocioDeNegocio) {
+  return useConsulta(() => obtenerSocioDeNegocioDetalle(id, tipo), [id, tipo], {
+    enabled: Boolean(id),
+  })
+}
+
+export function useLineaHistoricaPersonalQuery(id: string) {
+  return useConsulta(() => obtenerLineaHistoricaPersonal(id), [id], {
     enabled: Boolean(id),
   })
 }
@@ -143,6 +179,19 @@ export function useRegistrarSocioDesdeSapMutation(
   })
 }
 
+export function useReemplazarSocioDeNegocioMutation(
+  id: string | number,
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof reemplazarSocioDeNegocio>[1],
+    Awaited<ReturnType<typeof reemplazarSocioDeNegocio>>
+  >({
+    fn: (payload) => reemplazarSocioDeNegocio(id, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
 export function useAprobarSocioDeNegocioMutation(
   id: string | number,
   opciones: OpcionesMutacionSocioNegocios = {},
@@ -165,6 +214,19 @@ export function useRechazarSocioDeNegocioMutation(
     Awaited<ReturnType<typeof rechazarSocioDeNegocio>>
   >({
     fn: (payload) => rechazarSocioDeNegocio(id, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useReenviarAprobacionSocioDeNegocioMutation(
+  id: string | number,
+  opciones: OpcionesMutacionSocioNegocios = {},
+) {
+  return useMutar<
+    Parameters<typeof reenviarAprobacionSocioDeNegocio>[1],
+    Awaited<ReturnType<typeof reenviarAprobacionSocioDeNegocio>>
+  >({
+    fn: (payload) => reenviarAprobacionSocioDeNegocio(id, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }
@@ -232,12 +294,22 @@ export function useHistorialSocioDeNegocioQuery(
   )
 }
 
-export function useEventosSociosDeNegocioQuery() {
-  return useConsulta(consultarEventosSociosDeNegocio, [])
+export function useEventosSociosDeNegocioQuery(
+  query?: ConsultarEventosSocioDeNegocioQuery,
+) {
+  return useConsulta(
+    () => consultarEventosSociosDeNegocio(query),
+    [JSON.stringify(query ?? {})],
+  )
 }
 
-export function useEventosSocioDeNegocioQuery(id: string | number) {
-  return useConsulta(() => consultarEventosSocioDeNegocio(id), [String(id)], {
-    enabled: Boolean(id),
-  })
+export function useEventosSocioDeNegocioQuery(
+  id: string | number,
+  query?: ConsultarEventosSocioDeNegocioQuery,
+) {
+  return useConsulta(
+    () => consultarEventosSocioDeNegocio(id, query),
+    [String(id), JSON.stringify(query ?? {})],
+    { enabled: Boolean(id) },
+  )
 }

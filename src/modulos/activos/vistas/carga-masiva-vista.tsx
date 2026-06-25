@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Cpu,
   Download,
+  ExternalLink,
   FileSpreadsheet,
   FileText,
   FileUp,
@@ -16,6 +17,13 @@ import {
   Wrench,
   XCircle,
 } from "lucide-react";
+// Excepcion deliberada a la convencion lucide: el menu de acciones usa los
+// mismos iconos @tabler que `activos-tabla.tsx` para verse 100% identico.
+import {
+  IconDotsVertical,
+  IconEye,
+  IconFileDescription,
+} from "@tabler/icons-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -42,6 +50,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/compartido/componentes/ui/sheet";
+import { ScrollArea } from "@/compartido/componentes/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/compartido/componentes/ui/dropdown-menu";
 import { extraerMensajeError } from "@/compartido/api";
 import { cn } from "@/compartido/utilidades/utils";
 import { useCatalogosActivos } from "../ganchos/use-catalogos-activos";
@@ -64,7 +79,7 @@ import {
   procesarCargaMasiva,
 } from "../servicios/activos-api";
 import { DocumentosActivo } from "../componentes/documentos-activo";
-import type { DocumentoActivo, TipoActivo } from "../tipos/activo.tipos";
+import type { DocumentoActivo } from "../tipos/activo.tipos";
 import type {
   CargaMasiva,
   FilaPrevisualizada,
@@ -526,7 +541,7 @@ function PasoResultado({
                 <TableHead className="w-28">Estado</TableHead>
                 <TableHead>Codigo</TableHead>
                 <TableHead>Detalle</TableHead>
-                <TableHead className="w-48">Accion</TableHead>
+                <TableHead className="w-20 text-center">Accion</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -548,25 +563,36 @@ function PasoResultado({
                   <TableCell className="text-xs text-muted-foreground">
                     {detalle.mensajeError || "Creado correctamente"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {detalle.estado === "CREADO" && detalle.codigoActivo ? (
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() =>
-                            setActivoSeleccionado(detalle.codigoActivo)
-                          }
-                        >
-                          <FileText className="size-4" />
-                          Documentos
-                        </Button>
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/activos/${detalle.codigoActivo}`}>
-                            Abrir
-                          </Link>
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="outline"
+                            aria-label={`Acciones de ${detalle.codigoActivo}`}
+                          >
+                            <IconDotsVertical />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-44">
+                          <DropdownMenuItem
+                            onSelect={() =>
+                              setActivoSeleccionado(detalle.codigoActivo)
+                            }
+                          >
+                            <IconFileDescription />
+                            Documentos
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/activos/${detalle.codigoActivo}`}>
+                              <IconEye />
+                              Abrir
+                            </Link>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
@@ -583,9 +609,27 @@ function PasoResultado({
           <div className="flex flex-wrap gap-2">
             {creados.length > 0 && (
               <Button asChild variant="outline">
-                <Link href="/activos/carga-masiva-documentos">
+                <Link
+                  href="/activos/carga-masiva-documentos"
+                  target="_blank"
+                  onClick={() => {
+                    // Pasamos los codigos recien creados para que, si el
+                    // siguiente documento es compartido (ej. poliza), el
+                    // campo de placas llegue prellenado con este lote.
+                    // sessionStorage se copia a la pestana nueva (mismo
+                    // origen, sin noopener), por eso no hace falta otra cosa.
+                    const codigos = creados
+                      .map((detalle) => detalle.codigoActivo)
+                      .filter((codigo): codigo is string => Boolean(codigo));
+                    window.sessionStorage.setItem(
+                      "activos:loteParaDocumentos",
+                      JSON.stringify(codigos),
+                    );
+                  }}
+                >
                   <FileText className="size-4" />
                   Agregar documentos a estos activos
+                  <ExternalLink className="size-3.5" />
                 </Link>
               </Button>
             )}
@@ -602,19 +646,26 @@ function PasoResultado({
           if (!abierto) setActivoSeleccionado(null);
         }}
       >
-        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
-          <SheetHeader>
+        <SheetContent
+          side="right"
+          className="w-full gap-0 data-[side=right]:sm:max-w-2xl"
+        >
+          <SheetHeader className="border-b border-border">
             <SheetTitle>Documentos — {activoSeleccionado}</SheetTitle>
             <SheetDescription>
               Sube el SOAT, poliza u otros documentos de este activo. Al cerrar
               vuelves a la lista para seguir con el siguiente.
             </SheetDescription>
           </SheetHeader>
-          {activoSeleccionado ? (
-            <div className="px-4 pb-6">
-              <DocumentosDrawerContenido codigo={activoSeleccionado} />
-            </div>
-          ) : null}
+          {/* min-h-0 + flex-1: el ScrollArea ocupa el resto y scrollea por dentro
+              con la barra fina de Radix, no la nativa del navegador. */}
+          <ScrollArea className="min-h-0 flex-1">
+            {activoSeleccionado ? (
+              <div className="p-6">
+                <DocumentosDrawerContenido codigo={activoSeleccionado} />
+              </div>
+            ) : null}
+          </ScrollArea>
         </SheetContent>
       </Sheet>
     </Card>
@@ -640,6 +691,7 @@ function DocumentosDrawerContenido({ codigo }: { codigo: string }) {
       codigo={codigo}
       documentos={documentos}
       onCambio={recargar}
+      compacto
     />
   );
 }
