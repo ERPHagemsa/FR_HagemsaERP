@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -29,9 +30,18 @@ export function ValorCatalogoHistorialVista({
   id,
 }: PropsValorCatalogoHistorialVista) {
   const config = CATALOGOS_MAESTROS.find((c) => c.tipoCatalogo === tipoCatalogo);
+  const esCarroceria = tipoCatalogo === "CARROCERIA";
 
   const valores = useValoresCatalogoQuery(tipoCatalogo);
   const item = valores.data?.find((v) => v.id === id) ?? null;
+
+  const clasesVehiculo = useValoresCatalogoQuery("CLASE_VEHICULO", undefined, undefined, {
+    enabled: esCarroceria,
+  });
+  const clasesVehiculoPorId = useMemo(
+    () => new Map((clasesVehiculo.data ?? []).map((clase) => [clase.id, clase.nombre])),
+    [clasesVehiculo.data]
+  );
 
   const historialConsulta = useHistorialCatalogoQuery({ tipoCatalogo, idRegistro: id });
   const historial = historialConsulta.data ?? [];
@@ -124,7 +134,10 @@ export function ValorCatalogoHistorialVista({
             </CardContent>
           </Card>
         ) : (
-          <HistorialValorCatalogo historial={historial} />
+          <HistorialValorCatalogo
+            historial={historial}
+            clasesVehiculoPorId={esCarroceria ? clasesVehiculoPorId : undefined}
+          />
         )}
       </div>
     </main>

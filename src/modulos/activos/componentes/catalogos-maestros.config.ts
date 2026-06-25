@@ -31,8 +31,8 @@ export const CATALOGOS_MAESTROS: ConfiguracionCatalogoMaestro[] = [
     titulo: "Carroceria",
     grupo: "Vehiculo",
     icono: Truck,
-    permiteCrear: false,
-    notaSoloLectura: "las carrocerias nuevas se registran junto con sus dimensiones sugeridas",
+    permiteCrear: true,
+    notaSoloLectura: "cada carroceria requiere una clase de vehiculo asignada",
   },
   {
     tipoCatalogo: "CLASE_EURO",

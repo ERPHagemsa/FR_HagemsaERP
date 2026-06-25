@@ -81,15 +81,22 @@ function DialogCrearValor({
   onCerrar: () => void;
   onCreado: () => void;
 }) {
+  const esCarroceria = tipoCatalogo === "CARROCERIA";
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [claseVehiculoId, setClaseVehiculoId] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const clasesVehiculo = useValoresCatalogoQuery("CLASE_VEHICULO", true, undefined, {
+    enabled: esCarroceria,
+  });
 
   const crear = useCrearValorCatalogoMutation(tipoCatalogo, {
     onSuccess: () => {
       setError(null);
       setNombre("");
       setDescripcion("");
+      setClaseVehiculoId("");
       onCreado();
       onCerrar();
     },
@@ -101,6 +108,7 @@ function DialogCrearValor({
       setError(null);
       setNombre("");
       setDescripcion("");
+      setClaseVehiculoId("");
       onCerrar();
     }
   }
@@ -108,15 +116,17 @@ function DialogCrearValor({
   function handleConfirmar() {
     const nombreLimpio = nombre.trim();
     if (!nombreLimpio) return;
+    if (esCarroceria && !claseVehiculoId) return;
 
     setError(null);
     crear.mutate({
       nombre: nombreLimpio,
       descripcion: descripcion.trim() || undefined,
+      claseVehiculoReferenciaId: esCarroceria ? Number(claseVehiculoId) : undefined,
     });
   }
 
-  const valido = nombre.trim().length > 0;
+  const valido = nombre.trim().length > 0 && (!esCarroceria || claseVehiculoId !== "");
 
   return (
     <Sheet open={abierto} onOpenChange={handleOpenChange}>
@@ -148,6 +158,24 @@ function DialogCrearValor({
                 autoFocus
               />
             </div>
+
+            {esCarroceria ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="form-clase-vehiculo">Clase de vehiculo</Label>
+                <Select value={claseVehiculoId} onValueChange={setClaseVehiculoId}>
+                  <SelectTrigger id="form-clase-vehiculo" className="w-full">
+                    <SelectValue placeholder="Selecciona una clase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(clasesVehiculo.data ?? []).map((clase) => (
+                      <SelectItem key={clase.id} value={String(clase.id)}>
+                        {clase.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="form-descripcion">Descripcion (opcional)</Label>
@@ -193,10 +221,16 @@ function DialogEditarValor({
   onCerrar: () => void;
   onActualizado: () => void;
 }) {
+  const esCarroceria = tipoCatalogo === "CARROCERIA";
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
+  const [claseVehiculoId, setClaseVehiculoId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [itemActualId, setItemActualId] = useState<number | null>(null);
+
+  const clasesVehiculo = useValoresCatalogoQuery("CLASE_VEHICULO", true, undefined, {
+    enabled: esCarroceria,
+  });
 
   // Resincronizar el formulario cuando entra otro item, sin useEffect
   // (ajuste de estado durante el render, mismo patron que catalogo-modalidades).
@@ -205,6 +239,9 @@ function DialogEditarValor({
     setItemActualId(idEntrante);
     setNombre(item?.nombre ?? "");
     setDescripcion(item?.descripcion ?? "");
+    setClaseVehiculoId(
+      item?.claseVehiculoReferenciaId ? String(item.claseVehiculoReferenciaId) : ""
+    );
     setError(null);
   }
 
@@ -228,15 +265,29 @@ function DialogEditarValor({
     if (!item) return;
     const nombreLimpio = nombre.trim();
     if (!nombreLimpio) return;
+    if (esCarroceria && !claseVehiculoId) return;
 
     setError(null);
     actualizar.mutate({
       id: item.id,
-      payload: { nombre: nombreLimpio, descripcion: descripcion.trim() },
+      payload: {
+        nombre: nombreLimpio,
+        descripcion: descripcion.trim(),
+        claseVehiculoReferenciaId: esCarroceria ? Number(claseVehiculoId) : undefined,
+      },
     });
   }
 
-  const valido = nombre.trim().length > 0;
+  const valido = nombre.trim().length > 0 && (!esCarroceria || claseVehiculoId !== "");
+
+  // El nombre de la clase seleccionada no se auto-rellena la primera vez: Radix
+  // solo registra el texto de un SelectItem cuando este se monta (al abrir el
+  // dropdown), y aqui el valor llega preseleccionado antes de abrirlo nunca.
+  const claseSeleccionadaNombre =
+    clasesVehiculo.data?.find((c) => String(c.id) === claseVehiculoId)?.nombre ??
+    (claseVehiculoId !== "" && claseVehiculoId === String(item?.claseVehiculoReferenciaId ?? "")
+      ? item?.claseVehiculoReferenciaNombre ?? undefined
+      : undefined);
 
   return (
     <Sheet open={item !== null} onOpenChange={handleOpenChange}>
@@ -268,6 +319,26 @@ function DialogEditarValor({
                 autoFocus
               />
             </div>
+
+            {esCarroceria ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="form-editar-clase-vehiculo">Clase de vehiculo</Label>
+                <Select value={claseVehiculoId} onValueChange={setClaseVehiculoId}>
+                  <SelectTrigger id="form-editar-clase-vehiculo" className="w-full">
+                    <SelectValue placeholder="Selecciona una clase">
+                      {claseSeleccionadaNombre}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(clasesVehiculo.data ?? []).map((clase) => (
+                      <SelectItem key={clase.id} value={String(clase.id)}>
+                        {clase.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="form-editar-descripcion">Descripcion (opcional)</Label>
@@ -431,12 +502,18 @@ export function CatalogoValoresListado({
   permiteCrear = true,
   notaSoloLectura,
 }: PropsCatalogoValoresListado) {
+  const esCarroceria = tipoCatalogo === "CARROCERIA";
   const [estadoFiltro, setEstadoFiltro] = useState<"TODOS" | "true" | "false">(
     "true"
   );
+  const [claseFiltro, setClaseFiltro] = useState("TODOS");
+  const clasesVehiculo = useValoresCatalogoQuery("CLASE_VEHICULO", true, undefined, {
+    enabled: esCarroceria,
+  });
   const consulta = useValoresCatalogoQuery(
     tipoCatalogo,
-    estadoFiltro === "TODOS" ? undefined : estadoFiltro === "true"
+    estadoFiltro === "TODOS" ? undefined : estadoFiltro === "true",
+    esCarroceria && claseFiltro !== "TODOS" ? Number(claseFiltro) : undefined
   );
   const valores = consulta.data ?? [];
 
@@ -489,6 +566,23 @@ export function CatalogoValoresListado({
                 </SelectContent>
               </Select>
             </div>
+            {esCarroceria ? (
+              <div className="grid min-w-48 gap-1.5">
+                <Select value={claseFiltro} onValueChange={setClaseFiltro}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Clase: Todas</SelectItem>
+                    {(clasesVehiculo.data ?? []).map((clase) => (
+                      <SelectItem key={clase.id} value={String(clase.id)}>
+                        {clase.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border">
@@ -496,23 +590,30 @@ export function CatalogoValoresListado({
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[8%] text-center">Accion</TableHead>
-                  <TableHead className="w-[30%]">Nombre</TableHead>
-                  <TableHead className="w-[38%]">Descripcion</TableHead>
-                  <TableHead className="w-[24%]">Estado</TableHead>
+                  <TableHead className="w-[20%]">Nombre</TableHead>
+                  {esCarroceria ? <TableHead className="w-[16%]">Clase</TableHead> : null}
+                  <TableHead className={esCarroceria ? "w-[22%]" : "w-[32%]"}>
+                    Descripcion
+                  </TableHead>
+                  <TableHead className="w-[18%]">Estado</TableHead>
+                  <TableHead className="w-[16%]">Modificado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {consulta.isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={4}>
+                      <TableCell colSpan={esCarroceria ? 6 : 5}>
                         <Skeleton className="h-7 w-full" />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : valores.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-28 text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={esCarroceria ? 6 : 5}
+                      className="h-28 text-center text-muted-foreground"
+                    >
                       No hay valores para los filtros aplicados.
                     </TableCell>
                   </TableRow>
@@ -560,6 +661,11 @@ export function CatalogoValoresListado({
                         </DropdownMenu>
                       </TableCell>
                       <TableCell className="truncate text-sm font-medium">{item.nombre}</TableCell>
+                      {esCarroceria ? (
+                        <TableCell className="truncate text-sm text-muted-foreground">
+                          {item.claseVehiculoReferenciaNombre ?? "—"}
+                        </TableCell>
+                      ) : null}
                       <TableCell className="truncate text-sm text-muted-foreground">
                         {item.descripcion ?? "—"}
                       </TableCell>
@@ -567,6 +673,9 @@ export function CatalogoValoresListado({
                         <Badge variant={item.estadoRegistro ? "default" : "secondary"}>
                           {item.estadoRegistro ? "Activo" : "Inactivo"}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="truncate text-sm text-muted-foreground">
+                        {new Date(item.updatedAt).toLocaleString("es-PE")}
                       </TableCell>
                     </TableRow>
                   ))

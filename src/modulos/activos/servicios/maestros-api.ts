@@ -11,9 +11,10 @@ import type {
 
 export async function obtenerValoresCatalogo(
   tipoCatalogo: TipoCatalogoMaestro,
-  estadoRegistro?: boolean
+  estadoRegistro?: boolean,
+  claseVehiculoReferenciaId?: number
 ): Promise<ValorCatalogo[]> {
-  const params = estadoRegistro !== undefined ? { estadoRegistro } : undefined;
+  const params = { estadoRegistro, claseVehiculoReferenciaId };
   const { data } = await clienteActivos.get<ValorCatalogo[]>(
     `/activos/maestros/${tipoCatalogo}/valores`,
     { params }

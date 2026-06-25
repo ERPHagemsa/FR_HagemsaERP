@@ -10,6 +10,7 @@ import type { ValorCatalogoHistorial } from "../tipos/maestros.tipos";
 
 type Props = {
   historial: ValorCatalogoHistorial[];
+  clasesVehiculoPorId?: Map<number, string>;
 };
 
 type DetalleAuditoria = {
@@ -30,10 +31,13 @@ type GrupoAuditoria = {
   detalles: DetalleAuditoria[];
 };
 
-export function HistorialValorCatalogo({ historial }: Props) {
+export function HistorialValorCatalogo({ historial, clasesVehiculoPorId }: Props) {
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
-  const grupos = React.useMemo(() => construirGruposAuditoria(historial), [historial]);
+  const grupos = React.useMemo(
+    () => construirGruposAuditoria(historial, clasesVehiculoPorId),
+    [historial, clasesVehiculoPorId]
+  );
 
   const totalPaginas = Math.max(1, Math.ceil(grupos.length / registrosPorPagina));
   const inicioPagina = (pagina - 1) * registrosPorPagina;
@@ -179,7 +183,10 @@ export function HistorialValorCatalogo({ historial }: Props) {
   );
 }
 
-function construirGruposAuditoria(historial: ValorCatalogoHistorial[]): GrupoAuditoria[] {
+function construirGruposAuditoria(
+  historial: ValorCatalogoHistorial[],
+  clasesVehiculoPorId?: Map<number, string>
+): GrupoAuditoria[] {
   const gruposPorLlave = new Map<string, ValorCatalogoHistorial[]>();
 
   for (const item of historial) {
@@ -195,30 +202,37 @@ function construirGruposAuditoria(historial: ValorCatalogoHistorial[]): GrupoAud
       fecha: primero.createdAt,
       accion: formatearAccion(primero.accion),
       variante: varianteAccion(primero.accion),
-      resumen: construirResumen(items, primero.accion),
+      resumen: construirResumen(items, primero.accion, clasesVehiculoPorId),
       usuario: primero.usuario ?? "-",
       motivo: primero.motivo,
-      detalles: items.map((item) => construirDetalle(item)),
+      detalles: items.map((item) => construirDetalle(item, clasesVehiculoPorId)),
     };
   });
 
   return grupos.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 }
 
-function construirResumen(items: ValorCatalogoHistorial[], accion: ValorCatalogoHistorial["accion"]) {
+function construirResumen(
+  items: ValorCatalogoHistorial[],
+  accion: ValorCatalogoHistorial["accion"],
+  clasesVehiculoPorId?: Map<number, string>
+) {
   if (accion === "REGISTRO") {
     return `Valor creado: "${formatearValor(items[0].valorNuevo)}"`;
   }
 
   if (items.length === 1) {
-    const detalle = construirDetalle(items[0]);
+    const detalle = construirDetalle(items[0], clasesVehiculoPorId);
     return `${detalle.campo}: ${detalle.antes} -> ${detalle.despues}`;
   }
 
   return `${items.length} campos modificados`;
 }
 
-function construirDetalle(item: ValorCatalogoHistorial): DetalleAuditoria {
+function construirDetalle(
+  item: ValorCatalogoHistorial,
+  clasesVehiculoPorId?: Map<number, string>
+): DetalleAuditoria {
   if (item.campo === "estadoRegistro") {
     const despues = item.valorNuevo === "true" ? "Activo" : "Inactivo";
     const antes =
@@ -231,12 +245,26 @@ function construirDetalle(item: ValorCatalogoHistorial): DetalleAuditoria {
     };
   }
 
+  if (item.campo === "claseVehiculoReferenciaId") {
+    return {
+      campo: formatearCampo(item.campo),
+      antes: formatearClaseVehiculo(item.valorAnterior, clasesVehiculoPorId),
+      despues: formatearClaseVehiculo(item.valorNuevo, clasesVehiculoPorId),
+      tipo: "normal",
+    };
+  }
+
   return {
     campo: formatearCampo(item.campo),
     antes: formatearValor(item.valorAnterior),
     despues: formatearValor(item.valorNuevo),
     tipo: "normal",
   };
+}
+
+function formatearClaseVehiculo(value: string | null, clasesVehiculoPorId?: Map<number, string>) {
+  if (!value) return "-";
+  return clasesVehiculoPorId?.get(Number(value)) ?? value;
 }
 
 function formatearAccion(accion: ValorCatalogoHistorial["accion"]) {
@@ -256,6 +284,7 @@ function varianteAccion(
 const CAMPOS_HISTORIAL: Record<string, string> = {
   nombre: "Nombre",
   descripcion: "Descripcion",
+  claseVehiculoReferenciaId: "Clase de vehiculo",
 };
 
 function formatearCampo(value: string | null) {
