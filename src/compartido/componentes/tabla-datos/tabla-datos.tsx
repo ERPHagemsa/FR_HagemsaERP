@@ -100,14 +100,20 @@ export function TablaDatos<T>({
                   className={cn(
                     columna.ancho,
                     CLASES_ALINEACION[columna.alineacion ?? "izquierda"],
-                    columna.className
+                    columna.className,
+                    // Encabezado uniforme: etiqueta apagada, no compite con los
+                    // datos. Va al final para ganar sobre el color/peso de la
+                    // columna (que el className tambien aplica al `td`).
+                    "text-xs font-normal uppercase tracking-wide text-muted-foreground"
                   )}
                 >
                   {columna.encabezado}
                 </TableHead>
               ))}
               {tieneAcciones ? (
-                <TableHead className="w-[7%] text-right">Acción</TableHead>
+                <TableHead className="w-[7%] text-right text-xs font-normal uppercase tracking-wide text-muted-foreground">
+                  Acción
+                </TableHead>
               ) : null}
             </TableRow>
           </TableHeader>

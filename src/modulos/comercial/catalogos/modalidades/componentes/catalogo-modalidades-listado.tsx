@@ -43,21 +43,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select"
-import { Skeleton } from "@/compartido/componentes/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/compartido/componentes/ui/table"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/compartido/componentes/ui/tooltip"
+import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos"
+import type {
+  AccionTabla,
+  ColumnaTabla,
+} from "@/compartido/componentes/tabla-datos/tabla-datos.tipos"
 import type {
   EstadoModalidad,
   FiltrosModalidades,
@@ -83,6 +79,8 @@ import {
 import {
   etiquetaMoneda,
   etiquetaUnidadCobro,
+  formatearMargen,
+  formatearTarifa,
   MONEDAS,
   TIPOS_MODALIDAD,
   UNIDADES_COBRO,
@@ -101,6 +99,7 @@ type EstadoFormulario = {
   unidadCobro: UnidadCobro | ""
   moneda: Moneda | ""
   tarifaBaseReferencial: string
+  margenPct: string
   requiereAprobacion: string // "SI" | "NO"
   documentacionRequerida: string // un documento por linea
 }
@@ -129,6 +128,7 @@ const FORMULARIO_VACIO: EstadoFormulario = {
   unidadCobro: "",
   moneda: "",
   tarifaBaseReferencial: "",
+  margenPct: "",
   requiereAprobacion: "NO",
   documentacionRequerida: "",
 }
@@ -143,6 +143,7 @@ function formularioDesdeModalidad(item: Modalidad): EstadoFormulario {
     unidadCobro: item.unidadCobro,
     moneda: item.moneda ?? "",
     tarifaBaseReferencial: item.tarifaBaseReferencial != null ? String(item.tarifaBaseReferencial) : "",
+    margenPct: item.margenPct != null ? String(item.margenPct) : "",
     requiereAprobacion: item.requiereAprobacion ? "SI" : "NO",
     documentacionRequerida: item.documentacionRequerida.join("\n"),
   }
@@ -166,6 +167,10 @@ function payloadDesdeFormulario(form: EstadoFormulario): PayloadCrearModalidad |
   if (form.tarifaBaseReferencial.trim()) {
     const n = Number(form.tarifaBaseReferencial)
     if (!isNaN(n)) payload.tarifaBaseReferencial = n
+  }
+  if (form.margenPct.trim()) {
+    const n = Number(form.margenPct)
+    if (!isNaN(n)) payload.margenPct = n
   }
   payload.requiereAprobacion = form.requiereAprobacion === "SI"
   // Siempre se envia (incluso vacio) para permitir limpiar la lista al editar.
@@ -308,6 +313,19 @@ function CamposFormulario({
           step="0.01"
           value={form.tarifaBaseReferencial}
           onChange={(e) => onChange({ tarifaBaseReferencial: e.target.value })}
+          placeholder="0.00"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="form-margen">Margen objetivo % (opcional)</Label>
+        <Input
+          id="form-margen"
+          type="number"
+          min={0}
+          step="0.01"
+          value={form.margenPct}
+          onChange={(e) => onChange({ margenPct: e.target.value })}
           placeholder="0.00"
         />
       </div>
@@ -623,6 +641,90 @@ function BadgeEstado({ estado }: { estado: EstadoModalidad }) {
 }
 
 // ---------------------------------------------------------------------------
+// Columnas de la tabla (la tabla generica solo las renderiza)
+// ---------------------------------------------------------------------------
+
+const COLUMNAS: ColumnaTabla<Modalidad>[] = [
+  {
+    id: "codigo",
+    encabezado: "Codigo",
+    ancho: "w-[10%]",
+    className: "truncate text-sm tabular-nums text-muted-foreground",
+    celda: (item) => item.codigo,
+  },
+  {
+    id: "nombre",
+    encabezado: "Nombre",
+    ancho: "w-[19%]",
+    className: "text-sm font-medium",
+    celda: (item) => (
+      <div className="flex items-center gap-1.5">
+        <span className="truncate">{item.nombre}</span>
+        {item.documentacionRequerida.length > 0 ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge variant="secondary" className="shrink-0 font-normal">
+                {item.documentacionRequerida.length} doc.
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <ul className="list-disc pl-4">
+                {item.documentacionRequerida.map((doc, i) => (
+                  <li key={i}>{doc}</li>
+                ))}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+      </div>
+    ),
+  },
+  {
+    id: "tipoLinea",
+    encabezado: "Tipo de linea",
+    ancho: "w-[13%]",
+    className: "truncate text-sm text-muted-foreground",
+    celda: (item) => etiquetaTipo(item.tipoLinea),
+  },
+  {
+    id: "unidadCobro",
+    encabezado: "Unidad de cobro",
+    ancho: "w-[12%]",
+    className: "truncate text-sm text-muted-foreground",
+    celda: (item) => etiquetaUnidadCobro(item.unidadCobro),
+  },
+  {
+    id: "tarifa",
+    encabezado: "Tarifa base",
+    ancho: "w-[12%]",
+    alineacion: "derecha",
+    className: "text-sm tabular-nums",
+    celda: (item) => formatearTarifa(item.tarifaBaseReferencial),
+  },
+  {
+    id: "margen",
+    encabezado: "Margen",
+    ancho: "w-[9%]",
+    alineacion: "derecha",
+    className: "text-sm tabular-nums",
+    celda: (item) => formatearMargen(item.margenPct),
+  },
+  {
+    id: "moneda",
+    encabezado: "Moneda",
+    ancho: "w-[8%]",
+    className: "text-sm text-muted-foreground",
+    celda: (item) => etiquetaMoneda(item.moneda),
+  },
+  {
+    id: "estado",
+    encabezado: "Estado",
+    ancho: "w-[10%]",
+    celda: (item) => <BadgeEstado estado={item.estado} />,
+  },
+]
+
+// ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
 
@@ -640,10 +742,6 @@ export function CatalogoModalidadesListado({
   const total = consulta.data?.total ?? 0
   const pagina = consulta.data?.pagina ?? filtros.pagina ?? 1
   const porPagina = consulta.data?.porPagina ?? filtros.porPagina ?? 10
-
-  const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
-  const desdeVisible = total ? (pagina - 1) * porPagina + 1 : 0
-  const hastaVisible = Math.min(pagina * porPagina, total)
 
   const [busquedaLocal, setBusquedaLocal] = useState(filtros.busqueda ?? "")
   const [estadoLocal, setEstadoLocal] = useState<string>(filtros.estado ?? "TODOS")
@@ -666,6 +764,21 @@ export function CatalogoModalidadesListado({
       tipo: tipoLocal === "TODOS" ? undefined : (tipoLocal as TipoModalidad),
       pagina: 1,
     })
+  }
+
+  function accionesModalidad(item: Modalidad): AccionTabla<Modalidad>[] {
+    return [
+      {
+        etiqueta: "Editar",
+        icono: Pencil,
+        alSeleccionar: () => setItemEditando(item),
+      },
+      {
+        etiqueta: item.estado === "ACTIVA" ? "Desactivar" : "Activar",
+        icono: item.estado === "ACTIVA" ? CircleX : CircleCheck,
+        alSeleccionar: () => setItemCambiandoEstado(item),
+      },
+    ]
   }
 
   return (
@@ -760,139 +873,21 @@ export function CatalogoModalidadesListado({
         </div>
 
         {/* Tabla */}
-        <div className="overflow-hidden rounded-xl border border-border">
-          <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[10%]">Codigo</TableHead>
-                <TableHead className="w-[22%]">Nombre</TableHead>
-                <TableHead className="w-[16%]">Tipo de linea</TableHead>
-                <TableHead className="w-[15%]">Unidad de cobro</TableHead>
-                <TableHead className="w-[9%]">Moneda</TableHead>
-                <TableHead className="w-[12%]">Estado</TableHead>
-                <TableHead className="w-[12%] text-center">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {consulta.isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={7}>
-                      <Skeleton className="h-7 w-full" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : filas.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-28 text-center text-muted-foreground">
-                    No hay modalidades para los filtros aplicados.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filas.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="truncate font-mono text-sm">{item.codigo}</TableCell>
-                    <TableCell className="text-sm font-medium">
-                      <div className="flex items-center gap-1.5">
-                        <span className="truncate">{item.nombre}</span>
-                        {item.documentacionRequerida.length > 0 ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="secondary" className="shrink-0 font-normal">
-                                {item.documentacionRequerida.length} doc.
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <ul className="list-disc pl-4">
-                                {item.documentacionRequerida.map((doc, i) => (
-                                  <li key={i}>{doc}</li>
-                                ))}
-                              </ul>
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="truncate text-sm">{etiquetaTipo(item.tipoLinea)}</TableCell>
-                    <TableCell className="truncate text-sm">
-                      {etiquetaUnidadCobro(item.unidadCobro)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {etiquetaMoneda(item.moneda)}
-                    </TableCell>
-                    <TableCell>
-                      <BadgeEstado estado={item.estado} />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon-sm"
-                              variant="outline"
-                              onClick={() => setItemEditando(item)}
-                              aria-label="Editar"
-                            >
-                              <Pencil />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Editar</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon-sm"
-                              variant="outline"
-                              onClick={() => setItemCambiandoEstado(item)}
-                              aria-label={item.estado === "ACTIVA" ? "Desactivar" : "Activar"}
-                            >
-                              {item.estado === "ACTIVA" ? <CircleCheck /> : <CircleX />}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {item.estado === "ACTIVA" ? "Desactivar" : "Activar"}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Paginacion */}
-        <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div>
-            {total > 0
-              ? `Mostrando ${desdeVisible}-${hastaVisible} de ${total} registros`
-              : "Sin resultados"}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina <= 1}
-              onClick={() => onFiltrosChange({ pagina: pagina - 1 })}
-            >
-              Anterior
-            </Button>
-            <span className="min-w-20 text-center">
-              {pagina} / {totalPaginas}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina >= totalPaginas}
-              onClick={() => onFiltrosChange({ pagina: pagina + 1 })}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
+        <TablaDatos
+          columnas={COLUMNAS}
+          datos={filas}
+          obtenerId={(item) => item.id}
+          acciones={accionesModalidad}
+          cargando={consulta.isLoading}
+          paginacion={{
+            pagina,
+            porPagina,
+            total,
+            alCambiarPagina: (nuevaPagina) => onFiltrosChange({ pagina: nuevaPagina }),
+          }}
+          vacioTitulo="Sin modalidades"
+          vacioDescripcion="No hay modalidades para los filtros aplicados."
+        />
       </CardContent>
 
       {/* Dialogs */}

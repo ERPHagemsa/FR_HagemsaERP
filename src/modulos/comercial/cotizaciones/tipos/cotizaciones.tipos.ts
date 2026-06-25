@@ -259,6 +259,7 @@ export type Modalidad = {
   unidadCobro: UnidadCobro;
   estado: EstadoModalidad;
   tarifaBaseReferencial: number | null;
+  margenPct: number | null;
   moneda: Moneda | null;
   requiereAprobacion: boolean;
   documentacionRequerida: string[];
@@ -364,6 +365,7 @@ export type PayloadCrearModalidad = {
   descripcion?: string;
   tipo?: TipoModalidad;
   tarifaBaseReferencial?: number;
+  margenPct?: number;
   moneda?: Moneda;
   requiereAprobacion?: boolean;
   documentacionRequerida?: string[];
