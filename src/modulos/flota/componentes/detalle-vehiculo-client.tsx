@@ -439,7 +439,7 @@ export default function DetalleVehiculoClient({
               Volver
             </Button>
             <Button asChild variant="outline" size="sm">
-              <Link href={`/flota/unidades/${encodeURIComponent(unidadId)}/auditoria`}>
+              <Link href={`/flota/unidades/${encodeURIComponent(unidadId)}/historial`}>
                 <TrendingUp data-icon="inline-start" />
                 Auditar
               </Link>

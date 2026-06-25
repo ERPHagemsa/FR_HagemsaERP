@@ -140,7 +140,7 @@ function generarNumerosPaginas(paginaActual: number, totalPaginas: number) {
   return paginas;
 }
 
-export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
+export function FlotaHistorialVista({ id, placa, historial }: Props) {
   const [pagina, setPagina] = useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = useState(10);
 
@@ -158,17 +158,17 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
   return (
     <>
       <SiteHeader
-        title="Auditoria de unidad"
+        title="Historial de unidad"
         breadcrumbs={[
           { title: "Flota y Disponibilidad", href: "/flota" },
           { title: "Listar unidades", href: "/flota/unidades" },
-          { title: "Auditoria" },
+          { title: "Historial" },
         ]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
           <FlotaPageHeader
-            title={`Auditoria de ${placa ?? id}`}
+            title={`Historial de ${placa ?? id}`}
             description="Revisa los movimientos y cambios registrados para esta unidad."
             meta={
               <Badge
@@ -207,7 +207,7 @@ export function FlotaAuditoriaVista({ id, placa, historial }: Props) {
             {historial.length === 0 ? (
               <Empty className="py-12">
                 <EmptyHeader>
-                  <EmptyTitle>Sin auditoria registrada</EmptyTitle>
+                  <EmptyTitle>Sin historial registrado</EmptyTitle>
                   <EmptyDescription>
                     No se encontraron movimientos para este vehiculo.
                   </EmptyDescription>
