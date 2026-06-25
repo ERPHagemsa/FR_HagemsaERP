@@ -18,6 +18,19 @@ export type EstadoSolicitudCliente =
 
 export type TipoOrigen = "PROSPECTO" | "CLIENTE";
 
+// Buckets del pipeline (estilo Salesforce): filtran el listado y son la
+// contraparte 1:1 de los KPIs de /resumen. Comparten predicado con el backend
+// (fuente unica de verdad), por eso el numero del KPI === filas del bucket.
+//   disponibles  → PENDIENTE
+//   enCotizacion → EN_COTIZACION con cotizacion viva
+//   sinRespuesta → EN_COTIZACION sin cotizacion viva (todas terminales)
+//   cotizadas    → COTIZADA
+export type BucketSolicitudCliente =
+  | "disponibles"
+  | "enCotizacion"
+  | "sinRespuesta"
+  | "cotizadas";
+
 // ---------------------------------------------------------------------------
 // Entidades de lectura (read model)
 // ---------------------------------------------------------------------------
@@ -105,16 +118,42 @@ export type RespuestaPaginadaSolicitudes = {
 };
 
 // ---------------------------------------------------------------------------
+// KPIs del pipeline (GET /solicitudes-cliente/resumen)
+// ---------------------------------------------------------------------------
+
+// Contadores agregados del pipeline. Invariante backend:
+//   disponibles + enCotizacion + sinRespuesta + cotizadas === total
+// `total` excluye CERRADA y DESCARTADA (solo pipeline activo).
+export type ResumenSolicitudesCliente = {
+  total: number;
+  disponibles: number;
+  enCotizacion: number;
+  sinRespuesta: number;
+  cotizadas: number;
+};
+
+// ---------------------------------------------------------------------------
 // Filtros para el listado
 // ---------------------------------------------------------------------------
 
 export type FiltrosSolicitudesCliente = {
   estado?: EstadoSolicitudCliente;
+  // `bucket` y `estado` son mutuamente excluyentes en el backend (400 si van
+  // juntos). La UI usa `bucket` (KPIs clicables); `estado` queda por compat.
+  bucket?: BucketSolicitudCliente;
   origenTipo?: TipoOrigen;
+  origenId?: string;
   busqueda?: string;
   pagina?: number;
   porPagina?: number;
 };
+
+// Filtros de contexto que acepta /resumen (no pagina ni filtra por estado/bucket:
+// los KPIs siempre cuentan todo el pipeline bajo el mismo contexto de busqueda).
+export type FiltrosResumenSolicitudes = Pick<
+  FiltrosSolicitudesCliente,
+  "origenTipo" | "origenId" | "busqueda"
+>;
 
 // ---------------------------------------------------------------------------
 // Payloads de escritura (write model)

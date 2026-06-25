@@ -3,6 +3,7 @@
 // consultas montadas con esa clave se refetchean (ver compartido/api/use-consulta).
 // Convencion: "comercial/<recurso>" (lista) y "comercial/<recurso>/detalle".
 export const CLAVE_SOLICITUDES_CLIENTE = "comercial/solicitudes-cliente";
+export const CLAVE_SOLICITUDES_CLIENTE_RESUMEN = "comercial/solicitudes-cliente/resumen";
 export const CLAVE_SOLICITUD_CLIENTE_DETALLE = "comercial/solicitudes-cliente/detalle";
 export const CLAVE_PROSPECTOS = "comercial/prospectos";
 export const CLAVE_PROSPECTO_DETALLE = "comercial/prospectos/detalle";

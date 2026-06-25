@@ -10,12 +10,6 @@ import type {
   ColumnaTabla,
 } from "@/compartido/componentes/tabla-datos/tabla-datos.tipos";
 import { Button } from "@/compartido/componentes/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card";
 import { toast } from "sonner";
 import { Input } from "@/compartido/componentes/ui/input";
 import {
@@ -29,11 +23,13 @@ import { cn } from "@/compartido/utilidades";
 
 import { accionesPermitidasSC } from "../tipos/solicitud-cliente.tipos";
 import type {
+  BucketSolicitudCliente,
   FiltrosSolicitudesCliente,
   SolicitudClienteResumen,
   TipoOrigen,
 } from "../tipos/solicitud-cliente.tipos";
 import { EstadoSolicitudBadge } from "./estado-solicitud-badge";
+import { SolicitudesClienteKpis } from "./solicitudes-cliente-kpis";
 import { SolicitudClienteNuevaSheet } from "./solicitud-cliente-nueva-sheet";
 
 type Props = {
@@ -41,16 +37,6 @@ type Props = {
   filtros: FiltrosSolicitudesCliente;
   total: number;
 };
-
-// Opciones del control segmentado de estado (pool de trabajo).
-// "TODOS" es el valor interno para "sin filtro de estado".
-type OpcionSegmento = { valor: string; etiqueta: string };
-
-const SEGMENTOS_ESTADO: OpcionSegmento[] = [
-  { valor: "PENDIENTE", etiqueta: "Por cotizar" },
-  { valor: "EN_COTIZACION", etiqueta: "En cotizacion" },
-  { valor: "TODOS", etiqueta: "Todas" },
-];
 
 const ORIGENES: Array<{ valor: TipoOrigen | "TODOS"; etiqueta: string }> = [
   { valor: "TODOS", etiqueta: "Todos" },
@@ -111,7 +97,7 @@ const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
   },
   {
     id: "cotizaciones",
-    encabezado: "Cotiz.",
+    encabezado: "N° cotiz.",
     ancho: "w-[8%]",
     alineacion: "derecha",
     className: "whitespace-nowrap",
@@ -122,22 +108,35 @@ const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
     ),
   },
   {
-    // "Cotizada por": ejecutivo de la cotizacion viva. Sin cotizacion viva la
-    // SC vuelve al pool → "Disponible".
+    // "Cotizada por": ejecutivo de la cotizacion viva. Sin cotizacion viva la SC
+    // vuelve al pool; el matiz se alinea con los buckets de KPI:
+    //   PENDIENTE      → "Disponible"   (ingreso fresco, ambar)
+    //   EN_COTIZACION  → "Sin respuesta" (se cotizó y cayó, rosa — necesita rescate)
     id: "cotizadaPor",
     encabezado: "Cotizada por",
     ancho: "w-[13%]",
-    celda: (item) =>
-      item.cotizacionVigente == null ? (
+    celda: (item) => {
+      if (item.cotizacionVigente != null) {
+        return (
+          <span className="block truncate text-sm">
+            {item.cotizacionVigente.ejecutivo.nombre}
+          </span>
+        );
+      }
+      const sinRespuesta = item.estado === "EN_COTIZACION";
+      return (
         <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-          <span className="size-2 rounded-full bg-amber-500" aria-hidden />
-          Disponible
+          <span
+            className={cn(
+              "size-2 rounded-full",
+              sinRespuesta ? "bg-rose-500" : "bg-amber-500"
+            )}
+            aria-hidden
+          />
+          {sinRespuesta ? "Sin respuesta" : "Disponible"}
         </span>
-      ) : (
-        <span className="block truncate text-sm">
-          {item.cotizacionVigente.ejecutivo.nombre}
-        </span>
-      ),
+      );
+    },
   },
   {
     id: "estado",
@@ -188,7 +187,6 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   const porPagina = filtros.porPagina ?? 10;
 
   const [busquedaLocal, setBusquedaLocal] = React.useState(filtros.busqueda ?? "");
-  const [estadoLocal, setEstadoLocal] = React.useState(filtros.estado ?? "TODOS");
   const [origenLocal, setOrigenLocal] = React.useState(filtros.origenTipo ?? "TODOS");
 
   function construirUrl(params: Record<string, string | number | undefined>) {
@@ -202,10 +200,25 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
     return qs ? `${pathname}?${qs}` : pathname;
   }
 
+  // KPI clicable → fija el bucket (o lo limpia) y vuelve a la pagina 1.
+  // Preserva los filtros de contexto YA aplicados (origen/busqueda), no el
+  // input local sin confirmar.
+  function seleccionarBucket(bucket: BucketSolicitudCliente | null) {
+    router.push(
+      construirUrl({
+        bucket: bucket ?? undefined,
+        origenTipo: filtros.origenTipo,
+        busqueda: filtros.busqueda,
+        pagina: 1,
+        porPagina: filtros.porPagina,
+      })
+    );
+  }
+
   function aplicarFiltros() {
     router.push(
       construirUrl({
-        estado: estadoLocal,
+        bucket: filtros.bucket,
         origenTipo: origenLocal,
         busqueda: busquedaLocal,
         pagina: 1,
@@ -216,7 +229,6 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
 
   function limpiarFiltros() {
     setBusquedaLocal("");
-    setEstadoLocal("TODOS");
     setOrigenLocal("TODOS");
     router.push(pathname);
   }
@@ -224,7 +236,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   function irAPagina(nuevaPagina: number) {
     router.push(
       construirUrl({
-        estado: filtros.estado,
+        bucket: filtros.bucket,
         origenTipo: filtros.origenTipo,
         busqueda: filtros.busqueda,
         pagina: nuevaPagina,
@@ -234,86 +246,67 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   }
 
   const hayFiltros =
-    !!filtros.estado || !!filtros.origenTipo || !!filtros.busqueda;
+    !!filtros.bucket || !!filtros.origenTipo || !!filtros.busqueda;
+
+  const barraHerramientas = (
+    <div className="flex flex-wrap items-end gap-3">
+      <div className="grid min-w-64 flex-1 gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">
+          Busqueda
+        </span>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar por solicitante o descripcion..."
+            value={busquedaLocal}
+            onChange={(e) => setBusquedaLocal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
+          />
+        </div>
+      </div>
+      <FiltroSelect
+        className="min-w-36"
+        label="Origen"
+        value={origenLocal}
+        valores={ORIGENES.map((o) => o.valor)}
+        etiquetas={ORIGENES.map((o) => o.etiqueta)}
+        onChange={setOrigenLocal}
+      />
+      <Button type="button" onClick={aplicarFiltros}>
+        Buscar
+      </Button>
+      {hayFiltros ? (
+        <Button type="button" variant="outline" onClick={limpiarFiltros}>
+          <RefreshCw data-icon="inline-start" />
+          Limpiar
+        </Button>
+      ) : null}
+      <Button className="ml-auto" onClick={() => setCrearAbierto(true)}>
+        <Plus data-icon="inline-start" />
+        Nueva solicitud
+      </Button>
+    </div>
+  );
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <CardTitle>Solicitudes de cliente</CardTitle>
-          <Button onClick={() => setCrearAbierto(true)}>
-            <Plus data-icon="inline-start" />
-            Nueva solicitud
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {/* Filtros */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="grid min-w-64 flex-1 gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Busqueda
-            </span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Buscar por solicitante o descripcion..."
-                value={busquedaLocal}
-                onChange={(e) => setBusquedaLocal(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              />
-            </div>
-          </div>
-          <FiltroSelect
-            className="min-w-40 flex-1"
-            label="Estado"
-            value={estadoLocal}
-            valores={SEGMENTOS_ESTADO.map((s) => s.valor)}
-            etiquetas={SEGMENTOS_ESTADO.map((s) => s.etiqueta)}
-            onChange={setEstadoLocal}
-          />
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Origen"
-            value={origenLocal}
-            valores={ORIGENES.map((o) => o.valor)}
-            etiquetas={ORIGENES.map((o) => o.etiqueta)}
-            onChange={setOrigenLocal}
-          />
-          <Button type="button" onClick={aplicarFiltros}>
-            Buscar
-          </Button>
-        </div>
+    <div className="flex flex-col gap-4">
+      <SolicitudesClienteKpis filtros={filtros} onSeleccionar={seleccionarBucket} />
 
-        {hayFiltros ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              className="h-8"
-              variant="outline"
-              onClick={limpiarFiltros}
-            >
-              <RefreshCw />
-              Limpiar filtros
-            </Button>
-          </div>
-        ) : null}
-
-        <TablaDatos
-          columnas={COLUMNAS}
-          datos={items}
-          obtenerId={(item) => item.id}
-          acciones={accionesSolicitud}
-          paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
-          vacioTitulo={hayFiltros ? "Sin coincidencias" : "Sin solicitudes"}
-          vacioDescripcion={
-            hayFiltros
-              ? "No se encontraron solicitudes con los filtros aplicados. Intenta ampliar la busqueda."
-              : "No hay solicitudes de cliente registradas."
-          }
-        />
-      </CardContent>
+      <TablaDatos
+        columnas={COLUMNAS}
+        datos={items}
+        obtenerId={(item) => item.id}
+        acciones={accionesSolicitud}
+        barraHerramientas={barraHerramientas}
+        paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
+        vacioTitulo={hayFiltros ? "Sin coincidencias" : "Sin solicitudes"}
+        vacioDescripcion={
+          hayFiltros
+            ? "No se encontraron solicitudes con los filtros aplicados. Intenta ampliar la busqueda."
+            : "No hay solicitudes de cliente registradas."
+        }
+      />
 
       <SolicitudClienteNuevaSheet
         abierto={crearAbierto}
@@ -323,7 +316,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
           toast.success("Solicitud registrada");
         }}
       />
-    </Card>
+    </div>
   );
 }
 
