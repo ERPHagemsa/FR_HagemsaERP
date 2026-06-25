@@ -25,16 +25,19 @@ import {
 import { Input } from "@/compartido/componentes/ui/input"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
-import { Spinner } from "@/compartido/componentes/ui/spinner"
 import { cn } from "@/compartido/utilidades/utils"
 import {
   ArchiveRestore,
   ArchiveX,
   ArrowLeft,
+  Ban,
   BriefcaseBusiness,
+  CalendarRange,
   CheckCircle2,
   CircleX,
+  GitBranch,
   Pencil,
+  SendHorizontal,
   TrendingUp,
 } from "lucide-react"
 
@@ -44,38 +47,31 @@ import {
   useModificarSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
   useRechazarSocioDeNegocioMutation,
+  useReemplazarSocioDeNegocioMutation,
+  useReenviarAprobacionSocioDeNegocioMutation,
   useSocioDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
 import { EstadoSincronizacionSapBadge } from "../componentes/estado-sincronizacion-sap-badge"
-import { AsignacionesPersonalSeccion } from "../componentes/asignaciones-personal-seccion"
+import { DatoVer } from "../componentes/socio-negocio-detalle-dato"
+import { SocioNegocioDetalleCliente } from "../componentes/socio-negocio-detalle-cliente"
+import { SocioNegocioDetalleProveedor } from "../componentes/socio-negocio-detalle-proveedor"
+import { SocioNegocioDetallePersonal } from "../componentes/socio-negocio-detalle-personal"
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
-import type {
-  ModificarSocioDeNegocioRequest,
-  SocioDeNegocioResponse,
-} from "../tipos/socio-negocio"
 import {
   puedeGestionarAsignacionesPersonal,
+  puedeReenviarAprobacionSocio,
   puedeResolverAprobacionSocio,
 } from "../tipos/socio-negocio"
-
-function formatearFecha(fecha?: string | Date | null) {
-  if (!fecha) return "-"
-
-  return new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(fecha))
-}
+import type {
+  ModificarSocioDeNegocioRequest,
+  ReemplazarSocioDeNegocioRequest,
+  SocioDeNegocioResponse,
+  TipoSocioDeNegocio,
+} from "../tipos/socio-negocio"
 
 function obtenerMensajeError(error: unknown) {
-  if (error instanceof Error) {
-    if (error.message.includes("El personal debe estar aprobado, activo y con registro activo")) {
-      return "Para guardar una asignacion, primero aprueba el personal y verifica que este activo y no anulado."
-    }
-    return error.message
-  }
-
+  if (error instanceof Error) return error.message
   return "No se pudo completar la operacion."
 }
 
@@ -83,65 +79,35 @@ function obtenerTextoFormulario(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim()
 }
 
+function obtenerTipoDesdeUrl(tipo: string | null): TipoSocioDeNegocio | undefined {
+  if (tipo === "CLIENTE" || tipo === "PROVEEDOR" || tipo === "PERSONAL") {
+    return tipo
+  }
+
+  return undefined
+}
+
+function obtenerNombreSocio(socio: SocioDeNegocioResponse) {
+  if (socio.tipo === "PERSONAL") {
+    return (
+      socio.nombreCompleto ||
+      [socio.primerNombre, socio.segundoNombre, socio.apellidoPaterno, socio.apellidoMaterno]
+        .filter(Boolean)
+        .join(" ") ||
+      socio.numeroDocumento
+    )
+  }
+
+  return socio.razonSocial || socio.nombreComercial || socio.numeroDocumento
+}
+
 function conservarSoloDigitos(event: FormEvent<HTMLInputElement>, maxLength: number) {
   event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, maxLength)
 }
 
-function DatoVer({
-  label,
-  value,
-}: {
-  label: string
-  value?: string | number | null
-}) {
-  return (
-    <div className="min-w-0 bg-card p-4">
-      <dt className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="mt-1.5 break-words font-medium">{value || "-"}</dd>
-    </div>
-  )
-}
+function EstadoResumen({ socio }: { socio: SocioDeNegocioResponse }) {
+  const aplicaSap = socio.tipo !== "PERSONAL"
 
-function EstadoAprobacionBadge({
-  estado,
-  procesando,
-}: {
-  estado: SocioDeNegocioResponse["estadoAprobacion"]
-  procesando?: boolean
-}) {
-  if (procesando) {
-    return (
-      <Badge variant="secondary" className="bg-background text-muted-foreground">
-        <Spinner data-icon="inline-start" />
-        Actualizando
-      </Badge>
-    )
-  }
-
-  if (estado === "APROBADO") {
-    return <Badge variant="outline">Aprobado</Badge>
-  }
-
-  if (estado === "PENDIENTE_APROBACION") {
-    return <Badge variant="secondary">Pendiente</Badge>
-  }
-
-  return (
-    <Badge variant="outline" className="border-destructive/20 text-destructive">
-      No aprobado
-    </Badge>
-  )
-}
-
-function EstadoResumen({
-  socio,
-  aprobacionProcesando,
-}: {
-  socio: SocioDeNegocioResponse
-  aprobacionProcesando?: boolean
-}) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -161,14 +127,22 @@ function EstadoResumen({
       >
         {socio.estadoRegistro}
       </Badge>
-      <EstadoAprobacionBadge
-        estado={socio.estadoAprobacion}
-        procesando={aprobacionProcesando}
-      />
-      <EstadoSincronizacionSapBadge
-        estado={socio.estadoSincronizacionSap}
-        ultimoError={socio.ultimoErrorSincronizacionSap}
-      />
+      <Badge
+        variant="outline"
+        className="h-6 rounded-full px-2.5 text-[12px] font-medium shadow-xs"
+      >
+        {socio.estadoAprobacion === "APROBADO"
+          ? "Aprobado"
+          : socio.estadoAprobacion === "PENDIENTE_APROBACION"
+            ? "Pendiente"
+            : "No aprobado"}
+      </Badge>
+      {aplicaSap && socio.estadoSincronizacionSap ? (
+        <EstadoSincronizacionSapBadge
+          estado={socio.estadoSincronizacionSap}
+          ultimoError={socio.ultimoErrorSincronizacionSap}
+        />
+      ) : null}
       <Badge variant="outline">{socio.origen}</Badge>
     </div>
   )
@@ -177,14 +151,28 @@ function EstadoResumen({
 export function SocioNegocioDetalleVista({ id }: { id: string }) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const socioQuery = useSocioDeNegocioQuery(id)
+  const tipoDetalle = obtenerTipoDesdeUrl(searchParams.get("tipo"))
+  const socioQuery = useSocioDeNegocioQuery(id, tipoDetalle)
   const socio = socioQuery.data
   const { usuario } = useSesion()
   const usuarioId = usuario?.nombreUsuario ?? ""
+
+  // Al volver, regresamos a la lista del tipo que se esta viendo (personal,
+  // clientes o proveedores). Si aun no se conoce el tipo, cae al listado general.
+  const tipoEfectivo = socio?.tipo ?? tipoDetalle
+  const listado =
+    tipoEfectivo === "PERSONAL"
+      ? { href: "/socio-negocios/personal", titulo: "Personal" }
+      : tipoEfectivo === "CLIENTE"
+        ? { href: "/socio-negocios/clientes", titulo: "Clientes" }
+        : tipoEfectivo === "PROVEEDOR"
+          ? { href: "/socio-negocios/proveedores", titulo: "Proveedores" }
+          : { href: "/socio-negocios/listar", titulo: "Listar" }
   const [motivo, setMotivo] = useState("")
   const [dialogoEstadoAbierto, setDialogoEstadoAbierto] = useState(false)
-  const [dialogoRechazoAbierto, setDialogoRechazoAbierto] = useState(false)
   const [accionEstado, setAccionEstado] = useState<"baja" | "anular" | null>(null)
+  const [dialogoRechazoAbierto, setDialogoRechazoAbierto] = useState(false)
+  const [motivoRechazo, setMotivoRechazo] = useState("")
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const bajaMutation = useDarDeBajaSocioDeNegocioMutation(id, {
@@ -197,28 +185,47 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       void socioQuery.refetch()
     },
   })
+  const reemplazarMutation = useReemplazarSocioDeNegocioMutation(id)
+  const reactivarMutation = useReactivarSocioDeNegocioMutation(id)
   const aprobarMutation = useAprobarSocioDeNegocioMutation(id, {
     onSuccess: () => void socioQuery.refetch(),
   })
   const rechazarMutation = useRechazarSocioDeNegocioMutation(id, {
     onSuccess: () => void socioQuery.refetch(),
   })
-  const reactivarMutation = useReactivarSocioDeNegocioMutation(id)
-  const aprobacionProcesando =
-    aprobarMutation.isPending || rechazarMutation.isPending
+  const reenviarAprobacionMutation = useReenviarAprobacionSocioDeNegocioMutation(id, {
+    onSuccess: () => void socioQuery.refetch(),
+  })
 
   const puedeDarBaja =
-    socio?.estado === "ACTIVO" &&
-    socio.estadoRegistro === "ACTIVO" &&
-    socio.estadoAprobacion === "APROBADO"
-  const puedeGestionarAsignaciones =
-    socio ? puedeGestionarAsignacionesPersonal(socio) : false
-  const puedeResolverAprobacion =
-    socio ? puedeResolverAprobacionSocio(socio) : false
+    socio?.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
+  // Aprobar/Rechazar solo mientras el socio esta pendiente de aprobacion.
+  const puedeResolverAprobacion = socio
+    ? puedeResolverAprobacionSocio(socio)
+    : false
+  // Reenviar a aprobacion solo cuando el socio fue RECHAZADO y ya se corrigio.
+  const puedeReenviarAprobacion = socio ? puedeReenviarAprobacionSocio(socio) : false
+  // Gestionar asignaciones solo cuando el personal ya esta APROBADO. Mientras
+  // este pendiente, en su lugar se ofrece Aprobar/Rechazar aqui mismo (no hay
+  // que entrar a otra ventana para aprobar).
+  const puedeGestionarAsignaciones = socio
+    ? puedeGestionarAsignacionesPersonal(socio) &&
+      socio.estadoAprobacion === "APROBADO"
+    : false
   const registroAnulado = socio?.estadoRegistro === "ANULADO"
   const modoEdicion =
     searchParams.get("modo") === "editar" && socio?.estadoRegistro !== "ANULADO"
+  // Correccion guiada de un socio RECHAZADO: reutiliza el formulario de edicion y,
+  // tras guardar (PUT), reenvia a aprobacion en la misma accion. Solo aplica a
+  // registros rechazados y vigentes; en otro caso cae al modo de solo lectura.
+  const modoCorregir =
+    searchParams.get("modo") === "corregir" &&
+    socio?.estadoRegistro === "ACTIVO" &&
+    socio?.estadoAprobacion === "RECHAZADO"
+  const modoReemplazo =
+    searchParams.get("modo") === "reemplazar" && socio?.estadoRegistro !== "ANULADO"
   const formEditarId = `editar-socio-${id}`
+  const formReemplazoId = `reemplazar-socio-${id}`
 
   function abrirDialogoEstado(accion: "baja" | "anular") {
     setAccionEstado(accion)
@@ -239,36 +246,12 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       })
       setMensaje(
         accionEstado === "anular"
-          ? `${socio.razonSocial} fue anulado.`
-          : `${socio.razonSocial} fue dado de baja.`,
+          ? `${obtenerNombreSocio(socio)} fue anulado.`
+          : `${obtenerNombreSocio(socio)} fue dado de baja.`,
       )
       setMotivo("")
       setDialogoEstadoAbierto(false)
       setAccionEstado(null)
-    } catch (err) {
-      setError(obtenerMensajeError(err))
-    }
-  }
-
-  async function aprobar() {
-    if (!socio || !puedeResolverAprobacion) return
-    try {
-      setError(null)
-      await aprobarMutation.mutateAsync({ usuarioId })
-      setMensaje(`${socio.razonSocial} fue aprobado.`)
-    } catch (err) {
-      setError(obtenerMensajeError(err))
-    }
-  }
-
-  async function rechazar() {
-    if (!socio || !motivo.trim() || !puedeResolverAprobacion) return
-    try {
-      setError(null)
-      await rechazarMutation.mutateAsync({ usuarioId, motivo: motivo.trim() })
-      setMensaje(`${socio.razonSocial} fue rechazado.`)
-      setMotivo("")
-      setDialogoRechazoAbierto(false)
     } catch (err) {
       setError(obtenerMensajeError(err))
     }
@@ -280,6 +263,32 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       setError(null)
       const nuevo = await reactivarMutation.mutateAsync({ usuarioId })
       router.push(`/socio-negocios/${nuevo.id}`)
+    } catch (err) {
+      setError(obtenerMensajeError(err))
+    }
+  }
+
+  async function aprobar() {
+    if (!socio) return
+    try {
+      setError(null)
+      setMensaje(null)
+      await aprobarMutation.mutateAsync({ usuarioId })
+      setMensaje(`${obtenerNombreSocio(socio)} fue aprobado.`)
+    } catch (err) {
+      setError(obtenerMensajeError(err))
+    }
+  }
+
+  async function rechazar() {
+    if (!socio || !motivoRechazo.trim()) return
+    try {
+      setError(null)
+      setMensaje(null)
+      await rechazarMutation.mutateAsync({ usuarioId, motivo: motivoRechazo.trim() })
+      setMensaje(`${obtenerNombreSocio(socio)} fue rechazado.`)
+      setMotivoRechazo("")
+      setDialogoRechazoAbierto(false)
     } catch (err) {
       setError(obtenerMensajeError(err))
     }
@@ -304,8 +313,43 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       setError(null)
       setMensaje(null)
       await modificarMutation.mutateAsync(payload)
-      setMensaje(`${socio.razonSocial} fue editado.`)
-      router.replace(`/socio-negocios/${id}`)
+      if (modoCorregir) {
+        // Correccion guiada: tras guardar los datos, reenvia a aprobacion para que
+        // el socio rechazado vuelva a quedar pendiente en una sola accion.
+        await reenviarAprobacionMutation.mutateAsync({ usuarioId })
+        setMensaje(`${obtenerNombreSocio(socio)} fue corregido y reenviado a aprobacion.`)
+      } else {
+        setMensaje(`${obtenerNombreSocio(socio)} fue editado.`)
+      }
+      router.replace(`/socio-negocios/${id}?tipo=${socio.tipo}`)
+    } catch (err) {
+      setError(obtenerMensajeError(err))
+    }
+  }
+
+  async function reemplazar(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!socio) return
+
+    const formData = new FormData(event.currentTarget)
+    const payload: ReemplazarSocioDeNegocioRequest = {
+      tipo: socio.tipo,
+      numeroDocumento: obtenerTextoFormulario(formData, "numeroDocumento"),
+      razonSocial: obtenerTextoFormulario(formData, "razonSocial"),
+      nombreComercial: obtenerTextoFormulario(formData, "nombreComercial"),
+      direccion: obtenerTextoFormulario(formData, "direccion"),
+      contacto: obtenerTextoFormulario(formData, "contacto"),
+      correo: obtenerTextoFormulario(formData, "correo"),
+      numeroCelular: obtenerTextoFormulario(formData, "numeroCelular"),
+      usuarioId,
+      motivo: obtenerTextoFormulario(formData, "motivo"),
+    }
+
+    try {
+      setError(null)
+      setMensaje(null)
+      const nuevo = await reemplazarMutation.mutateAsync(payload)
+      router.push(`/socio-negocios/${nuevo.id}?tipo=${nuevo.tipo}`)
     } catch (err) {
       setError(obtenerMensajeError(err))
     }
@@ -317,7 +361,7 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
         title="Ver socio de negocio"
         breadcrumbs={[
           { title: "Socio de Negocio", href: "/socio-negocios" },
-          { title: "Listar", href: "/socio-negocios/listar" },
+          { title: listado.titulo, href: listado.href },
           { title: "Ver" },
         ]}
       />
@@ -371,20 +415,24 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                         "text-muted-foreground line-through",
                     )}
                   >
-                    {socio.razonSocial}
+                    {obtenerNombreSocio(socio)}
                   </span>
                 }
-                description={`${socio.codigoInternoSap || "Sin codigo SAP"} · Documento ${socio.numeroDocumento}`}
-                meta={<EstadoResumen socio={socio} aprobacionProcesando={aprobacionProcesando} />}
+                description={
+                  socio.tipo === "PERSONAL"
+                    ? `Documento ${socio.numeroDocumento}`
+                    : `${socio.codigoInternoSap || "Sin codigo SAP"} · Documento ${socio.numeroDocumento}`
+                }
+                meta={<EstadoResumen socio={socio} />}
                 actions={
                   <>
-                    {modoEdicion ? (
+                    {modoEdicion || modoCorregir ? (
                       <>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => router.replace(`/socio-negocios/${id}`)}
+                          onClick={() => router.replace(`/socio-negocios/${id}?tipo=${socio.tipo}`)}
                         >
                           Cancelar
                         </Button>
@@ -392,22 +440,45 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                           type="submit"
                           form={formEditarId}
                           size="sm"
-                          disabled={modificarMutation.isPending}
+                          disabled={modificarMutation.isPending || reenviarAprobacionMutation.isPending}
                         >
-                          {modificarMutation.isPending ? "Guardando..." : "Guardar cambios"}
+                          {modificarMutation.isPending || reenviarAprobacionMutation.isPending
+                            ? "Guardando..."
+                            : modoCorregir
+                              ? "Guardar y reenviar a aprobacion"
+                              : "Guardar cambios"}
+                        </Button>
+                      </>
+                    ) : modoReemplazo ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.replace(`/socio-negocios/${id}?tipo=${socio.tipo}`)}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          type="submit"
+                          form={formReemplazoId}
+                          size="sm"
+                          disabled={reemplazarMutation.isPending}
+                        >
+                          {reemplazarMutation.isPending ? "Reemplazando..." : "Reemplazar registro"}
                         </Button>
                       </>
                     ) : (
                       <>
                         <Button asChild variant="outline" size="sm">
-                          <Link href="/socio-negocios/listar">
+                          <Link href={listado.href}>
                             <ArrowLeft data-icon="inline-start" />
                             Volver al listado
                           </Link>
                         </Button>
                         {!registroAnulado ? (
                           <Button asChild variant="outline" size="sm">
-                            <Link href={`/socio-negocios/${id}?modo=editar`}>
+                            <Link href={`/socio-negocios/${id}?tipo=${socio.tipo}&modo=editar`}>
                               <Pencil data-icon="inline-start" />
                               Editar datos
                             </Link>
@@ -421,28 +492,47 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                             </Link>
                           </Button>
                         ) : null}
-                        {puedeResolverAprobacion ? (
-                          <>
-                            <Button
-                              size="sm"
-                              disabled={aprobarMutation.isPending}
-                              onClick={() => void aprobar()}
-                            >
-                              <CheckCircle2 data-icon="inline-start" />
-                              Aprobar
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={rechazarMutation.isPending}
-                              onClick={() => setDialogoRechazoAbierto(true)}
-                            >
-                              <CircleX data-icon="inline-start" />
-                              Rechazar
-                            </Button>
-                          </>
+                        {puedeGestionarAsignaciones ? (
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/socio-negocios/${id}/disponibilidad`}>
+                              <CalendarRange data-icon="inline-start" />
+                              Disponibilidad
+                            </Link>
+                          </Button>
                         ) : null}
-                        {!registroAnulado && !puedeResolverAprobacion ? (
+                        {puedeResolverAprobacion ? (
+                          <Button
+                            size="sm"
+                            disabled={aprobarMutation.isPending}
+                            onClick={() => void aprobar()}
+                          >
+                            <CheckCircle2 data-icon="inline-start" />
+                            Aprobar
+                          </Button>
+                        ) : null}
+                        {puedeResolverAprobacion ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={rechazarMutation.isPending}
+                            onClick={() => {
+                              setMotivoRechazo("")
+                              setDialogoRechazoAbierto(true)
+                            }}
+                          >
+                            <Ban data-icon="inline-start" />
+                            Rechazar
+                          </Button>
+                        ) : null}
+                        {puedeReenviarAprobacion ? (
+                          <Button asChild size="sm">
+                            <Link href={`/socio-negocios/${id}?tipo=${socio.tipo}&modo=corregir`}>
+                              <SendHorizontal data-icon="inline-start" />
+                              Corregir y reenviar a aprobacion
+                            </Link>
+                          </Button>
+                        ) : null}
+                        {!registroAnulado ? (
                           <Button
                             variant="destructive"
                             size="sm"
@@ -470,6 +560,14 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                             Auditar
                           </Link>
                         </Button>
+                        {socio.tipo === "PERSONAL" ? (
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/socio-negocios/${id}/linea-historica`}>
+                              <GitBranch data-icon="inline-start" />
+                              Línea histórica
+                            </Link>
+                          </Button>
+                        ) : null}
                         {!registroAnulado ? (
                           <Button
                             variant="destructive"
@@ -487,12 +585,21 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                 }
               />
 
-              {modoEdicion ? (
+              {modoEdicion || modoCorregir ? (
                 <form
                   id={formEditarId}
                   className="grid gap-5"
                   onSubmit={(event) => void guardarCambios(event)}
                 >
+                  {modoCorregir ? (
+                    <Alert>
+                      <AlertTitle>Correccion de socio rechazado</AlertTitle>
+                      <AlertDescription>
+                        Corrige los datos observados. Al guardar, el socio se reenviara a
+                        aprobacion y volvera a quedar pendiente.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
                   <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
                     <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
                     <h2 className="text-base font-semibold">Datos que no se modifican</h2>
@@ -500,7 +607,9 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                     <div className="grid gap-3 px-5 py-5 text-sm md:grid-cols-3">
                       <DatoVer label="Tipo" value={socio.tipo} />
                       <DatoVer label="Documento" value={socio.numeroDocumento} />
-                      <DatoVer label="Codigo SAP" value={socio.codigoInternoSap || "-"} />
+                      {socio.tipo !== "PERSONAL" ? (
+                        <DatoVer label="Codigo SAP" value={socio.codigoInternoSap || "-"} />
+                      ) : null}
                     </div>
                   </section>
 
@@ -513,20 +622,24 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                     </div>
                     <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
                     <Field className="md:col-span-2">
-                      <FieldLabel htmlFor={`razonSocial-${id}`}>Razon social</FieldLabel>
+                      <FieldLabel htmlFor={`razonSocial-${id}`}>
+                        {socio.tipo === "PERSONAL" ? "Nombre completo" : "Razon social"}
+                      </FieldLabel>
                       <Input
                         id={`razonSocial-${id}`}
                         name="razonSocial"
-                        defaultValue={socio.razonSocial}
+                        defaultValue={obtenerNombreSocio(socio)}
                         required
                       />
                     </Field>
                     <Field className="md:col-span-2">
-                      <FieldLabel htmlFor={`nombreComercial-${id}`}>Nombre comercial</FieldLabel>
+                      <FieldLabel htmlFor={`nombreComercial-${id}`}>
+                        {socio.tipo === "PERSONAL" ? "Nombre para mostrar" : "Nombre comercial"}
+                      </FieldLabel>
                       <Input
                         id={`nombreComercial-${id}`}
                         name="nombreComercial"
-                        defaultValue={socio.nombreComercial}
+                        defaultValue={socio.nombreComercial || obtenerNombreSocio(socio)}
                         required
                       />
                     </Field>
@@ -574,62 +687,139 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                     </div>
                   </section>
                 </form>
-              ) : (
-                <>
+              ) : modoReemplazo ? (
+                <form
+                  id={formReemplazoId}
+                  className="grid gap-5"
+                  onSubmit={(event) => void reemplazar(event)}
+                >
+                  <Alert>
+                    <AlertTitle>Reemplazo de registro</AlertTitle>
+                    <AlertDescription>
+                      El reemplazo anula este registro y crea uno nuevo corregido enlazado al
+                      anterior. Verifica los datos antes de confirmar.
+                    </AlertDescription>
+                  </Alert>
+
                   <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
                     <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
-                      <h2 className="text-base font-semibold">Informacion del socio</h2>
-                      <p className="text-sm leading-5 text-muted-foreground">
-                        Identidad, contacto y trazabilidad del registro.
+                      <h2 className="text-base font-semibold">Datos del nuevo registro</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Corrige cualquier dato, incluido el documento. El tipo ({socio.tipo}) se
+                        conserva.
                       </p>
                     </div>
-                    <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border text-sm sm:grid-cols-2 lg:grid-cols-3">
-                    <DatoVer label="Nombre comercial" value={socio.nombreComercial} />
-                    <DatoVer label="Tipo" value={socio.tipo} />
-                    <DatoVer label="Aprobacion" value={socio.estadoAprobacion} />
-                    <DatoVer label="Origen" value={socio.origen} />
-                    <DatoVer label="Sincronizacion SAP" value={socio.estadoSincronizacionSap} />
-                    <DatoVer label="Fecha sincronizacion SAP" value={formatearFecha(socio.fechaSincronizacionSap)} />
-                    <DatoVer label="Ultimo error SAP" value={socio.ultimoErrorSincronizacionSap} />
-                    <DatoVer label="Registro anterior" value={socio.registroAnteriorId} />
-                    <DatoVer label="Motivo nuevo registro" value={socio.motivoNuevoRegistro} />
-                    <DatoVer label="Direccion" value={socio.direccion} />
-                    <DatoVer label="Contacto" value={socio.contacto} />
-                    <DatoVer label="Correo" value={socio.correo} />
-                    <DatoVer label="Celular" value={socio.numeroCelular} />
-                    <DatoVer label="Creacion" value={formatearFecha(socio.fechaCreacion)} />
-                    <DatoVer label="Usuario creacion" value={socio.usuarioCreacion} />
-                    <DatoVer label="Fecha aprobacion" value={formatearFecha(socio.fechaAprobacion)} />
-                    <DatoVer label="Usuario aprobacion" value={socio.usuarioAprobacion} />
-                    <DatoVer label="Fecha rechazo" value={formatearFecha(socio.fechaRechazo)} />
-                    <DatoVer label="Motivo rechazo" value={socio.motivoRechazo} />
-                    <DatoVer label="Fecha baja" value={formatearFecha(socio.fechaBaja)} />
-                    <DatoVer label="Motivo baja" value={socio.motivoBaja} />
-                    <DatoVer label="ID" value={socio.id} />
-                    </dl>
+                    <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
+                      <Field>
+                        <FieldLabel htmlFor={`numeroDocumento-${id}`}>Documento</FieldLabel>
+                        <Input
+                          id={`numeroDocumento-${id}`}
+                          name="numeroDocumento"
+                          defaultValue={socio.numeroDocumento}
+                          required
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`reemplazo-razonSocial-${id}`}>
+                          {socio.tipo === "PERSONAL" ? "Nombre completo" : "Razon social"}
+                        </FieldLabel>
+                        <Input
+                          id={`reemplazo-razonSocial-${id}`}
+                          name="razonSocial"
+                          defaultValue={obtenerNombreSocio(socio)}
+                          required
+                        />
+                      </Field>
+                      <Field className="md:col-span-2">
+                        <FieldLabel htmlFor={`reemplazo-nombreComercial-${id}`}>
+                          {socio.tipo === "PERSONAL" ? "Nombre para mostrar" : "Nombre comercial"}
+                        </FieldLabel>
+                        <Input
+                          id={`reemplazo-nombreComercial-${id}`}
+                          name="nombreComercial"
+                          defaultValue={socio.nombreComercial || obtenerNombreSocio(socio)}
+                          required
+                        />
+                      </Field>
+                      <Field className="md:col-span-2">
+                        <FieldLabel htmlFor={`reemplazo-direccion-${id}`}>Direccion</FieldLabel>
+                        <Input
+                          id={`reemplazo-direccion-${id}`}
+                          name="direccion"
+                          defaultValue={socio.direccion}
+                          required
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`reemplazo-contacto-${id}`}>Contacto</FieldLabel>
+                        <Input
+                          id={`reemplazo-contacto-${id}`}
+                          name="contacto"
+                          defaultValue={socio.contacto}
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`reemplazo-correo-${id}`}>Correo</FieldLabel>
+                        <Input
+                          id={`reemplazo-correo-${id}`}
+                          name="correo"
+                          type="email"
+                          defaultValue={socio.correo}
+                        />
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor={`reemplazo-numeroCelular-${id}`}>Celular</FieldLabel>
+                        <Input
+                          id={`reemplazo-numeroCelular-${id}`}
+                          name="numeroCelular"
+                          defaultValue={socio.numeroCelular}
+                          inputMode="numeric"
+                          maxLength={9}
+                          minLength={9}
+                          pattern="[0-9]{9}"
+                          title="Ingresa un celular de 9 digitos."
+                          onInput={(event) => conservarSoloDigitos(event, 9)}
+                        />
+                        <FieldDescription>Solo numeros. Debe tener 9 digitos.</FieldDescription>
+                      </Field>
+                      <Field className="md:col-span-2">
+                        <FieldLabel htmlFor={`reemplazo-motivo-${id}`}>Motivo del reemplazo</FieldLabel>
+                        <Textarea
+                          id={`reemplazo-motivo-${id}`}
+                          name="motivo"
+                          placeholder="Documento registrado incorrectamente"
+                          required
+                        />
+                        <FieldDescription>
+                          El motivo queda registrado en la auditoria del socio.
+                        </FieldDescription>
+                      </Field>
+                    </div>
                   </section>
+                </form>
+              ) : (
+                <>
+                  {socio.tipo === "PERSONAL" ? (
+                    <SocioNegocioDetallePersonal socio={socio} />
+                  ) : socio.tipo === "PROVEEDOR" ? (
+                    <SocioNegocioDetalleProveedor socio={socio} />
+                  ) : (
+                    <SocioNegocioDetalleCliente socio={socio} />
+                  )}
 
-                  {puedeGestionarAsignaciones ? (
-                    <AsignacionesPersonalSeccion
-                      personalId={socio.id}
-                      titulo="Asignaciones del registro actual"
-                      descripcion={`Se consultan con el id actual del personal #${socio.id}.`}
-                      vacioTitulo="Sin asignacion vigente"
-                      vacioDescripcion="Este registro actual todavia no tiene asignaciones."
-                    />
-                  ) : socio.tipo === "PERSONAL" ? (
+                  {!puedeGestionarAsignaciones && socio.tipo === "PERSONAL" ? (
                     <Alert>
-                      <AlertTitle>Asignaciones pendientes de aprobacion</AlertTitle>
+                      <AlertTitle>Asignaciones no disponibles</AlertTitle>
                       <AlertDescription>
-                        Primero aprueba el personal y verifica que este activo y no anulado.
-                        Luego podras gestionar sus asignaciones.
+                        El personal debe estar activo y con registro vigente para gestionar sus
+                        asignaciones.
                       </AlertDescription>
                     </Alert>
                   ) : null}
                 </>
               )}
 
-              {!puedeDarBaja && !registroAnulado ? (
+              {!modoEdicion && !modoReemplazo && !puedeDarBaja && !registroAnulado ? (
                 <Alert>
                   <AlertTitle>Baja no disponible</AlertTitle>
                   <AlertDescription>
@@ -665,9 +855,11 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
 
           <div className="flex flex-col gap-4">
             <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-              <p className="font-medium">{socio?.razonSocial}</p>
+              <p className="font-medium">{socio ? obtenerNombreSocio(socio) : ""}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {socio?.codigoInternoSap || "Sin codigo SAP"} · {socio?.numeroDocumento}
+                {socio?.tipo === "PERSONAL"
+                  ? socio?.numeroDocumento
+                  : `${socio?.codigoInternoSap || "Sin codigo SAP"} · ${socio?.numeroDocumento}`}
               </p>
             </div>
 
@@ -716,23 +908,23 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
         open={dialogoRechazoAbierto}
         onOpenChange={(open) => {
           setDialogoRechazoAbierto(open)
-          if (!open) setMotivo("")
+          if (!open) setMotivoRechazo("")
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Rechazar socio pendiente</AlertDialogTitle>
+            <AlertDialogTitle>Rechazar socio</AlertDialogTitle>
             <AlertDialogDescription>
-              El motivo quedara registrado en la auditoria del socio.
+              El socio quedara inactivo. El motivo se registra en la auditoria.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Field>
             <FieldLabel htmlFor={`motivo-rechazo-${id}`}>Motivo</FieldLabel>
             <Textarea
               id={`motivo-rechazo-${id}`}
-              value={motivo}
-              onChange={(event) => setMotivo(event.target.value)}
-              placeholder="Registro creado por error"
+              value={motivoRechazo}
+              onChange={(event) => setMotivoRechazo(event.target.value)}
+              placeholder="Datos incompletos del socio"
               disabled={rechazarMutation.isPending}
             />
           </Field>
@@ -742,7 +934,7 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={!motivo.trim() || rechazarMutation.isPending}
+              disabled={!motivoRechazo.trim() || rechazarMutation.isPending}
               onClick={(event) => {
                 event.preventDefault()
                 void rechazar()

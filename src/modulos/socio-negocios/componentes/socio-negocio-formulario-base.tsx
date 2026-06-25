@@ -153,7 +153,7 @@ export function SocioNegocioFormularioBase({ tipo }: { tipo: TipoSocioDeNegocio 
           <div>
             <h2 className="text-base font-semibold">Informacion del socio</h2>
             <p className="text-sm leading-5 text-muted-foreground">
-              Completa los datos requeridos para enviar el registro a aprobacion.
+              Completa los datos requeridos para registrar al socio de negocio.
             </p>
           </div>
           <Badge variant="outline">{tipo}</Badge>
