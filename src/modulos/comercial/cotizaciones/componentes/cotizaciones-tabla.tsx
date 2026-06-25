@@ -11,12 +11,6 @@ import type {
 } from "@/compartido/componentes/tabla-datos/tabla-datos.tipos";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import {
   Select,
@@ -217,75 +211,62 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
     !!filtrosActivos.origenTipo ||
     !!filtrosActivos.busqueda;
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Cotizaciones</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {/* Filtros */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="grid min-w-64 flex-1 gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Busqueda
-            </span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Buscar cotizaciones..."
-                value={busquedaLocal}
-                onChange={(e) => setBusquedaLocal(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              />
-            </div>
-          </div>
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Estado"
-            value={estadoLocal}
-            valores={ESTADOS_COTIZACION.map((e) => e.valor)}
-            etiquetas={ESTADOS_COTIZACION.map((e) => e.etiqueta)}
-            onChange={setEstadoLocal}
+  const barraHerramientas = (
+    <div className="flex flex-wrap items-end gap-3">
+      <div className="grid min-w-64 flex-1 gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">
+          Busqueda
+        </span>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar cotizaciones..."
+            value={busquedaLocal}
+            onChange={(e) => setBusquedaLocal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
           />
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Origen"
-            value={origenLocal}
-            valores={ORIGENES.map((o) => o.valor)}
-            etiquetas={ORIGENES.map((o) => o.etiqueta)}
-            onChange={setOrigenLocal}
-          />
-          <Button type="button" onClick={aplicarFiltros}>
-            Buscar
-          </Button>
         </div>
+      </div>
+      <FiltroSelect
+        className="min-w-36"
+        label="Estado"
+        value={estadoLocal}
+        valores={ESTADOS_COTIZACION.map((e) => e.valor)}
+        etiquetas={ESTADOS_COTIZACION.map((e) => e.etiqueta)}
+        onChange={setEstadoLocal}
+      />
+      <FiltroSelect
+        className="min-w-36"
+        label="Origen"
+        value={origenLocal}
+        valores={ORIGENES.map((o) => o.valor)}
+        etiquetas={ORIGENES.map((o) => o.etiqueta)}
+        onChange={setOrigenLocal}
+      />
+      <Button type="button" onClick={aplicarFiltros}>
+        Buscar
+      </Button>
+      {hayFiltros ? (
+        <Button type="button" variant="outline" onClick={limpiarFiltros}>
+          <RefreshCw data-icon="inline-start" />
+          Limpiar
+        </Button>
+      ) : null}
+    </div>
+  );
 
-        {hayFiltros ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              className="h-8"
-              variant="outline"
-              onClick={limpiarFiltros}
-            >
-              <RefreshCw />
-              Limpiar filtros
-            </Button>
-          </div>
-        ) : null}
-
-        <TablaDatos
-          columnas={COLUMNAS}
-          datos={cotizaciones}
-          obtenerId={(cotizacion) => cotizacion.id}
-          acciones={accionesCotizacion}
-          paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
-          vacioTitulo="Sin cotizaciones"
-          vacioDescripcion="No se encontraron cotizaciones con los filtros aplicados."
-        />
-      </CardContent>
-    </Card>
+  return (
+    <TablaDatos
+      columnas={COLUMNAS}
+      datos={cotizaciones}
+      obtenerId={(cotizacion) => cotizacion.id}
+      acciones={accionesCotizacion}
+      barraHerramientas={barraHerramientas}
+      paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
+      vacioTitulo="Sin cotizaciones"
+      vacioDescripcion="No se encontraron cotizaciones con los filtros aplicados."
+    />
   );
 }
 
