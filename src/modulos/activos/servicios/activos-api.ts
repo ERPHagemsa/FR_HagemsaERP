@@ -30,7 +30,6 @@ import type {
   InventarioFisico,
   PerfilCombustible,
   PerfilFlota,
-  PlantillaInventario,
   RegistrarRevisionInventarioFisicoPayload,
   SnapshotHistoricoActivoInventario,
   TanqueActivo,
@@ -39,7 +38,7 @@ import type {
 const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   {
     id: -1,
-    plantillaInventario: "EQUIPO_LIVIANO",
+    claseVehiculoReferenciaId: 4,
     nombre: "PICKUP DOBLE CABINA",
     descripcion: "Camioneta pickup para personal y carga ligera.",
     anchoSugerido: 1.85,
@@ -51,7 +50,7 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   },
   {
     id: -2,
-    plantillaInventario: "EQUIPO_LIVIANO",
+    claseVehiculoReferenciaId: 4,
     nombre: "PICKUP CABINA SIMPLE",
     descripcion: "Pickup con mayor espacio de carga.",
     anchoSugerido: 1.85,
@@ -63,7 +62,7 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   },
   {
     id: -3,
-    plantillaInventario: "EQUIPO_LIVIANO",
+    claseVehiculoReferenciaId: 4,
     nombre: "SUV / STATION WAGON",
     descripcion: "Unidad para transporte de personal.",
     anchoSugerido: 1.9,
@@ -75,7 +74,7 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   },
   {
     id: -4,
-    plantillaInventario: "CAMION",
+    claseVehiculoReferenciaId: 1,
     nombre: "PLATAFORMA",
     descripcion: "Camion rigido para carga general.",
     anchoSugerido: 2.5,
@@ -87,7 +86,7 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   },
   {
     id: -5,
-    plantillaInventario: "CAMION",
+    claseVehiculoReferenciaId: 1,
     nombre: "FURGON CERRADO",
     descripcion: "Camion para carga protegida.",
     anchoSugerido: 2.55,
@@ -99,7 +98,7 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   },
   {
     id: -6,
-    plantillaInventario: "REMOLCADOR",
+    claseVehiculoReferenciaId: 2,
     nombre: "TRACTO 4X2",
     descripcion: "Remolcador para semirremolque liviano o medio.",
     anchoSugerido: 2.55,
@@ -111,7 +110,7 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   },
   {
     id: -7,
-    plantillaInventario: "REMOLCADOR",
+    claseVehiculoReferenciaId: 2,
     nombre: "TRACTO 6X4",
     descripcion: "Remolcador para carga pesada.",
     anchoSugerido: 2.55,
@@ -123,7 +122,7 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   },
   {
     id: -8,
-    plantillaInventario: "SEMIREMOLQUE",
+    claseVehiculoReferenciaId: 3,
     nombre: "PLATAFORMA",
     descripcion: "Semirremolque para carga general.",
     anchoSugerido: 2.55,
@@ -135,7 +134,7 @@ const CARROCERIAS_REFERENCIA_FALLBACK: CarroceriaReferencia[] = [
   },
   {
     id: -9,
-    plantillaInventario: "SEMIREMOLQUE",
+    claseVehiculoReferenciaId: 3,
     nombre: "CISTERNA",
     descripcion: "Semirremolque para liquidos.",
     anchoSugerido: 2.55,
@@ -158,7 +157,7 @@ export type PaginadoActivosParams = {
   limite?: number;
   estadoRegistro?: EstadoRegistro;
   placa?: string;
-  tipoActivo?: string;
+  tipoActivoReferenciaId?: number;
 };
 
 export async function obtenerActivos(
@@ -198,8 +197,8 @@ export async function obtenerActivosPaginado(
     queryParams.estadoRegistro = params.estadoRegistro;
   }
   if (params?.placa) queryParams.placa = params.placa;
-  if (params?.tipoActivo && params.tipoActivo !== "TODOS") {
-    queryParams.tipoActivo = params.tipoActivo;
+  if (params?.tipoActivoReferenciaId !== undefined) {
+    queryParams.tipoActivoReferenciaId = params.tipoActivoReferenciaId;
   }
 
   const { data } = await clienteActivos.get<RespuestaPaginada<Activo>>(
@@ -251,37 +250,37 @@ export async function registrarConfiguracionHistoricaPorCodigo(
 }
 
 export async function obtenerCarroceriasReferencia(
-  plantillaInventario?: PlantillaInventario
+  claseVehiculoReferenciaId?: number
 ): Promise<CarroceriaReferencia[]> {
-  const params = plantillaInventario ? { plantillaInventario } : undefined;
+  const params = claseVehiculoReferenciaId ? { claseVehiculoReferenciaId } : undefined;
   try {
     const { data } = await clienteActivos.get<CarroceriaReferencia[]>(
       "/activos/carrocerias-referencia",
       { params }
     );
     const referencias = Array.isArray(data) ? data : [];
-    const filtradas = plantillaInventario
+    const filtradas = claseVehiculoReferenciaId
       ? referencias.filter(
           (referencia) =>
-            referencia.plantillaInventario === plantillaInventario
+            referencia.claseVehiculoReferenciaId === claseVehiculoReferenciaId
         )
       : referencias;
 
     return filtradas.length
       ? filtradas
-      : obtenerCarroceriasFallback(plantillaInventario);
+      : obtenerCarroceriasFallback(claseVehiculoReferenciaId);
   } catch (error) {
     if (process.env.NODE_ENV !== "production") {
       console.warn("No se pudo cargar carrocerias desde API", error);
     }
-    return obtenerCarroceriasFallback(plantillaInventario);
+    return obtenerCarroceriasFallback(claseVehiculoReferenciaId);
   }
 }
 
-function obtenerCarroceriasFallback(plantillaInventario?: PlantillaInventario) {
-  return plantillaInventario
+function obtenerCarroceriasFallback(claseVehiculoReferenciaId?: number) {
+  return claseVehiculoReferenciaId
     ? CARROCERIAS_REFERENCIA_FALLBACK.filter(
-        (referencia) => referencia.plantillaInventario === plantillaInventario
+        (referencia) => referencia.claseVehiculoReferenciaId === claseVehiculoReferenciaId
       )
     : CARROCERIAS_REFERENCIA_FALLBACK;
 }
@@ -445,6 +444,20 @@ export async function eliminarDocumentoPorCodigo(
 ): Promise<void> {
   await clienteActivos.delete(
     `/activos/codigo/${codigo}/documentos/${documentoId}`
+  );
+}
+
+/**
+ * Quita la cobertura de este activo sobre un documento COMPARTIDO (poliza).
+ * Si era el unico activo cubierto, el documento se borra por completo; si
+ * cubre otros activos, sigue existiendo para ellos.
+ */
+export async function quitarCoberturaDocumentoCompartidoPorCodigo(
+  codigo: string,
+  documentoCompartidoId: number
+): Promise<void> {
+  await clienteActivos.delete(
+    `/activos/codigo/${codigo}/documentos-compartidos/${documentoCompartidoId}`
   );
 }
 

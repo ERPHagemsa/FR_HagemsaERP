@@ -1,4 +1,4 @@
-import type { CrearActivoPayload, TipoActivo } from "./activo.tipos";
+import type { CrearActivoPayload } from "./activo.tipos";
 
 export type EstadoCargaMasiva =
   | "BORRADOR"
@@ -20,7 +20,7 @@ export type FilaCargaMasiva = {
 };
 
 export type CargaMasivaPayload = {
-  tipoActivo: TipoActivo;
+  tipoActivoReferenciaId: number;
   nombreArchivo?: string;
   observacion?: string;
   filas: FilaCargaMasiva[];
@@ -38,7 +38,7 @@ export type CargaMasivaDetalle = {
 export type CargaMasiva = {
   id: number;
   codigo: string;
-  tipoActivo: TipoActivo;
+  tipoActivoReferenciaId: number;
   nombreArchivo: string | null;
   estado: EstadoCargaMasiva;
   totalLeidos: number;

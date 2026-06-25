@@ -63,7 +63,7 @@ export function SocioNegocioFormulario({ tipoInicial }: SocioNegocioFormularioPr
     <div className="flex w-full flex-col gap-5">
       <SocioNegocioPageHeader
         title="Nuevo socio de negocio"
-        description="Crea un registro limpio, revisable y listo para el flujo de aprobacion."
+        description="Crea un registro limpio y revisable del socio de negocio."
         meta={<Badge variant="secondary">Nuevo registro</Badge>}
         actions={
           <>

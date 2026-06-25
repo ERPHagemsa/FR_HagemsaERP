@@ -53,6 +53,18 @@ export async function obtenerContratosDisponibles(): Promise<
   }
 }
 
+export async function obtenerCuentasDisponibles(): Promise<ReferenciaFlota[]> {
+  // BC_Flota mantiene una copia local sincronizada desde BC_ConfiguracionGeneral.
+  try {
+    const { data } = await clienteFlota.get<{ datos?: ReferenciaFlota[] }>(
+      "/flota/cuentas",
+    );
+    return data.datos ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function obtenerUnidades(): Promise<VehiculoFlota[]> {
   try {
     const { data } = await clienteFlota.get<{ datos?: VehiculoFlota[] }>(
@@ -105,6 +117,13 @@ export async function obtenerHistorialPorId(
 
 // ── Mutaciones ───────────────────────────────────────────────────────────────
 
+function aReferenciaPlana(ref: ReferenciaFlota | null): ReferenciaFlota | null {
+  // Normaliza al shape exacto {id, codigo, nombre}: quien llama puede pasar un
+  // objeto mas rico (p.ej. ContratoDisponibleFlota con su propio `cuenta` anidado),
+  // y el backend rechaza campos no declarados (ValidationPipe whitelist).
+  return ref ? { id: ref.id, codigo: ref.codigo, nombre: ref.nombre } : null;
+}
+
 export async function asignarContrato(
   unidadId: string,
   contrato: ReferenciaFlota | null,
@@ -113,8 +132,8 @@ export async function asignarContrato(
   try {
     await clienteFlota.post("/flota/asignaciones-contratos", {
       unidadId,
-      contrato,
-      cuenta,
+      contrato: aReferenciaPlana(contrato),
+      cuenta: aReferenciaPlana(cuenta),
     });
     return {
       success: true,
@@ -136,11 +155,31 @@ export async function retirarContrato(
       `/flota/asignaciones-contratos/${encodeURIComponent(unidadId)}/retirar`,
       {},
     );
-    return { success: true, mensaje: "Contrato retirado exitosamente" };
+    return { success: true, mensaje: "Asignaciones retiradas exitosamente" };
   } catch (error) {
     return {
       success: false,
-      mensaje: mensajeError(error, "Error al retirar el contrato"),
+      mensaje: mensajeError(error, "Error al retirar las asignaciones"),
+    };
+  }
+}
+
+export async function retirarAsignacion(
+  unidadId: string,
+  asignacionId: number,
+): Promise<RespuestaOperacion> {
+  try {
+    await clienteFlota.patch(
+      `/flota/asignaciones-contratos/${encodeURIComponent(
+        unidadId,
+      )}/asignaciones/${asignacionId}/retirar`,
+      {},
+    );
+    return { success: true, mensaje: "Asignacion retirada exitosamente" };
+  } catch (error) {
+    return {
+      success: false,
+      mensaje: mensajeError(error, "Error al retirar la asignacion"),
     };
   }
 }
@@ -153,6 +192,7 @@ export type ActivoDisponible = {
   descripcion?: string | null;
   tipoActivo?: string | null;
   estadoActivo?: string | null;
+  estadoOperativo?: string | null;
   placa?: string | null;
   marca?: string | null;
   modelo?: string | null;

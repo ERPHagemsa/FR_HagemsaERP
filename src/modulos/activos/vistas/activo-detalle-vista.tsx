@@ -27,6 +27,7 @@ import { HistorialActivo } from "../componentes/historial-activo";
 import { ImagenesActivo } from "../componentes/imagenes-activo";
 import { TanquesActivo } from "../componentes/tanques-activo";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
+import { useCatalogosActivos } from "../ganchos/use-catalogos-activos";
 import {
   obtenerActivoPorCodigo,
   obtenerConfiguracionHistoricaPorCodigo,
@@ -42,6 +43,7 @@ type Props = {
 };
 
 export function ActivoDetalleVista({ codigo, accion }: Props) {
+  const catalogos = useCatalogosActivos();
   const { data, isLoading } = useConsulta(async () => {
     const [activo, imagenes, documentos, tanques, historial, configuracion] =
       await Promise.all([
@@ -119,7 +121,15 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
           <EstadoCard titulo="Placa" valor={vehiculo?.placa ?? "SIN_PLACA"} variante="neutro" />
           <EstadoCard titulo="Estado activo" valor={formatearEstadoActivo(activo.estadoActivo)} />
           <EstadoCard titulo="Condicion activo" valor={vehiculo?.estadoOperativo ?? "SIN_DETALLE"} />
-          <EstadoCard titulo="Calibracion" valor={vehiculo?.estadoCalibracion ?? "SIN_DETALLE"} />
+          <EstadoCard
+            titulo="Calibracion"
+            valor={
+              catalogos.nombrePorId(
+                "ESTADO_CALIBRACION",
+                vehiculo?.estadoCalibracionReferenciaId
+              ) || "SIN_DETALLE"
+            }
+          />
         </div>
 
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -144,7 +154,13 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                   <FichaGrid>
                     <Dato label="ID inventario" value={activo.id} />
                     <Dato label="Codigo" value={activo.codigo} />
-                    <Dato label="Tipo activo" value={activo.tipoActivo} />
+                    <Dato
+                      label="Tipo activo"
+                      value={catalogos.nombrePorId(
+                        "TIPO_ACTIVO",
+                        activo.tipoActivoReferenciaId
+                      )}
+                    />
                     <Dato label="Descripcion" value={activo.descripcion} />
                     <Dato label="Ubicacion" value={activo.ubicacion} />
                     <Dato label="Estado activo" value={formatearEstadoActivo(activo.estadoActivo)} />
@@ -164,7 +180,13 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
 
                 <TabsContent value="vehiculo" className="pt-5">
                   <FichaGrid>
-                    <Dato label="Clase" value={vehiculo?.plantillaInventario} />
+                    <Dato
+                      label="Clase"
+                      value={catalogos.nombrePorId(
+                        "CLASE_VEHICULO",
+                        vehiculo?.claseVehiculoReferenciaId
+                      )}
+                    />
                     <Dato label="Placa" value={vehiculo?.placa} />
                     <Dato label="Marca" value={vehiculo?.marca} />
                     <Dato label="Modelo" value={vehiculo?.modelo} />
@@ -201,16 +223,34 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Alto" value={vehiculo?.alto} />
                     <Dato label="Tipo suspension" value={vehiculo?.tipoSuspension} />
                     <Dato label="Tipo tornamesa" value={vehiculo?.tipoTornamesa} />
-                    <Dato label="Clase Euro / NEC" value={vehiculo?.claseEuro} />
+                    <Dato
+                      label="Clase Euro / NEC"
+                      value={catalogos.nombrePorId(
+                        "CLASE_EURO",
+                        vehiculo?.claseEuroReferenciaId
+                      )}
+                    />
                     <Dato label="Ratio corona" value={vehiculo?.ratioCorona} />
-                    <Dato label="Tipo transmision" value={vehiculo?.tipoTransmision} />
+                    <Dato
+                      label="Tipo transmision"
+                      value={catalogos.nombrePorId(
+                        "TIPO_TRANSMISION",
+                        vehiculo?.tipoTransmisionReferenciaId
+                      )}
+                    />
                   </FichaGrid>
                 </TabsContent>
 
                 <TabsContent value="control" className="pt-5">
                   <FichaGrid>
                     <Dato label="Condicion activo" value={vehiculo?.estadoOperativo} />
-                    <Dato label="Estado calibracion" value={vehiculo?.estadoCalibracion} />
+                    <Dato
+                      label="Estado calibracion"
+                      value={catalogos.nombrePorId(
+                        "ESTADO_CALIBRACION",
+                        vehiculo?.estadoCalibracionReferenciaId
+                      )}
+                    />
                     <Dato label="Factor correccion" value={vehiculo?.factorCorreccion} />
                     <Dato label="Capacidad tanque galones" value={vehiculo?.capacidadTanqueGalones} />
                   </FichaGrid>
@@ -241,36 +281,36 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                 <CardTitle>Registro del activo</CardTitle>
               </CardHeader>
               <CardContent>
-                  <FichaGrid compact>
-                    <Dato label="ID inventario" value={activo.id} />
-                    {activo.activoOrigenId ? (
-                      <Dato label="ID anterior" value={activo.activoOrigenId} />
-                    ) : null}
-                    {ultimaConfiguracionHistorica ? (
-                      <>
-                        <Dato
-                          label="Tipo cambio historico"
-                          value={formatearTipoConfiguracion(
-                            ultimaConfiguracionHistorica.tipoCambio
-                          )}
-                        />
-                        <Dato
-                          label="Codigo anterior"
-                          value={ultimaConfiguracionHistorica.codigoAnterior}
-                        />
-                        <Dato
-                          label="Placa anterior"
-                          value={ultimaConfiguracionHistorica.placaAnterior}
-                        />
-                        <Dato
-                          label="Carroceria anterior"
-                          value={ultimaConfiguracionHistorica.carroceriaAnterior}
-                        />
-                      </>
-                    ) : null}
-                    <Dato label="Fecha de creacion" value={formatearFechaHora(activo.createdAt)} />
-                    <Dato label="Ultima modificacion" value={formatearFechaHora(activo.updatedAt)} />
-                  </FichaGrid>
+                <FichaGrid compact>
+                  <Dato label="ID inventario" value={activo.id} />
+                  {activo.activoOrigenId ? (
+                    <Dato label="ID anterior" value={activo.activoOrigenId} />
+                  ) : null}
+                  {ultimaConfiguracionHistorica ? (
+                    <>
+                      <Dato
+                        label="Tipo cambio historico"
+                        value={formatearTipoConfiguracion(
+                          ultimaConfiguracionHistorica.tipoCambio
+                        )}
+                      />
+                      <Dato
+                        label="Codigo anterior"
+                        value={ultimaConfiguracionHistorica.codigoAnterior}
+                      />
+                      <Dato
+                        label="Placa anterior"
+                        value={ultimaConfiguracionHistorica.placaAnterior}
+                      />
+                      <Dato
+                        label="Carroceria anterior"
+                        value={ultimaConfiguracionHistorica.carroceriaAnterior}
+                      />
+                    </>
+                  ) : null}
+                  <Dato label="Fecha de creacion" value={formatearFechaHora(activo.createdAt)} />
+                  <Dato label="Ultima modificacion" value={formatearFechaHora(activo.updatedAt)} />
+                </FichaGrid>
               </CardContent>
             </Card>
 

@@ -7,6 +7,7 @@ import DetalleVehiculoClient from "../componentes/detalle-vehiculo-client";
 import {
   obtenerUnidadPorId,
   obtenerContratosDisponibles,
+  obtenerCuentasDisponibles,
 } from "../servicios/flota-api";
 
 type Props = {
@@ -16,15 +17,17 @@ type Props = {
 export function VehiculoDetalleVista({ id }: Props) {
   const unidadId = decodeURIComponent(id);
   const { data, isLoading } = useConsulta(async () => {
-    const [vehiculo, contratosDisponibles] = await Promise.all([
+    const [vehiculo, contratosDisponibles, cuentasDisponibles] = await Promise.all([
       obtenerUnidadPorId(unidadId),
       obtenerContratosDisponibles(),
+      obtenerCuentasDisponibles(),
     ]);
-    return { vehiculo, contratosDisponibles };
+    return { vehiculo, contratosDisponibles, cuentasDisponibles };
   }, [unidadId]);
 
   const vehiculo = data?.vehiculo ?? null;
   const contratosDisponibles = data?.contratosDisponibles ?? [];
+  const cuentasDisponibles = data?.cuentasDisponibles ?? [];
 
   return (
     <>
@@ -43,6 +46,7 @@ export function VehiculoDetalleVista({ id }: Props) {
           ) : (
             <DetalleVehiculoClient
               contratosDisponibles={contratosDisponibles}
+              cuentasDisponibles={cuentasDisponibles}
               initialData={vehiculo}
               id={unidadId}
             />

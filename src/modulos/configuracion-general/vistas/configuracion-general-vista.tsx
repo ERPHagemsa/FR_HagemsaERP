@@ -7,6 +7,7 @@ import {
   Ban,
   BriefcaseBusiness,
   Building2,
+  CalendarClock,
   CheckCircle2,
   ClipboardList,
   Database,
@@ -61,6 +62,7 @@ import {
   ConfiguracionGeneralContratosListarVista,
   ConfiguracionGeneralCuentasListarVista,
   ConfiguracionGeneralListadoPorTipoVista,
+  ConfiguracionGeneralRegimenesListarVista,
   ConfiguracionGeneralSedesListarVista,
   ConfiguracionGeneralUbicacionesListarVista,
 } from "../componentes/configuracion-general-listados"
@@ -81,6 +83,7 @@ const tipos: Array<{ value: "TODOS" | TipoDatoMaestro; label: string }> = [
   { value: "ALMACEN", label: "Almacen" },
   { value: "CUENTA", label: "Cuenta" },
   { value: "CONTRATO", label: "Contrato" },
+  { value: "REGIMEN", label: "Regimen" },
 ]
 
 const tiposConsumibles: TipoDatoMaestro[] = ["CARGO", "SEDE", "AREA", "CUENTA", "CONTRATO"]
@@ -143,6 +146,13 @@ const modulosConfiguracion: Array<{
     icon: ShieldCheck,
     dependencia: "Independiente; cargo superior opcional.",
   },
+  {
+    orden: 8,
+    tipo: "REGIMEN",
+    grupo: "cargos",
+    icon: CalendarClock,
+    dependencia: "Ciclo de trabajo/descanso y jornada diaria.",
+  },
 ]
 
 function obtenerMensajeError(error: unknown) {
@@ -178,21 +188,26 @@ function eventoPrincipal(dato: ConfiguracionGeneralResponse) {
 
 function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
   if (dato.tipoDatoMaestro === "UBICACION") return dato.tipoUbicacion || dato.direccion || "-"
-  if (dato.tipoDatoMaestro === "SEDE") return dato.ubicacionId || "-"
-  if (dato.tipoDatoMaestro === "AREA") return dato.sedeId || "-"
-  if (dato.tipoDatoMaestro === "ALMACEN") return dato.ubicacionId || "-"
-  if (dato.tipoDatoMaestro === "CUENTA") return `Nivel ${dato.nivelCuentaContrato ?? 1}`
-  if (dato.tipoDatoMaestro === "CONTRATO") return `Nivel ${dato.nivelCuentaContrato ?? "-"}`
+  if (dato.tipoDatoMaestro === "CARGO") return dato.cargoSuperiorNombre || "-"
+  if (dato.tipoDatoMaestro === "SEDE") return dato.ubicacionNombre || "-"
+  if (dato.tipoDatoMaestro === "AREA") return dato.gerenciaNombre || dato.sedeNombre || "-"
+  if (dato.tipoDatoMaestro === "ALMACEN") return dato.ubicacionNombre || dato.sedeNombre || "-"
+  if (dato.tipoDatoMaestro === "CONTRATO") return dato.contratoPadreNombre || "-"
+  if (dato.tipoDatoMaestro === "REGIMEN") {
+    return dato.regimenCodigo
+      ? `${dato.regimenCodigo} (${dato.diasTrabajo ?? "-"}x${dato.diasDescanso ?? "-"})`
+      : "-"
+  }
   return "-"
 }
 
 function etiquetaDetalleEspecifico(tipo: TipoDatoMaestro) {
   if (tipo === "UBICACION") return "Tipo / direccion"
+  if (tipo === "CARGO") return "Cargo superior"
   if (tipo === "SEDE") return "Ubicacion"
-  if (tipo === "AREA") return "Sede"
-  if (tipo === "ALMACEN") return "Ubicacion"
-  if (tipo === "CUENTA") return "Nivel"
-  if (tipo === "CONTRATO") return "Nivel"
+  if (tipo === "AREA") return "Gerencia / sede"
+  if (tipo === "ALMACEN") return "Ubicacion / sede"
+  if (tipo === "CONTRATO") return "Contrato padre"
   return "Dato especifico"
 }
 
@@ -245,10 +260,6 @@ function Dato({ label, value }: { label: string; value?: string | null }) {
       <span className="break-words text-sm">{value || "-"}</span>
     </div>
   )
-}
-
-function formatearCount(count?: number | null) {
-  return typeof count === "number" ? String(count) : "-"
 }
 
 function MetricasMaestros({
@@ -710,7 +721,7 @@ function TablaDatosMaestros({
                 <TipoBadge tipo={dato.tipoDatoMaestro} />
               </TableCell>
               <TableCell className="font-mono text-xs text-muted-foreground">
-                {formatearCount(dato.count)}
+                {dato.id}
               </TableCell>
               <TableCell className="font-mono text-xs">{dato.codigo}</TableCell>
               <TableCell>
@@ -868,6 +879,18 @@ export function ConfiguracionGeneralDashboardVista() {
 
 export function ConfiguracionGeneralListadoVista() {
   const [tipoActivo, setTipoActivo] = useState<"TODOS" | TipoDatoMaestro>("UBICACION")
+  const rutaNuevoPorTipo: Record<TipoDatoMaestro, string> = {
+    UBICACION: "ubicacion",
+    SEDE: "sede",
+    AREA: "area",
+    ALMACEN: "almacen",
+    CUENTA: "cuenta",
+    CONTRATO: "contrato",
+    CARGO: "cargo",
+    REGIMEN: "regimen",
+  }
+  const tipoNuevo = tipoActivo === "TODOS" ? "UBICACION" : tipoActivo
+  const hrefNuevo = `/configuracion/nuevo/${rutaNuevoPorTipo[tipoNuevo]}`
 
   function renderListado() {
     if (tipoActivo === "UBICACION") return <ConfiguracionGeneralUbicacionesListarVista />
@@ -877,6 +900,7 @@ export function ConfiguracionGeneralListadoVista() {
     if (tipoActivo === "CUENTA") return <ConfiguracionGeneralCuentasListarVista />
     if (tipoActivo === "CONTRATO") return <ConfiguracionGeneralContratosListarVista />
     if (tipoActivo === "CARGO") return <ConfiguracionGeneralCargosListarVista />
+    if (tipoActivo === "REGIMEN") return <ConfiguracionGeneralRegimenesListarVista />
     return <ConfiguracionGeneralListadoPorTipoVista tipo="TODOS" />
   }
 
@@ -896,9 +920,9 @@ export function ConfiguracionGeneralListadoVista() {
               <h1 className="text-xl font-semibold tracking-normal">Listar configuracion general</h1>
             </div>
             <Button asChild className="w-full md:w-auto">
-              <Link href="/configuracion/nuevo/ubicacion">
+              <Link href={hrefNuevo}>
                 <Plus data-icon="inline-start" />
-                Nuevo
+                Nuevo {etiquetaTipo(tipoNuevo).toLowerCase()}
               </Link>
             </Button>
           </section>

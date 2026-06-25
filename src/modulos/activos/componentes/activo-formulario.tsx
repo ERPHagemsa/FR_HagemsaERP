@@ -47,6 +47,15 @@ import {
   useActualizarActivoMutation,
   useCrearActivoMutation,
 } from "../servicios/activos-queries";
+import {
+  TIPO_ACTIVO_DISPOSITIVO_ID,
+  TIPO_ACTIVO_EQUIPO_ID,
+  TIPO_ACTIVO_HERRAMIENTA_ID,
+  TIPO_ACTIVO_OTRO_ID,
+  TIPO_ACTIVO_VEHICULO_ID,
+  useCatalogosActivos,
+  type OpcionCatalogo,
+} from "../ganchos/use-catalogos-activos";
 import type {
   Activo,
   CarroceriaReferencia,
@@ -54,18 +63,13 @@ import type {
   CrearImagenActivoPayload,
   CrearTanqueActivoPayload,
   EstadoActivo,
-  EstadoCalibracion,
   EstadoOperativo,
-  ClaseEuro,
   TipoDocumentoActivo,
   TipoImagenActivo,
   TipoTanqueActivo,
-  TipoActivo,
   TipoCambioConfiguracionHistorica,
-  TipoTransmision,
   DocumentoActivo,
   ImagenActivo,
-  PlantillaInventario,
   TanqueActivo,
 } from "../tipos/activo.tipos";
 
@@ -92,8 +96,8 @@ type ActivoTab =
   | "combustible"
   | "documentos";
 
-const TABS_POR_TIPO_ACTIVO: Record<TipoActivo, ActivoTab[]> = {
-  VEHICULO: [
+const TABS_POR_TIPO_ACTIVO: Record<number, ActivoTab[]> = {
+  [TIPO_ACTIVO_VEHICULO_ID]: [
     "base",
     "adquisicion",
     "vehiculo",
@@ -103,7 +107,7 @@ const TABS_POR_TIPO_ACTIVO: Record<TipoActivo, ActivoTab[]> = {
     "combustible",
     "documentos",
   ],
-  EQUIPO: [
+  [TIPO_ACTIVO_EQUIPO_ID]: [
     "base",
     "adquisicion",
     "equipamiento",
@@ -111,9 +115,15 @@ const TABS_POR_TIPO_ACTIVO: Record<TipoActivo, ActivoTab[]> = {
     "control",
     "documentos",
   ],
-  HERRAMIENTA: ["base", "adquisicion", "control", "documentos"],
-  DISPOSITIVO: ["base", "adquisicion", "equipamiento", "control", "documentos"],
-  OTRO: ["base", "adquisicion", "documentos"],
+  [TIPO_ACTIVO_HERRAMIENTA_ID]: ["base", "adquisicion", "control", "documentos"],
+  [TIPO_ACTIVO_DISPOSITIVO_ID]: [
+    "base",
+    "adquisicion",
+    "equipamiento",
+    "control",
+    "documentos",
+  ],
+  [TIPO_ACTIVO_OTRO_ID]: ["base", "adquisicion", "documentos"],
 };
 
 export function ActivoFormulario({
@@ -133,8 +143,11 @@ export function ActivoFormulario({
   );
   const [isSaving, setIsSaving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("base");
-  const [tipoActivoSeleccionado, setTipoActivoSeleccionado] =
-    React.useState<TipoActivo>(activo?.tipoActivo ?? "VEHICULO");
+  const catalogos = useCatalogosActivos();
+  const [tipoActivoSeleccionadoId, setTipoActivoSeleccionadoId] =
+    React.useState<number>(
+      activo?.tipoActivoReferenciaId ?? TIPO_ACTIVO_VEHICULO_ID
+    );
   const [documentosPendientes, setDocumentosPendientes] = React.useState<
     CrearDocumentoActivoPayload[]
   >([]);
@@ -146,9 +159,9 @@ export function ActivoFormulario({
   >([]);
   const [formVersion, setFormVersion] = React.useState(0);
   const [tipoTanque, setTipoTanque] = React.useState<TipoTanqueActivo>("DIESEL");
-  const [plantillaSeleccionada, setPlantillaSeleccionada] =
-    React.useState<PlantillaInventario>(
-      activo?.vehiculo?.plantillaInventario ?? "EQUIPO_LIVIANO"
+  const [claseVehiculoSeleccionadaId, setClaseVehiculoSeleccionadaId] =
+    React.useState<number | null>(
+      activo?.vehiculo?.claseVehiculoReferenciaId ?? null
     );
   const [estadoActivoGrupo, setEstadoActivoGrupo] = React.useState<
     "ACTIVO" | "BAJA"
@@ -186,7 +199,7 @@ export function ActivoFormulario({
   const actualizarResumen = React.useCallback(() => {
     setFormVersion((version) => version + 1);
   }, []);
-  const tabsDisponibles = TABS_POR_TIPO_ACTIVO[tipoActivoSeleccionado];
+  const tabsDisponibles = TABS_POR_TIPO_ACTIVO[tipoActivoSeleccionadoId] ?? [];
   const tieneTab = React.useCallback(
     (tab: ActivoTab) => tabsDisponibles.includes(tab),
     [tabsDisponibles]
@@ -196,19 +209,19 @@ export function ActivoFormulario({
     let isMounted = true;
 
     setCarroceriasError(null);
-    obtenerCarroceriasReferencia(plantillaSeleccionada)
+    obtenerCarroceriasReferencia(claseVehiculoSeleccionadaId ?? undefined)
       .then((referencias) => {
         if (!isMounted) return;
         const referenciasFiltradas = referencias.filter(
           (referencia) =>
-            referencia.plantillaInventario === plantillaSeleccionada
+            referencia.claseVehiculoReferenciaId === claseVehiculoSeleccionadaId
         );
         setCarroceriasReferencia(referenciasFiltradas);
 
         if (process.env.NODE_ENV !== "production") {
           console.log(
             `[Activos] carrocerias cargadas ${JSON.stringify({
-              plantilla: plantillaSeleccionada,
+              claseVehiculoReferenciaId: claseVehiculoSeleccionadaId,
               total: referenciasFiltradas.length,
               opciones: referenciasFiltradas.map((referencia) => referencia.nombre),
             })}`
@@ -233,7 +246,7 @@ export function ActivoFormulario({
     return () => {
       isMounted = false;
     };
-  }, [plantillaSeleccionada, selectedCarroceriaReferenciaId]);
+  }, [claseVehiculoSeleccionadaId, selectedCarroceriaReferenciaId]);
 
   React.useEffect(() => {
     if (returnTo || !isEdit) {
@@ -297,7 +310,7 @@ export function ActivoFormulario({
     if (process.env.NODE_ENV !== "production") {
       console.log(
         `[Activos] carroceria seleccionada ${JSON.stringify({
-          plantilla: plantillaSeleccionada,
+          claseVehiculoReferenciaId: claseVehiculoSeleccionadaId,
           id: referencia?.id,
           nombre: referencia?.nombre,
           ancho: referencia?.anchoSugerido,
@@ -344,7 +357,15 @@ export function ActivoFormulario({
       base: [
         ["Codigo", getValue("codigo") || activo?.codigo],
         ["Descripcion", getValue("descripcion") || activo?.descripcion],
-        ["Tipo", getValue("tipoActivo") || activo?.tipoActivo],
+        [
+          "Tipo",
+          catalogos.nombrePorId(
+            "TIPO_ACTIVO",
+            getValue("tipoActivo")
+              ? Number(getValue("tipoActivo"))
+              : activo?.tipoActivoReferenciaId
+          ),
+        ],
         ["Ubicacion", getValue("ubicacion") || activo?.ubicacion],
         ["Estado", formatearEstadoActivo(getValue("estadoActivo") || activo?.estadoActivo)],
       ],
@@ -356,7 +377,15 @@ export function ActivoFormulario({
         ["Fecha", getValue("fechaFactura") || activo?.fechaFactura],
       ],
       vehiculo: [
-        ["Clase", getValue("plantillaInventario") || activo?.vehiculo?.plantillaInventario],
+        [
+          "Clase",
+          catalogos.nombrePorId(
+            "CLASE_VEHICULO",
+            getValue("claseVehiculoReferenciaId")
+              ? Number(getValue("claseVehiculoReferenciaId"))
+              : activo?.vehiculo?.claseVehiculoReferenciaId
+          ),
+        ],
         ["Carroceria", getValue("carroceria") || activo?.vehiculo?.carroceria],
         ["Placa", getValue("placa") || activo?.vehiculo?.placa],
         ["Marca", getValue("marca") || activo?.vehiculo?.marca],
@@ -374,7 +403,15 @@ export function ActivoFormulario({
       ],
       control: [
         ["Condicion", getValue("estadoOperativo") || activo?.vehiculo?.estadoOperativo],
-        ["Calibracion", getValue("estadoCalibracion") || activo?.vehiculo?.estadoCalibracion],
+        [
+          "Calibracion",
+          catalogos.nombrePorId(
+            "ESTADO_CALIBRACION",
+            getValue("estadoCalibracionReferenciaId")
+              ? Number(getValue("estadoCalibracionReferenciaId"))
+              : activo?.vehiculo?.estadoCalibracionReferenciaId
+          ),
+        ],
         ["Observacion", getValue("observacion") || activo?.observacion],
       ],
       dimensiones: [
@@ -382,9 +419,25 @@ export function ActivoFormulario({
         ["Longitud", getValue("longitud") || activo?.vehiculo?.longitud],
         ["Alto", getValue("alto") || activo?.vehiculo?.alto],
         ["Suspension", getValue("tipoSuspension") || activo?.vehiculo?.tipoSuspension],
-        ["Euro", getValue("claseEuro") || activo?.vehiculo?.claseEuro],
+        [
+          "Euro",
+          catalogos.nombrePorId(
+            "CLASE_EURO",
+            getValue("claseEuroReferenciaId")
+              ? Number(getValue("claseEuroReferenciaId"))
+              : activo?.vehiculo?.claseEuroReferenciaId
+          ),
+        ],
         ["Corona", getValue("ratioCorona") || activo?.vehiculo?.ratioCorona],
-        ["Transmision", getValue("tipoTransmision") || activo?.vehiculo?.tipoTransmision],
+        [
+          "Transmision",
+          catalogos.nombrePorId(
+            "TIPO_TRANSMISION",
+            getValue("tipoTransmisionReferenciaId")
+              ? Number(getValue("tipoTransmisionReferenciaId"))
+              : activo?.vehiculo?.tipoTransmisionReferenciaId
+          ),
+        ],
       ],
       pendientes: [
         ["Tanques", `${tanquesPendientes.length} agregado${tanquesPendientes.length === 1 ? "" : "s"}`],
@@ -394,6 +447,7 @@ export function ActivoFormulario({
     };
   }, [
     activo,
+    catalogos,
     documentosPendientes.length,
     formVersion,
     imagenesPendientes.length,
@@ -425,13 +479,14 @@ export function ActivoFormulario({
     try {
       const descripcion = getValue("descripcion");
       const ubicacion = getValue("ubicacion");
-      const tipoActivo = getValue("tipoActivo") as TipoActivo;
+      const tipoActivoReferenciaId = Number(getValue("tipoActivo"));
       const estadoActivo = getValue("estadoActivo") as EstadoActivo;
-      const plantillaInventario =
-        (getValue("plantillaInventario") as PlantillaInventario) ||
-        "EQUIPO_LIVIANO";
+      const claseVehiculoReferenciaId = Number(
+        getValue("claseVehiculoReferenciaId")
+      );
       const carroceriaReferenciaId = numero("carroceriaReferenciaId");
-      const tabsParaGuardar = TABS_POR_TIPO_ACTIVO[tipoActivo] ?? tabsDisponibles;
+      const tabsParaGuardar =
+        TABS_POR_TIPO_ACTIVO[tipoActivoReferenciaId] ?? tabsDisponibles;
       const puedeGuardarTab = (tab: ActivoTab) => tabsParaGuardar.includes(tab);
 
       if (!isEdit && !codigo) {
@@ -449,7 +504,7 @@ export function ActivoFormulario({
         throw new Error("Completa la ubicacion del activo en la pestana Base.");
       }
 
-      if (!tipoActivo) {
+      if (!tipoActivoReferenciaId) {
         setActiveTab("base");
         throw new Error("Selecciona el tipo de activo en la pestana Base.");
       }
@@ -459,7 +514,7 @@ export function ActivoFormulario({
         throw new Error("Selecciona el estado del activo en la pestana Base.");
       }
 
-      if (puedeGuardarTab("vehiculo") && !getValue("plantillaInventario")) {
+      if (puedeGuardarTab("vehiculo") && !getValue("claseVehiculoReferenciaId")) {
         setActiveTab("vehiculo");
         throw new Error("Selecciona la clase del activo en la pestana Vehiculo.");
       }
@@ -507,7 +562,7 @@ export function ActivoFormulario({
 
       const vehiculo = debeGuardarDetalleTecnico
         ? {
-            plantillaInventario,
+            claseVehiculoReferenciaId,
             carroceriaReferenciaId:
               puedeGuardarTab("vehiculo") &&
               carroceriaReferenciaId &&
@@ -559,23 +614,22 @@ export function ActivoFormulario({
             tipoTornamesa: puedeGuardarTab("dimensiones")
               ? texto("tipoTornamesa")
               : null,
-            claseEuro: puedeGuardarTab("dimensiones")
-              ? ((getValue("claseEuro") || null) as ClaseEuro | null)
+            claseEuroReferenciaId: puedeGuardarTab("dimensiones")
+              ? numero("claseEuroReferenciaId")
               : null,
             ratioCorona: puedeGuardarTab("dimensiones")
               ? numero("ratioCorona")
               : null,
-            tipoTransmision: puedeGuardarTab("dimensiones")
-              ? ((getValue("tipoTransmision") || null) as TipoTransmision | null)
+            tipoTransmisionReferenciaId: puedeGuardarTab("dimensiones")
+              ? numero("tipoTransmisionReferenciaId")
               : null,
-            estadoCalibracion: puedeGuardarTab("control")
-              ? ((getValue("estadoCalibracion") || "PENDIENTE") as EstadoCalibracion)
-              : null,
+            estadoCalibracionReferenciaId:
+              numero("estadoCalibracionReferenciaId") ?? 0,
           }
         : undefined;
 
       const payload = {
-        tipoActivo,
+        tipoActivoReferenciaId,
         descripcion,
         ubicacion,
         estadoActivo,
@@ -1132,13 +1186,19 @@ export function ActivoFormulario({
                   <SelectField
                     name="tipoActivo"
                     label="Tipo de activo"
-                    defaultValue={activo?.tipoActivo ?? "VEHICULO"}
-                    values={["VEHICULO", "EQUIPO", "HERRAMIENTA", "DISPOSITIVO", "OTRO"]}
+                    defaultValue={String(
+                      activo?.tipoActivoReferenciaId ?? TIPO_ACTIVO_VEHICULO_ID
+                    )}
+                    opciones={catalogos.tiposActivo}
                     onChange={(value) => {
-                      const next = value as TipoActivo;
-                      setTipoActivoSeleccionado(next);
+                      const next = Number(value);
+                      setTipoActivoSeleccionadoId(next);
 
-                      if (!TABS_POR_TIPO_ACTIVO[next].includes(activeTab as ActivoTab)) {
+                      if (
+                        !(TABS_POR_TIPO_ACTIVO[next] ?? []).includes(
+                          activeTab as ActivoTab
+                        )
+                      ) {
                         setActiveTab("base");
                       }
 
@@ -1215,14 +1275,17 @@ export function ActivoFormulario({
                       <span className="ml-1 text-destructive">*</span>
                     </span>
                     <select
-                      name="plantillaInventario"
-                      defaultValue={plantillaSeleccionada}
+                      name="claseVehiculoReferenciaId"
+                      defaultValue={
+                        claseVehiculoSeleccionadaId !== null
+                          ? String(claseVehiculoSeleccionadaId)
+                          : ""
+                      }
                       required
                       className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                       onChange={(event) => {
-                        const nuevaPlantilla = event.target
-                          .value as PlantillaInventario;
-                        setPlantillaSeleccionada(nuevaPlantilla);
+                        const nuevaClaseId = Number(event.target.value);
+                        setClaseVehiculoSeleccionadaId(nuevaClaseId);
                         setSelectedCarroceriaReferenciaId("");
                         setFormValue("carroceriaReferenciaId", "");
                         setFormValue("carroceria", "");
@@ -1234,14 +1297,9 @@ export function ActivoFormulario({
                         actualizarResumen();
                       }}
                     >
-                      {[
-                        "CAMION",
-                        "REMOLCADOR",
-                        "SEMIREMOLQUE",
-                        "EQUIPO_LIVIANO",
-                      ].map((value) => (
-                        <option key={value} value={value}>
-                          {formatLabel(value)}
+                      {catalogos.clasesVehiculo.map((opcion) => (
+                        <option key={opcion.id} value={opcion.id}>
+                          {opcion.nombre}
                         </option>
                       ))}
                     </select>
@@ -1267,7 +1325,7 @@ export function ActivoFormulario({
                       readOnly
                     />
                     <select
-                      key={plantillaSeleccionada}
+                      key={claseVehiculoSeleccionadaId ?? "sin-clase"}
                       id="carroceriaReferenciaSelect"
                       name="carroceriaReferenciaSelect"
                       aria-labelledby="carroceria-referencia-label"
@@ -1364,10 +1422,14 @@ export function ActivoFormulario({
                   <Field name="tipoSuspension" label="Tipo de suspension" defaultValue={activo?.vehiculo?.tipoSuspension ?? undefined} />
                   <Field name="tipoTornamesa" label="Tipo de tornamesa" defaultValue={activo?.vehiculo?.tipoTornamesa ?? undefined} />
                   <SelectField
-                    name="claseEuro"
+                    name="claseEuroReferenciaId"
                     label="Clase Euro / NEC"
-                    defaultValue={activo?.vehiculo?.claseEuro ?? ""}
-                    values={["", "EURO_1", "EURO_2", "EURO_3", "EURO_4", "EURO_5"]}
+                    defaultValue={
+                      activo?.vehiculo?.claseEuroReferenciaId != null
+                        ? String(activo.vehiculo.claseEuroReferenciaId)
+                        : ""
+                    }
+                    opciones={catalogos.clasesEuro}
                   />
                   <Field
                     name="ratioCorona"
@@ -1380,19 +1442,14 @@ export function ActivoFormulario({
                     defaultValue={activo?.vehiculo?.ratioCorona ?? undefined}
                   />
                   <SelectField
-                    name="tipoTransmision"
+                    name="tipoTransmisionReferenciaId"
                     label="Tipo transmision"
-                    defaultValue={activo?.vehiculo?.tipoTransmision ?? ""}
-                    values={[
-                      "",
-                      "AUTOMATICA",
-                      "AUTOMATIZADA",
-                      "MECANICA_10_VELOCIDADES",
-                      "MECANICA_13_VELOCIDADES",
-                      "MECANICA_15_VELOCIDADES",
-                      "MECANICA_18_VELOCIDADES",
-                      "MECANICA_OTRA",
-                    ]}
+                    defaultValue={
+                      activo?.vehiculo?.tipoTransmisionReferenciaId != null
+                        ? String(activo.vehiculo.tipoTransmisionReferenciaId)
+                        : ""
+                    }
+                    opciones={catalogos.tiposTransmision}
                   />
                 </div>
             </TabsContent>
@@ -1407,7 +1464,19 @@ export function ActivoFormulario({
               />
                 <div className="grid gap-4 md:grid-cols-3">
                   <SelectField name="estadoOperativo" label="Condicion activo" defaultValue={activo?.vehiculo?.estadoOperativo ?? "OPERATIVO"} values={["OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]} />
-                  <SelectField name="estadoCalibracion" label="Estado calibracion" defaultValue={activo?.vehiculo?.estadoCalibracion ?? "PENDIENTE"} values={["CALIBRADA", "NO_CALIBRADA", "PENDIENTE", "OBSERVADA"]} />
+                  <SelectField
+                    name="estadoCalibracionReferenciaId"
+                    label="Estado calibracion"
+                    defaultValue={
+                      activo?.vehiculo?.estadoCalibracionReferenciaId != null
+                        ? String(activo.vehiculo.estadoCalibracionReferenciaId)
+                        : String(
+                            catalogos.idPorNombre("ESTADO_CALIBRACION", "Pendiente") ?? ""
+                          )
+                    }
+                    opciones={catalogos.estadosCalibracion}
+                    required
+                  />
                 </div>
                 <div className="pt-4">
                   <Field name="observacion" label="Observacion" defaultValue={activo?.observacion ?? undefined} />
@@ -1929,6 +1998,7 @@ function SelectField({
   label,
   name,
   values,
+  opciones,
   defaultValue,
   labels,
   onChange,
@@ -1936,12 +2006,23 @@ function SelectField({
 }: {
   label: string;
   name: string;
-  values: string[];
+  values?: string[];
+  opciones?: OpcionCatalogo[];
   defaultValue: string;
   labels?: Record<string, string>;
   onChange?: (value: string) => void;
   required?: boolean;
 }) {
+  const items = opciones
+    ? opciones.map((opcion) => ({ value: String(opcion.id), texto: opcion.nombre }))
+    : (values ?? []).map((value) => ({ value, texto: labels?.[value] ?? value }));
+
+  // Si `opciones` viene de un catalogo que carga async, el <select> puede montarse
+  // antes de que existan las <option> reales y queda pegado en la primera opcion
+  // disponible. `defaultValue` solo se aplica en el montaje, asi que una vez listo
+  // el catalogo forzamos un remount (via `key`) para que vuelva a matchear el valor real.
+  const catalogoListo = !opciones || opciones.length > 0;
+
   return (
     <label className="grid gap-2">
       <span className="text-sm font-medium text-foreground">
@@ -1949,6 +2030,7 @@ function SelectField({
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </span>
       <select
+        key={catalogoListo ? `${name}-listo` : `${name}-cargando`}
         name={name}
         defaultValue={defaultValue}
         required={required}
@@ -1957,9 +2039,10 @@ function SelectField({
           "h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
         )}
       >
-        {values.map((value) => (
+        {!required && opciones ? <option value="">Seleccionar...</option> : null}
+        {items.map(({ value, texto }) => (
           <option key={value} value={value}>
-            {labels?.[value] ?? value}
+            {texto}
           </option>
         ))}
       </select>

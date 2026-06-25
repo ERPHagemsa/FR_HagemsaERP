@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Cpu,
   Download,
+  ExternalLink,
   FileSpreadsheet,
   FileText,
   FileUp,
@@ -16,6 +17,13 @@ import {
   Wrench,
   XCircle,
 } from "lucide-react";
+// Excepcion deliberada a la convencion lucide: el menu de acciones usa los
+// mismos iconos @tabler que `activos-tabla.tsx` para verse 100% identico.
+import {
+  IconDotsVertical,
+  IconEye,
+  IconFileDescription,
+} from "@tabler/icons-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -42,11 +50,25 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/compartido/componentes/ui/sheet";
+import { ScrollArea } from "@/compartido/componentes/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/compartido/componentes/ui/dropdown-menu";
 import { extraerMensajeError } from "@/compartido/api";
 import { cn } from "@/compartido/utilidades/utils";
+import { useCatalogosActivos } from "../ganchos/use-catalogos-activos";
+import type { CatalogosActivos } from "../ganchos/use-catalogos-activos";
 import {
   COLUMNAS_POR_TIPO,
   ETIQUETA_TIPO_ACTIVO,
+  TIPO_ACTIVO_DISPOSITIVO_ID,
+  TIPO_ACTIVO_EQUIPO_ID,
+  TIPO_ACTIVO_HERRAMIENTA_ID,
+  TIPO_ACTIVO_OTRO_ID,
+  TIPO_ACTIVO_VEHICULO_ID,
 } from "../servicios/carga-masiva-columnas";
 import {
   descargarPlantilla,
@@ -57,7 +79,7 @@ import {
   procesarCargaMasiva,
 } from "../servicios/activos-api";
 import { DocumentosActivo } from "../componentes/documentos-activo";
-import type { DocumentoActivo, TipoActivo } from "../tipos/activo.tipos";
+import type { DocumentoActivo } from "../tipos/activo.tipos";
 import type {
   CargaMasiva,
   FilaPrevisualizada,
@@ -65,30 +87,30 @@ import type {
 
 type Paso = "tipo" | "cargar" | "revisar" | "resultado";
 
-const TIPOS: Array<{ tipo: TipoActivo; icono: React.ReactNode; detalle: string }> =
+const TIPOS: Array<{ tipo: number; icono: React.ReactNode; detalle: string }> =
   [
     {
-      tipo: "VEHICULO",
+      tipo: TIPO_ACTIVO_VEHICULO_ID,
       icono: <Car className="size-6" />,
       detalle: "Unidades con placa, motor, dimensiones y tanques.",
     },
     {
-      tipo: "EQUIPO",
+      tipo: TIPO_ACTIVO_EQUIPO_ID,
       icono: <Boxes className="size-6" />,
       detalle: "Equipos con dimensiones y control operativo.",
     },
     {
-      tipo: "DISPOSITIVO",
+      tipo: TIPO_ACTIVO_DISPOSITIVO_ID,
       icono: <Cpu className="size-6" />,
       detalle: "Dispositivos con marca, modelo y serie.",
     },
     {
-      tipo: "HERRAMIENTA",
+      tipo: TIPO_ACTIVO_HERRAMIENTA_ID,
       icono: <Wrench className="size-6" />,
       detalle: "Herramientas y activos menores.",
     },
     {
-      tipo: "OTRO",
+      tipo: TIPO_ACTIVO_OTRO_ID,
       icono: <Package className="size-6" />,
       detalle: "Otros activos con datos basicos.",
     },
@@ -102,8 +124,9 @@ const PASOS: Array<{ id: Paso; titulo: string }> = [
 ];
 
 export function CargaMasivaVista() {
+  const catalogos = useCatalogosActivos();
   const [paso, setPaso] = React.useState<Paso>("tipo");
-  const [tipo, setTipo] = React.useState<TipoActivo | null>(null);
+  const [tipo, setTipo] = React.useState<number | null>(null);
   const [nombreArchivo, setNombreArchivo] = React.useState<string>("");
   const [filas, setFilas] = React.useState<FilaPrevisualizada[]>([]);
   const [procesando, setProcesando] = React.useState(false);
@@ -120,7 +143,7 @@ export function CargaMasivaVista() {
     setResultado(null);
   }
 
-  function elegirTipo(nuevoTipo: TipoActivo) {
+  function elegirTipo(nuevoTipo: number) {
     setTipo(nuevoTipo);
     setFilas([]);
     setNombreArchivo("");
@@ -133,7 +156,7 @@ export function CargaMasivaVista() {
     if (!archivo || !tipo) return;
 
     try {
-      const parseadas = await parsearArchivo(archivo, tipo);
+      const parseadas = await parsearArchivo(archivo, tipo, catalogos);
       if (parseadas.length === 0) {
         toast.error("El archivo no tiene filas de datos.");
         return;
@@ -152,7 +175,7 @@ export function CargaMasivaVista() {
     setProcesando(true);
     try {
       const carga = await procesarCargaMasiva({
-        tipoActivo: tipo,
+        tipoActivoReferenciaId: tipo,
         nombreArchivo,
         filas: validas.map((fila) => ({ fila: fila.fila, activo: fila.activo })),
       });
@@ -194,6 +217,7 @@ export function CargaMasivaVista() {
       {paso === "cargar" && tipo && (
         <PasoCargar
           tipo={tipo}
+          catalogos={catalogos}
           onArchivo={onArchivo}
           onVolver={() => setPaso("tipo")}
         />
@@ -259,7 +283,7 @@ function Pasos({ pasoActual }: { pasoActual: Paso }) {
   );
 }
 
-function PasoTipo({ onElegir }: { onElegir: (tipo: TipoActivo) => void }) {
+function PasoTipo({ onElegir }: { onElegir: (tipo: number) => void }) {
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader>
@@ -294,10 +318,12 @@ function PasoTipo({ onElegir }: { onElegir: (tipo: TipoActivo) => void }) {
 
 function PasoCargar({
   tipo,
+  catalogos,
   onArchivo,
   onVolver,
 }: {
-  tipo: TipoActivo;
+  tipo: number;
+  catalogos: CatalogosActivos;
   onArchivo: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onVolver: () => void;
 }) {
@@ -323,7 +349,7 @@ function PasoCargar({
           <Button
             type="button"
             variant="outline"
-            onClick={() => descargarPlantilla(tipo)}
+            onClick={() => descargarPlantilla(tipo, catalogos)}
           >
             <Download className="size-4" />
             Descargar plantilla
@@ -372,7 +398,7 @@ function PasoRevisar({
   onConfirmar,
   onVolver,
 }: {
-  tipo: TipoActivo;
+  tipo: number;
   nombreArchivo: string;
   filas: FilaPrevisualizada[];
   validas: number;
@@ -515,7 +541,7 @@ function PasoResultado({
                 <TableHead className="w-28">Estado</TableHead>
                 <TableHead>Codigo</TableHead>
                 <TableHead>Detalle</TableHead>
-                <TableHead className="w-48">Accion</TableHead>
+                <TableHead className="w-20 text-center">Accion</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -537,25 +563,36 @@ function PasoResultado({
                   <TableCell className="text-xs text-muted-foreground">
                     {detalle.mensajeError || "Creado correctamente"}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-center">
                     {detalle.estado === "CREADO" && detalle.codigoActivo ? (
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() =>
-                            setActivoSeleccionado(detalle.codigoActivo)
-                          }
-                        >
-                          <FileText className="size-4" />
-                          Documentos
-                        </Button>
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/activos/${detalle.codigoActivo}`}>
-                            Abrir
-                          </Link>
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="outline"
+                            aria-label={`Acciones de ${detalle.codigoActivo}`}
+                          >
+                            <IconDotsVertical />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-44">
+                          <DropdownMenuItem
+                            onSelect={() =>
+                              setActivoSeleccionado(detalle.codigoActivo)
+                            }
+                          >
+                            <IconFileDescription />
+                            Documentos
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/activos/${detalle.codigoActivo}`}>
+                              <IconEye />
+                              Abrir
+                            </Link>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>
                     )}
@@ -572,9 +609,27 @@ function PasoResultado({
           <div className="flex flex-wrap gap-2">
             {creados.length > 0 && (
               <Button asChild variant="outline">
-                <Link href="/activos/carga-masiva-documentos">
+                <Link
+                  href="/activos/carga-masiva-documentos"
+                  target="_blank"
+                  onClick={() => {
+                    // Pasamos los codigos recien creados para que, si el
+                    // siguiente documento es compartido (ej. poliza), el
+                    // campo de placas llegue prellenado con este lote.
+                    // sessionStorage se copia a la pestana nueva (mismo
+                    // origen, sin noopener), por eso no hace falta otra cosa.
+                    const codigos = creados
+                      .map((detalle) => detalle.codigoActivo)
+                      .filter((codigo): codigo is string => Boolean(codigo));
+                    window.sessionStorage.setItem(
+                      "activos:loteParaDocumentos",
+                      JSON.stringify(codigos),
+                    );
+                  }}
+                >
                   <FileText className="size-4" />
                   Agregar documentos a estos activos
+                  <ExternalLink className="size-3.5" />
                 </Link>
               </Button>
             )}
@@ -591,19 +646,26 @@ function PasoResultado({
           if (!abierto) setActivoSeleccionado(null);
         }}
       >
-        <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
-          <SheetHeader>
+        <SheetContent
+          side="right"
+          className="w-full gap-0 data-[side=right]:sm:max-w-2xl"
+        >
+          <SheetHeader className="border-b border-border">
             <SheetTitle>Documentos — {activoSeleccionado}</SheetTitle>
             <SheetDescription>
               Sube el SOAT, poliza u otros documentos de este activo. Al cerrar
               vuelves a la lista para seguir con el siguiente.
             </SheetDescription>
           </SheetHeader>
-          {activoSeleccionado ? (
-            <div className="px-4 pb-6">
-              <DocumentosDrawerContenido codigo={activoSeleccionado} />
-            </div>
-          ) : null}
+          {/* min-h-0 + flex-1: el ScrollArea ocupa el resto y scrollea por dentro
+              con la barra fina de Radix, no la nativa del navegador. */}
+          <ScrollArea className="min-h-0 flex-1">
+            {activoSeleccionado ? (
+              <div className="p-6">
+                <DocumentosDrawerContenido codigo={activoSeleccionado} />
+              </div>
+            ) : null}
+          </ScrollArea>
         </SheetContent>
       </Sheet>
     </Card>
@@ -629,6 +691,7 @@ function DocumentosDrawerContenido({ codigo }: { codigo: string }) {
       codigo={codigo}
       documentos={documentos}
       onCambio={recargar}
+      compacto
     />
   );
 }

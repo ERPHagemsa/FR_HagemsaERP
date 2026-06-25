@@ -28,12 +28,20 @@ export function parseRef(raw: unknown): ContratoRef {
   return null;
 }
 
-export function contratoVehiculo(vehiculo: VehiculoFlota): ContratoRef {
-  return parseRef(vehiculo.contrato);
-}
+export type AsignacionVehiculo = {
+  contrato: ContratoRef;
+  cuenta: ContratoRef;
+  fechaInicio?: string | null;
+  fechaFin?: string | null;
+};
 
-export function cuentaVehiculo(vehiculo: VehiculoFlota): ContratoRef {
-  return parseRef(vehiculo.cuenta);
+export function asignacionesVehiculo(vehiculo: VehiculoFlota): AsignacionVehiculo[] {
+  return (vehiculo.asignaciones ?? []).map((a) => ({
+    contrato: parseRef(a.contrato),
+    cuenta: parseRef(a.cuenta),
+    fechaInicio: a.fechaInicio ?? null,
+    fechaFin: a.fechaFin ?? null,
+  }));
 }
 
 export function placaVehiculo(vehiculo: VehiculoFlota) {
@@ -77,8 +85,7 @@ export function esVisibleEnFlota(vehiculo: VehiculoFlota) {
 }
 
 export function textoBusquedaVehiculo(vehiculo: VehiculoFlota) {
-  const contrato = contratoVehiculo(vehiculo);
-  const cuenta = cuentaVehiculo(vehiculo);
+  const asignaciones = asignacionesVehiculo(vehiculo);
   return [
     vehiculo.id,
     vehiculo.codigo,
@@ -86,10 +93,7 @@ export function textoBusquedaVehiculo(vehiculo: VehiculoFlota) {
     placaVehiculo(vehiculo),
     marcaVehiculo(vehiculo),
     modeloVehiculo(vehiculo),
-    contrato?.codigo,
-    contrato?.nombre,
-    cuenta?.codigo,
-    cuenta?.nombre,
+    ...asignaciones.flatMap((a) => [a.contrato?.codigo, a.contrato?.nombre, a.cuenta?.codigo, a.cuenta?.nombre]),
   ]
     .filter(Boolean)
     .join(" ")

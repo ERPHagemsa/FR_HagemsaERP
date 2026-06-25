@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { useCatalogosActivos } from "../ganchos/use-catalogos-activos";
 import type { Activo } from "../tipos/activo.tipos";
 
 type Props = {
@@ -19,6 +20,8 @@ type Props = {
 };
 
 export function ActivosResumen({ activos }: Props) {
+  const catalogos = useCatalogosActivos();
+  const idNoCalibrada = catalogos.idPorNombre("ESTADO_CALIBRACION", "No calibrada");
   const activosVisibles = activos.filter(
     (activo) => activo.estadoRegistro !== false
   );
@@ -32,7 +35,7 @@ export function ActivosResumen({ activos }: Props) {
     (activo) => activo.vehiculo?.estadoOperativo === "MANTENIMIENTO"
   );
   const noCalibrados = activosVisibles.filter(
-    (activo) => activo.vehiculo?.estadoCalibracion === "NO_CALIBRADA"
+    (activo) => activo.vehiculo?.estadoCalibracionReferenciaId === idNoCalibrada
   );
 
   return (

@@ -42,6 +42,7 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
   const siniestrarMutation = useSiniestrarActivoMutation();
   const estaCerrado =
     activo.estadoActivo === "SINIESTRADO" || activo.estadoRegistro === false;
+  const yaEstaDeBaja = estaCerrado || activo.estadoActivo === "INACTIVO";
 
   async function onDarDeBaja() {
     setIsSaving(true);
@@ -108,7 +109,7 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
           <Button
             type="button"
             onClick={() => setMostrarConfirmacionBaja(true)}
-            disabled={estaCerrado || isSaving}
+            disabled={yaEstaDeBaja || isSaving}
           >
             Dar de baja
           </Button>

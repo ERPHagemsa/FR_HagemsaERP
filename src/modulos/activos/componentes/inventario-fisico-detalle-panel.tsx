@@ -48,6 +48,11 @@ import {
 import { DocumentosActivo } from "./documentos-activo";
 import { ImagenesActivo } from "./imagenes-activo";
 import { TanquesActivo } from "./tanques-activo";
+import {
+  TIPO_ACTIVO_VEHICULO_ID,
+  useCatalogosActivos,
+  type CatalogosActivos,
+} from "../ganchos/use-catalogos-activos";
 import type {
   Activo,
   EstadoRevisionInventario,
@@ -85,10 +90,11 @@ export function InventarioFisicoDetallePanel({
   const [detalleSeleccionadoKey, setDetalleSeleccionadoKey] = React.useState<
     string | null
   >(null);
+  const catalogos = useCatalogosActivos();
 
   const detallesBase = React.useMemo(
-    () => construirDetallesInventario(inventario, activosMaestro),
-    [inventario, activosMaestro]
+    () => construirDetallesInventario(inventario, activosMaestro, catalogos),
+    [inventario, activosMaestro, catalogos]
   );
 
   const detallesFiltrados = detallesBase.filter((detalle) => {
@@ -606,6 +612,7 @@ function FichaRevisionInventario({
     detalle.observacion ?? ""
   );
   const [guardando, setGuardando] = React.useState(false);
+  const catalogos = useCatalogosActivos();
   const imagenesQuery = useImagenesActivoQuery(detalle.codigoActivo);
   const documentosQuery = useDocumentosActivoQuery(detalle.codigoActivo);
   const tanquesQuery = useTanquesActivoQuery(detalle.codigoActivo);
@@ -711,7 +718,14 @@ function FichaRevisionInventario({
         />
         <EstadoCard
           titulo="Calibracion"
-          valor={formatear(detalle.estadoCalibracion)}
+          valor={
+            vehiculo
+              ? catalogos.nombrePorId(
+                  "ESTADO_CALIBRACION",
+                  vehiculo.estadoCalibracionReferenciaId
+                )
+              : formatear(detalle.estadoCalibracion)
+          }
         />
       </div>
 
@@ -739,7 +753,14 @@ function FichaRevisionInventario({
                   <DatoInventario label="Codigo" value={detalle.codigoActivo} />
                   <DatoInventario
                     label="Tipo activo"
-                    value={formatear(activo?.tipoActivo ?? detalle.tipoActivo)}
+                    value={
+                      activo
+                        ? catalogos.nombrePorId(
+                            "TIPO_ACTIVO",
+                            activo.tipoActivoReferenciaId
+                          )
+                        : formatear(detalle.tipoActivo)
+                    }
                   />
                   <DatoInventario
                     label="Descripcion"
@@ -778,7 +799,13 @@ function FichaRevisionInventario({
 
               <TabsContent value="vehiculo" className="pt-5">
                 <FichaGrid>
-                  <DatoInventario label="Clase" value={vehiculo?.plantillaInventario} />
+                  <DatoInventario
+                    label="Clase"
+                    value={catalogos.nombrePorId(
+                      "CLASE_VEHICULO",
+                      vehiculo?.claseVehiculoReferenciaId
+                    )}
+                  />
                   <DatoInventario label="Placa" value={vehiculo?.placa ?? detalle.placa} />
                   <DatoInventario label="Marca" value={vehiculo?.marca ?? detalle.marca} />
                   <DatoInventario label="Modelo" value={vehiculo?.modelo ?? detalle.modelo} />
@@ -818,9 +845,21 @@ function FichaRevisionInventario({
                   <DatoInventario label="Alto" value={vehiculo?.alto} />
                   <DatoInventario label="Tipo suspension" value={vehiculo?.tipoSuspension} />
                   <DatoInventario label="Tipo tornamesa" value={vehiculo?.tipoTornamesa} />
-                  <DatoInventario label="Clase Euro / NEC" value={vehiculo?.claseEuro} />
+                  <DatoInventario
+                    label="Clase Euro / NEC"
+                    value={catalogos.nombrePorId(
+                      "CLASE_EURO",
+                      vehiculo?.claseEuroReferenciaId
+                    )}
+                  />
                   <DatoInventario label="Ratio corona" value={vehiculo?.ratioCorona} />
-                  <DatoInventario label="Tipo transmision" value={vehiculo?.tipoTransmision} />
+                  <DatoInventario
+                    label="Tipo transmision"
+                    value={catalogos.nombrePorId(
+                      "TIPO_TRANSMISION",
+                      vehiculo?.tipoTransmisionReferenciaId
+                    )}
+                  />
                 </FichaGrid>
               </TabsContent>
 
@@ -832,7 +871,14 @@ function FichaRevisionInventario({
                   />
                   <DatoInventario
                     label="Estado calibracion"
-                    value={formatear(vehiculo?.estadoCalibracion ?? detalle.estadoCalibracion)}
+                    value={
+                      vehiculo
+                        ? catalogos.nombrePorId(
+                            "ESTADO_CALIBRACION",
+                            vehiculo.estadoCalibracionReferenciaId
+                          )
+                        : formatear(detalle.estadoCalibracion)
+                    }
                   />
                   <DatoInventario label="Factor correccion" value={vehiculo?.factorCorreccion} />
                   <DatoInventario label="Capacidad tanque galones" value={vehiculo?.capacidadTanqueGalones} />
@@ -1303,7 +1349,8 @@ function DatoConciliado({
 
 function contarCambiosMaestro(
   snapshot: Record<string, unknown> | null,
-  activo: Activo | undefined
+  activo: Activo | undefined,
+  catalogos: CatalogosActivos
 ): number {
   if (!snapshot || !activo) return 0;
   const vehiculo = obtenerObjetoSnapshot(snapshot, "vehiculo");
@@ -1323,8 +1370,20 @@ function contarCambiosMaestro(
   cmp(leerSnapshot(vehiculo, "serieChasis"), activo.vehiculo?.serieChasis);
   cmp(leerSnapshot(vehiculo, "serieMotor"), activo.vehiculo?.serieMotor);
   cmp(leerSnapshot(vehiculo, "estadoOperativo"), activo.vehiculo?.estadoOperativo);
-  cmp(leerSnapshot(vehiculo, "estadoCalibracion"), activo.vehiculo?.estadoCalibracion);
-  cmp(leerSnapshot(vehiculo, "plantillaInventario"), activo.vehiculo?.plantillaInventario);
+  cmp(
+    leerSnapshot(vehiculo, "estadoCalibracion"),
+    catalogos.nombrePorId(
+      "ESTADO_CALIBRACION",
+      activo.vehiculo?.estadoCalibracionReferenciaId
+    )
+  );
+  cmp(
+    leerSnapshot(vehiculo, "plantillaInventario"),
+    catalogos.nombrePorId(
+      "CLASE_VEHICULO",
+      activo.vehiculo?.claseVehiculoReferenciaId
+    )
+  );
   return cambios;
 }
 
@@ -1335,13 +1394,14 @@ function SnapshotInventario({
   detalle: InventarioFisicoDetalle;
   activo?: Activo;
 }) {
+  const catalogos = useCatalogosActivos();
   const snapshot = detalle.snapshotActivo ?? null;
   const vehiculo = obtenerObjetoSnapshot(snapshot, "vehiculo");
   const documentos = obtenerListaSnapshot(snapshot, "documentos");
   const imagenes = obtenerListaSnapshot(snapshot, "imagenes");
   const tanques = obtenerListaSnapshot(snapshot, "tanques");
   const equipamiento = obtenerListaSnapshot(snapshot, "equipamiento");
-  const cambiosMaestro = contarCambiosMaestro(snapshot, activo);
+  const cambiosMaestro = contarCambiosMaestro(snapshot, activo, catalogos);
 
   if (!snapshot) {
     return (
@@ -1433,7 +1493,10 @@ function SnapshotInventario({
           <DatoConciliado
             label="Clase"
             snapshotRaw={leerSnapshot(vehiculo, "plantillaInventario")}
-            maestroRaw={activo?.vehiculo?.plantillaInventario}
+            maestroRaw={catalogos.nombrePorId(
+              "CLASE_VEHICULO",
+              activo?.vehiculo?.claseVehiculoReferenciaId
+            )}
             fmt={formatear}
           />
           <DatoConciliado
@@ -1480,7 +1543,10 @@ function SnapshotInventario({
           <DatoConciliado
             label="Calibracion"
             snapshotRaw={leerSnapshot(vehiculo, "estadoCalibracion") ?? detalle.estadoCalibracion}
-            maestroRaw={activo?.vehiculo?.estadoCalibracion}
+            maestroRaw={catalogos.nombrePorId(
+              "ESTADO_CALIBRACION",
+              activo?.vehiculo?.estadoCalibracionReferenciaId
+            )}
             fmt={formatear}
           />
         </FichaGrid>
@@ -2012,7 +2078,8 @@ function formatearEstadoActivo(value?: string | null) {
 
 function construirDetallesInventario(
   inventario: InventarioFisico,
-  activosMaestro: Activo[]
+  activosMaestro: Activo[],
+  catalogos: CatalogosActivos
 ): InventarioFisicoDetalle[] {
   const detallesPorActivo = new Map<number, InventarioFisicoDetalle>();
 
@@ -2021,7 +2088,9 @@ function construirDetallesInventario(
   }
 
   const vehiculosVigentes = activosMaestro.filter(
-    (activo) => activo.tipoActivo === "VEHICULO" && activo.estadoRegistro !== false
+    (activo) =>
+      activo.tipoActivoReferenciaId === TIPO_ACTIVO_VEHICULO_ID &&
+      activo.estadoRegistro !== false
   );
 
   const detallesDesdeMaestro = vehiculosVigentes.map((activo) => {
@@ -2032,6 +2101,14 @@ function construirDetallesInventario(
     }
 
     const vehiculo = activo.vehiculo;
+    const tipoActivoNombre = catalogos.nombrePorId(
+      "TIPO_ACTIVO",
+      activo.tipoActivoReferenciaId
+    );
+    const estadoCalibracionNombre = catalogos.nombrePorId(
+      "ESTADO_CALIBRACION",
+      vehiculo?.estadoCalibracionReferenciaId
+    );
 
     return {
       id: null,
@@ -2040,20 +2117,20 @@ function construirDetallesInventario(
       estadoRevision: "PENDIENTE",
       codigoActivo: activo.codigo,
       descripcionActivo: activo.descripcion,
-      tipoActivo: activo.tipoActivo,
+      tipoActivo: tipoActivoNombre,
       estadoActivo: activo.estadoActivo,
       marca: vehiculo?.marca ?? null,
       modelo: vehiculo?.modelo ?? null,
       carroceria: vehiculo?.carroceria ?? null,
       estadoOperativo: vehiculo?.estadoOperativo ?? null,
-      estadoCalibracion: vehiculo?.estadoCalibracion ?? null,
+      estadoCalibracion: estadoCalibracionNombre || null,
       placa: vehiculo?.placa ?? null,
       ubicacionEsperada: activo.ubicacion,
       ubicacionEncontrada: null,
       snapshotActivo: {
         id: activo.id,
         codigo: activo.codigo,
-        tipoActivo: activo.tipoActivo,
+        tipoActivo: tipoActivoNombre,
         descripcion: activo.descripcion,
         ubicacion: activo.ubicacion,
         estadoActivo: activo.estadoActivo,

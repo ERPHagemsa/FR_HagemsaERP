@@ -8,9 +8,9 @@ import {
   obtenerHistorialPorId,
   obtenerUnidadPorId,
 } from "@/modulos/flota/servicios/flota-api";
-import { FlotaAuditoriaVista } from "@/modulos/flota/vistas/flota-auditoria-vista";
+import { FlotaHistorialVista } from "@/modulos/flota/vistas/flota-historial-vista";
 
-export default function FlotaAuditoriaPage() {
+export default function FlotaHistorialPage() {
   const params = useParams<{ id: string }>();
   const unidadId = params.id;
 
@@ -31,7 +31,7 @@ export default function FlotaAuditoriaPage() {
   }
 
   return (
-    <FlotaAuditoriaVista
+    <FlotaHistorialVista
       id={unidadId}
       placa={data?.vehiculo?.placa ?? data?.vehiculo?.placaRodaje ?? null}
       historial={data?.res?.datos ?? []}
