@@ -30,7 +30,6 @@ import { Separator } from "@/compartido/componentes/ui/separator"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card"
@@ -43,21 +42,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select"
-import { Skeleton } from "@/compartido/componentes/ui/skeleton"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/compartido/componentes/ui/table"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/compartido/componentes/ui/tooltip"
+import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos"
+import type {
+  AccionTabla,
+  ColumnaTabla,
+} from "@/compartido/componentes/tabla-datos/tabla-datos.tipos"
 import type {
   CatalogoCargoAdicional,
   EstadoCatalogoCargoAdicional,
@@ -369,6 +359,33 @@ function BadgeEstado({ estado }: { estado: EstadoCatalogoCargoAdicional }) {
 }
 
 // ---------------------------------------------------------------------------
+// Columnas de la tabla (la tabla generica solo las renderiza)
+// ---------------------------------------------------------------------------
+
+const COLUMNAS: ColumnaTabla<CatalogoCargoAdicional>[] = [
+  {
+    id: "nombre",
+    encabezado: "Nombre",
+    ancho: "w-[32%]",
+    principal: true,
+    className: "truncate",
+    celda: (item) => item.nombre,
+  },
+  {
+    id: "descripcion",
+    encabezado: "Descripcion",
+    className: "truncate",
+    celda: (item) => item.descripcion ?? "—",
+  },
+  {
+    id: "estado",
+    encabezado: "Estado",
+    ancho: "w-[14%]",
+    celda: (item) => <BadgeEstado estado={item.estado} />,
+  },
+]
+
+// ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
 
@@ -386,10 +403,6 @@ export function CatalogoCargosAdicionalesListado({
   const total = consulta.data?.total ?? 0
   const pagina = consulta.data?.pagina ?? filtros.pagina ?? 1
   const porPagina = consulta.data?.porPagina ?? filtros.porPagina ?? 10
-
-  const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
-  const desdeVisible = total ? (pagina - 1) * porPagina + 1 : 0
-  const hastaVisible = Math.min(pagina * porPagina, total)
 
   const [busquedaLocal, setBusquedaLocal] = useState(filtros.busqueda ?? "")
   const [estadoLocal, setEstadoLocal] = useState<string>(filtros.estado ?? "TODOS")
@@ -410,16 +423,28 @@ export function CatalogoCargosAdicionalesListado({
     })
   }
 
+  function accionesCargo(
+    item: CatalogoCargoAdicional,
+  ): AccionTabla<CatalogoCargoAdicional>[] {
+    return [
+      {
+        etiqueta: "Editar",
+        icono: Pencil,
+        alSeleccionar: () => setItemEditando(item),
+      },
+      {
+        etiqueta: item.estado === "ACTIVO" ? "Desactivar" : "Activar",
+        icono: item.estado === "ACTIVO" ? CircleX : CircleCheck,
+        alSeleccionar: () => setItemCambiandoEstado(item),
+      },
+    ]
+  }
+
   return (
     <Card>
-      <CardHeader className="border-b border-border">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle>Cargos adicionales</CardTitle>
-            <CardDescription>
-              {total} {total === 1 ? "registro" : "registros"} encontrados
-            </CardDescription>
-          </div>
+      <CardHeader>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <CardTitle>Cargos adicionales</CardTitle>
           <Button onClick={() => setDialogCrearAbierto(true)}>
             <Plus />
             Nuevo cargo
@@ -427,7 +452,7 @@ export function CatalogoCargosAdicionalesListado({
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-4 pt-5">
+      <CardContent className="flex flex-col gap-4">
         {/* Error de carga */}
         {consulta.error ? (
           <Alert variant="destructive">
@@ -470,111 +495,21 @@ export function CatalogoCargosAdicionalesListado({
         </div>
 
         {/* Tabla */}
-        <div className="overflow-hidden rounded-xl border border-border">
-          <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[32%]">Nombre</TableHead>
-                <TableHead>Descripcion</TableHead>
-                <TableHead className="w-[14%]">Estado</TableHead>
-                <TableHead className="w-[14%] text-center">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {consulta.isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={4}>
-                      <Skeleton className="h-7 w-full" />
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : filas.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="h-28 text-center text-muted-foreground">
-                    No hay cargos adicionales para los filtros aplicados.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filas.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="truncate text-sm font-medium">{item.nombre}</TableCell>
-                    <TableCell className="truncate text-sm text-muted-foreground">
-                      {item.descripcion ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <BadgeEstado estado={item.estado} />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon-sm"
-                              variant="outline"
-                              onClick={() => setItemEditando(item)}
-                              aria-label="Editar"
-                            >
-                              <Pencil />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Editar</TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              size="icon-sm"
-                              variant="outline"
-                              onClick={() => setItemCambiandoEstado(item)}
-                              aria-label={item.estado === "ACTIVO" ? "Desactivar" : "Activar"}
-                            >
-                              {item.estado === "ACTIVO" ? <CircleCheck /> : <CircleX />}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {item.estado === "ACTIVO" ? "Desactivar" : "Activar"}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Paginacion */}
-        <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div>
-            {total > 0
-              ? `Mostrando ${desdeVisible}-${hastaVisible} de ${total} registros`
-              : "Sin resultados"}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina <= 1}
-              onClick={() => onFiltrosChange({ pagina: pagina - 1 })}
-            >
-              Anterior
-            </Button>
-            <span className="min-w-20 text-center">
-              {pagina} / {totalPaginas}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina >= totalPaginas}
-              onClick={() => onFiltrosChange({ pagina: pagina + 1 })}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
+        <TablaDatos
+          columnas={COLUMNAS}
+          datos={filas}
+          obtenerId={(item) => item.id}
+          acciones={accionesCargo}
+          cargando={consulta.isLoading}
+          paginacion={{
+            pagina,
+            porPagina,
+            total,
+            alCambiarPagina: (nuevaPagina) => onFiltrosChange({ pagina: nuevaPagina }),
+          }}
+          vacioTitulo="Sin cargos adicionales"
+          vacioDescripcion="No hay cargos adicionales para los filtros aplicados."
+        />
       </CardContent>
 
       {/* Dialogs */}

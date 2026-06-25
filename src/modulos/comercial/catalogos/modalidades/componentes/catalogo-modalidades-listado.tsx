@@ -30,7 +30,6 @@ import { Separator } from "@/compartido/componentes/ui/separator"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card"
@@ -649,14 +648,14 @@ const COLUMNAS: ColumnaTabla<Modalidad>[] = [
     id: "codigo",
     encabezado: "Codigo",
     ancho: "w-[10%]",
-    className: "truncate text-sm tabular-nums text-muted-foreground",
+    className: "truncate tabular-nums",
     celda: (item) => item.codigo,
   },
   {
     id: "nombre",
     encabezado: "Nombre",
     ancho: "w-[19%]",
-    className: "text-sm font-medium",
+    principal: true,
     celda: (item) => (
       <div className="flex items-center gap-1.5">
         <span className="truncate">{item.nombre}</span>
@@ -683,14 +682,14 @@ const COLUMNAS: ColumnaTabla<Modalidad>[] = [
     id: "tipoLinea",
     encabezado: "Tipo de linea",
     ancho: "w-[13%]",
-    className: "truncate text-sm text-muted-foreground",
+    className: "truncate",
     celda: (item) => etiquetaTipo(item.tipoLinea),
   },
   {
     id: "unidadCobro",
     encabezado: "Unidad de cobro",
     ancho: "w-[12%]",
-    className: "truncate text-sm text-muted-foreground",
+    className: "truncate",
     celda: (item) => etiquetaUnidadCobro(item.unidadCobro),
   },
   {
@@ -698,7 +697,7 @@ const COLUMNAS: ColumnaTabla<Modalidad>[] = [
     encabezado: "Tarifa base",
     ancho: "w-[12%]",
     alineacion: "derecha",
-    className: "text-sm tabular-nums",
+    className: "tabular-nums text-foreground",
     celda: (item) => formatearTarifa(item.tarifaBaseReferencial),
   },
   {
@@ -706,14 +705,13 @@ const COLUMNAS: ColumnaTabla<Modalidad>[] = [
     encabezado: "Margen",
     ancho: "w-[9%]",
     alineacion: "derecha",
-    className: "text-sm tabular-nums",
+    className: "tabular-nums text-foreground",
     celda: (item) => formatearMargen(item.margenPct),
   },
   {
     id: "moneda",
     encabezado: "Moneda",
     ancho: "w-[8%]",
-    className: "text-sm text-muted-foreground",
     celda: (item) => etiquetaMoneda(item.moneda),
   },
   {
@@ -783,14 +781,9 @@ export function CatalogoModalidadesListado({
 
   return (
     <Card>
-      <CardHeader className="border-b border-border">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle>Modalidades</CardTitle>
-            <CardDescription>
-              {total} {total === 1 ? "registro" : "registros"} encontrados
-            </CardDescription>
-          </div>
+      <CardHeader>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <CardTitle>Modalidades</CardTitle>
           <Button onClick={() => setDialogCrearAbierto(true)}>
             <Plus />
             Nueva modalidad
@@ -798,7 +791,7 @@ export function CatalogoModalidadesListado({
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-col gap-4 pt-5">
+      <CardContent className="flex flex-col gap-4">
         {/* Error de carga */}
         {consulta.error ? (
           <Alert variant="destructive">

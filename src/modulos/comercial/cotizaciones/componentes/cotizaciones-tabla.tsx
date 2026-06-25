@@ -28,7 +28,6 @@ import {
 import { cn } from "@/compartido/utilidades";
 
 import { formatearMonto } from "../servicios/cotizaciones-formato";
-import { etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
 import type {
   CotizacionResumen,
   EstadoCotizacion,
@@ -80,38 +79,34 @@ const COLUMNAS: ColumnaTabla<CotizacionResumen>[] = [
         <span className="text-sm tabular-nums">
           {cotizacion.codigoCotizacion}
         </span>
-      ) : (
-        <span className="text-xs text-muted-foreground">
-          {etiquetaCodigoCotizacion(cotizacion)}
-        </span>
-      ),
+      ) : null,
   },
   {
     id: "empresa",
     encabezado: "Empresa solicitante",
     ancho: "w-[17%]",
-    className: "truncate text-sm font-medium",
+    principal: true,
+    className: "truncate",
     celda: (cotizacion) => cotizacion.origenNombre,
   },
   {
     id: "tipo",
     encabezado: "Tipo",
     ancho: "w-[8%]",
-    className: "text-sm",
     celda: (cotizacion) => ETIQUETA_ORIGEN[cotizacion.origenTipo],
   },
   {
     id: "ejecutivo",
     encabezado: "Cotizado por",
     ancho: "w-[14%]",
-    className: "truncate text-sm",
+    className: "truncate",
     celda: (cotizacion) => cotizacion.ejecutivoResponsable.nombre,
   },
   {
     id: "vencimiento",
     encabezado: "Vencimiento",
     ancho: "w-[12%]",
-    className: "truncate text-sm",
+    className: "truncate",
     celda: (cotizacion) =>
       cotizacion.fechaVencimiento ? (
         formatearFecha(cotizacion.fechaVencimiento)
@@ -135,7 +130,7 @@ const COLUMNAS: ColumnaTabla<CotizacionResumen>[] = [
     encabezado: "Monto",
     ancho: "w-[13%]",
     alineacion: "derecha",
-    className: "text-sm tabular-nums",
+    className: "tabular-nums text-foreground",
     celda: (cotizacion) =>
       formatearMonto(cotizacion.montoTotal, cotizacion.moneda),
   },

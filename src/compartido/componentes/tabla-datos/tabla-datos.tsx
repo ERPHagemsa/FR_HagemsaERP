@@ -91,7 +91,7 @@ export function TablaDatos<T>({
       {barraHerramientas ? <div>{barraHerramientas}</div> : null}
 
       <div className="overflow-hidden rounded-xl border border-border">
-        <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2 ">
+        <Table className="w-full table-fixed [&_td]:px-2 [&_td]:py-1.5 [&_th]:px-2 ">
           <TableHeader>
             <TableRow>
               {columnas.map((columna) => (
@@ -130,7 +130,14 @@ export function TablaDatos<T>({
                     <TableCell
                       key={columna.id}
                       className={cn(
+                        "text-sm",
                         CLASES_ALINEACION[columna.alineacion ?? "izquierda"],
+                        // Jerarquia: una sola columna `principal` resalta; el
+                        // resto va atenuado. `className` cierra al final como
+                        // escape hatch (ej. montos que vuelven a foreground).
+                        columna.principal
+                          ? "font-medium text-foreground"
+                          : "text-muted-foreground",
                         columna.className
                       )}
                     >

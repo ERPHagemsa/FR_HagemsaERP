@@ -75,8 +75,9 @@ const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
     id: "solicitante",
     encabezado: "Empresa solicitante",
     ancho: "w-[16%]",
+    principal: true,
     celda: (item) => (
-      <span className="block truncate text-sm font-medium">
+      <span className="block truncate">
         {item.nombreSolicitante}
       </span>
     ),
@@ -95,7 +96,7 @@ const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
     id: "descripcion",
     encabezado: "Descripcion del servicio",
     ancho: "w-[15%]",
-    className: "truncate text-sm",
+    className: "truncate",
     celda: (item) => item.descripcionServicio,
   },
   {

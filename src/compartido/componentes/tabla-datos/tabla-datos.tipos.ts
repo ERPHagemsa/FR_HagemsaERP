@@ -19,6 +19,14 @@ export type ColumnaTabla<T> = {
   ancho?: string;
   /** Alineación del contenido. Por defecto "izquierda". */
   alineacion?: AlineacionColumna;
+  /**
+   * Columna ancla de la fila: se resalta a contraste pleno (`font-medium`).
+   * El resto de columnas se atenúan por defecto (`text-muted-foreground`).
+   * Marcar SOLO UNA por tabla (normalmente el nombre del registro). Para
+   * devolver una columna no-ancla al contraste pleno (ej. montos), usar
+   * `className: "text-foreground"` — gana sobre el atenuado por defecto.
+   */
+  principal?: boolean;
   /** Clase extra opcional aplicada al `th` y al `td`. */
   className?: string;
 };
