@@ -58,6 +58,7 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table"
 import { useModalidadesQuery } from "@/modulos/comercial/catalogos/modalidades/servicios/catalogo-modalidades-queries"
+import { useConsultarCotizacion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries"
 import { CrearContratoDesdeTarifario } from "@/modulos/comercial/contratos/componentes/crear-contrato-desde-tarifario"
 
 import {
@@ -230,6 +231,13 @@ export function TarifarioDetalle({ idTarifario }: Props) {
   const nombreModalidad = (id: string) =>
     modalidades.find((m) => m.id === id)?.nombre ?? id
 
+  // Código de la cotización origen (COT-AAAA-NNNNN) en vez del UUID.
+  const cotizacionOrigenQuery = useConsultarCotizacion(
+    tarifario?.idCotizacionOrigen ?? "",
+  )
+  const codigoCotizacionOrigen =
+    cotizacionOrigenQuery.data?.codigoCotizacion ?? null
+
   const [agregarAbierto, setAgregarAbierto] = useState(false)
   const [tarifaEditando, setTarifaEditando] = useState<Tarifa | null>(null)
   const [tarifaEliminando, setTarifaEliminando] = useState<Tarifa | null>(null)
@@ -305,7 +313,14 @@ export function TarifarioDetalle({ idTarifario }: Props) {
         <CardContent className="grid grid-cols-2 gap-3 pt-5 text-sm sm:grid-cols-4">
           <div>
             <p className="text-xs text-muted-foreground">Cotizacion origen</p>
-            <p className="truncate">{tarifario.idCotizacionOrigen ?? "—"}</p>
+            <p className="truncate">
+              {!tarifario.idCotizacionOrigen
+                ? "—"
+                : (codigoCotizacionOrigen ??
+                  (cotizacionOrigenQuery.isLoading
+                    ? "Cargando…"
+                    : tarifario.idCotizacionOrigen))}
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Contrato</p>
