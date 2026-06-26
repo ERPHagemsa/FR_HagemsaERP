@@ -22,35 +22,21 @@ import {
 import { cn } from "@/compartido/utilidades";
 
 import { formatearMonto } from "../servicios/cotizaciones-formato";
+import { useEjecutivosCotizacionesQuery } from "../servicios/cotizaciones-queries";
 import type {
+  BucketCotizacion,
   CotizacionResumen,
-  EstadoCotizacion,
+  FiltrosCotizaciones,
   OrigenTipo,
-  RespuestaPaginadaCotizaciones,
 } from "../tipos/cotizaciones.tipos";
+import { CotizacionesKpis } from "./cotizaciones-kpis";
 import { EstadoCotizacionBadge } from "./estado-cotizacion-badge";
 
 type Props = {
-  respuesta: RespuestaPaginadaCotizaciones;
-  filtrosActivos: {
-    estado?: string;
-    origenTipo?: string;
-    busqueda?: string;
-    pagina?: number;
-    porPagina?: number;
-  };
+  items: CotizacionResumen[];
+  filtros: FiltrosCotizaciones;
+  total: number;
 };
-
-const ESTADOS_COTIZACION: Array<{ valor: EstadoCotizacion | "TODOS"; etiqueta: string }> = [
-  { valor: "TODOS", etiqueta: "Todos" },
-  { valor: "BORRADOR", etiqueta: "Borrador" },
-  { valor: "ENVIADA", etiqueta: "Enviada" },
-  { valor: "EN_REVISION", etiqueta: "En revision" },
-  { valor: "GANADA", etiqueta: "Ganada" },
-  { valor: "PERDIDA", etiqueta: "Perdida" },
-  { valor: "CANCELADA", etiqueta: "Cancelada" },
-  { valor: "VENCIDA", etiqueta: "Vencida" },
-];
 
 const ORIGENES: Array<{ valor: OrigenTipo | "TODOS"; etiqueta: string }> = [
   { valor: "TODOS", etiqueta: "Todos" },
@@ -148,21 +134,20 @@ function accionesCotizacion(
   ];
 }
 
-export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
+export function CotizacionesTabla({ items, filtros, total }: Props) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { data: cotizaciones, total, pagina, porPagina } = respuesta;
+  const pagina = filtros.pagina ?? 1;
+  const porPagina = filtros.porPagina ?? 10;
 
-  const [busquedaLocal, setBusquedaLocal] = React.useState(
-    filtrosActivos.busqueda ?? ""
+  const [busquedaLocal, setBusquedaLocal] = React.useState(filtros.busqueda ?? "");
+  const [origenLocal, setOrigenLocal] = React.useState(filtros.origenTipo ?? "TODOS");
+  const [ejecutivoLocal, setEjecutivoLocal] = React.useState(
+    filtros.idEjecutivoResponsable ?? "TODOS"
   );
-  const [estadoLocal, setEstadoLocal] = React.useState(
-    filtrosActivos.estado ?? "TODOS"
-  );
-  const [origenLocal, setOrigenLocal] = React.useState(
-    filtrosActivos.origenTipo ?? "TODOS"
-  );
+
+  const { data: ejecutivos } = useEjecutivosCotizacionesQuery();
 
   function construirUrl(params: Record<string, string | number | undefined>) {
     const sp = new URLSearchParams();
@@ -175,41 +160,59 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
     return qs ? `${pathname}?${qs}` : pathname;
   }
 
+  // KPI clicable → fija el bucket (o lo limpia) y vuelve a la pagina 1.
+  // Preserva los filtros de contexto YA aplicados (origen/busqueda/ejecutivo),
+  // no los inputs locales sin confirmar.
+  function seleccionarBucket(bucket: BucketCotizacion | null) {
+    router.push(
+      construirUrl({
+        bucket: bucket ?? undefined,
+        origenTipo: filtros.origenTipo,
+        busqueda: filtros.busqueda,
+        idEjecutivoResponsable: filtros.idEjecutivoResponsable,
+        pagina: 1,
+        porPagina: filtros.porPagina,
+      })
+    );
+  }
+
   function aplicarFiltros() {
     router.push(
       construirUrl({
-        estado: estadoLocal,
+        bucket: filtros.bucket,
         origenTipo: origenLocal,
         busqueda: busquedaLocal,
+        idEjecutivoResponsable: ejecutivoLocal,
         pagina: 1,
-        porPagina: filtrosActivos.porPagina,
+        porPagina: filtros.porPagina,
       })
     );
   }
 
   function limpiarFiltros() {
     setBusquedaLocal("");
-    setEstadoLocal("TODOS");
     setOrigenLocal("TODOS");
+    setEjecutivoLocal("TODOS");
     router.push(pathname);
   }
 
   function irAPagina(nuevaPagina: number) {
     router.push(
       construirUrl({
-        estado: filtrosActivos.estado,
-        origenTipo: filtrosActivos.origenTipo,
-        busqueda: filtrosActivos.busqueda,
+        bucket: filtros.bucket,
+        origenTipo: filtros.origenTipo,
+        busqueda: filtros.busqueda,
         pagina: nuevaPagina,
-        porPagina: filtrosActivos.porPagina,
+        porPagina: filtros.porPagina,
       })
     );
   }
 
   const hayFiltros =
-    !!filtrosActivos.estado ||
-    !!filtrosActivos.origenTipo ||
-    !!filtrosActivos.busqueda;
+    !!filtros.bucket ||
+    !!filtros.origenTipo ||
+    !!filtros.busqueda ||
+    !!filtros.idEjecutivoResponsable;
 
   const barraHerramientas = (
     <div className="flex flex-wrap items-end gap-3">
@@ -230,19 +233,19 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
       </div>
       <FiltroSelect
         className="min-w-36"
-        label="Estado"
-        value={estadoLocal}
-        valores={ESTADOS_COTIZACION.map((e) => e.valor)}
-        etiquetas={ESTADOS_COTIZACION.map((e) => e.etiqueta)}
-        onChange={setEstadoLocal}
-      />
-      <FiltroSelect
-        className="min-w-36"
         label="Origen"
         value={origenLocal}
         valores={ORIGENES.map((o) => o.valor)}
         etiquetas={ORIGENES.map((o) => o.etiqueta)}
         onChange={setOrigenLocal}
+      />
+      <FiltroSelect
+        className="min-w-48"
+        label="Ejecutivo responsable"
+        value={ejecutivoLocal}
+        valores={["TODOS", ...(ejecutivos ?? []).map((e) => e.id)]}
+        etiquetas={["Todos", ...(ejecutivos ?? []).map((e) => e.nombre)]}
+        onChange={setEjecutivoLocal}
       />
       <Button type="button" onClick={aplicarFiltros}>
         Buscar
@@ -257,16 +260,24 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
   );
 
   return (
-    <TablaDatos
-      columnas={COLUMNAS}
-      datos={cotizaciones}
-      obtenerId={(cotizacion) => cotizacion.id}
-      acciones={accionesCotizacion}
-      barraHerramientas={barraHerramientas}
-      paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
-      vacioTitulo="Sin cotizaciones"
-      vacioDescripcion="No se encontraron cotizaciones con los filtros aplicados."
-    />
+    <div className="flex flex-col gap-4">
+      <CotizacionesKpis filtros={filtros} onSeleccionar={seleccionarBucket} />
+
+      <TablaDatos
+        columnas={COLUMNAS}
+        datos={items}
+        obtenerId={(cotizacion) => cotizacion.id}
+        acciones={accionesCotizacion}
+        barraHerramientas={barraHerramientas}
+        paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
+        vacioTitulo={hayFiltros ? "Sin coincidencias" : "Sin cotizaciones"}
+        vacioDescripcion={
+          hayFiltros
+            ? "No se encontraron cotizaciones con los filtros aplicados. Intenta ampliar la busqueda."
+            : "No hay cotizaciones registradas."
+        }
+      />
+    </div>
   );
 }
 
