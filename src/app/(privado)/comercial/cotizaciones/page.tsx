@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import { CotizacionesVista } from "@/modulos/comercial/cotizaciones/vistas/cotizaciones-vista";
 import type {
+  BucketCotizacion,
   EstadoCotizacion,
   FiltrosCotizaciones,
   OrigenTipo,
@@ -16,13 +17,28 @@ type Props = {
 export default async function Page({ searchParams }: Props) {
   const params = await searchParams;
 
+  const bucketRaw = Array.isArray(params.bucket) ? params.bucket[0] : params.bucket;
   const estadoRaw = Array.isArray(params.estado) ? params.estado[0] : params.estado;
   const origenTipoRaw = Array.isArray(params.origenTipo)
     ? params.origenTipo[0]
     : params.origenTipo;
+  const idEjecutivoRaw = Array.isArray(params.idEjecutivoResponsable)
+    ? params.idEjecutivoResponsable[0]
+    : params.idEjecutivoResponsable;
   const busquedaRaw = Array.isArray(params.busqueda) ? params.busqueda[0] : params.busqueda;
   const paginaRaw = Array.isArray(params.pagina) ? params.pagina[0] : params.pagina;
   const porPaginaRaw = Array.isArray(params.porPagina) ? params.porPagina[0] : params.porPagina;
+
+  const bucketsValidos: BucketCotizacion[] = [
+    "enPreparacion",
+    "enviadas",
+    "ganadas",
+    "perdidas",
+  ];
+  const bucket =
+    bucketRaw && bucketsValidos.includes(bucketRaw as BucketCotizacion)
+      ? (bucketRaw as BucketCotizacion)
+      : undefined;
 
   const estadosValidos: EstadoCotizacion[] = [
     "BORRADOR",
@@ -33,8 +49,12 @@ export default async function Page({ searchParams }: Props) {
     "CANCELADA",
     "VENCIDA",
   ];
+  // `bucket` y `estado` son mutuamente excluyentes (el backend devuelve 400 si
+  // van juntos). El bucket gana: es el filtro que produce la UI nueva.
   const estado =
-    estadoRaw && estadosValidos.includes(estadoRaw as EstadoCotizacion)
+    bucket === undefined &&
+    estadoRaw &&
+    estadosValidos.includes(estadoRaw as EstadoCotizacion)
       ? (estadoRaw as EstadoCotizacion)
       : undefined;
 
@@ -48,16 +68,10 @@ export default async function Page({ searchParams }: Props) {
   const porPagina = porPaginaRaw ? Math.max(1, Number(porPaginaRaw)) : 10;
 
   const filtros: FiltrosCotizaciones = {
+    bucket,
     estado,
     origenTipo,
-    busqueda: busquedaRaw,
-    pagina,
-    porPagina,
-  };
-
-  const filtrosRaw = {
-    estado: estadoRaw,
-    origenTipo: origenTipoRaw,
+    idEjecutivoResponsable: idEjecutivoRaw,
     busqueda: busquedaRaw,
     pagina,
     porPagina,
@@ -72,7 +86,7 @@ export default async function Page({ searchParams }: Props) {
           { title: "Cotizaciones" },
         ]}
       />
-      <CotizacionesVista filtros={filtros} filtrosRaw={filtrosRaw} />
+      <CotizacionesVista filtros={filtros} />
     </>
   );
 }

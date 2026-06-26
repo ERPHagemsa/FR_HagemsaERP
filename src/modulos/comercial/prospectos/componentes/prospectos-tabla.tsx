@@ -11,13 +11,6 @@ import {
 } from "@tabler/icons-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import {
   Select,
@@ -142,24 +135,18 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
     !!filtrosActivos.fechaHasta;
 
   return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <CardTitle>Prospectos comerciales</CardTitle>
-            <CardDescription>
-              {total} {total === 1 ? "prospecto" : "prospectos"} encontrados
-            </CardDescription>
-          </div>
-          <Button asChild>
-            <Link href="/comercial/prospectos/nuevo">
-              <IconPlus data-icon="inline-start" />
-              Nuevo prospecto
-            </Link>
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4 pt-5">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <p className="text-sm text-muted-foreground">
+          {total} {total === 1 ? "prospecto" : "prospectos"} encontrados
+        </p>
+        <Button asChild>
+          <Link href="/comercial/prospectos/nuevo">
+            <IconPlus data-icon="inline-start" />
+            Nuevo prospecto
+          </Link>
+        </Button>
+      </div>
         {/* Filtros */}
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid min-w-64 flex-1 gap-1.5">
@@ -303,8 +290,7 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 

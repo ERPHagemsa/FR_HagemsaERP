@@ -34,9 +34,29 @@ export type EstadoModalidad = "ACTIVA" | "INACTIVA";
 
 export type TipoModalidad = "SPOT" | "PROYECTO" | "OTRO";
 
+// Buckets del pipeline de cotizaciones (filtran el listado y son la
+// contraparte 1:1 de los KPIs de /resumen). Comparten predicado con el backend
+// (fuente unica de verdad), por eso el numero del KPI === filas del bucket.
+//   enPreparacion → BORRADOR + EN_REVISION
+//   enviadas      → ENVIADA
+//   ganadas       → GANADA
+//   perdidas      → PERDIDA + VENCIDA + CANCELADA
+export type BucketCotizacion =
+  | "enPreparacion"
+  | "enviadas"
+  | "ganadas"
+  | "perdidas";
+
 // Ref del ejecutivo (snapshot { id, nombre }). id = AuthContext.accountId
 // (no es un correo); sin token MVP = { id: "mvp-sin-auth", nombre: "Usuario MVP" }.
 export type EjecutivoRef = {
+  id: string;
+  nombre: string;
+};
+
+// Item de la lista GET /cotizaciones/ejecutivos — ejecutivos que tienen cotizaciones.
+// Respuesta en array pelado (sin envelope de paginacion).
+export type EjecutivoResponsableOpcion = {
   id: string;
   nombre: string;
 };
@@ -297,6 +317,20 @@ export type CotizacionResumen = {
 };
 
 // ---------------------------------------------------------------------------
+// KPIs del pipeline (GET /cotizaciones/resumen)
+// ---------------------------------------------------------------------------
+
+// Contadores agregados del pipeline. Invariante backend:
+//   enPreparacion + enviadas + ganadas + perdidas === total
+export type ResumenCotizaciones = {
+  total: number;
+  enPreparacion: number;
+  enviadas: number;
+  ganadas: number;
+  perdidas: number;
+};
+
+// ---------------------------------------------------------------------------
 // Paginacion propia (NO reutiliza RespuestaPaginada de compartido — forma distinta)
 // ---------------------------------------------------------------------------
 
@@ -320,12 +354,22 @@ export type RespuestaPaginadaModalidades = {
 
 export type FiltrosCotizaciones = {
   estado?: EstadoCotizacion;
+  // `bucket` y `estado` son mutuamente excluyentes en el backend (400 si van
+  // juntos). La UI usa `bucket` (KPIs clicables); `estado` queda por compat.
+  bucket?: BucketCotizacion;
   origenTipo?: OrigenTipo;
   idEjecutivoResponsable?: string;
   busqueda?: string;
   pagina?: number;
   porPagina?: number;
 };
+
+// Filtros de contexto que acepta /resumen (no pagina ni filtra por estado/bucket:
+// los KPIs siempre cuentan todo el pipeline bajo el mismo contexto de busqueda).
+export type FiltrosResumenCotizaciones = Pick<
+  FiltrosCotizaciones,
+  "origenTipo" | "idEjecutivoResponsable" | "busqueda"
+>;
 
 export type FiltrosModalidades = {
   estado?: EstadoModalidad;

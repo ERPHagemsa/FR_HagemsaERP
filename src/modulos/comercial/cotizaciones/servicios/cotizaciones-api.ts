@@ -2,20 +2,36 @@ import { clienteComercial } from "@/compartido/api/clientes-backend";
 
 import type {
   Cotizacion,
+  EjecutivoResponsableOpcion,
   FiltrosCotizaciones,
+  FiltrosResumenCotizaciones,
   ParamsPrecioSugerido,
   PayloadBorrador,
   PayloadEnviar,
   PayloadNuevaVersion,
   PayloadPerdida,
   PrecioSugerido,
+  ResumenCotizaciones,
   RespuestaPaginadaCotizaciones,
   SugerenciaCarga,
 } from "../tipos/cotizaciones.tipos";
 
 // ---------------------------------------------------------------------------
-// Listado y consulta
+// Listado, resumen y consulta
 // ---------------------------------------------------------------------------
+
+// GET /cotizaciones/resumen — KPIs del pipeline (contadores agregados).
+// Acepta solo filtros de contexto (origenTipo, idEjecutivoResponsable, busqueda);
+// NO estado/bucket ni paginacion. Comparte predicado con el filtro `bucket` del listado.
+export async function obtenerResumenCotizaciones(
+  filtros: FiltrosResumenCotizaciones = {}
+): Promise<ResumenCotizaciones> {
+  const { data } = await clienteComercial.get<ResumenCotizaciones>(
+    "/cotizaciones/resumen",
+    { params: filtros }
+  );
+  return data;
+}
 
 // GET /cotizaciones
 export async function listarCotizaciones(
@@ -46,6 +62,15 @@ export async function obtenerSugerenciasCarga(
   const { data } = await clienteComercial.get<SugerenciaCarga[]>(
     "/cotizaciones/cargas/sugerencias",
     { params: { q, limit } }
+  );
+  return data;
+}
+
+// GET /cotizaciones/ejecutivos — ejecutivos distintos que tienen cotizaciones.
+// Respuesta en array pelado (sin envelope de paginacion ni { data, total }).
+export async function obtenerEjecutivosCotizaciones(): Promise<EjecutivoResponsableOpcion[]> {
+  const { data } = await clienteComercial.get<EjecutivoResponsableOpcion[]>(
+    "/cotizaciones/ejecutivos"
   );
   return data;
 }

@@ -27,12 +27,6 @@ import {
   SheetTitle,
 } from "@/compartido/componentes/ui/sheet"
 import { Separator } from "@/compartido/componentes/ui/separator"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
 import { Input } from "@/compartido/componentes/ui/input"
 import { Label } from "@/compartido/componentes/ui/label"
 import {
@@ -441,18 +435,13 @@ export function CatalogoCargosAdicionalesListado({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <CardTitle>Cargos adicionales</CardTitle>
-          <Button onClick={() => setDialogCrearAbierto(true)}>
-            <Plus />
-            Nuevo cargo
-          </Button>
-        </div>
-      </CardHeader>
-
-      <CardContent className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <Button onClick={() => setDialogCrearAbierto(true)}>
+          <Plus />
+          Nuevo cargo
+        </Button>
+      </div>
         {/* Error de carga */}
         {consulta.error ? (
           <Alert variant="destructive">
@@ -510,7 +499,6 @@ export function CatalogoCargosAdicionalesListado({
           vacioTitulo="Sin cargos adicionales"
           vacioDescripcion="No hay cargos adicionales para los filtros aplicados."
         />
-      </CardContent>
 
       {/* Dialogs */}
       <DialogCrear
@@ -528,6 +516,6 @@ export function CatalogoCargosAdicionalesListado({
         onCerrar={() => setItemCambiandoEstado(null)}
         onActualizado={handleRefetch}
       />
-    </Card>
+    </div>
   )
 }

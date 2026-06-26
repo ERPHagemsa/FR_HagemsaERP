@@ -4,6 +4,7 @@ import { useState } from "react"
 
 import type { FiltrosModalidades } from "@/modulos/comercial/cotizaciones/tipos/cotizaciones.tipos"
 
+import { PaginaListado } from "../../../componentes/pagina-listado"
 import { CatalogoModalidadesListado } from "../componentes/catalogo-modalidades-listado"
 
 interface PropsCatalogoModalidadesVista {
@@ -32,11 +33,11 @@ export function CatalogoModalidadesVista({
   }
 
   return (
-    <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
+    <PaginaListado>
       <CatalogoModalidadesListado
         filtros={filtros}
         onFiltrosChange={handleFiltrosChange}
       />
-    </main>
+    </PaginaListado>
   )
 }
