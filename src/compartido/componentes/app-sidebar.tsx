@@ -98,8 +98,8 @@ const data = {
         { title: "Prospectos", url: "/comercial/prospectos" },
         { title: "Historial de prospectos", url: "/comercial/prospectos/historial" },
         { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
-        { title: "Tarifarios", url: "#" },
-        { title: "Contratos", url: "#" },
+        { title: "Tarifarios", url: "/comercial/tarifarios" },
+        { title: "Contratos", url: "/comercial/contratos" },
         { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
         { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
         // Listado global de cotizaciones: vista secundaria/reporte. El camino principal
