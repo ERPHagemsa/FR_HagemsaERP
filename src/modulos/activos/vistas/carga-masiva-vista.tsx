@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Cpu,
   Download,
-  ExternalLink,
   FileSpreadsheet,
   FileText,
   FileUp,
@@ -30,6 +29,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
+import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -59,6 +59,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/compartido/componentes/ui/dropdown-menu";
+import { Input } from "@/compartido/componentes/ui/input";
+import { Label } from "@/compartido/componentes/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select";
 import { extraerMensajeError } from "@/compartido/api";
 import { cn } from "@/compartido/utilidades/utils";
 import { useCatalogosActivos } from "../ganchos/use-catalogos-activos";
@@ -79,16 +88,29 @@ import {
 import {
   obtenerCargaMasiva,
   obtenerDocumentosPorCodigo,
+  obtenerTiposDocumento,
   procesarCargaMasiva,
+  procesarCargaMasivaDocumentos,
 } from "../servicios/activos-api";
 import { DocumentosActivo } from "../componentes/documentos-activo";
 import type { DocumentoActivo } from "../tipos/activo.tipos";
 import type {
   CargaMasiva,
   FilaPrevisualizada,
+  TipoDocumentoCarga,
+  TipoDocumentoMaestro,
 } from "../tipos/carga-masiva.tipos";
 
 type Paso = "tipo" | "cargar" | "revisar" | "resultado";
+
+function archivoADataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const TIPOS: Array<{ tipo: number; icono: React.ReactNode; detalle: string }> =
   [
@@ -556,7 +578,37 @@ function PasoResultado({
   const [activoSeleccionado, setActivoSeleccionado] = React.useState<
     string | null
   >(null);
+  // Codigos marcados para mandar a un documento compartido (ej. poliza de
+  // flota) en lugar de a todo el lote. Vacio = se usa el lote completo.
+  const [codigosSeleccionados, setCodigosSeleccionados] = React.useState<
+    Set<string>
+  >(new Set());
+  const [mostrarSubidaSeleccionados, setMostrarSubidaSeleccionados] =
+    React.useState(false);
   const returnToLote = `/activos/carga-masiva?lote=${resultado.id}`;
+
+  function alternarSeleccion(codigo: string) {
+    setCodigosSeleccionados((actuales) => {
+      const siguiente = new Set(actuales);
+      if (siguiente.has(codigo)) {
+        siguiente.delete(codigo);
+      } else {
+        siguiente.add(codigo);
+      }
+      return siguiente;
+    });
+  }
+
+  const codigosCreados = creados
+    .map((detalle) => detalle.codigoActivo)
+    .filter((codigo): codigo is string => Boolean(codigo));
+  const todosSeleccionados =
+    codigosCreados.length > 0 &&
+    codigosCreados.every((codigo) => codigosSeleccionados.has(codigo));
+  const codigosParaDocumentos =
+    codigosSeleccionados.size > 0
+      ? codigosCreados.filter((codigo) => codigosSeleccionados.has(codigo))
+      : codigosCreados;
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader>
@@ -583,6 +635,19 @@ function PasoResultado({
           <Table>
             <TableHeader className="sticky top-0 bg-muted">
               <TableRow>
+                <TableHead className="w-10">
+                  {codigosCreados.length > 0 && (
+                    <Checkbox
+                      checked={todosSeleccionados}
+                      onCheckedChange={(marcado) =>
+                        setCodigosSeleccionados(
+                          marcado ? new Set(codigosCreados) : new Set()
+                        )
+                      }
+                      aria-label="Seleccionar todos los creados"
+                    />
+                  )}
+                </TableHead>
                 <TableHead className="w-14">Fila</TableHead>
                 <TableHead className="w-28">Estado</TableHead>
                 <TableHead>Codigo</TableHead>
@@ -593,6 +658,17 @@ function PasoResultado({
             <TableBody>
               {detalles.map((detalle) => (
                 <TableRow key={detalle.id}>
+                  <TableCell>
+                    {detalle.estado === "CREADO" && detalle.codigoActivo ? (
+                      <Checkbox
+                        checked={codigosSeleccionados.has(detalle.codigoActivo)}
+                        onCheckedChange={() =>
+                          alternarSeleccion(detalle.codigoActivo!)
+                        }
+                        aria-label={`Seleccionar ${detalle.codigoActivo}`}
+                      />
+                    ) : null}
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {detalle.fila}
                   </TableCell>
@@ -660,32 +736,36 @@ function PasoResultado({
           <Button asChild variant="ghost">
             <Link href="/activos/inventario">Ir al listado de activos</Link>
           </Button>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             {creados.length > 0 && (
-              <Button asChild variant="outline">
+              <>
                 <Link
                   href="/activos/carga-masiva-documentos"
                   target="_blank"
+                  className="text-xs text-muted-foreground underline-offset-2 hover:underline"
                   onClick={() => {
-                    // Pasamos los codigos recien creados para que, si el
-                    // siguiente documento es compartido (ej. poliza), el
-                    // campo de placas llegue prellenado con este lote.
                     // sessionStorage se copia a la pestana nueva (mismo
                     // origen, sin noopener), por eso no hace falta otra cosa.
-                    const codigos = creados
-                      .map((detalle) => detalle.codigoActivo)
-                      .filter((codigo): codigo is string => Boolean(codigo));
                     window.sessionStorage.setItem(
                       "activos:loteParaDocumentos",
-                      JSON.stringify(codigos),
+                      JSON.stringify(codigosParaDocumentos),
                     );
                   }}
                 >
-                  <FileText className="size-4" />
-                  Agregar documentos a estos activos
-                  <ExternalLink className="size-3.5" />
+                  ¿Un archivo distinto por activo? Usa carga masiva de
+                  documentos
                 </Link>
-              </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setMostrarSubidaSeleccionados(true)}
+                >
+                  <FileText className="size-4" />
+                  {codigosSeleccionados.size > 0
+                    ? `Subir documento a ${codigosSeleccionados.size} seleccionado${codigosSeleccionados.size === 1 ? "" : "s"}`
+                    : "Subir documento a estos activos"}
+                </Button>
+              </>
             )}
             <Button type="button" onClick={onNueva}>
               Nueva carga
@@ -722,6 +802,34 @@ function PasoResultado({
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      <Sheet
+        open={mostrarSubidaSeleccionados}
+        onOpenChange={setMostrarSubidaSeleccionados}
+      >
+        <SheetContent side="right" className="w-full gap-0 sm:max-w-md">
+          <SheetHeader className="border-b border-border">
+            <SheetTitle>
+              Subir documento a {codigosParaDocumentos.length} activo
+              {codigosParaDocumentos.length === 1 ? "" : "s"}
+            </SheetTitle>
+            <SheetDescription>
+              Un solo archivo (ej. poliza) se asociara a todos los activos
+              elegidos.
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="p-6">
+              {mostrarSubidaSeleccionados ? (
+                <SubidaDocumentoSeleccionadosContenido
+                  codigos={codigosParaDocumentos}
+                  onSubido={() => setMostrarSubidaSeleccionados(false)}
+                />
+              ) : null}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }
@@ -747,5 +855,188 @@ function DocumentosDrawerContenido({ codigo }: { codigo: string }) {
       onCambio={recargar}
       compacto
     />
+  );
+}
+
+/**
+ * Sube UN solo archivo (ej. poliza de flota) y lo asocia a todos los
+ * `codigos` recibidos sin salir de la pantalla de Resultado. Equivalente al
+ * modo "compartido" de carga-masiva-documentos-vista, pero con los activos
+ * ya elegidos por checkbox en vez de escribir placas a mano.
+ */
+function SubidaDocumentoSeleccionadosContenido({
+  codigos,
+  onSubido,
+}: {
+  codigos: string[];
+  onSubido: () => void;
+}) {
+  const [tiposMaestro, setTiposMaestro] = React.useState<TipoDocumentoMaestro[]>(
+    []
+  );
+  const [tipoDocumento, setTipoDocumento] = React.useState<
+    TipoDocumentoCarga | ""
+  >("");
+  const [fechaVencimiento, setFechaVencimiento] = React.useState("");
+  const [archivo, setArchivo] = React.useState<{
+    nombreArchivo: string;
+    contenidoBase64: string;
+  } | null>(null);
+  const [procesando, setProcesando] = React.useState(false);
+
+  React.useEffect(() => {
+    obtenerTiposDocumento()
+      .then(setTiposMaestro)
+      .catch(() => setTiposMaestro([]));
+  }, []);
+
+  // El backend solo abre un mismo archivo a varios activos para tipos
+  // COMPARTIDO (ej. Poliza de seguro); un tipo INDIVIDUAL (SOAT, Factura...)
+  // ignora la lista y solo lo asociaria al primer activo. Por eso aqui solo
+  // se listan los tipos compartidos reales del Maestro Documentario.
+  const tiposCompartidos = tiposMaestro.filter(
+    (tipo) => tipo.alcance === "COMPARTIDO" && tipo.activo
+  );
+  const tipoMeta = tiposCompartidos.find((tipo) => tipo.codigo === tipoDocumento);
+  const requiereVencimiento = tipoMeta?.requiereVencimiento ?? false;
+
+  async function onArchivo(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setArchivo({
+      nombreArchivo: file.name,
+      contenidoBase64: await archivoADataUrl(file),
+    });
+  }
+
+  async function confirmar() {
+    if (!tipoDocumento) {
+      toast.error("Selecciona el tipo de documento.");
+      return;
+    }
+    if (!archivo) {
+      toast.error("Selecciona el archivo a subir.");
+      return;
+    }
+    if (requiereVencimiento && !fechaVencimiento) {
+      toast.error("Este tipo de documento requiere fecha de vencimiento.");
+      return;
+    }
+
+    setProcesando(true);
+    try {
+      const datos = await procesarCargaMasivaDocumentos({
+        archivos: [
+          {
+            nombreArchivo: archivo.nombreArchivo,
+            identificador: codigos[0],
+            identificadores: codigos,
+            tipoDocumento,
+            fechaVencimiento: fechaVencimiento || undefined,
+            contenidoBase64: archivo.contenidoBase64,
+          },
+        ],
+      });
+      toast.success(
+        `${datos.totalAsociados} de ${codigos.length} activo(s) actualizados.`
+      );
+      onSubido();
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        extraerMensajeError(error, "No se pudo subir el documento.")
+      );
+    } finally {
+      setProcesando(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-5">
+      <div className="flex flex-wrap gap-2">
+        {codigos.map((codigo) => (
+          <Badge key={codigo} variant="secondary">
+            {codigo}
+          </Badge>
+        ))}
+      </div>
+
+      <div className="grid gap-2">
+        <Label>Tipo de documento</Label>
+        <Select
+          value={tipoDocumento}
+          onValueChange={(v) => setTipoDocumento(v as TipoDocumentoCarga)}
+          disabled={tiposCompartidos.length === 0}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona el tipo" />
+          </SelectTrigger>
+          <SelectContent>
+            {tiposCompartidos.map((tipo) => (
+              <SelectItem key={tipo.codigo} value={tipo.codigo}>
+                {tipo.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          {tiposCompartidos.length === 0
+            ? "No hay tipos de documento compartido configurados todavia."
+            : "Solo se listan tipos compartidos: un archivo cubre a todos los seleccionados."}
+        </p>
+      </div>
+
+      <div className="grid gap-2">
+        <Label>
+          Fecha de vencimiento{" "}
+          {requiereVencimiento ? (
+            <span className="text-destructive">(obligatorio)</span>
+          ) : (
+            "(opcional)"
+          )}
+        </Label>
+        <Input
+          type="date"
+          value={fechaVencimiento}
+          onChange={(e) => setFechaVencimiento(e.target.value)}
+        />
+      </div>
+
+      <div className="grid gap-2">
+        <Label>Archivo</Label>
+        <input
+          id="archivo-doc-seleccionados"
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png"
+          className="hidden"
+          onChange={onArchivo}
+        />
+        <label htmlFor="archivo-doc-seleccionados">
+          <Button type="button" variant="outline" asChild>
+            <span className="cursor-pointer">
+              <Upload className="size-4" />
+              {archivo ? "Cambiar archivo" : "Seleccionar archivo"}
+            </span>
+          </Button>
+        </label>
+        {archivo ? (
+          <span className="text-sm text-muted-foreground">
+            {archivo.nombreArchivo}
+          </span>
+        ) : null}
+      </div>
+
+      <Button
+        type="button"
+        onClick={confirmar}
+        disabled={procesando}
+        className="justify-self-end"
+      >
+        {procesando
+          ? "Subiendo..."
+          : `Subir a ${codigos.length} activo${codigos.length === 1 ? "" : "s"}`}
+      </Button>
+    </div>
   );
 }
