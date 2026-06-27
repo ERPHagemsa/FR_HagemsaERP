@@ -30,6 +30,7 @@ import {
 } from "@/compartido/componentes/ui/table"
 import { CLAVE_TARIFARIOS } from "@/modulos/comercial/claves-consulta"
 import { useModalidadesQuery } from "@/modulos/comercial/catalogos/modalidades/servicios/catalogo-modalidades-queries"
+import { useConsultarCotizacion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries"
 import { listarTarifarios } from "@/modulos/comercial/tarifarios/servicios/tarifarios-api"
 
 import {
@@ -69,6 +70,13 @@ export function ContratoDetalle({ idContrato }: Props) {
   )
   const consolidado = consolidadoQuery.data ?? []
 
+  // Código de la cotización origen (COT-AAAA-NNNNN) en vez del UUID.
+  const cotizacionOrigenQuery = useConsultarCotizacion(
+    contrato?.idCotizacionOrigen ?? "",
+  )
+  const codigoCotizacionOrigen =
+    cotizacionOrigenQuery.data?.codigoCotizacion ?? null
+
   if (consulta.isLoading) {
     return <Skeleton className="h-96 w-full" />
   }
@@ -100,12 +108,14 @@ export function ContratoDetalle({ idContrato }: Props) {
       <Card>
         <CardHeader className="border-b border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle>Contrato</CardTitle>
+            <CardTitle>{contrato.codigoContrato ?? "Contrato"}</CardTitle>
             <Badge variant={activo ? "default" : "secondary"}>
               {etiquetaEstadoContrato(contrato.estado)}
             </Badge>
           </div>
-          <CardDescription>Cliente {contrato.idClienteExterno}</CardDescription>
+          <CardDescription>
+            Cliente {contrato.nombreClienteExterno ?? contrato.idClienteExterno}
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 pt-5 text-sm sm:grid-cols-4">
           <div>
@@ -118,12 +128,26 @@ export function ContratoDetalle({ idContrato }: Props) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Cotizacion origen</p>
-            <p className="truncate">{contrato.idCotizacionOrigen ?? "—"}</p>
+            <p className="truncate">
+              {!contrato.idCotizacionOrigen
+                ? "—"
+                : (codigoCotizacionOrigen ??
+                  (cotizacionOrigenQuery.isLoading
+                    ? "Cargando…"
+                    : contrato.idCotizacionOrigen))}
+            </p>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Contrato origen</p>
-            <p className="truncate">{contrato.contratoOrigenId ?? "—"}</p>
-          </div>
+          {contrato.contratoOrigenId ? (
+            <div>
+              <p className="text-xs text-muted-foreground">Contrato origen</p>
+              <Link
+                href={`/comercial/contratos/${contrato.contratoOrigenId}`}
+                className="text-primary underline-offset-4 hover:underline"
+              >
+                Ver contrato anterior
+              </Link>
+            </div>
+          ) : null}
           <div>
             <p className="text-xs text-muted-foreground">Creado</p>
             <p>{formatearFecha(contrato.fechaCreacion)}</p>

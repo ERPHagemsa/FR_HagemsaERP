@@ -142,6 +142,7 @@ export function ContratosListado({ filtros, onFiltrosChange }: Props) {
           <Table className="w-full [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
+                <TableHead>Código</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Vigencia</TableHead>
                 <TableHead className="text-center">PDF</TableHead>
@@ -154,7 +155,7 @@ export function ContratosListado({ filtros, onFiltrosChange }: Props) {
               {consulta.isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={7}>
                       <Skeleton className="h-7 w-full" />
                     </TableCell>
                   </TableRow>
@@ -162,7 +163,7 @@ export function ContratosListado({ filtros, onFiltrosChange }: Props) {
               ) : filas.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-28 text-center text-muted-foreground"
                   >
                     No hay contratos para los filtros aplicados.
@@ -175,7 +176,12 @@ export function ContratosListado({ filtros, onFiltrosChange }: Props) {
                     className="cursor-pointer"
                     onClick={() => router.push(`/comercial/contratos/${item.id}`)}
                   >
-                    <TableCell className="text-sm">{item.idClienteExterno}</TableCell>
+                    <TableCell className="text-sm font-medium">
+                      {item.codigoContrato ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {item.nombreClienteExterno ?? item.idClienteExterno}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatearFecha(item.vigenciaInicio)}
                       {" → "}

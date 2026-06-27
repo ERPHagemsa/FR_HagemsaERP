@@ -60,6 +60,7 @@ import {
 import { useModalidadesQuery } from "@/modulos/comercial/catalogos/modalidades/servicios/catalogo-modalidades-queries"
 import { useConsultarCotizacion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries"
 import { CrearContratoDesdeTarifario } from "@/modulos/comercial/contratos/componentes/crear-contrato-desde-tarifario"
+import { useContratoDetalleQuery } from "@/modulos/comercial/contratos/servicios/contratos-queries"
 
 import {
   useActualizarTarifaMutation,
@@ -238,6 +239,10 @@ export function TarifarioDetalle({ idTarifario }: Props) {
   const codigoCotizacionOrigen =
     cotizacionOrigenQuery.data?.codigoCotizacion ?? null
 
+  // Código del contrato vinculado (CONT-AAAA-N) en vez del UUID.
+  const contratoQuery = useContratoDetalleQuery(tarifario?.idContrato ?? "")
+  const codigoContratoVinculado = contratoQuery.data?.codigoContrato ?? null
+
   const [agregarAbierto, setAgregarAbierto] = useState(false)
   const [tarifaEditando, setTarifaEditando] = useState<Tarifa | null>(null)
   const [tarifaEliminando, setTarifaEliminando] = useState<Tarifa | null>(null)
@@ -324,7 +329,12 @@ export function TarifarioDetalle({ idTarifario }: Props) {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Contrato</p>
-            <p className="truncate">{tarifario.idContrato ?? "—"}</p>
+            <p className="truncate">
+              {!tarifario.idContrato
+                ? "—"
+                : (codigoContratoVinculado ??
+                  (contratoQuery.isLoading ? "Cargando…" : tarifario.idContrato))}
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Vigencia</p>

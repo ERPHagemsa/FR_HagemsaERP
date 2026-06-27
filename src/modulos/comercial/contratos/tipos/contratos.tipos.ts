@@ -17,7 +17,11 @@ export interface PdfContrato {
 // Detalle completo del contrato (GET /contratos/:id).
 export interface Contrato {
   id: string
+  numeroContrato: number | null
+  anioContrato: number | null
+  codigoContrato: string | null
   idClienteExterno: string
+  nombreClienteExterno: string | null
   idCotizacionOrigen: string | null
   contratoOrigenId: string | null
   estado: EstadoContrato
@@ -32,7 +36,11 @@ export interface Contrato {
 // Fila del listado (GET /contratos) — sin el PDF, solo si existe.
 export interface ContratoResumen {
   id: string
+  numeroContrato: number | null
+  anioContrato: number | null
+  codigoContrato: string | null
   idClienteExterno: string
+  nombreClienteExterno: string | null
   idCotizacionOrigen: string | null
   contratoOrigenId: string | null
   estado: EstadoContrato
