@@ -194,9 +194,19 @@ function mapearFila(
       catalogos.idPorNombre("CLASE_VEHICULO", defecto.claseVehiculo) ?? 0;
     const estadoCalibracionReferenciaId =
       catalogos.idPorNombre("ESTADO_CALIBRACION", defecto.estadoCalibracion) ?? 0;
+    // La columna "Carroceria" del Excel sigue siendo texto libre (para no
+    // obligar al usuario a escribir un id), pero si el texto coincide con un
+    // nombre del Maestro de Catalogos, resolvemos tambien el id real. Si no
+    // hay match, queda sin id (igual que antes) y se completa luego a mano
+    // desde Editar activo.
+    const carroceriaReferenciaId = catalogos.idPorNombre(
+      "CARROCERIA",
+      vehiculo.carroceria as string | undefined,
+    );
     activo.vehiculo = {
       claseVehiculoReferenciaId,
       estadoCalibracionReferenciaId,
+      ...(carroceriaReferenciaId ? { carroceriaReferenciaId } : {}),
       ...vehiculo,
     };
   }

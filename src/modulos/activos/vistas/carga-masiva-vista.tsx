@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Boxes,
   Car,
@@ -23,6 +24,7 @@ import {
   IconDotsVertical,
   IconEye,
   IconFileDescription,
+  IconPencil,
 } from "@tabler/icons-react";
 import { toast } from "sonner";
 
@@ -75,6 +77,7 @@ import {
   parsearArchivo,
 } from "../servicios/carga-masiva-excel";
 import {
+  obtenerCargaMasiva,
   obtenerDocumentosPorCodigo,
   procesarCargaMasiva,
 } from "../servicios/activos-api";
@@ -123,7 +126,8 @@ const PASOS: Array<{ id: Paso; titulo: string }> = [
   { id: "resultado", titulo: "Resultado" },
 ];
 
-export function CargaMasivaVista() {
+export function CargaMasivaVista({ loteId }: { loteId?: number }) {
+  const router = useRouter();
   const catalogos = useCatalogosActivos();
   const [paso, setPaso] = React.useState<Paso>("tipo");
   const [tipo, setTipo] = React.useState<number | null>(null);
@@ -131,9 +135,37 @@ export function CargaMasivaVista() {
   const [filas, setFilas] = React.useState<FilaPrevisualizada[]>([]);
   const [procesando, setProcesando] = React.useState(false);
   const [resultado, setResultado] = React.useState<CargaMasiva | null>(null);
+  const [cargandoLote, setCargandoLote] = React.useState(Boolean(loteId));
 
   const validas = filas.filter((fila) => fila.esValida);
   const conError = filas.filter((fila) => !fila.esValida);
+
+  // El Resultado es reconstruible por URL (?lote=ID): si llegamos con un
+  // loteId, lo traemos de la BD y arrancamos directo en el paso Resultado
+  // en vez del paso 1. Asi "Editar -> Guardar" puede regresar exactamente
+  // a este lote (mismo patron que Inventario Fisico con returnTo).
+  React.useEffect(() => {
+    if (!loteId) return;
+    let cancelado = false;
+    setCargandoLote(true);
+    obtenerCargaMasiva(loteId)
+      .then((carga) => {
+        if (cancelado) return;
+        setResultado(carga);
+        setPaso("resultado");
+      })
+      .catch(() => {
+        if (cancelado) return;
+        toast.error(`No se encontro el lote ${loteId}.`);
+        router.replace("/activos/carga-masiva");
+      })
+      .finally(() => {
+        if (!cancelado) setCargandoLote(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [loteId, router]);
 
   function reiniciar() {
     setPaso("tipo");
@@ -141,6 +173,7 @@ export function CargaMasivaVista() {
     setNombreArchivo("");
     setFilas([]);
     setResultado(null);
+    if (loteId) router.replace("/activos/carga-masiva");
   }
 
   function elegirTipo(nuevoTipo: number) {
@@ -206,6 +239,18 @@ export function CargaMasivaVista() {
     } finally {
       setProcesando(false);
     }
+  }
+
+  if (cargandoLote) {
+    return (
+      <div className="flex flex-col gap-6 p-4 md:p-6">
+        <Card className="border-0 shadow-sm">
+          <CardContent className="flex items-center justify-center gap-3 py-16 text-sm text-muted-foreground">
+            Cargando lote {loteId}...
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -511,6 +556,7 @@ function PasoResultado({
   const [activoSeleccionado, setActivoSeleccionado] = React.useState<
     string | null
   >(null);
+  const returnToLote = `/activos/carga-masiva?lote=${resultado.id}`;
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader>
@@ -589,6 +635,14 @@ function PasoResultado({
                             <Link href={`/activos/${detalle.codigoActivo}`}>
                               <IconEye />
                               Abrir
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link
+                              href={`/activos/${detalle.codigoActivo}/editar?returnTo=${encodeURIComponent(returnToLote)}`}
+                            >
+                              <IconPencil />
+                              Editar
                             </Link>
                           </DropdownMenuItem>
                         </DropdownMenuContent>
