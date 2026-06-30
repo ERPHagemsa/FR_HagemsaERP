@@ -91,9 +91,9 @@ export function CotizacionSeccionesEditor({
     nueva.nombre = nuevoNombre.trim();
     nueva.origen = nuevoOrigen.trim();
     nueva.destino = nuevoDestino.trim();
-    onChange([...secciones, nueva]);
     setCrearAbierto(false);
-    // Abrir de una vez el modal de la seccion para agregar lineas.
+    // Abrir el modal para agregar lineas. La seccion NO se agrega todavia: recien
+    // entra a la lista (y se persiste) al pulsar "Aplicar"; "Cancelar" la descarta.
     setEditando(nueva);
   }
 
