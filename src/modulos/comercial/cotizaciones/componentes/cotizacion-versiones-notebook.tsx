@@ -70,7 +70,6 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
   }
 
   const leadTimes = version.leadTimes ?? [];
-  const standbys = version.standbys ?? [];
   const totalLineas = version.lineas.length;
 
   return (
@@ -150,7 +149,6 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
         <TabsList variant="line">
           <TabsTrigger value="lineas">Lineas ({totalLineas})</TabsTrigger>
           <TabsTrigger value="leadtimes">Lead times ({leadTimes.length})</TabsTrigger>
-          <TabsTrigger value="standby">Standby ({standbys.length})</TabsTrigger>
         </TabsList>
 
         {/* --- Lineas --- */}
@@ -210,47 +208,6 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
                 </tbody>
               </table>
             </div>
-          )}
-        </TabsContent>
-
-        {/* --- Standby --- */}
-        <TabsContent value="standby" className="pt-4">
-          {standbys.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin tarifas de standby.</p>
-          ) : (
-            <>
-              <p className="mb-2 text-xs text-muted-foreground">
-                Informativos — no suman al monto total.
-              </p>
-              <div className="overflow-hidden rounded-lg border border-border">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/40">
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">Descripcion</th>
-                      <th className="px-3 py-2 text-right font-medium text-muted-foreground">Tarifa diaria</th>
-                      <th className="px-3 py-2 text-left font-medium text-muted-foreground">Por linea</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {standbys.map((sb) => (
-                      <tr key={sb.id} className="border-b border-border last:border-0">
-                        <td className="px-3 py-2">{sb.descripcion}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          {formatearMonto(sb.monto)} {version.moneda} / dia
-                        </td>
-                        <td className="px-3 py-2">
-                          {sb.porLinea ? (
-                            <Badge variant="secondary" className="text-xs">Por linea</Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
           )}
         </TabsContent>
       </Tabs>

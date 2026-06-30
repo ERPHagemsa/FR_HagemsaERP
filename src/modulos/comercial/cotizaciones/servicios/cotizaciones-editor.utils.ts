@@ -17,7 +17,6 @@ import type {
   AlmacenajeHijo,
   PersonalHijo,
   Linea,
-  Standby,
   CargoAdicional,
   LeadTime,
   TipoLinea,
@@ -27,7 +26,6 @@ import type {
   PayloadBorrador,
   PayloadLinea,
   PayloadSeccion,
-  PayloadStandby,
   PayloadLeadTime,
   PayloadCargoAdicional,
   PayloadCargaHijo,
@@ -56,6 +54,7 @@ export type DraftCargoAdicional = {
   unidadCobro: UnidadCobro; // unidad de cobro del cargo
   cantidad: string;          // input numerico como string (> 0)
   precioUnitario: string;    // input numerico como string (>= 0)
+  standbyDia: string;        // stand-by por dia (input numerico como string; "" = sin stand-by)
   // monto derivado: cantidad × precioUnitario — NO almacenar; calcular en el componente via montoCargo()
   orden: number;
 };
@@ -105,21 +104,13 @@ export type DraftLinea = {
   cantidad: string; // entero >=1
   precioBase: string; // requerido (>=0) — precio base de la empresa por unidad
   margenPct: string;  // requerido (0 <= x < 100) — margen sobre la venta en %; se precarga de la modalidad
+  standbyDia: string; // stand-by por dia (input numerico como string; "" = sin stand-by); solo TRANSPORTE
   // Hijos polimorficos (solo uno se usa segun tipoLinea; los demas ignorados en armarPayload)
   carga: DraftCargaHijo;
   equipo: DraftEquipoHijo;
   almacenaje: DraftAlmacenajeHijo;
   personal: DraftPersonalHijo;
   cargosAdicionales: DraftCargoAdicional[]; // cargos a nivel de linea (arco exclusivo: linea XOR seccion)
-};
-
-// Contrato 2026-06-06: sin campo unidad. monto = tarifa diaria.
-export type DraftStandby = {
-  claveCliente: string;
-  descripcion: string;
-  monto: string;         // tarifa diaria (input numerico como string)
-  porLinea: boolean;
-  orden: number;
 };
 
 export type DraftSeccion = {
@@ -134,7 +125,6 @@ export type DraftSeccion = {
 export type DraftBorrador = {
   moneda: Moneda;            // nivel version
   secciones: DraftSeccion[]; // incluye la seccion por defecto (esDefecto:true) si existe
-  standbys: DraftStandby[];  // nivel version
   leadTimes: DraftLeadTime[]; // nivel version
 };
 
@@ -192,21 +182,12 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
     cantidad: "1",
     precioBase: "0",
     margenPct: "0",
+    standbyDia: "",
     carga: cargaVacia(),
     equipo: equipoVacio(),
     almacenaje: almacenajeVacio(),
     personal: personalVacio(),
     cargosAdicionales: [],
-  };
-}
-
-export function standbyVacio(): DraftStandby {
-  return {
-    claveCliente: crypto.randomUUID(),
-    descripcion: "",
-    monto: "0",
-    porLinea: false,
-    orden: 0,
   };
 }
 
@@ -228,6 +209,7 @@ export function cargoAdicionalVacio(): DraftCargoAdicional {
     unidadCobro: "SERVICIO",
     cantidad: "1",
     precioUnitario: "0",
+    standbyDia: "",
     orden: 0,
   };
 }
@@ -295,6 +277,7 @@ function cargoAdicionalReadADraft(c: CargoAdicionalCompat): DraftCargoAdicional 
     unidadCobro,
     cantidad,
     precioUnitario,
+    standbyDia: c.standbyDia != null ? String(c.standbyDia) : "",
     orden: c.orden,
   };
 }
@@ -394,6 +377,7 @@ function lineaReadADraft(l: Linea): DraftLinea {
     cantidad: String(l.cantidad),
     precioBase: String(l.precioBase),
     margenPct: String(l.margenPct),
+    standbyDia: l.standbyDia != null ? String(l.standbyDia) : "",
     // Poblar el hijo correspondiente; el resto queda en valores por defecto
     carga: l.carga ? cargaReadADraft(l.carga) : cargaVacia(),
     equipo: l.equipo ? equipoReadADraft(l.equipo) : equipoVacio(),
@@ -412,32 +396,12 @@ type CargoAdicionalCompat = CargoAdicional & {
   precioUnitario?: number;
 };
 
-// Migracion graceful: el shape viejo del standby tenia recurso/tarifaDia/moneda/idSeccion.
-// Usamos un tipo interseccion con campos opcionales del shape viejo para la compat.
-type StandbyCompat = Standby & {
-  recurso?: string;
-  tarifaDia?: number;
-};
-
-function standbyReadADraft(s: StandbyCompat): DraftStandby {
-  // Migracion: si llega con shape viejo (recurso/tarifaDia), mapear a nuevo
-  const descripcion = s.descripcion || s.recurso || "";
-  const monto = s.monto !== undefined ? s.monto : (s.tarifaDia ?? 0);
-  return {
-    claveCliente: s.id,
-    descripcion,
-    monto: String(monto),
-    porLinea: s.porLinea ?? false,
-    orden: s.orden,
-  };
-}
-
 /**
  * derivarDraft — convierte la version vigente (read model PLANO) al DraftBorrador client-side.
  *
  * ADR-D1: introduce seccion por defecto (esDefecto:true) cuando hay lineas sin seccion explícita.
  * ADR-D3: migracion graceful de shapes viejos (cargos-por-linea → cargosAdicionales de seccion,
- *         moneda-por-linea → version.moneda, standby viejo → nuevo shape).
+ *         moneda-por-linea → version.moneda). El stand-by viaja como standbyDia por linea/cargo.
  * ADR-D4: deteccion de seccion por defecto por nombre === null (NUNCA por idSeccion === null).
  */
 export function derivarDraft(version: Version): DraftBorrador {
@@ -498,15 +462,10 @@ export function derivarDraft(version: Version): DraftBorrador {
     }
   }
 
-  // 4. Standbys: leer version.standbys (nuevo) con compat para shape viejo
-  // El tipo Version ya usa standbys; la compat cubre cotizaciones en memoria con shape antiguo.
-  const standbysRaw = version.standbys ?? [];
-  const standbys: DraftStandby[] = standbysRaw.map((s) => standbyReadADraft(s as StandbyCompat));
-
-  // 5. LeadTimes: nuevo campo; leadTimeDias escalar viejo se descarta (no hay mapeo sensato)
+  // 4. LeadTimes: nivel version; el stand-by ya no es array (vive en standbyDia por linea/cargo)
   const leadTimes: DraftLeadTime[] = (version.leadTimes ?? []).map(leadTimeReadADraft);
 
-  return { moneda, secciones, standbys, leadTimes };
+  return { moneda, secciones, leadTimes };
 }
 
 // ---------------------------------------------------------------------------
@@ -587,6 +546,9 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
   const descripcion = l.descripcion.trim();
   if (descripcion !== "") base.descripcion = descripcion;
 
+  // stand-by por dia: solo se emite si el usuario puso un valor (vacio = sin stand-by).
+  if (l.standbyDia.trim() !== "") base.standbyDia = parseNumero(l.standbyDia);
+
   switch (l.tipoLinea) {
     case "TRANSPORTE":
       base.carga = cargaAPayload(l.carga);
@@ -611,15 +573,6 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
   return base;
 }
 
-function standbyAPayload(s: DraftStandby): PayloadStandby {
-  return {
-    descripcion: s.descripcion,
-    monto: parseNumero(s.monto),
-    porLinea: s.porLinea,
-    orden: s.orden,
-  };
-}
-
 function leadTimeAPayload(l: DraftLeadTime): PayloadLeadTime {
   const payload: PayloadLeadTime = {
     descripcion: l.descripcion,
@@ -641,6 +594,8 @@ function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
     cantidad: parseNumero(c.cantidad),
     precioUnitario: parseNumero(c.precioUnitario),
   };
+  // stand-by por dia: solo si el usuario puso un valor (vacio = sin stand-by).
+  if (c.standbyDia.trim() !== "") payload.standbyDia = parseNumero(c.standbyDia);
   if (c.orden > 0) payload.orden = c.orden;
   return payload;
 }
@@ -691,6 +646,12 @@ function validarCargo(
   if (isNaN(precioNum) || precioNum < 0) {
     errores[`${prefijo}.precioUnitario`] = "El precio unitario debe ser >= 0.";
   }
+  if (c.standbyDia.trim() !== "") {
+    const sbNum = parseFloat(c.standbyDia);
+    if (isNaN(sbNum) || sbNum < 0) {
+      errores[`${prefijo}.standbyDia`] = "El stand-by debe ser >= 0.";
+    }
+  }
 }
 
 // Numeros opcionales de un item de carga: si vienen, deben ser >= 0.
@@ -727,8 +688,8 @@ function validarCargaItem(
  *
  * - Seccion con nombre obligatorio (EXCEPTO esDefecto — la seccion por defecto no exige nombre).
  * - LeadTime: descripcion no vacia; diasMax >= diasMin cuando esRango.
- * - CargoAdicional (seccion y linea): descripcion no vacia; unidadCobro valida; cantidad > 0; precioUnitario >= 0.
- * - Standby: descripcion no vacia; monto >= 0.
+ * - CargoAdicional (seccion y linea): descripcion no vacia; unidadCobro valida; cantidad > 0; precioUnitario >= 0; standbyDia >= 0 si viene.
+ * - Stand-by por linea/cargo: standbyDia >= 0 si viene.
  * - Moneda: requerida a nivel version.
  */
 export function validarBorrador(draft: DraftBorrador): Record<string, string> {
@@ -762,6 +723,13 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
       const margenNum = parseFloat(l.margenPct);
       if (isNaN(margenNum) || margenNum < 0 || margenNum >= 100) {
         errores[`secciones.${i}.lineas.${k}.margenPct`] = "El margen debe ser >= 0 y menor a 100.";
+      }
+      // Stand-by por dia (opcional): si viene, debe ser >= 0
+      if (l.standbyDia.trim() !== "") {
+        const sbNum = parseFloat(l.standbyDia);
+        if (isNaN(sbNum) || sbNum < 0) {
+          errores[`secciones.${i}.lineas.${k}.standbyDia`] = "El stand-by debe ser >= 0.";
+        }
       }
       // Items de carga (solo TRANSPORTE): nombre obligatorio, dimensiones/peso >= 0
       if (l.tipoLinea === "TRANSPORTE") {
@@ -797,17 +765,6 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
     }
   });
 
-  // Standbys
-  draft.standbys.forEach((s, i) => {
-    if (s.descripcion.trim() === "") {
-      errores[`standbys.${i}.descripcion`] = "La descripcion del standby es obligatoria.";
-    }
-    const montoNum = parseFloat(s.monto);
-    if (isNaN(montoNum) || montoNum < 0) {
-      errores[`standbys.${i}.monto`] = "El monto debe ser >= 0.";
-    }
-  });
-
   return errores;
 }
 
@@ -817,7 +774,8 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
  * Contrato 2026-06: SOLO secciones[]; NO hay canal de lineas raiz. El bucket por
  * defecto se emite como seccion sin nombre (caso plano).
  * Nunca emite: claveCliente, idSeccion, precioVenta, precioVentaTotal, subtotal ni totales.
- * Nunca emite: moneda en linea, cargosAdicionales en raiz, standbys en secciones.
+ * Nunca emite: moneda en linea, cargosAdicionales en raiz. El stand-by va como
+ * standbyDia dentro de cada linea/cargo (no hay array de version).
  * El draft completo se re-envía siempre (replacement idempotente — ADR-10).
  */
 export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {
@@ -833,11 +791,6 @@ export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {
 
   if (seccionesPayload.length > 0) {
     payload.secciones = seccionesPayload;
-  }
-
-  // Standbys nivel version (NUNCA en secciones)
-  if (draft.standbys.length > 0) {
-    payload.standbys = draft.standbys.map(standbyAPayload);
   }
 
   // LeadTimes nivel version

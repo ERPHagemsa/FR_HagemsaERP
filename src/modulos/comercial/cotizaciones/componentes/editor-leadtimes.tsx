@@ -25,8 +25,8 @@ type Props = {
   onChange: (leadTimes: DraftLeadTime[]) => void;
 };
 
-// Mismo patron de tabla (primitivo Table de shadcn) que EditorStandby y el grid
-// de lineas: mantiene la armonia visual de la zona informativa.
+// Mismo patron de tabla (primitivo Table de shadcn) que el grid de lineas:
+// mantiene la armonia visual de la zona informativa.
 export function EditorLeadtimes({ leadTimes, erroresCampo = {}, disabled, onChange }: Props) {
   function agregar() {
     const nuevo = leadTimeVacio();

@@ -73,6 +73,7 @@ export function EditorCargos({ cargos, opcionesCatalogo, erroresCampo = {}, disa
                 <TableHead className="w-36">Unidad de cobro</TableHead>
                 <TableHead className="w-24">Cantidad</TableHead>
                 <TableHead className="w-28">Precio unitario</TableHead>
+                <TableHead className="w-28">Stand by / dia</TableHead>
                 <TableHead className="w-28 text-right">Monto</TableHead>
                 <TableHead className="w-px" />
               </TableRow>
@@ -83,6 +84,7 @@ export function EditorCargos({ cargos, opcionesCatalogo, erroresCampo = {}, disa
                 const errUnidad = erroresCampo[`cargosAdicionales.${idx}.unidadCobro`];
                 const errCantidad = erroresCampo[`cargosAdicionales.${idx}.cantidad`];
                 const errPrecio = erroresCampo[`cargosAdicionales.${idx}.precioUnitario`];
+                const errStandby = erroresCampo[`cargosAdicionales.${idx}.standbyDia`];
                 const monto = montoCargo(cargo);
                 return (
                   <TableRow key={cargo.claveCliente}>
@@ -183,6 +185,24 @@ export function EditorCargos({ cargos, opcionesCatalogo, erroresCampo = {}, disa
                       />
                       {errPrecio ? (
                         <p className="mt-0.5 whitespace-normal text-xs text-destructive">{errPrecio}</p>
+                      ) : null}
+                    </TableCell>
+
+                    {/* Stand by por dia (opcional; vacio = sin stand-by) */}
+                    <TableCell>
+                      <Input
+                        className="h-8 w-24 text-xs"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="—"
+                        value={cargo.standbyDia}
+                        disabled={disabled}
+                        aria-invalid={Boolean(errStandby)}
+                        onChange={(e) => actualizar(cargo.claveCliente, { standbyDia: e.target.value })}
+                      />
+                      {errStandby ? (
+                        <p className="mt-0.5 whitespace-normal text-xs text-destructive">{errStandby}</p>
                       ) : null}
                     </TableCell>
 

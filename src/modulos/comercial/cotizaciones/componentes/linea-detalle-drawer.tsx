@@ -294,6 +294,23 @@ export function LineaDetalleDrawer({
               </span>
             </div>
 
+            {/* Stand by por dia (solo TRANSPORTE; opcional, vacio = sin stand-by).
+                Informativo: no suma al subtotal. Va a la linea como standbyDia. */}
+            {borrador.tipoLinea === "TRANSPORTE" ? (
+              <Campo label="Stand by / dia" error={erroresCampo.standbyDia}>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="— (sin stand-by)"
+                  value={borrador.standbyDia}
+                  disabled={disabled}
+                  aria-invalid={Boolean(erroresCampo.standbyDia)}
+                  onChange={(e) => set({ standbyDia: e.target.value })}
+                />
+              </Campo>
+            ) : null}
+
             {/* Precio sugerido — solo TRANSPORTE con modalidad + origen + destino + peso.
                 El peso es REQUERIDO por el backend (§5.3.2): si falta, pedirlo. Es una
                 referencia historica: el ejecutivo la usa o cotiza a criterio. */}

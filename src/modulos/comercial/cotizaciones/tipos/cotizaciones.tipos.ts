@@ -195,16 +195,7 @@ export type CargoAdicional = {
   cantidad: number;   // > 0
   precioUnitario: number; // >= 0
   monto: number;     // backend-calculated; READ-ONLY
-  orden: number;
-};
-
-// --- Standby (reshape, SOLO nivel version) ---
-// Contrato 2026-06-06: sin campo unidad. monto = tarifa diaria (el standby siempre es por dia).
-export type Standby = {
-  id: string;
-  descripcion: string;   // antes recurso
-  monto: number;         // tarifa diaria
-  porLinea: boolean;     // true = tarifa por linea por dia
+  standbyDia: number | null; // stand-by (espera por dia) del cargo; null = sin stand-by
   orden: number;
 };
 
@@ -227,6 +218,7 @@ export type Linea = {
   margenPct: number;        // margen sobre la venta en % (input, 0 <= x < 100)
   precioVenta: number;      // calculado por el backend: precioBase / (1 − margenPct/100), 2 decimales (solo lectura)
   precioVentaTotal: number; // calculado por el backend: precioVenta × cantidad (solo lectura)
+  standbyDia: number | null; // stand-by (espera por dia) de la linea; solo TRANSPORTE; null = sin stand-by
   idSeccion: string | null;
   carga?: CargaHijo;
   equipo?: EquipoHijo;
@@ -249,8 +241,7 @@ export type Version = {
   notas: string | null;
   secciones: Seccion[];
   lineas: Linea[];
-  standbys: Standby[];   // antes standbyTarifas; SOLO nivel version
-  leadTimes: LeadTime[]; // nuevo; SOLO nivel version
+  leadTimes: LeadTime[]; // nivel version
 };
 
 export type Cotizacion = {
@@ -452,15 +443,7 @@ export type PayloadCargoAdicional = {
   unidadCobro: UnidadCobro;
   cantidad: number;
   precioUnitario: number;
-  orden?: number;
-};
-
-// --- PayloadStandby (nivel version; NUNCA en seccion) ---
-// Contrato 2026-06-06: sin campo unidad (backend usa forbidNonWhitelisted).
-export type PayloadStandby = {
-  descripcion: string;
-  monto: number;         // tarifa diaria
-  porLinea?: boolean;    // default false; true = por linea por dia
+  standbyDia?: number | null; // stand-by del cargo (>= 0) o null
   orden?: number;
 };
 
@@ -513,6 +496,7 @@ export type PayloadLinea = {
   precioBase: number;
   margenPct: number;
   cantidad?: number;
+  standbyDia?: number | null; // stand-by de la linea (>= 0) o null; solo TRANSPORTE
   carga?: PayloadCargaHijo;
   equipo?: PayloadEquipoHijo;
   almacenaje?: PayloadAlmacenajeHijo;
@@ -521,7 +505,6 @@ export type PayloadLinea = {
 };
 
 // Seccion con lineas y cargosAdicionales anidados
-// NUNCA incluir standbys en una seccion
 export type PayloadSeccion = {
   nombre?: string;
   orden?: number;
@@ -529,15 +512,14 @@ export type PayloadSeccion = {
   cargosAdicionales?: PayloadCargoAdicional[];
 };
 
-// Borrador: moneda + secciones + standbys raiz + leadTimes raiz.
+// Borrador: moneda + secciones + leadTimes raiz.
 // Contrato 2026-06-08 (§5.4): NO existe canal de lineas raiz — toda linea va
 // dentro de secciones[].lineas; el caso "plano" es una seccion sin nombre.
-// standbys[] raiz = standbys de la version (informativo, no suman al total)
+// El stand-by viaja como standbyDia en cada linea/cargo (no hay array de version).
 // leadTimes[] raiz = plazos de entrega de la version
 export type PayloadBorrador = {
   moneda?: Moneda;       // default PEN en el backend
   secciones?: PayloadSeccion[];
-  standbys?: PayloadStandby[];   // SOLO root (antes standbyTarifas)
   leadTimes?: PayloadLeadTime[]; // SOLO root
 };
 

@@ -28,7 +28,6 @@ import type { Moneda, OrigenTipo } from "../tipos/cotizaciones.tipos";
 import type { DraftBorrador, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
 import { EditorContenido } from "./editor-contenido";
 import { EditorLeadtimes } from "./editor-leadtimes";
-import { EditorStandby } from "./editor-standby";
 
 // Presentacional puro del cuerpo del editor de borrador. No tiene logica de API:
 // el contenedor (CotizacionEditor para editar, CotizacionEditorNuevo para crear)
@@ -139,27 +138,6 @@ export function EditorBorradorCampos({
         </CardHeader>
         <CardContent className="p-0">
           <Accordion type="multiple" className="rounded-none border-0">
-            <AccordionItem value="standby">
-              <AccordionTrigger className="px-6">
-                <div className="flex flex-col items-start gap-0.5 text-left">
-                  <span className="text-sm font-medium">
-                    Stand by ({draft.standbys.length})
-                  </span>
-                  <span className="text-xs font-normal text-muted-foreground">
-                    Periodo durante el cual un vehículo o conductor permanece inactivo, a la
-                    expectativa o retenido en el punto de carga, descarga o en ruta.
-                  </span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="h-auto px-6">
-                <EditorStandby
-                  standby={draft.standbys}
-                  disabled={guardando}
-                  onChange={(standbys) => setDraft((d) => ({ ...d, standbys }))}
-                />
-              </AccordionContent>
-            </AccordionItem>
-
             <AccordionItem value="leadtimes">
               <AccordionTrigger className="px-6">
                 <div className="flex flex-col items-start gap-0.5 text-left">
