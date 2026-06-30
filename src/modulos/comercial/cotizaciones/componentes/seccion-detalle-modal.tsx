@@ -24,8 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
-import { FieldSet, FieldLegend } from "@/compartido/componentes/ui/field";
-
 import type { CatalogoCargoAdicional, OrigenTipo } from "../tipos/cotizaciones.tipos";
 import type {
   DraftLinea,
@@ -385,21 +383,18 @@ export function SeccionDetalleModal({
               Agregar linea
             </Button>
 
-            {/* Cargos adicionales de la seccion */}
-            <FieldSet className="gap-2 rounded-xl border border-border bg-muted/10 px-4 pb-4 pt-1">
-              <FieldLegend
-                variant="label"
-                className="px-1.5 font-semibold uppercase tracking-wide text-muted-foreground data-[variant=label]:text-xs"
-              >
+            {/* Cargos adicionales — parte del contenido de la seccion (no es una caja aparte) */}
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Cargos adicionales de la seccion
-              </FieldLegend>
+              </p>
               <EditorCargos
                 cargos={borrador.cargosAdicionales}
                 opcionesCatalogo={opcionesCatalogo}
                 disabled={disabled}
                 onChange={(cargos) => set({ cargosAdicionales: cargos })}
               />
-            </FieldSet>
+            </div>
 
             {/* Stand by — informativo, su propia tabla (no suma al total). Se edita en
                 el detalle de cada linea (drawer) y en los cargos; aca solo se resume. */}
