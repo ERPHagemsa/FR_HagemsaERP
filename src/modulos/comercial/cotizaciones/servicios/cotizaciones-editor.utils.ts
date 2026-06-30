@@ -20,6 +20,7 @@ import type {
   Standby,
   CargoAdicional,
   LeadTime,
+  CondicionVersion,
   TipoLinea,
   Moneda,
   UnidadCobro,
@@ -30,6 +31,7 @@ import type {
   PayloadStandby,
   PayloadLeadTime,
   PayloadCargoAdicional,
+  PayloadCondicionBorrador,
   PayloadCargaHijo,
   PayloadCargaItem,
   PayloadEquipoHijo,
@@ -131,11 +133,25 @@ export type DraftSeccion = {
   cargosAdicionales: DraftCargoAdicional[];
 };
 
+// Condicion seleccionada en el checklist del borrador.
+// El array `condiciones` en DraftBorrador es la seleccion completa (replacement
+// idempotente — ADR-10). Solo se incluyen clausulas MARCADAS. AUTO placeholders
+// (cliente, moneda) los resuelve el backend; MANUAL (dias_validez, lugar) se capturan aqui.
+// _parametrosManuales: nombres de los params MANUAL de esta clausula, copiados del catalogo
+// al marcarla — permite que validarBorrador valide sin acceder al catalogo.
+export type DraftCondicion = {
+  idCatalogoCondicion: string;
+  parametrosManual: Record<string, string>; // nombre → valor
+  orden: number;
+  _parametrosManuales: string[]; // solo UI; no se envia al backend
+};
+
 export type DraftBorrador = {
-  moneda: Moneda;            // nivel version
-  secciones: DraftSeccion[]; // incluye la seccion por defecto (esDefecto:true) si existe
-  standbys: DraftStandby[];  // nivel version
-  leadTimes: DraftLeadTime[]; // nivel version
+  moneda: Moneda;              // nivel version
+  secciones: DraftSeccion[];   // incluye la seccion por defecto (esDefecto:true) si existe
+  standbys: DraftStandby[];    // nivel version
+  leadTimes: DraftLeadTime[];  // nivel version
+  condiciones: DraftCondicion[]; // clausulas seleccionadas del checklist (nivel version)
 };
 
 // ---------------------------------------------------------------------------
@@ -432,6 +448,22 @@ function standbyReadADraft(s: StandbyCompat): DraftStandby {
   };
 }
 
+// condicionReadADraft — convierte un snapshot CondicionVersion al DraftCondicion del editor.
+//
+// Los valores de los parametros MANUAL no pueden recuperarse del snapshot (textoResuelto
+// ya los tiene sustituidos). Se inicializan en "" para que el usuario los re-ingrese si
+// quiere guardar de nuevo. Las clausulas constantes (esConstante=true) no tienen parametros
+// MANUAL, por lo que esto no genera friccion para el caso habitual.
+function condicionReadADraft(c: CondicionVersion): DraftCondicion | null {
+  if (!c.idCatalogoCondicion) return null; // snapshot sin referencia al maestro (no seleccionable)
+  return {
+    idCatalogoCondicion: c.idCatalogoCondicion,
+    parametrosManual: {}, // MANUAL values lost in snapshot; user re-enters when needed
+    orden: c.orden,
+    _parametrosManuales: [], // parametros MANUAL desconocidos hasta cargar el catalogo
+  };
+}
+
 /**
  * derivarDraft — convierte la version vigente (read model PLANO) al DraftBorrador client-side.
  *
@@ -506,7 +538,13 @@ export function derivarDraft(version: Version): DraftBorrador {
   // 5. LeadTimes: nuevo campo; leadTimeDias escalar viejo se descarta (no hay mapeo sensato)
   const leadTimes: DraftLeadTime[] = (version.leadTimes ?? []).map(leadTimeReadADraft);
 
-  return { moneda, secciones, standbys, leadTimes };
+  // 6. Condiciones: lista de snapshots seleccionados en la version (WU-9).
+  // Filtramos los que carecen de idCatalogoCondicion (snapshots huerfanos no seleccionables).
+  const condiciones: DraftCondicion[] = (version.condicionesVersion ?? [])
+    .map(condicionReadADraft)
+    .filter((c): c is DraftCondicion => c !== null);
+
+  return { moneda, secciones, standbys, leadTimes, condiciones };
 }
 
 // ---------------------------------------------------------------------------
@@ -641,6 +679,16 @@ function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
     cantidad: parseNumero(c.cantidad),
     precioUnitario: parseNumero(c.precioUnitario),
   };
+  if (c.orden > 0) payload.orden = c.orden;
+  return payload;
+}
+
+function condicionAPayload(c: DraftCondicion): PayloadCondicionBorrador {
+  // _parametrosManuales es solo UI; NUNCA incluirlo en el payload.
+  const payload: PayloadCondicionBorrador = { idCatalogoCondicion: c.idCatalogoCondicion };
+  if (Object.keys(c.parametrosManual).length > 0) {
+    payload.parametrosManual = c.parametrosManual;
+  }
   if (c.orden > 0) payload.orden = c.orden;
   return payload;
 }
@@ -808,6 +856,17 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
     }
   });
 
+  // Condiciones: parametros MANUAL obligatorios cuando la clausula esta seleccionada
+  draft.condiciones.forEach((c, i) => {
+    for (const nombre of c._parametrosManuales) {
+      const valor = c.parametrosManual[nombre];
+      if (!valor || valor.trim() === "") {
+        errores[`condiciones.${i}.${nombre}`] =
+          `El campo "${nombre}" es obligatorio para esta condicion.`;
+      }
+    }
+  });
+
   return errores;
 }
 
@@ -843,6 +902,13 @@ export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {
   // LeadTimes nivel version
   if (draft.leadTimes.length > 0) {
     payload.leadTimes = draft.leadTimes.map(leadTimeAPayload);
+  }
+
+  // Condiciones nivel version (replacement idempotente — ADR-10).
+  // Se envia siempre que haya seleccion (incluye el conjunto completo para reemplazar).
+  // Si el array esta vacio se omite (no se envian 0 condiciones, que borraria las existentes).
+  if (draft.condiciones.length > 0) {
+    payload.condiciones = draft.condiciones.map(condicionAPayload);
   }
 
   return payload;

@@ -245,12 +245,13 @@ export type Version = {
   validezDias: number | null;
   fechaVencimiento: string | null;
   fechaEnvio: string | null;
-  condiciones: string | null;
+  condiciones: string | null; // legacy free-text (a eliminar en WU-7); aun presente en el backend
   notas: string | null;
   secciones: Seccion[];
   lineas: Linea[];
-  standbys: Standby[];   // antes standbyTarifas; SOLO nivel version
-  leadTimes: LeadTime[]; // nuevo; SOLO nivel version
+  standbys: Standby[];            // antes standbyTarifas; SOLO nivel version
+  leadTimes: LeadTime[];          // SOLO nivel version
+  condicionesVersion?: CondicionVersion[]; // snapshots de condiciones resueltas (WU-4+)
 };
 
 export type Cotizacion = {
@@ -469,6 +470,18 @@ export type FiltrosCatalogosCondicion = {
   porPagina?: number;
 };
 
+// Snapshot de una condicion resuelta en la version (read model — shape que
+// devuelve el backend en version.condicionesVersion[]). idCatalogoCondicion
+// es nullable por diseno de desacoplamiento (el snapshot sobrevive al borrado
+// del maestro), pero en v1 siempre viene poblado.
+export type CondicionVersion = {
+  id: string;
+  idCatalogoCondicion: string | null;
+  categoria: CategoriaCondicion;
+  textoResuelto: string;
+  orden: number;
+};
+
 // ---------------------------------------------------------------------------
 // DTOs de escritura (write model — anidado, lo que acepta el backend)
 // CRITICO: NUNCA enviar idSeccion, precioVenta, precioVentaTotal ni totales (los calcula el backend).
@@ -502,6 +515,16 @@ export type PayloadStandby = {
   descripcion: string;
   monto: number;         // tarifa diaria
   porLinea?: boolean;    // default false; true = por linea por dia
+  orden?: number;
+};
+
+// --- PayloadCondicionBorrador (canal separado de condiciones — WU-9) ---
+// El backend espera el conjunto completo de condiciones seleccionadas (replacement
+// idempotente, ADR-10). AUTO placeholders (cliente, moneda) los resuelve el backend;
+// MANUAL placeholders (dias_validez, lugar) los provee el frontend en parametrosManual.
+export type PayloadCondicionBorrador = {
+  idCatalogoCondicion: string;
+  parametrosManual?: Record<string, string>; // solo para parametros MANUAL
   orden?: number;
 };
 
@@ -570,16 +593,18 @@ export type PayloadSeccion = {
   cargosAdicionales?: PayloadCargoAdicional[];
 };
 
-// Borrador: moneda + secciones + standbys raiz + leadTimes raiz.
+// Borrador: moneda + secciones + standbys raiz + leadTimes raiz + condiciones raiz.
 // Contrato 2026-06-08 (§5.4): NO existe canal de lineas raiz — toda linea va
 // dentro de secciones[].lineas; el caso "plano" es una seccion sin nombre.
 // standbys[] raiz = standbys de la version (informativo, no suman al total)
 // leadTimes[] raiz = plazos de entrega de la version
+// condiciones[] raiz = condiciones seleccionadas (canal separado WU-9; replacement idempotente)
 export type PayloadBorrador = {
   moneda?: Moneda;       // default PEN en el backend
   secciones?: PayloadSeccion[];
-  standbys?: PayloadStandby[];   // SOLO root (antes standbyTarifas)
-  leadTimes?: PayloadLeadTime[]; // SOLO root
+  standbys?: PayloadStandby[];                  // SOLO root (antes standbyTarifas)
+  leadTimes?: PayloadLeadTime[];                // SOLO root
+  condiciones?: PayloadCondicionBorrador[];     // SOLO root; omitir = no cambiar condiciones
 };
 
 // SC y transiciones — union discriminada por origenTipo
