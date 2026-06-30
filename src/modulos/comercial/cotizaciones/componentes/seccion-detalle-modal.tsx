@@ -35,7 +35,7 @@ import {
   sincronizarRutaSeccion,
 } from "../servicios/cotizaciones-editor.utils";
 import { EditorCargos } from "./editor-cargos";
-import { LineaDetalleDrawer } from "./linea-detalle-drawer";
+import { LineaFormulario } from "./linea-formulario";
 import { TablaStandby } from "./tabla-standby";
 import type { EntradaStandby } from "./tabla-standby";
 import {
@@ -46,7 +46,7 @@ import {
   totalLinea,
 } from "./lineas-grid.utils";
 
-const COLUMNAS = 8;
+const COLUMNAS = 5;
 
 type Props = {
   abierto: boolean;
@@ -64,11 +64,11 @@ type Props = {
 };
 
 /**
- * Modal de edicion de una SECCION y sus lineas. Mismo lenguaje visual que la tabla
- * del detalle de la cotizacion (Concepto · Descripcion · Cant · P. base · P. venta ·
- * Stand by · Total), pero editable. La ruta (origen/destino) se captura UNA vez en la
- * cabecera de la seccion y todas las lineas de transporte la heredan; el detalle
- * polimorfico de cada linea vive en el drawer lateral (que ya no pide ruta).
+ * Modal de edicion de una SECCION y sus lineas. La ruta (origen/destino) se captura
+ * UNA vez en la cabecera de la seccion y todas las lineas de transporte la heredan.
+ * Las lineas se listan en una tabla resumen; al editar/crear una linea, su fila se
+ * EXPANDE con el formulario completo (LineaFormulario) en el mismo modal — un solo
+ * paso, sin abrir un drawer aparte.
  *
  * Controlado por confirmacion: trabaja sobre una copia local y emite onGuardar(seccion)
  * solo al pulsar "Aplicar"; "Cancelar" descarta los cambios.
@@ -89,10 +89,8 @@ export function SeccionDetalleModal({
     seccion?.claveCliente ?? null
   );
 
-  // Edicion de una linea EXISTENTE (ya en la seccion).
-  const [drawerClave, setDrawerClave] = React.useState<string | null>(null);
-  // Alta de una linea NUEVA sin confirmar: vive fuera de la grilla hasta "Aplicar".
-  const [nuevaLinea, setNuevaLinea] = React.useState<DraftLinea | null>(null);
+  // Linea cuya fila esta expandida para editar su formulario completo (inline).
+  const [expandidaClave, setExpandidaClave] = React.useState<string | null>(null);
 
   // Re-sincronizar el borrador cuando entra otra seccion (o null), sin useEffect:
   // patron de ajuste de estado durante el render recomendado por React.
@@ -100,19 +98,13 @@ export function SeccionDetalleModal({
   if (claveEntrante !== claveActual) {
     setClaveActual(claveEntrante);
     setBorrador(seccion);
-    setDrawerClave(null);
-    setNuevaLinea(null);
+    setExpandidaClave(null);
   }
 
   if (!borrador) return null;
 
   const set = (patch: Partial<DraftSeccion>) =>
     setBorrador((b) => (b ? { ...b, ...patch } : b));
-
-  const lineaExistente =
-    borrador.lineas.find((l) => l.claveCliente === drawerClave) ?? null;
-  const lineaDrawer = nuevaLinea ?? lineaExistente;
-  const drawerAbierto = nuevaLinea !== null || drawerClave !== null;
 
   const subtotal =
     borrador.lineas.reduce((a, l) => a + totalLinea(l), 0) +
@@ -131,30 +123,21 @@ export function SeccionDetalleModal({
   }
 
   function eliminarLinea(clave: string) {
-    if (drawerClave === clave) setDrawerClave(null);
+    if (expandidaClave === clave) setExpandidaClave(null);
     set({ lineas: borrador!.lineas.filter((l) => l.claveCliente !== clave) });
   }
 
   function agregarLinea() {
-    // La linea nueva nace con la ruta de la seccion (TRANSPORTE) ya heredada.
+    // La linea nueva nace con la ruta de la seccion (TRANSPORTE) ya heredada y se
+    // expande de inmediato para editarla en el mismo modal (un solo paso).
     const nueva = lineaVacia();
     nueva.carga = { ...nueva.carga, origen: borrador!.origen, destino: borrador!.destino };
-    setNuevaLinea(nueva);
+    set({ lineas: [...borrador!.lineas, nueva] });
+    setExpandidaClave(nueva.claveCliente);
   }
 
-  function cerrarDrawer() {
-    setDrawerClave(null);
-    setNuevaLinea(null);
-  }
-
-  function aplicarDrawer(linea: DraftLinea) {
-    if (nuevaLinea) {
-      set({ lineas: [...borrador!.lineas, linea] });
-      setNuevaLinea(null);
-      return;
-    }
-    actualizarLinea(linea.claveCliente, linea);
-    setDrawerClave(null);
+  function toggleExpandir(clave: string) {
+    setExpandidaClave((c) => (c === clave ? null : clave));
   }
 
   function aplicar() {
@@ -211,19 +194,17 @@ export function SeccionDetalleModal({
               </Campo>
             </div>
 
-            {/* Tabla de lineas — mismo lenguaje visual del detalle, editable */}
+            {/* Tabla de lineas: resumen read-only; al editar/crear se EXPANDE la fila
+                con el formulario completo de la linea (un solo paso, sin drawer). */}
             <div className="overflow-hidden rounded-xl border border-border">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
                     <TableHead className="w-36">Tipo</TableHead>
-                    <TableHead className="min-w-[180px]">Descripcion</TableHead>
-                    <TableHead className="min-w-[160px]">Detalle</TableHead>
-                    <TableHead className="w-16 text-right">Cant.</TableHead>
-                    <TableHead className="w-24 text-right">P. base</TableHead>
-                    <TableHead className="w-20 text-right">Margen %</TableHead>
-                    <TableHead className="w-28 text-right">Total venta</TableHead>
-                    <TableHead className="w-16 text-right">Acciones</TableHead>
+                    <TableHead className="min-w-[200px]">Descripcion</TableHead>
+                    <TableHead className="min-w-[180px]">Detalle</TableHead>
+                    <TableHead className="w-32 text-right">Total venta</TableHead>
+                    <TableHead className="w-20 text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -237,140 +218,122 @@ export function SeccionDetalleModal({
                       </TableCell>
                     </TableRow>
                   ) : (
-                    borrador.lineas.map((linea) => (
-                      <React.Fragment key={linea.claveCliente}>
-                        <TableRow
-                          className={`group align-middle ${
-                            linea.cargosAdicionales.length > 0 ? "border-b-0" : ""
-                          }`}
-                        >
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={`whitespace-nowrap font-medium ${claseBadgeTipo(linea.tipoLinea)}`}
-                            >
-                              {etiquetaTipo(linea.tipoLinea)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              className="h-8 border-transparent bg-transparent px-2 text-sm shadow-none hover:border-border focus-visible:border-border"
-                              value={linea.descripcion}
-                              placeholder="Descripcion del servicio"
-                              disabled={disabled}
-                              onChange={(e) =>
-                                actualizarLinea(linea.claveCliente, { descripcion: e.target.value })
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <button
-                              type="button"
-                              className="line-clamp-1 text-left text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                              onClick={() => setDrawerClave(linea.claveCliente)}
-                              title="Editar detalle"
-                            >
-                              {resumenDetalle(linea)}
-                            </button>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              className="h-8 w-14 border-transparent bg-transparent px-2 text-right text-sm tabular-nums shadow-none hover:border-border focus-visible:border-border"
-                              type="number"
-                              min={1}
-                              step="1"
-                              value={linea.cantidad}
-                              disabled={disabled}
-                              onChange={(e) =>
-                                actualizarLinea(linea.claveCliente, { cantidad: e.target.value })
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              className="h-8 w-24 border-transparent bg-transparent px-2 text-right text-sm tabular-nums shadow-none hover:border-border focus-visible:border-border"
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              value={linea.precioBase}
-                              disabled={disabled}
-                              onChange={(e) =>
-                                actualizarLinea(linea.claveCliente, { precioBase: e.target.value })
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              className="h-8 w-20 border-transparent bg-transparent px-2 text-right text-sm tabular-nums shadow-none hover:border-border focus-visible:border-border"
-                              type="number"
-                              min={0}
-                              max={99.99}
-                              step="0.01"
-                              value={linea.margenPct}
-                              disabled={disabled}
-                              onChange={(e) =>
-                                actualizarLinea(linea.claveCliente, { margenPct: e.target.value })
-                              }
-                            />
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm font-medium tabular-nums">
-                            {formatearMoneda(totalLinea(linea), moneda)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-end gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="size-8"
-                                disabled={disabled}
-                                onClick={() => setDrawerClave(linea.claveCliente)}
-                                aria-label="Editar detalle"
+                    borrador.lineas.map((linea) => {
+                      const expandida = expandidaClave === linea.claveCliente;
+                      const pegada = expandida || linea.cargosAdicionales.length > 0;
+                      return (
+                        <React.Fragment key={linea.claveCliente}>
+                          <TableRow className={`group align-middle ${pegada ? "border-b-0" : ""}`}>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={`whitespace-nowrap font-medium ${claseBadgeTipo(linea.tipoLinea)}`}
                               >
-                                <PencilIcon className="size-4" />
-                              </Button>
-                              <Button
+                                {etiquetaTipo(linea.tipoLinea)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {linea.descripcion || (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <button
                                 type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="size-8 text-destructive hover:text-destructive"
-                                disabled={disabled}
-                                onClick={() => eliminarLinea(linea.claveCliente)}
-                                aria-label="Eliminar linea"
+                                className="line-clamp-1 text-left text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                                onClick={() => toggleExpandir(linea.claveCliente)}
+                                title="Editar linea"
                               >
-                                <Trash2Icon className="size-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-
-                        {/* Sub-fila read-only: cargos de la linea (se editan en el drawer). */}
-                        {linea.cargosAdicionales.length > 0 ? (
-                          <TableRow className="hover:bg-transparent">
-                            <TableCell colSpan={COLUMNAS} className="py-1">
-                              <div className="flex flex-col gap-0.5">
-                                {linea.cargosAdicionales.map((c) => (
-                                  <div
-                                    key={c.claveCliente}
-                                    className="flex items-center gap-2 text-xs text-muted-foreground"
-                                  >
-                                    <CornerDownRightIcon className="size-3 shrink-0 opacity-50" />
-                                    <span className="truncate">
-                                      {c.descripcion || "Sin descripcion"}
-                                    </span>
-                                    <span className="ml-auto shrink-0 font-mono tabular-nums">
-                                      {parseFloat(c.cantidad) || 0} ×{" "}
-                                      {parseFloat(c.precioUnitario) || 0} ={" "}
-                                      {formatearMoneda(montoCargo(c), moneda)}
-                                    </span>
-                                  </div>
-                                ))}
+                                {resumenDetalle(linea)}
+                              </button>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm font-medium tabular-nums">
+                              {formatearMoneda(totalLinea(linea), moneda)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-end gap-0.5">
+                                <Button
+                                  type="button"
+                                  variant={expandida ? "secondary" : "ghost"}
+                                  size="sm"
+                                  className="size-8"
+                                  disabled={disabled}
+                                  onClick={() => toggleExpandir(linea.claveCliente)}
+                                  aria-label="Editar linea"
+                                >
+                                  <PencilIcon className="size-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="size-8 text-destructive hover:text-destructive"
+                                  disabled={disabled}
+                                  onClick={() => eliminarLinea(linea.claveCliente)}
+                                  aria-label="Eliminar linea"
+                                >
+                                  <Trash2Icon className="size-4" />
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
-                        ) : null}
-                      </React.Fragment>
-                    ))
+
+                          {/* Resumen read-only de cargos (cuando la fila NO esta expandida) */}
+                          {!expandida && linea.cargosAdicionales.length > 0 ? (
+                            <TableRow className="hover:bg-transparent">
+                              <TableCell colSpan={COLUMNAS} className="py-1">
+                                <div className="flex flex-col gap-0.5">
+                                  {linea.cargosAdicionales.map((c) => (
+                                    <div
+                                      key={c.claveCliente}
+                                      className="flex items-center gap-2 text-xs text-muted-foreground"
+                                    >
+                                      <CornerDownRightIcon className="size-3 shrink-0 opacity-50" />
+                                      <span className="truncate">
+                                        {c.descripcion || "Sin descripcion"}
+                                      </span>
+                                      <span className="ml-auto shrink-0 font-mono tabular-nums">
+                                        {parseFloat(c.cantidad) || 0} ×{" "}
+                                        {parseFloat(c.precioUnitario) || 0} ={" "}
+                                        {formatearMoneda(montoCargo(c), moneda)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : null}
+
+                          {/* Fila expandida: formulario completo de la linea (inline) */}
+                          {expandida ? (
+                            <TableRow className="hover:bg-transparent">
+                              <TableCell colSpan={COLUMNAS} className="bg-muted/20 p-4">
+                                <LineaFormulario
+                                  linea={linea}
+                                  moneda={moneda}
+                                  opcionesCatalogo={opcionesCatalogo}
+                                  disabled={disabled}
+                                  clienteTipo={clienteTipo}
+                                  clienteId={clienteId}
+                                  rutaSeccion={{ origen: borrador.origen, destino: borrador.destino }}
+                                  onChange={(l) => actualizarLinea(l.claveCliente, l)}
+                                />
+                                <div className="mt-3 flex justify-end">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setExpandidaClave(null)}
+                                  >
+                                    Listo
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : null}
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -402,7 +365,7 @@ export function SeccionDetalleModal({
             </div>
 
             {/* Stand by — informativo, su propia tabla (no suma al total). Se edita en
-                el detalle de cada linea (drawer) y en los cargos; aca solo se resume. */}
+                el formulario de cada linea y en los cargos; aca solo se resume. */}
             {entradasStandby(borrador).length > 0 ? (
               <div className="overflow-hidden rounded-xl border border-border">
                 <TablaStandby entradas={entradasStandby(borrador)} moneda={moneda} />
@@ -433,20 +396,6 @@ export function SeccionDetalleModal({
           </div>
         </DialogFooter>
       </DialogContent>
-
-      {/* Drawer de detalle de linea — sin ruta (la define la seccion) */}
-      <LineaDetalleDrawer
-        abierto={drawerAbierto}
-        linea={lineaDrawer}
-        moneda={moneda}
-        opcionesCatalogo={opcionesCatalogo}
-        disabled={disabled}
-        clienteTipo={clienteTipo}
-        clienteId={clienteId}
-        rutaSeccion={{ origen: borrador.origen, destino: borrador.destino }}
-        onCerrar={cerrarDrawer}
-        onGuardar={aplicarDrawer}
-      />
     </Dialog>
   );
 }
