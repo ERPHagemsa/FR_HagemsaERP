@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/compartido/componentes/ui/dialog";
-import { ScrollArea } from "@/compartido/componentes/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -160,8 +159,8 @@ export function SeccionDetalleModal({
 
   return (
     <Dialog open={abierto} onOpenChange={(v) => (!v ? onCerrar() : undefined)}>
-      <DialogContent className="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-5xl">
-        <DialogHeader className="border-b border-border px-6 py-4">
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
+        <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
           <DialogTitle>Editar seccion</DialogTitle>
           <DialogDescription>
             {borrador.esDefecto
@@ -170,7 +169,7 @@ export function SeccionDetalleModal({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="flex flex-col gap-5 p-6">
             {/* Cabecera editable de la seccion: nombre + ruta (siempre con nombre:
                 al editar el bucket "sin agrupar" se nombra y deja de ser plano). */}
@@ -386,9 +385,9 @@ export function SeccionDetalleModal({
               </div>
             ) : null}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="flex-row items-center justify-between gap-3 border-t border-border px-6 py-3">
+        <DialogFooter className="shrink-0 flex-row items-center justify-between gap-3 border-t border-border px-6 py-3">
           <span className="text-sm text-muted-foreground">
             Subtotal:{" "}
             <span className="font-mono font-semibold text-foreground tabular-nums">
