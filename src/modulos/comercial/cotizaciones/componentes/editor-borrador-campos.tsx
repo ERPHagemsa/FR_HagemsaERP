@@ -26,21 +26,22 @@ import {
 
 import type { Moneda, OrigenTipo } from "../tipos/cotizaciones.tipos";
 import type { DraftBorrador, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
-import { EditorContenido } from "./editor-contenido";
+import { CotizacionSeccionesEditor } from "./cotizacion-secciones-editor";
 import { EditorLeadtimes } from "./editor-leadtimes";
 
-// Presentacional puro del cuerpo del editor de borrador. No tiene logica de API:
-// el contenedor (CotizacionEditor para editar, CotizacionEditorNuevo para crear)
-// provee el estado del draft y el handler de guardado.
+// Presentacional puro del cuerpo del editor de borrador en MODO CREACION
+// (CotizacionEditorNuevo). No tiene logica de API: el contenedor provee el estado
+// del draft y el handler de guardado. La edicion de una cotizacion ya existente se
+// hace INLINE en el detalle (CotizacionVersionEditable), no aqui.
 //
 // Layout en dos zonas:
-//   1. Zona financiera (protagonista): moneda + contenido (lineas, secciones,
-//      cargos) + totales. EditorContenido es una sola grilla.
-//   2. Zona informativa (secundaria, colapsada): standby y lead times — no suman
-//      al total, viven en un accordion para descomprimir la pantalla.
+//   1. Zona financiera (protagonista): moneda + contenido por secciones (cada una
+//      con su ruta, lineas y cargos) + totales. Lo maneja CotizacionSeccionesEditor.
+//   2. Zona informativa (secundaria, colapsada): lead times — no suman al total,
+//      viven en un accordion para descomprimir la pantalla.
 //
-// ADR-D1/D2: el modelo de secciones (bucket por defecto, emision raiz vs secciones)
-// lo maneja EditorContenido + armarPayloadBorrador; aca solo cableamos el draft.
+// El modelo de secciones (bucket por defecto, ruta por seccion) y la emision del
+// payload los manejan CotizacionSeccionesEditor + armarPayloadBorrador.
 type Props = {
   draft: DraftBorrador;
   setDraft: React.Dispatch<React.SetStateAction<DraftBorrador>>;
@@ -105,15 +106,14 @@ export function EditorBorradorCampos({
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">Contenido de la cotizacion</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Agregue los conceptos de la cotizacion. Agrupelos en secciones solo si
-            hace falta; el detalle de cada linea se edita en el panel lateral.
+            Cree una seccion por ruta (origen/destino) y agregue sus lineas; cada
+            seccion y sus lineas se editan en un modal.
           </p>
         </CardHeader>
         <CardContent className="pt-5">
-          <EditorContenido
+          <CotizacionSeccionesEditor
             secciones={draft.secciones}
             moneda={draft.moneda}
-            erroresCampo={erroresCampo}
             disabled={guardando}
             clienteTipo={clienteTipo}
             clienteId={clienteId}

@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import * as React from "react";
-import { Edit, Send, GitBranch, Trophy, XCircle, X, Printer } from "lucide-react";
+import { Send, GitBranch, Trophy, XCircle, X, Printer } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -60,12 +59,10 @@ export function CotizacionAcciones({ cotizacion }: Props) {
   const { id, estado, versionVigente, versiones } = cotizacion;
   const acciones = accionesPermitidas(estado);
 
-  // editar/enviar exigen version vigente NO congelada (es la editable).
-  // nuevaVersion exige lo contrario: solo se ramifica una version ya enviada
-  // (congelada). En EN_REVISION la vigente es un borrador sin enviar -> no se
-  // habilita (ya hay una version editable; se edita esa, no se crea otra).
+  // La edicion del contenido ya no es una accion aparte: se hace INLINE en el detalle
+  // (la version vigente no congelada). Aqui solo queda nuevaVersion, que exige lo
+  // contrario: solo se ramifica una version ya enviada (congelada).
   const versionActual = versiones.find((v) => v.numeroVersion === versionVigente);
-  const puedeEditar = acciones.editar && versionActual !== undefined && !versionActual.congelada;
   const puedeNuevaVersion =
     acciones.nuevaVersion && versionActual !== undefined && versionActual.congelada;
 
@@ -80,14 +77,6 @@ export function CotizacionAcciones({ cotizacion }: Props) {
   return (
     <div className="flex flex-wrap gap-2">
       <BotonImprimirPdf idCotizacion={id} version={versionVigente} />
-
-      {puedeEditar ? (
-        <AccionBoton
-          label="Editar"
-          icono={<Edit data-icon="inline-start" />}
-          href={`/comercial/cotizaciones/${id}/editar`}
-        />
-      ) : null}
 
       {acciones.enviar ? (
         <DialogEnviar
@@ -676,39 +665,3 @@ function DialogCancelar({ idCotizacion, onExito }: DialogCancelarProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-componente: boton habilitado (con href o sin)
-// ---------------------------------------------------------------------------
-
-type AccionBotonProps = {
-  label: string;
-  icono: React.ReactNode;
-  href?: string;
-  variant?: React.ComponentProps<typeof Button>["variant"];
-  onClick?: () => void;
-};
-
-function AccionBoton({
-  label,
-  icono,
-  href,
-  variant = "outline",
-  onClick,
-}: AccionBotonProps) {
-  if (href) {
-    return (
-      <Button asChild variant={variant}>
-        <Link href={href}>
-          {icono}
-          {label}
-        </Link>
-      </Button>
-    );
-  }
-  return (
-    <Button variant={variant} onClick={onClick}>
-      {icono}
-      {label}
-    </Button>
-  );
-}
