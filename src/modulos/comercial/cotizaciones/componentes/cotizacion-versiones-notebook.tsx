@@ -23,6 +23,8 @@ import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import { CotizacionVersionEditable } from "./cotizacion-version-editable";
 import { TablaStandby } from "./tabla-standby";
 import type { EntradaStandby } from "./tabla-standby";
+import { TablaCotizacion } from "./tabla-cotizacion";
+import type { SeccionVista } from "./tabla-cotizacion";
 import type {
   CargaHijo,
   CargoAdicional,
@@ -199,11 +201,24 @@ export function CotizacionVersionesNotebook({
                 ))}
 
               {lineasSinSeccion.length > 0 ? (
-                <div className="rounded-lg border border-border">
+                <div className="overflow-hidden rounded-lg border border-border">
                   <div className="border-b border-border bg-muted/30 px-3 py-2 text-sm font-medium">
                     Lineas sin seccion ({lineasSinSeccion.length})
                   </div>
-                  <TablaLineas lineas={lineasSinSeccion} moneda={version.moneda} />
+                  <TablaCotizacion
+                    seccion={vistaLectura(
+                      lineasSinSeccion,
+                      [],
+                      lineasSinSeccion.reduce(
+                        (s, l) =>
+                          s +
+                          l.precioVentaTotal +
+                          (l.cargosAdicionales ?? []).reduce((a, c) => a + c.monto, 0),
+                        0,
+                      ),
+                    )}
+                    moneda={version.moneda}
+                  />
                   <TablaStandby
                     entradas={entradasStandbyLectura(lineasSinSeccion, [])}
                     moneda={version.moneda}
@@ -262,52 +277,71 @@ function SeccionBloque({
   moneda: string;
 }) {
   const cargos = seccion.cargosAdicionales ?? [];
+  const sinContenido = lineas.length === 0 && cargos.length === 0;
 
   return (
-    <div className="rounded-lg border border-border">
+    <div className="overflow-hidden rounded-lg border border-border">
       <div className="flex items-center justify-between border-b border-border bg-muted/30 px-3 py-2">
         <span className="text-sm font-medium">{seccion.nombre ?? "Seccion"}</span>
-        <span className="text-sm text-muted-foreground tabular-nums">
-          Subtotal: {formatearMonto(seccion.subtotal)} {moneda}
-        </span>
       </div>
 
-      {lineas.length > 0 ? (
-        <TablaLineas lineas={lineas} moneda={moneda} />
-      ) : (
+      {sinContenido ? (
         <p className="px-3 py-2 text-sm text-muted-foreground">Sin lineas en esta seccion.</p>
+      ) : (
+        <TablaCotizacion
+          seccion={vistaLectura(lineas, cargos, seccion.subtotal)}
+          moneda={moneda}
+        />
       )}
-
-      {cargos.length > 0 ? (
-        <div className="border-t border-border px-3 py-2">
-          <p className="mb-1 text-xs text-muted-foreground">Cargos adicionales</p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-muted-foreground">
-                <th className="py-1 text-left font-medium">Descripcion</th>
-                <th className="py-1 text-left font-medium">Unidad</th>
-                <th className="py-1 text-right font-medium">Cant.</th>
-                <th className="py-1 text-right font-medium">P. unitario</th>
-                <th className="py-1 text-right font-medium">Monto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cargos.map((c) => (
-                <tr key={c.id} className="border-b border-border/50 last:border-0">
-                  <td className="py-1">{c.descripcion}</td>
-                  <td className="py-1 text-muted-foreground">{c.unidadCobro ?? "—"}</td>
-                  <td className="py-1 text-right tabular-nums">{c.cantidad ?? "—"}</td>
-                  <td className="py-1 text-right tabular-nums">{c.precioUnitario !== undefined ? formatearMonto(c.precioUnitario) : "—"}</td>
-                  <td className="py-1 text-right tabular-nums">{formatearMonto(c.monto)} {moneda}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
 
       {/* Stand by — su propia tabla, separada del costo (informativo, no suma). */}
       <TablaStandby entradas={entradasStandbyLectura(lineas, cargos)} moneda={moneda} />
+    </div>
+  );
+}
+
+// Convierte una seccion de lectura (Seccion + sus lineas) al view-model de la tabla
+// (layout del PDF). La ruta se toma de la primera linea con ruta (todas comparten).
+function vistaLectura(
+  lineas: Linea[],
+  cargosSeccion: CargoAdicional[],
+  subtotal: number,
+): SeccionVista {
+  const ordenadas = lineas.slice().sort((a, b) => a.orden - b.orden);
+  return {
+    ruta: ordenadas.map(rutaLinea).find(Boolean) ?? "",
+    lineas: ordenadas.map((l) => ({
+      unidad: unidadLectura(l),
+      descripcion: <DescCeldaLectura linea={l} />,
+      montoTotal: l.precioVentaTotal,
+      cargos: (l.cargosAdicionales ?? []).map((c) => ({
+        descripcion: c.descripcion,
+        monto: c.monto,
+      })),
+    })),
+    cargosSeccion: cargosSeccion.map((c) => ({ descripcion: c.descripcion, monto: c.monto })),
+    subtotal,
+  };
+}
+
+// Unidad/recurso de la linea para la columna Unidad (igual que el PDF).
+function unidadLectura(l: Linea): string {
+  if (l.carga) return l.carga.tipoVehiculo ?? "";
+  if (l.equipo) return l.equipo.equipoTipo ?? "";
+  if (l.personal) return l.personal.rol;
+  return "";
+}
+
+// Celda Descripcion de lectura: titulo (descripcion de la linea) + detalle polimorfico.
+function DescCeldaLectura({ linea }: { linea: Linea }) {
+  const detalle = tieneDetalle(linea);
+  if (!linea.descripcion && !detalle) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      {linea.descripcion ? <span className="font-medium">{linea.descripcion}</span> : null}
+      {detalle ? <DescripcionLinea linea={linea} /> : null}
     </div>
   );
 }
@@ -333,96 +367,6 @@ function entradasStandbyLectura(lineas: Linea[], cargosSeccion: CargoAdicional[]
     }
   }
   return entradas;
-}
-
-// ---------------------------------------------------------------------------
-// Tabla de lineas (con detalle polimorfico expandible inline)
-// ---------------------------------------------------------------------------
-
-// Tabla estilo documento: Ruta · Concepto · Descripcion · Cant · Costo base ·
-// P. venta · Monto total. La Ruta (comun a todas las lineas) se combina con
-// rowSpan. Cada cargo adicional de la linea es su PROPIA fila: su monto cae en
-// la columna Monto total y el Concepto se combina (rowSpan) sobre linea+cargos.
-function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
-  const ordenadas = lineas.slice().sort((a, b) => a.orden - b.orden);
-  const rutaComun = ordenadas.map(rutaLinea).find(Boolean) ?? "—";
-  // Cada linea ocupa 1 fila + 1 por cada cargo adicional.
-  const totalFilas = ordenadas.reduce(
-    (acc, l) => acc + 1 + (l.cargosAdicionales?.length ?? 0),
-    0,
-  );
-  return (
-    <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-border/60 [&_th]:border [&_th]:border-border/60">
-      <thead>
-        <tr className="text-xs text-muted-foreground">
-          <th className="px-3 py-2 text-left font-medium">Ruta</th>
-          <th className="px-3 py-2 text-left font-medium">Concepto</th>
-          <th className="px-3 py-2 text-left font-medium">Descripcion</th>
-          <th className="px-3 py-2 text-right font-medium">Cant.</th>
-          <th className="px-3 py-2 text-right font-medium">Costo base</th>
-          <th className="px-3 py-2 text-right font-medium">P. venta</th>
-          <th className="px-3 py-2 text-right font-medium">Monto total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {ordenadas.map((linea, i) => {
-          const tipoLabel = formatearTipoLinea(linea.tipoLinea);
-          // Transporte: el concepto es el vehiculo (no se repite en descripcion).
-          const concepto = linea.carga
-            ? linea.carga.tipoVehiculo ?? tipoLabel
-            : linea.descripcion ?? tipoLabel;
-          const cargos = linea.cargosAdicionales ?? [];
-          return (
-            <React.Fragment key={linea.id}>
-              <tr className="align-top">
-                {i === 0 ? (
-                  <td
-                    rowSpan={totalFilas}
-                    className="whitespace-nowrap px-3 py-2 align-middle font-medium text-muted-foreground"
-                  >
-                    {rutaComun}
-                  </td>
-                ) : null}
-                <td rowSpan={1 + cargos.length} className="px-3 py-2 font-medium">
-                  {concepto}
-                </td>
-                <td className="px-3 py-2">
-                  <DescripcionLinea linea={linea} />
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                  {linea.cantidad}
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
-                  {formatearMonto(linea.precioBase)}
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                  {formatearMonto(linea.precioVenta)}
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
-                  {formatearMonto(linea.precioVentaTotal)} {moneda}
-                </td>
-              </tr>
-              {cargos.map((c) => (
-                <tr key={c.id} className="align-top">
-                  <td className="px-3 py-2 font-medium">{c.descripcion}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                    {c.cantidad}
-                  </td>
-                  <td className="px-3 py-2 text-right text-muted-foreground">—</td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
-                    {formatearMonto(c.precioUnitario)}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
-                    {formatearMonto(c.monto)} {moneda}
-                  </td>
-                </tr>
-              ))}
-            </React.Fragment>
-          );
-        })}
-      </tbody>
-    </table>
-  );
 }
 
 // Ruta de una linea de transporte (origen → destino); null si no aplica.

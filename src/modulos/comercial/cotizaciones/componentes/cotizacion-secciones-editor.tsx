@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { LayersIcon, MapPinIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { LayersIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
-import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
@@ -18,21 +17,14 @@ import {
 
 import type { OrigenTipo } from "../tipos/cotizaciones.tipos";
 import type { DraftLinea, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
-import {
-  montoCargo,
-  precioVentaLinea,
-  seccionVacia,
-} from "../servicios/cotizaciones-editor.utils";
+import { montoCargo, seccionVacia } from "../servicios/cotizaciones-editor.utils";
 import { useListarCatalogosCargoAdicional } from "../servicios/cotizaciones-queries";
 import { SeccionDetalleModal } from "./seccion-detalle-modal";
 import { TablaStandby } from "./tabla-standby";
 import type { EntradaStandby } from "./tabla-standby";
-import {
-  claseBadgeTipo,
-  etiquetaTipo,
-  formatearMoneda,
-  totalLinea,
-} from "./lineas-grid.utils";
+import { TablaCotizacion } from "./tabla-cotizacion";
+import type { SeccionVista } from "./tabla-cotizacion";
+import { etiquetaTipo, formatearMoneda, totalLinea } from "./lineas-grid.utils";
 
 type Props = {
   secciones: DraftSeccion[];
@@ -255,86 +247,120 @@ function BloqueSeccion({
   onEditar: () => void;
   onEliminar: () => void;
 }) {
-  const tieneRuta = seccion.origen !== "" || seccion.destino !== "";
+  const sinContenido =
+    seccion.lineas.length === 0 && seccion.cargosAdicionales.length === 0;
   return (
-    <div className="rounded-lg border border-border">
+    <div className="overflow-hidden rounded-lg border border-border">
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/30 px-3 py-2">
         <span className="text-sm font-medium">
           {seccion.esDefecto ? "Sin agrupar" : seccion.nombre || "Seccion sin nombre"}
         </span>
-        {tieneRuta ? (
-          <Badge variant="outline" className="gap-1 text-xs font-normal">
-            <MapPinIcon className="size-3" />
-            {(seccion.origen || "—") + " → " + (seccion.destino || "—")}
-          </Badge>
-        ) : null}
-        <span className="ml-auto text-sm text-muted-foreground tabular-nums">
-          Subtotal: {formatearMoneda(subtotalSeccion(seccion), moneda)}
-        </span>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="size-8"
-          disabled={disabled}
-          onClick={onEditar}
-          aria-label="Editar seccion"
-        >
-          <PencilIcon className="size-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="size-8 text-destructive hover:text-destructive"
-          disabled={disabled}
-          onClick={onEliminar}
-          aria-label="Eliminar seccion"
-        >
-          <Trash2Icon className="size-4" />
-        </Button>
+        <div className="ml-auto flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="size-8"
+            disabled={disabled}
+            onClick={onEditar}
+            aria-label="Editar seccion"
+          >
+            <PencilIcon className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="size-8 text-destructive hover:text-destructive"
+            disabled={disabled}
+            onClick={onEliminar}
+            aria-label="Eliminar seccion"
+          >
+            <Trash2Icon className="size-4" />
+          </Button>
+        </div>
       </div>
 
-      {seccion.lineas.length > 0 ? (
-        <TablaLineas lineas={seccion.lineas} moneda={moneda} />
-      ) : (
+      {sinContenido ? (
         <p className="px-3 py-2 text-sm text-muted-foreground">Sin lineas en esta seccion.</p>
+      ) : (
+        <TablaCotizacion seccion={vistaDeSeccion(seccion)} moneda={moneda} />
       )}
-
-      {seccion.cargosAdicionales.length > 0 ? (
-        <div className="border-t border-border px-3 py-2">
-          <p className="mb-1 text-xs text-muted-foreground">Cargos adicionales de la seccion</p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-xs text-muted-foreground">
-                <th className="py-1 text-left font-medium">Descripcion</th>
-                <th className="py-1 text-left font-medium">Unidad</th>
-                <th className="py-1 text-right font-medium">Cant.</th>
-                <th className="py-1 text-right font-medium">P. unitario</th>
-                <th className="py-1 text-right font-medium">Monto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {seccion.cargosAdicionales.map((c) => (
-                <tr key={c.claveCliente} className="border-b border-border/50 last:border-0">
-                  <td className="py-1">{c.descripcion || "—"}</td>
-                  <td className="py-1 text-muted-foreground">{c.unidadCobro}</td>
-                  <td className="py-1 text-right tabular-nums">{parseFloat(c.cantidad) || 0}</td>
-                  <td className="py-1 text-right tabular-nums">
-                    {formatearMoneda(parseFloat(c.precioUnitario) || 0, moneda)}
-                  </td>
-                  <td className="py-1 text-right tabular-nums">
-                    {formatearMoneda(montoCargo(c), moneda)} {moneda}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
 
       {/* Stand by — su propia tabla, separada del costo (informativo, no suma). */}
       <TablaStandby entradas={entradasStandby(seccion)} moneda={moneda} />
+    </div>
+  );
+}
+
+// Convierte una DraftSeccion al view-model de la tabla (layout del PDF).
+function vistaDeSeccion(seccion: DraftSeccion): SeccionVista {
+  const ruta =
+    seccion.origen !== "" || seccion.destino !== ""
+      ? `${seccion.origen || "—"} → ${seccion.destino || "—"}`
+      : "";
+  return {
+    ruta,
+    lineas: seccion.lineas.map((l) => ({
+      unidad: unidadDeLinea(l),
+      descripcion: <DescripcionCelda linea={l} />,
+      montoTotal: totalLinea(l),
+      cargos: l.cargosAdicionales.map((c) => ({
+        descripcion: c.descripcion,
+        monto: montoCargo(c),
+      })),
+    })),
+    cargosSeccion: seccion.cargosAdicionales.map((c) => ({
+      descripcion: c.descripcion,
+      monto: montoCargo(c),
+    })),
+    subtotal: subtotalSeccion(seccion),
+  };
+}
+
+// Unidad/recurso de la linea para la columna Unidad (igual que el PDF):
+// tipoVehiculo (transporte), equipoTipo (equipo) o rol (personal).
+function unidadDeLinea(l: DraftLinea): string {
+  switch (l.tipoLinea) {
+    case "TRANSPORTE":
+      return l.carga.tipoVehiculo;
+    case "ALQUILER_EQUIPO":
+      return l.equipo.equipoTipo;
+    case "PERSONAL":
+      return l.personal.rol;
+    default:
+      return "";
+  }
+}
+
+// Celda Descripcion: titulo (descripcion de la linea) + cargas fisicas con sus
+// dimensiones (solo transporte), como en el PDF.
+function DescripcionCelda({ linea }: { linea: DraftLinea }) {
+  const cargas = linea.tipoLinea === "TRANSPORTE" ? linea.carga.cargas : [];
+  if (!linea.descripcion && cargas.length === 0) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      {linea.descripcion ? <span className="font-medium">{linea.descripcion}</span> : null}
+      {cargas.map((c) => {
+        const dims = [
+          c.largoM !== "" ? `L: ${c.largoM} m` : null,
+          c.anchoM !== "" ? `A: ${c.anchoM} m` : null,
+          c.altoM !== "" ? `H: ${c.altoM} m` : null,
+          c.peso !== "" ? `Peso: ${c.peso} ${c.unidadPeso}` : null,
+        ]
+          .filter(Boolean)
+          .join("   ·   ");
+        return (
+          <div key={c.claveCliente} className="flex flex-col">
+            <span className="text-xs font-medium">{c.nombre || "Carga"}</span>
+            {dims ? (
+              <span className="text-[11px] italic text-muted-foreground">{dims}</span>
+            ) : null}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -371,66 +397,6 @@ function entradasStandby(seccion: DraftSeccion): EntradaStandby[] {
     }
   }
   return entradas;
-}
-
-function TablaLineas({ lineas, moneda }: { lineas: DraftLinea[]; moneda: string }) {
-  return (
-    <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-border/60 [&_th]:border [&_th]:border-border/60">
-      <thead>
-        <tr className="text-xs text-muted-foreground">
-          <th className="px-3 py-2 text-left font-medium">Tipo</th>
-          <th className="px-3 py-2 text-left font-medium">Descripcion</th>
-          <th className="px-3 py-2 text-right font-medium">Cant.</th>
-          <th className="px-3 py-2 text-right font-medium">P. base</th>
-          <th className="px-3 py-2 text-right font-medium">P. venta</th>
-          <th className="px-3 py-2 text-right font-medium">Total venta</th>
-        </tr>
-      </thead>
-      <tbody>
-        {lineas.map((linea) => (
-          <React.Fragment key={linea.claveCliente}>
-            <tr className="align-top">
-              <td className="px-3 py-2">
-                <Badge
-                  variant="outline"
-                  className={`whitespace-nowrap font-medium ${claseBadgeTipo(linea.tipoLinea)}`}
-                >
-                  {etiquetaTipo(linea.tipoLinea)}
-                </Badge>
-              </td>
-              <td className="px-3 py-2">{linea.descripcion || "—"}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
-                {parseFloat(linea.cantidad) || 0}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
-                {formatearMoneda(parseFloat(linea.precioBase) || 0, moneda)}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                {formatearMoneda(precioVentaLinea(linea), moneda)}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
-                {formatearMoneda(totalLinea(linea), moneda)} {moneda}
-              </td>
-            </tr>
-            {linea.cargosAdicionales.map((c) => (
-              <tr key={c.claveCliente} className="align-top text-xs text-muted-foreground">
-                <td className="px-3 py-1.5" />
-                <td className="px-3 py-1.5">↳ {c.descripcion || "Cargo"}</td>
-                <td className="px-3 py-1.5 text-right tabular-nums">{parseFloat(c.cantidad) || 0}</td>
-                <td className="px-3 py-1.5 text-right tabular-nums">
-                  {formatearMoneda(parseFloat(c.precioUnitario) || 0, moneda)}
-                </td>
-                <td className="px-3 py-1.5 text-right">—</td>
-                <td className="whitespace-nowrap px-3 py-1.5 text-right font-medium tabular-nums">
-                  {formatearMoneda(montoCargo(c), moneda)} {moneda}
-                </td>
-              </tr>
-            ))}
-          </React.Fragment>
-        ))}
-      </tbody>
-    </table>
-  );
 }
 
 function CampoCrear({
