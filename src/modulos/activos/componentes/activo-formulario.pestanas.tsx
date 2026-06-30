@@ -58,7 +58,7 @@ export function TabVehiculo({
           </span>
           <select
             name="claseVehiculoReferenciaId"
-            defaultValue={
+            value={
               claseVehiculoSeleccionadaId !== null
                 ? String(claseVehiculoSeleccionadaId)
                 : ""

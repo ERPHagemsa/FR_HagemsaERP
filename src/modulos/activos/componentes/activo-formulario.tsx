@@ -213,6 +213,31 @@ export function ActivoFormulario({
   );
 
   React.useEffect(() => {
+    if (!activo) return;
+
+    setTipoActivoSeleccionadoId(
+      activo.tipoActivoReferenciaId ?? TIPO_ACTIVO_VEHICULO_ID
+    );
+    setClaseVehiculoSeleccionadaId(
+      activo.vehiculo?.claseVehiculoReferenciaId ?? null
+    );
+    setSelectedCarroceriaReferenciaId(
+      activo.vehiculo?.carroceriaReferenciaId
+        ? String(activo.vehiculo.carroceriaReferenciaId)
+        : ""
+    );
+    setCarroceriaTexto(activo.vehiculo?.carroceria ?? "");
+    setEstadoActivoGrupo(
+      activo.estadoActivo === "ACTIVO" ? "ACTIVO" : "BAJA"
+    );
+    setCausaBaja(
+      activo.estadoActivo === "SINIESTRADO" ? "SINIESTRADO" : "INACTIVO"
+    );
+    intentoAutocompletarCarroceriaRef.current = false;
+    actualizarResumen();
+  }, [activo, actualizarResumen]);
+
+  React.useEffect(() => {
     let isMounted = true;
 
     setCarroceriasError(null);
