@@ -429,6 +429,47 @@ export type FiltrosCatalogosCargoAdicional = {
 };
 
 // ---------------------------------------------------------------------------
+// Catalogo de condiciones de cotizacion
+// ---------------------------------------------------------------------------
+
+export type EstadoCatalogoCondicion = "ACTIVO" | "INACTIVO";
+
+export type CategoriaCondicion = "CONSIDERACIONES_SERVICIO" | "TARIFAS_INCLUYEN";
+
+export type ParametroCondicion = {
+  nombre: string;
+  fuente: "AUTO" | "MANUAL";
+  tipoEntrada?: "ENUM" | "TEXTO";
+  opciones?: string[];
+};
+
+export type CatalogoCondicion = {
+  id: string;
+  titulo: string;
+  texto: string;
+  categoria: CategoriaCondicion;
+  parametros: ParametroCondicion[];
+  esConstante: boolean;
+  ordenSugerido: number;
+  estado: EstadoCatalogoCondicion;
+};
+
+export type RespuestaPaginadaCatalogosCondicion = {
+  data: CatalogoCondicion[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+};
+
+export type FiltrosCatalogosCondicion = {
+  estado?: EstadoCatalogoCondicion;
+  categoria?: CategoriaCondicion;
+  busqueda?: string;
+  pagina?: number;
+  porPagina?: number;
+};
+
+// ---------------------------------------------------------------------------
 // DTOs de escritura (write model — anidado, lo que acepta el backend)
 // CRITICO: NUNCA enviar idSeccion, precioVenta, precioVentaTotal ni totales (los calcula el backend).
 // `precioBase` y `margenPct` (ambos requeridos) y `cantidad` (opcional, default 1) SI se envian a
