@@ -20,7 +20,7 @@ import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
-import { etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
+import { accionesPermitidas, etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
 import type { Cotizacion, EstadoCotizacion } from "../tipos/cotizaciones.tipos";
 
 type Props = {
@@ -46,6 +46,11 @@ export function CotizacionDetalleVista({ id }: Props) {
   const vigente =
     cotizacion.versiones.find((v) => v.numeroVersion === cotizacion.versionVigente) ??
     null;
+
+  // La cotizacion es editable inline si el estado lo permite y la version vigente
+  // no esta congelada (misma regla que el antiguo editor de pagina completa).
+  const editable =
+    accionesPermitidas(cotizacion.estado).editar && vigente !== null && !vigente.congelada;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -118,6 +123,9 @@ export function CotizacionDetalleVista({ id }: Props) {
           idCotizacion={cotizacion.id}
           versiones={cotizacion.versiones}
           versionVigente={cotizacion.versionVigente}
+          editable={editable}
+          clienteTipo={cotizacion.origenTipo}
+          clienteId={cotizacion.origenId}
         />
       </div>
     </main>

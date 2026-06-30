@@ -20,10 +20,12 @@ import {
 } from "@/compartido/componentes/ui/tabs";
 
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
+import { CotizacionVersionEditable } from "./cotizacion-version-editable";
 import type {
   CargaHijo,
   EquipoHijo,
   AlmacenajeHijo,
+  OrigenTipo,
   PersonalHijo,
   Linea,
   Seccion,
@@ -34,13 +36,25 @@ type Props = {
   idCotizacion: string;
   versiones: Version[];
   versionVigente: number | null;
+  // Cuando la cotizacion es editable, la version vigente (no congelada) se edita
+  // INLINE aqui (crear/editar secciones). Las demas versiones quedan en lectura.
+  editable?: boolean;
+  clienteTipo?: OrigenTipo;
+  clienteId?: string;
 };
 
 // Notebook estilo Odoo: UNA sola version visible a la vez.
 // El selector elige que version se ve; las pestañas parten el detalle
 // de esa version (Resumen / Lineas / Lead times / Standby) para que
 // nada quede apilado infinitamente hacia abajo.
-export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVigente }: Props) {
+export function CotizacionVersionesNotebook({
+  idCotizacion,
+  versiones,
+  versionVigente,
+  editable,
+  clienteTipo,
+  clienteId,
+}: Props) {
   const { imprimir, generando } = useImprimirPdf(idCotizacion);
   const ordenadas = React.useMemo(
     () => [...versiones].sort((a, b) => b.numeroVersion - a.numeroVersion),
@@ -71,6 +85,10 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
 
   const leadTimes = version.leadTimes ?? [];
   const totalLineas = version.lineas.length;
+  // La version seleccionada se edita inline solo si: la cotizacion es editable, es la
+  // vigente y no esta congelada.
+  const esVigenteEditable =
+    Boolean(editable) && version.numeroVersion === versionVigente && !version.congelada;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border p-4">
@@ -153,7 +171,15 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
 
         {/* --- Lineas --- */}
         <TabsContent value="lineas" className="pt-4">
-          {totalLineas === 0 ? (
+          {esVigenteEditable ? (
+            // La version vigente editable se edita INLINE (crear/editar secciones).
+            <CotizacionVersionEditable
+              idCotizacion={idCotizacion}
+              version={version}
+              clienteTipo={clienteTipo}
+              clienteId={clienteId}
+            />
+          ) : totalLineas === 0 ? (
             <p className="text-sm text-muted-foreground">Esta version no tiene lineas.</p>
           ) : (
             <div className="flex flex-col gap-3">
@@ -255,6 +281,7 @@ function SeccionBloque({
                 <th className="py-1 text-left font-medium">Unidad</th>
                 <th className="py-1 text-right font-medium">Cant.</th>
                 <th className="py-1 text-right font-medium">P. unitario</th>
+                <th className="py-1 text-right font-medium">Stand by</th>
                 <th className="py-1 text-right font-medium">Monto</th>
               </tr>
             </thead>
@@ -265,6 +292,7 @@ function SeccionBloque({
                   <td className="py-1 text-muted-foreground">{c.unidadCobro ?? "—"}</td>
                   <td className="py-1 text-right tabular-nums">{c.cantidad ?? "—"}</td>
                   <td className="py-1 text-right tabular-nums">{c.precioUnitario !== undefined ? formatearMonto(c.precioUnitario) : "—"}</td>
+                  <td className="py-1 text-right tabular-nums text-muted-foreground">{c.standbyDia != null ? formatearMonto(c.standbyDia) : "—"}</td>
                   <td className="py-1 text-right tabular-nums">{formatearMonto(c.monto)} {moneda}</td>
                 </tr>
               ))}
@@ -302,6 +330,7 @@ function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
           <th className="px-3 py-2 text-right font-medium">Cant.</th>
           <th className="px-3 py-2 text-right font-medium">Costo base</th>
           <th className="px-3 py-2 text-right font-medium">P. venta</th>
+          <th className="px-3 py-2 text-right font-medium">Stand by</th>
           <th className="px-3 py-2 text-right font-medium">Monto total</th>
         </tr>
       </thead>
@@ -339,6 +368,9 @@ function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
                 <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                   {formatearMonto(linea.precioVenta)}
                 </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
+                  {linea.standbyDia != null ? formatearMonto(linea.standbyDia) : "—"}
+                </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
                   {formatearMonto(linea.precioVentaTotal)} {moneda}
                 </td>
@@ -352,6 +384,9 @@ function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
                   <td className="px-3 py-2 text-right text-muted-foreground">—</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
                     {formatearMonto(c.precioUnitario)}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
+                    {c.standbyDia != null ? formatearMonto(c.standbyDia) : "—"}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
                     {formatearMonto(c.monto)} {moneda}

@@ -22,7 +22,6 @@ import {
   montoCargo,
   precioVentaLinea,
   seccionVacia,
-  sincronizarRutaSeccion,
 } from "../servicios/cotizaciones-editor.utils";
 import { useListarCatalogosCargoAdicional } from "../servicios/cotizaciones-queries";
 import { SeccionDetalleModal } from "./seccion-detalle-modal";
