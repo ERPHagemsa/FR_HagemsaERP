@@ -158,36 +158,41 @@ export function SeccionDetalleModal({
   }
 
   function aplicar() {
-    // Sincroniza la ruta de la seccion en todas las lineas de transporte antes de emitir.
-    onGuardar(sincronizarRutaSeccion(borrador!));
+    // Al nombrar la seccion deja de ser el bucket "sin agrupar" (esDefecto): se
+    // convierte en una seccion normal con nombre. Luego sincroniza la ruta en las
+    // lineas de transporte antes de emitir.
+    const nombrada: DraftSeccion = {
+      ...borrador!,
+      esDefecto: borrador!.nombre.trim() !== "" ? false : borrador!.esDefecto,
+    };
+    onGuardar(sincronizarRutaSeccion(nombrada));
   }
 
   return (
     <Dialog open={abierto} onOpenChange={(v) => (!v ? onCerrar() : undefined)}>
       <DialogContent className="flex max-h-[90vh] flex-col gap-0 p-0 sm:max-w-5xl">
         <DialogHeader className="border-b border-border px-6 py-4">
-          <DialogTitle>
-            {borrador.esDefecto ? "Lineas sin agrupar" : "Editar seccion"}
-          </DialogTitle>
+          <DialogTitle>Editar seccion</DialogTitle>
           <DialogDescription>
-            La ruta se define a nivel de seccion: todas las lineas de transporte la heredan.
+            {borrador.esDefecto
+              ? "Asigna un nombre y la ruta para agrupar estas lineas en una seccion."
+              : "La ruta se define a nivel de seccion: todas las lineas de transporte la heredan."}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="min-h-0 flex-1">
           <div className="flex flex-col gap-5 p-6">
-            {/* Cabecera editable de la seccion: nombre + ruta */}
+            {/* Cabecera editable de la seccion: nombre + ruta (siempre con nombre:
+                al editar el bucket "sin agrupar" se nombra y deja de ser plano). */}
             <div className="grid gap-4 sm:grid-cols-3">
-              {!borrador.esDefecto ? (
-                <Campo label="Nombre de la seccion" obligatorio>
-                  <Input
-                    value={borrador.nombre}
-                    disabled={disabled}
-                    placeholder="Ej: Tramo Lima - Mina"
-                    onChange={(e) => set({ nombre: e.target.value })}
-                  />
-                </Campo>
-              ) : null}
+              <Campo label="Nombre de la seccion" obligatorio>
+                <Input
+                  value={borrador.nombre}
+                  disabled={disabled}
+                  placeholder="Ej: Tramo Lima - Mina"
+                  onChange={(e) => set({ nombre: e.target.value })}
+                />
+              </Campo>
               <Campo label="Origen">
                 <Input
                   value={borrador.origen}
@@ -417,7 +422,12 @@ export function SeccionDetalleModal({
             <Button type="button" variant="outline" onClick={onCerrar}>
               Cancelar
             </Button>
-            <Button type="button" disabled={disabled} onClick={aplicar}>
+            <Button
+              type="button"
+              disabled={disabled || borrador.nombre.trim() === ""}
+              title={borrador.nombre.trim() === "" ? "Asigna un nombre a la seccion" : undefined}
+              onClick={aplicar}
+            >
               Aplicar
             </Button>
           </div>
