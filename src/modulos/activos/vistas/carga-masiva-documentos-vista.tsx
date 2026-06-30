@@ -6,8 +6,10 @@ import {
   CheckCircle2,
   FileUp,
   Layers,
+  Search,
   Trash2,
   Upload,
+  X,
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -38,12 +41,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
-import { Textarea } from "@/compartido/componentes/ui/textarea";
 import { cn } from "@/compartido/utilidades/utils";
 import {
+  buscarActivosPorCodigoOPlaca,
   obtenerTiposDocumento,
   procesarCargaMasivaDocumentos,
 } from "../servicios/activos-api";
+import type { Activo } from "../tipos/activo.tipos";
 import type {
   ArchivoDocumentoMasivo,
   CargaMasivaDocumentosResultado,
@@ -72,18 +76,6 @@ function identificadorDesdeNombre(nombre: string): string {
   return sinExtension.split("_")[0].trim().toUpperCase();
 }
 
-/** Separa placas/codigos escritos por el usuario (saltos, comas, espacios). */
-function parsearPlacas(texto: string): string[] {
-  return Array.from(
-    new Set(
-      texto
-        .split(/[\s,;]+/)
-        .map((valor) => valor.trim().toUpperCase())
-        .filter((valor) => valor.length > 0),
-    ),
-  );
-}
-
 function archivoADataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -99,7 +91,13 @@ export function CargaMasivaDocumentosVista() {
     React.useState<TipoDocumentoCarga>("SOAT");
   const [fechaVencimiento, setFechaVencimiento] = React.useState("");
   const [archivos, setArchivos] = React.useState<ArchivoDocumentoMasivo[]>([]);
-  const [placasTexto, setPlacasTexto] = React.useState("");
+  const [seleccionados, setSeleccionados] = React.useState<Activo[]>([]);
+  const [prellenado, setPrellenado] = React.useState(false);
+  const [busquedaTexto, setBusquedaTexto] = React.useState("");
+  const [resultadosBusqueda, setResultadosBusqueda] = React.useState<Activo[]>(
+    [],
+  );
+  const [buscando, setBuscando] = React.useState(false);
   const [procesando, setProcesando] = React.useState(false);
   const [resultado, setResultado] =
     React.useState<CargaMasivaDocumentosResultado | null>(null);
@@ -149,31 +147,86 @@ export function CargaMasivaDocumentosVista() {
   const esCompartido = tipoMeta?.alcance === "COMPARTIDO";
   const requiereVencimiento = tipoMeta?.requiereVencimiento ?? false;
   const placasCompartido = React.useMemo(
-    () => parsearPlacas(placasTexto),
-    [placasTexto],
+    () => seleccionados.map((activo) => activo.codigo),
+    [seleccionados],
   );
+
+  // Busqueda con debounce: por codigo o placa, para tildar activos en vez de
+  // escribirlos de memoria.
+  React.useEffect(() => {
+    if (!esCompartido || !busquedaTexto.trim()) {
+      setResultadosBusqueda([]);
+      return;
+    }
+    let cancelado = false;
+    setBuscando(true);
+    const temporizador = setTimeout(() => {
+      buscarActivosPorCodigoOPlaca(busquedaTexto)
+        .then((activos) => {
+          if (!cancelado) setResultadosBusqueda(activos);
+        })
+        .catch(() => {
+          if (!cancelado) setResultadosBusqueda([]);
+        })
+        .finally(() => {
+          if (!cancelado) setBuscando(false);
+        });
+    }, 300);
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+    };
+  }, [busquedaTexto, esCompartido]);
+
+  function toggleSeleccionado(activo: Activo, marcar: boolean) {
+    setPrellenado(false);
+    setSeleccionados((actuales) =>
+      marcar
+        ? actuales.some((a) => a.id === activo.id)
+          ? actuales
+          : [...actuales, activo]
+        : actuales.filter((a) => a.id !== activo.id),
+    );
+  }
 
   function reiniciar() {
     setPaso("configurar");
     setArchivos([]);
     setResultado(null);
     setFechaVencimiento("");
-    setPlacasTexto("");
+    setSeleccionados([]);
+    setPrellenado(false);
+    setBusquedaTexto("");
+    setResultadosBusqueda([]);
   }
 
   function cambiarTipo(valor: TipoDocumentoCarga) {
     setTipoDocumento(valor);
     // El alcance cambia el flujo: reiniciamos la seleccion para evitar mezclas.
     setArchivos([]);
+    setBusquedaTexto("");
+    setResultadosBusqueda([]);
     const metaNuevoTipo = tiposMaestro.find((tipo) => tipo.codigo === valor);
     const esCompartidoNuevo = metaNuevoTipo?.alcance === "COMPARTIDO";
-    // Si venimos de un lote recien creado y el tipo es compartido (poliza),
-    // prellenamos las placas con ese lote en vez de dejarlo en blanco.
-    setPlacasTexto(
-      esCompartidoNuevo && codigosLote.length > 0
-        ? codigosLote.join(", ")
-        : "",
-    );
+    if (esCompartidoNuevo && codigosLote.length > 0) {
+      // Si venimos de un lote recien creado y el tipo es compartido (poliza),
+      // pre-tildamos esos activos en vez de dejar la seleccion vacia.
+      Promise.all(
+        codigosLote.map((codigo) => buscarActivosPorCodigoOPlaca(codigo)),
+      ).then((resultados) => {
+        const encontrados = resultados
+          .flat()
+          .filter((activo, i, arr) =>
+            codigosLote.includes(activo.codigo) &&
+            arr.findIndex((a) => a.id === activo.id) === i,
+          );
+        setSeleccionados(encontrados);
+        setPrellenado(encontrados.length > 0);
+      });
+    } else {
+      setSeleccionados([]);
+      setPrellenado(false);
+    }
     setPaso("configurar");
   }
 
@@ -362,26 +415,102 @@ export function CargaMasivaDocumentosVista() {
             </div>
 
             {esCompartido && (
-              <div className="space-y-2">
-                <Label>Placas o codigos que cubre</Label>
-                {codigosLote.length > 0 &&
-                placasTexto === codigosLote.join(", ") ? (
-                  <p className="text-xs text-sky-700 dark:text-sky-400">
-                    Prellenado con los {codigosLote.length} activo(s) que
-                    acabas de crear. Quita los que no apliquen.
-                  </p>
-                ) : null}
-                <Textarea
-                  rows={3}
-                  placeholder="Ej: ABC-123, DEF-456, ACT-000901"
-                  value={placasTexto}
-                  onChange={(e) => setPlacasTexto(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Separa por coma, espacio o salto de linea.{" "}
-                  {placasCompartido.length > 0 &&
-                    `${placasCompartido.length} placa(s) detectada(s).`}
-                </p>
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <Label>Buscar activos que cubre este documento</Label>
+                  {prellenado && (
+                    <p className="text-xs text-sky-700 dark:text-sky-400">
+                      Pre-tildados los {seleccionados.length} activo(s) que
+                      acabas de crear. Destilda los que no apliquen.
+                    </p>
+                  )}
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+                    <Input
+                      className="pl-8"
+                      placeholder="Buscar por placa o codigo (ej: BTZ-750, ACT-000901)"
+                      value={busquedaTexto}
+                      onChange={(e) => setBusquedaTexto(e.target.value)}
+                    />
+                  </div>
+                  {busquedaTexto.trim() && (
+                    <div className="max-h-48 overflow-auto rounded-lg border">
+                      {buscando ? (
+                        <p className="p-3 text-sm text-muted-foreground">
+                          Buscando...
+                        </p>
+                      ) : resultadosBusqueda.length === 0 ? (
+                        <p className="p-3 text-sm text-muted-foreground">
+                          Sin resultados para &quot;{busquedaTexto}&quot;.
+                        </p>
+                      ) : (
+                        resultadosBusqueda.map((activo) => {
+                          const marcado = seleccionados.some(
+                            (a) => a.id === activo.id,
+                          );
+                          return (
+                            <label
+                              key={activo.id}
+                              htmlFor={`activo-${activo.id}`}
+                              className="flex cursor-pointer items-center gap-3 border-b p-2.5 last:border-b-0 hover:bg-accent"
+                            >
+                              <Checkbox
+                                id={`activo-${activo.id}`}
+                                checked={marcado}
+                                onCheckedChange={(checked) =>
+                                  toggleSeleccionado(activo, Boolean(checked))
+                                }
+                              />
+                              <span className="flex flex-col">
+                                <span className="text-sm font-medium">
+                                  {activo.codigo}
+                                  {activo.vehiculo?.placa
+                                    ? ` — ${activo.vehiculo.placa}`
+                                    : ""}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {activo.descripcion}
+                                </span>
+                              </span>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>
+                    Seleccionados ({seleccionados.length})
+                  </Label>
+                  {seleccionados.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Busca arriba y marca los activos que cubre este
+                      documento.
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {seleccionados.map((activo) => (
+                        <Badge
+                          key={activo.id}
+                          variant="secondary"
+                          className="gap-1 pr-1"
+                        >
+                          {activo.codigo}
+                          <button
+                            type="button"
+                            aria-label={`Quitar ${activo.codigo}`}
+                            onClick={() => toggleSeleccionado(activo, false)}
+                            className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

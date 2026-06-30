@@ -207,7 +207,12 @@ const COLUMNAS_VEHICULO_TECNICO: ColumnaCarga[] = [
     obligatorio: false,
     tipo: "texto",
     destino: "vehiculo",
-    ejemplo: "PICK UP",
+    // Si el texto coincide EXACTO con un nombre del Maestro de Catalogos
+    // (Activos > Administrador de maestros > Carroceria) se resuelve tambien
+    // el id de catalogo, no solo el texto libre. "Pick Up" generico no existe
+    // como tal en el catalogo: usar "Pickup cabina simple" o "Pickup doble
+    // cabina".
+    ejemplo: "Pickup cabina simple",
   },
   {
     clave: "ejes",

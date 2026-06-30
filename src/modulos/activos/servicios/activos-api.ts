@@ -586,6 +586,36 @@ export async function buscarActivosPorPlaca(placa: string): Promise<Activo[]> {
   return [...data.datos];
 }
 
+/**
+ * Busca activos por codigo O placa (no hay un solo filtro que cubra ambos
+ * en el backend), para listas de seleccion tipo "que activos cubre este
+ * documento compartido". Combina y deduplica por id.
+ */
+export async function buscarActivosPorCodigoOPlaca(
+  texto: string
+): Promise<Activo[]> {
+  const limpio = texto.trim();
+  if (!limpio) return [];
+
+  const [porCodigo, porPlaca] = await Promise.all([
+    clienteActivos.get<RespuestaPaginada<Activo>>("/activos", {
+      params: { codigo: limpio, estadoRegistro: true, limite: 20 },
+    }),
+    clienteActivos.get<RespuestaPaginada<Activo>>("/activos", {
+      params: { placa: limpio, estadoRegistro: true, limite: 20 },
+    }),
+  ]);
+
+  const vistos = new Set<number>();
+  const combinados: Activo[] = [];
+  for (const activo of [...porCodigo.data.datos, ...porPlaca.data.datos]) {
+    if (vistos.has(activo.id)) continue;
+    vistos.add(activo.id);
+    combinados.push(activo);
+  }
+  return combinados;
+}
+
 export async function obtenerPerfilFlotaPorPlaca(
   placa: string
 ): Promise<PerfilFlota | null> {
