@@ -21,7 +21,7 @@ import {
   importarUnidades,
   obtenerActivosDisponibles,
   type ActivoDisponible,
-} from "@/modulos/flota/servicios/flota-api";
+} from "@/modulos/flota/asignaciones/servicios/asignaciones-api";
 
 function resolverPlaca(activo: ActivoDisponible): string {
   return (

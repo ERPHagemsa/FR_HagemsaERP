@@ -7,8 +7,8 @@ import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import {
   obtenerHistorialPorId,
   obtenerUnidadPorId,
-} from "@/modulos/flota/servicios/flota-api";
-import { FlotaAuditoriaVista } from "@/modulos/flota/vistas/flota-auditoria-vista";
+} from "@/modulos/flota/asignaciones/servicios/asignaciones-api";
+import { FlotaAuditoriaVista } from "@/modulos/flota/asignaciones/vistas/flota-auditoria-vista";
 
 export default function FlotaAuditoriaPage() {
   const params = useParams<{ id: string }>();

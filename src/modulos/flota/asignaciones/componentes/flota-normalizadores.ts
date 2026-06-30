@@ -1,4 +1,4 @@
-import type { VehiculoFlota } from "../tipos/flota.tipos";
+import type { VehiculoFlota } from "../tipos/asignaciones.tipos";
 
 export type ContratoRef = { id: string; codigo: string; nombre: string } | null;
 

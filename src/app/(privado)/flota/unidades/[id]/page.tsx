@@ -1,4 +1,4 @@
-import { VehiculoDetalleVista } from "@/modulos/flota/vistas/vehiculo-detalle-vista";
+import { VehiculoDetalleVista } from "@/modulos/flota/asignaciones/vistas/vehiculo-detalle-vista";
 
 type Params = {
   params: Promise<{ id: string }> | { id: string };

@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 import { cn } from "@/compartido/utilidades/utils";
-import { FlotaPageHeader } from "../componentes/flota-page-header";
+import { FlotaPageHeader } from "../../compartido/componentes/flota-page-header";
 
 type HistorialFlotaItem = {
   id: number;

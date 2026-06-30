@@ -63,7 +63,7 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades/utils";
-import type { VehiculoFlota } from "../tipos/flota.tipos";
+import type { VehiculoFlota } from "../tipos/asignaciones.tipos";
 import {
   asignacionesVehiculo,
   carroceriaVehiculo,
