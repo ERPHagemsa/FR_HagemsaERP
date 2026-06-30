@@ -21,8 +21,11 @@ import {
 
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import { CotizacionVersionEditable } from "./cotizacion-version-editable";
+import { TablaStandby } from "./tabla-standby";
+import type { EntradaStandby } from "./tabla-standby";
 import type {
   CargaHijo,
+  CargoAdicional,
   EquipoHijo,
   AlmacenajeHijo,
   OrigenTipo,
@@ -201,6 +204,10 @@ export function CotizacionVersionesNotebook({
                     Lineas sin seccion ({lineasSinSeccion.length})
                   </div>
                   <TablaLineas lineas={lineasSinSeccion} moneda={version.moneda} />
+                  <TablaStandby
+                    entradas={entradasStandbyLectura(lineasSinSeccion, [])}
+                    moneda={version.moneda}
+                  />
                 </div>
               ) : null}
             </div>
@@ -281,7 +288,6 @@ function SeccionBloque({
                 <th className="py-1 text-left font-medium">Unidad</th>
                 <th className="py-1 text-right font-medium">Cant.</th>
                 <th className="py-1 text-right font-medium">P. unitario</th>
-                <th className="py-1 text-right font-medium">Stand by</th>
                 <th className="py-1 text-right font-medium">Monto</th>
               </tr>
             </thead>
@@ -292,7 +298,6 @@ function SeccionBloque({
                   <td className="py-1 text-muted-foreground">{c.unidadCobro ?? "—"}</td>
                   <td className="py-1 text-right tabular-nums">{c.cantidad ?? "—"}</td>
                   <td className="py-1 text-right tabular-nums">{c.precioUnitario !== undefined ? formatearMonto(c.precioUnitario) : "—"}</td>
-                  <td className="py-1 text-right tabular-nums text-muted-foreground">{c.standbyDia != null ? formatearMonto(c.standbyDia) : "—"}</td>
                   <td className="py-1 text-right tabular-nums">{formatearMonto(c.monto)} {moneda}</td>
                 </tr>
               ))}
@@ -300,8 +305,34 @@ function SeccionBloque({
           </table>
         </div>
       ) : null}
+
+      {/* Stand by — su propia tabla, separada del costo (informativo, no suma). */}
+      <TablaStandby entradas={entradasStandbyLectura(lineas, cargos)} moneda={moneda} />
     </div>
   );
+}
+
+// Stand-by de una seccion (lectura): lineas de transporte + cargos de linea + cargos
+// de seccion que tengan stand-by. Va en su propia tabla, separado del costo.
+function entradasStandbyLectura(lineas: Linea[], cargosSeccion: CargoAdicional[]): EntradaStandby[] {
+  const entradas: EntradaStandby[] = [];
+  for (const l of lineas) {
+    if (l.standbyDia != null) {
+      const concepto = l.carga?.tipoVehiculo ?? l.descripcion ?? formatearTipoLinea(l.tipoLinea);
+      entradas.push({ concepto, tipo: "Linea", precio: l.standbyDia });
+    }
+    for (const c of l.cargosAdicionales ?? []) {
+      if (c.standbyDia != null) {
+        entradas.push({ concepto: c.descripcion, tipo: "Cargo de linea", precio: c.standbyDia });
+      }
+    }
+  }
+  for (const c of cargosSeccion) {
+    if (c.standbyDia != null) {
+      entradas.push({ concepto: c.descripcion, tipo: "Cargo de seccion", precio: c.standbyDia });
+    }
+  }
+  return entradas;
 }
 
 // ---------------------------------------------------------------------------
@@ -330,7 +361,6 @@ function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
           <th className="px-3 py-2 text-right font-medium">Cant.</th>
           <th className="px-3 py-2 text-right font-medium">Costo base</th>
           <th className="px-3 py-2 text-right font-medium">P. venta</th>
-          <th className="px-3 py-2 text-right font-medium">Stand by</th>
           <th className="px-3 py-2 text-right font-medium">Monto total</th>
         </tr>
       </thead>
@@ -368,9 +398,6 @@ function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
                 <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                   {formatearMonto(linea.precioVenta)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
-                  {linea.standbyDia != null ? formatearMonto(linea.standbyDia) : "—"}
-                </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
                   {formatearMonto(linea.precioVentaTotal)} {moneda}
                 </td>
@@ -384,9 +411,6 @@ function TablaLineas({ lineas, moneda }: { lineas: Linea[]; moneda: string }) {
                   <td className="px-3 py-2 text-right text-muted-foreground">—</td>
                   <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
                     {formatearMonto(c.precioUnitario)}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
-                    {c.standbyDia != null ? formatearMonto(c.standbyDia) : "—"}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
                     {formatearMonto(c.monto)} {moneda}

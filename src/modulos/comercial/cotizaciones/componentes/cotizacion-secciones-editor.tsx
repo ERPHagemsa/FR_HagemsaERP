@@ -25,6 +25,8 @@ import {
 } from "../servicios/cotizaciones-editor.utils";
 import { useListarCatalogosCargoAdicional } from "../servicios/cotizaciones-queries";
 import { SeccionDetalleModal } from "./seccion-detalle-modal";
+import { TablaStandby } from "./tabla-standby";
+import type { EntradaStandby } from "./tabla-standby";
 import {
   claseBadgeTipo,
   etiquetaTipo,
@@ -309,7 +311,6 @@ function BloqueSeccion({
                 <th className="py-1 text-left font-medium">Unidad</th>
                 <th className="py-1 text-right font-medium">Cant.</th>
                 <th className="py-1 text-right font-medium">P. unitario</th>
-                <th className="py-1 text-right font-medium">Stand by</th>
                 <th className="py-1 text-right font-medium">Monto</th>
               </tr>
             </thead>
@@ -322,9 +323,6 @@ function BloqueSeccion({
                   <td className="py-1 text-right tabular-nums">
                     {formatearMoneda(parseFloat(c.precioUnitario) || 0, moneda)}
                   </td>
-                  <td className="py-1 text-right tabular-nums text-muted-foreground">
-                    {c.standbyDia.trim() !== "" ? formatearMoneda(parseFloat(c.standbyDia) || 0, moneda) : "—"}
-                  </td>
                   <td className="py-1 text-right tabular-nums">
                     {formatearMoneda(montoCargo(c), moneda)} {moneda}
                   </td>
@@ -334,8 +332,45 @@ function BloqueSeccion({
           </table>
         </div>
       ) : null}
+
+      {/* Stand by — su propia tabla, separada del costo (informativo, no suma). */}
+      <TablaStandby entradas={entradasStandby(seccion)} moneda={moneda} />
     </div>
   );
+}
+
+// Reune las entradas de stand-by de una seccion (lineas de transporte + cargos de
+// linea + cargos de seccion). El stand-by es informativo y va en su propia tabla.
+function entradasStandby(seccion: DraftSeccion): EntradaStandby[] {
+  const entradas: EntradaStandby[] = [];
+  for (const l of seccion.lineas) {
+    if (l.tipoLinea === "TRANSPORTE" && l.standbyDia.trim() !== "") {
+      entradas.push({
+        concepto: l.descripcion || l.carga.tipoVehiculo || etiquetaTipo(l.tipoLinea),
+        tipo: "Linea",
+        precio: parseFloat(l.standbyDia) || 0,
+      });
+    }
+    for (const c of l.cargosAdicionales) {
+      if (c.standbyDia.trim() !== "") {
+        entradas.push({
+          concepto: c.descripcion || "Cargo",
+          tipo: "Cargo de linea",
+          precio: parseFloat(c.standbyDia) || 0,
+        });
+      }
+    }
+  }
+  for (const c of seccion.cargosAdicionales) {
+    if (c.standbyDia.trim() !== "") {
+      entradas.push({
+        concepto: c.descripcion || "Cargo",
+        tipo: "Cargo de seccion",
+        precio: parseFloat(c.standbyDia) || 0,
+      });
+    }
+  }
+  return entradas;
 }
 
 function TablaLineas({ lineas, moneda }: { lineas: DraftLinea[]; moneda: string }) {
@@ -348,7 +383,6 @@ function TablaLineas({ lineas, moneda }: { lineas: DraftLinea[]; moneda: string 
           <th className="px-3 py-2 text-right font-medium">Cant.</th>
           <th className="px-3 py-2 text-right font-medium">P. base</th>
           <th className="px-3 py-2 text-right font-medium">P. venta</th>
-          <th className="px-3 py-2 text-right font-medium">Stand by</th>
           <th className="px-3 py-2 text-right font-medium">Total venta</th>
         </tr>
       </thead>
@@ -374,11 +408,6 @@ function TablaLineas({ lineas, moneda }: { lineas: DraftLinea[]; moneda: string 
               <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
                 {formatearMoneda(precioVentaLinea(linea), moneda)}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
-                {linea.tipoLinea === "TRANSPORTE" && linea.standbyDia.trim() !== ""
-                  ? formatearMoneda(parseFloat(linea.standbyDia) || 0, moneda)
-                  : "—"}
-              </td>
               <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
                 {formatearMoneda(totalLinea(linea), moneda)} {moneda}
               </td>
@@ -392,9 +421,6 @@ function TablaLineas({ lineas, moneda }: { lineas: DraftLinea[]; moneda: string 
                   {formatearMoneda(parseFloat(c.precioUnitario) || 0, moneda)}
                 </td>
                 <td className="px-3 py-1.5 text-right">—</td>
-                <td className="px-3 py-1.5 text-right tabular-nums">
-                  {c.standbyDia.trim() !== "" ? formatearMoneda(parseFloat(c.standbyDia) || 0, moneda) : "—"}
-                </td>
                 <td className="whitespace-nowrap px-3 py-1.5 text-right font-medium tabular-nums">
                   {formatearMoneda(montoCargo(c), moneda)} {moneda}
                 </td>

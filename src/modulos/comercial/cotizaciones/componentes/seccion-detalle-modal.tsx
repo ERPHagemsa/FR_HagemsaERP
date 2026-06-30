@@ -38,6 +38,8 @@ import {
 } from "../servicios/cotizaciones-editor.utils";
 import { EditorCargos } from "./editor-cargos";
 import { LineaDetalleDrawer } from "./linea-detalle-drawer";
+import { TablaStandby } from "./tabla-standby";
+import type { EntradaStandby } from "./tabla-standby";
 import {
   claseBadgeTipo,
   etiquetaTipo,
@@ -46,7 +48,7 @@ import {
   totalLinea,
 } from "./lineas-grid.utils";
 
-const COLUMNAS = 9;
+const COLUMNAS = 8;
 
 type Props = {
   abierto: boolean;
@@ -217,7 +219,6 @@ export function SeccionDetalleModal({
                     <TableHead className="w-16 text-right">Cant.</TableHead>
                     <TableHead className="w-24 text-right">P. base</TableHead>
                     <TableHead className="w-20 text-right">Margen %</TableHead>
-                    <TableHead className="w-24 text-right">Stand by</TableHead>
                     <TableHead className="w-28 text-right">Total venta</TableHead>
                     <TableHead className="w-16 text-right">Acciones</TableHead>
                   </TableRow>
@@ -309,25 +310,6 @@ export function SeccionDetalleModal({
                               }
                             />
                           </TableCell>
-                          <TableCell>
-                            {/* Stand by por dia — solo TRANSPORTE; informativo (no suma). */}
-                            {linea.tipoLinea === "TRANSPORTE" ? (
-                              <Input
-                                className="h-8 w-20 border-transparent bg-transparent px-2 text-right text-sm tabular-nums shadow-none hover:border-border focus-visible:border-border"
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                placeholder="—"
-                                value={linea.standbyDia}
-                                disabled={disabled}
-                                onChange={(e) =>
-                                  actualizarLinea(linea.claveCliente, { standbyDia: e.target.value })
-                                }
-                              />
-                            ) : (
-                              <span className="block pr-2 text-right text-xs text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
                           <TableCell className="text-right font-mono text-sm font-medium tabular-nums">
                             {formatearMoneda(totalLinea(linea), moneda)}
                           </TableCell>
@@ -418,6 +400,14 @@ export function SeccionDetalleModal({
                 onChange={(cargos) => set({ cargosAdicionales: cargos })}
               />
             </FieldSet>
+
+            {/* Stand by — informativo, su propia tabla (no suma al total). Se edita en
+                el detalle de cada linea (drawer) y en los cargos; aca solo se resume. */}
+            {entradasStandby(borrador).length > 0 ? (
+              <div className="overflow-hidden rounded-xl border border-border">
+                <TablaStandby entradas={entradasStandby(borrador)} moneda={moneda} />
+              </div>
+            ) : null}
           </div>
         </ScrollArea>
 
@@ -454,6 +444,40 @@ export function SeccionDetalleModal({
       />
     </Dialog>
   );
+}
+
+// Stand-by de la seccion (draft): lineas de transporte + cargos de linea + cargos de
+// seccion con stand-by. Va en su propia tabla, separado del costo.
+function entradasStandby(seccion: DraftSeccion): EntradaStandby[] {
+  const entradas: EntradaStandby[] = [];
+  for (const l of seccion.lineas) {
+    if (l.tipoLinea === "TRANSPORTE" && l.standbyDia.trim() !== "") {
+      entradas.push({
+        concepto: l.descripcion || l.carga.tipoVehiculo || etiquetaTipo(l.tipoLinea),
+        tipo: "Linea",
+        precio: parseFloat(l.standbyDia) || 0,
+      });
+    }
+    for (const c of l.cargosAdicionales) {
+      if (c.standbyDia.trim() !== "") {
+        entradas.push({
+          concepto: c.descripcion || "Cargo",
+          tipo: "Cargo de linea",
+          precio: parseFloat(c.standbyDia) || 0,
+        });
+      }
+    }
+  }
+  for (const c of seccion.cargosAdicionales) {
+    if (c.standbyDia.trim() !== "") {
+      entradas.push({
+        concepto: c.descripcion || "Cargo",
+        tipo: "Cargo de seccion",
+        precio: parseFloat(c.standbyDia) || 0,
+      });
+    }
+  }
+  return entradas;
 }
 
 // ---------------------------------------------------------------------------
