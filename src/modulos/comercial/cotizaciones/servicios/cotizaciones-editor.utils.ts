@@ -117,6 +117,11 @@ export type DraftSeccion = {
   claveCliente: string; // seeded desde seccion.id del backend durante esta sesion
   esDefecto: boolean;   // true para la seccion por defecto (nombre null en el backend)
   nombre: string;
+  // Ruta a nivel de SECCION (UX): se captura una sola vez en la seccion y todas sus
+  // lineas de transporte la heredan (el backend la sigue persistiendo en cada LineaCarga).
+  // Vacio = sin ruta (secciones de servicios no-transporte).
+  origen: string;
+  destino: string;
   orden: number;
   lineas: DraftLinea[];
   cargosAdicionales: DraftCargoAdicional[];
@@ -247,6 +252,8 @@ export function seccionVacia(esDefecto = false): DraftSeccion {
     claveCliente: crypto.randomUUID(),
     esDefecto,
     nombre: "",
+    origen: "",
+    destino: "",
     orden: 0,
     lineas: [],
     cargosAdicionales: [],
@@ -255,6 +262,23 @@ export function seccionVacia(esDefecto = false): DraftSeccion {
 
 export function seccionDefectoVacia(): DraftSeccion {
   return seccionVacia(true);
+}
+
+/**
+ * sincronizarRutaSeccion — propaga la ruta (origen/destino) de la seccion a la carga
+ * de TODAS sus lineas de transporte. La seccion es la unica fuente de verdad de la ruta;
+ * las lineas de transporte la heredan. Las lineas no-transporte quedan intactas.
+ * Devuelve una nueva seccion (inmutable) lista para reemplazar a la anterior.
+ */
+export function sincronizarRutaSeccion(seccion: DraftSeccion): DraftSeccion {
+  return {
+    ...seccion,
+    lineas: seccion.lineas.map((l) =>
+      l.tipoLinea === "TRANSPORTE"
+        ? { ...l, carga: { ...l.carga, origen: seccion.origen, destino: seccion.destino } }
+        : l
+    ),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -436,10 +460,13 @@ export function derivarDraft(version: Version): DraftBorrador {
       seccionesMap.set(s.id, d);
     } else {
       // Seccion con nombre: conserva SUS lineas y SUS cargos (cargos por seccion).
+      // origen/destino se derivan de las lineas mas abajo (pase 3.5).
       const draftSeccion: DraftSeccion = {
         claveCliente: s.id,
         esDefecto: false,
         nombre: s.nombre,
+        origen: "",
+        destino: "",
         orden: s.orden,
         lineas: [],
         cargosAdicionales: cargos,
@@ -459,6 +486,21 @@ export function derivarDraft(version: Version): DraftBorrador {
       seccionesMap.get(l.idSeccion)!.lineas.push(draftLinea);
     } else {
       asegurarDefecto().lineas.push(draftLinea);
+    }
+  }
+
+  // 3.5 Ruta a nivel de seccion: se deriva de la primera linea de transporte con ruta.
+  // (El backend guarda la ruta por linea; en la cotizacion todas las lineas de una
+  // seccion comparten ruta, asi que tomar la primera con datos es suficiente.)
+  for (const s of secciones) {
+    const conRuta = s.lineas.find(
+      (l) =>
+        l.tipoLinea === "TRANSPORTE" &&
+        (l.carga.origen !== "" || l.carga.destino !== "")
+    );
+    if (conRuta) {
+      s.origen = conRuta.carga.origen;
+      s.destino = conRuta.carga.destino;
     }
   }
 
@@ -612,13 +654,17 @@ function seccionAPayload(s: DraftSeccion): PayloadSeccion | null {
   if (s.lineas.length === 0 && s.cargosAdicionales.length === 0) {
     return null;
   }
+  // La ruta vive en la seccion: la propagamos a la carga de cada linea de transporte
+  // antes de emitir (el backend la persiste por linea). Asi es autoritativo aunque la
+  // UI no haya sincronizado (ej. linea agregada sin pasar por el modal).
+  const sincronizada = s.origen !== "" || s.destino !== "" ? sincronizarRutaSeccion(s) : s;
   const payload: PayloadSeccion = {};
   // La seccion por defecto (esDefecto) viaja sin nombre = seccion "plana".
-  if (!s.esDefecto && s.nombre !== "") payload.nombre = s.nombre;
-  if (s.orden > 0) payload.orden = s.orden;
-  if (s.lineas.length > 0) payload.lineas = s.lineas.map(lineaAPayload);
-  if (s.cargosAdicionales.length > 0) {
-    payload.cargosAdicionales = s.cargosAdicionales.map(cargoAdicionalAPayload);
+  if (!sincronizada.esDefecto && sincronizada.nombre !== "") payload.nombre = sincronizada.nombre;
+  if (sincronizada.orden > 0) payload.orden = sincronizada.orden;
+  if (sincronizada.lineas.length > 0) payload.lineas = sincronizada.lineas.map(lineaAPayload);
+  if (sincronizada.cargosAdicionales.length > 0) {
+    payload.cargosAdicionales = sincronizada.cargosAdicionales.map(cargoAdicionalAPayload);
   }
   return payload;
 }
