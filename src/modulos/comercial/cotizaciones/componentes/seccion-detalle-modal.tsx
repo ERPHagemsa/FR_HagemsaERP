@@ -114,6 +114,13 @@ export function SeccionDetalleModal({
       0
     );
 
+  // Linea en edicion (su formulario se renderiza en un panel debajo de la tabla,
+  // NO dentro de un <td>: anidar las tablas de cargas/cargos en una celda rompe el layout).
+  const lineaExpandida =
+    expandidaClave !== null
+      ? borrador.lineas.find((l) => l.claveCliente === expandidaClave) ?? null
+      : null;
+
   function actualizarLinea(clave: string, patch: Partial<DraftLinea>) {
     set({
       lineas: borrador!.lineas.map((l) =>
@@ -220,10 +227,13 @@ export function SeccionDetalleModal({
                   ) : (
                     borrador.lineas.map((linea) => {
                       const expandida = expandidaClave === linea.claveCliente;
-                      const pegada = expandida || linea.cargosAdicionales.length > 0;
                       return (
                         <React.Fragment key={linea.claveCliente}>
-                          <TableRow className={`group align-middle ${pegada ? "border-b-0" : ""}`}>
+                          <TableRow
+                            className={`group align-middle ${
+                              linea.cargosAdicionales.length > 0 ? "border-b-0" : ""
+                            } ${expandida ? "bg-muted/40 hover:bg-muted/40" : ""}`}
+                          >
                             <TableCell>
                               <Badge
                                 variant="outline"
@@ -303,34 +313,6 @@ export function SeccionDetalleModal({
                               </TableCell>
                             </TableRow>
                           ) : null}
-
-                          {/* Fila expandida: formulario completo de la linea (inline) */}
-                          {expandida ? (
-                            <TableRow className="hover:bg-transparent">
-                              <TableCell colSpan={COLUMNAS} className="bg-muted/20 p-4">
-                                <LineaFormulario
-                                  linea={linea}
-                                  moneda={moneda}
-                                  opcionesCatalogo={opcionesCatalogo}
-                                  disabled={disabled}
-                                  clienteTipo={clienteTipo}
-                                  clienteId={clienteId}
-                                  rutaSeccion={{ origen: borrador.origen, destino: borrador.destino }}
-                                  onChange={(l) => actualizarLinea(l.claveCliente, l)}
-                                />
-                                <div className="mt-3 flex justify-end">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setExpandidaClave(null)}
-                                  >
-                                    Listo
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ) : null}
                         </React.Fragment>
                       );
                     })
@@ -338,6 +320,38 @@ export function SeccionDetalleModal({
                 </TableBody>
               </Table>
             </div>
+
+            {/* Formulario de la linea seleccionada — panel debajo de la tabla (no dentro
+                de un <td>, para no romper el layout al anidar las tablas de cargas/cargos). */}
+            {lineaExpandida ? (
+              <div className="flex flex-col gap-3 rounded-xl border border-primary/40 bg-muted/20 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold">
+                    {lineaExpandida.descripcion.trim()
+                      ? lineaExpandida.descripcion
+                      : `Editar linea (${etiquetaTipo(lineaExpandida.tipoLinea)})`}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setExpandidaClave(null)}
+                  >
+                    Listo
+                  </Button>
+                </div>
+                <LineaFormulario
+                  linea={lineaExpandida}
+                  moneda={moneda}
+                  opcionesCatalogo={opcionesCatalogo}
+                  disabled={disabled}
+                  clienteTipo={clienteTipo}
+                  clienteId={clienteId}
+                  rutaSeccion={{ origen: borrador.origen, destino: borrador.destino }}
+                  onChange={(l) => actualizarLinea(l.claveCliente, l)}
+                />
+              </div>
+            ) : null}
 
             <Button
               type="button"
