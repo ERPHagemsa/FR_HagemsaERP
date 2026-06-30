@@ -56,6 +56,10 @@ type Props = {
   // cliente (fallback a mercado). Ambos juntos o ninguno. En alta sin origen cargado, undefined.
   clienteTipo?: OrigenTipo;
   clienteId?: string;
+  // Ruta a nivel de SECCION (UX 2026-06): cuando se provee, el drawer NO muestra los
+  // inputs de ruta (origen/destino) — la ruta la define la seccion — y la usa para el
+  // precio sugerido. La carga de la linea la mantiene sincronizada el modal de seccion.
+  rutaSeccion?: { origen: string; destino: string };
   onCerrar: () => void;
   onGuardar: (linea: DraftLinea) => void;
 };
@@ -76,6 +80,7 @@ export function LineaDetalleDrawer({
   disabled,
   clienteTipo,
   clienteId,
+  rutaSeccion,
   onCerrar,
   onGuardar,
 }: Props) {
@@ -106,11 +111,14 @@ export function LineaDetalleDrawer({
     if (isNaN(p) || p <= 0) return acc;
     return acc + (it.unidadPeso === "KG" ? p / 1000 : p);
   }, 0);
+  // Ruta efectiva: si la seccion la define, manda la de la seccion; si no, la de la carga.
+  const origenEfectivo = rutaSeccion ? rutaSeccion.origen : borrador?.carga.origen ?? "";
+  const destinoEfectivo = rutaSeccion ? rutaSeccion.destino : borrador?.carga.destino ?? "";
   const sugerenciaPrecio = usePrecioSugerido(
     {
       modalidadId: borrador?.idModalidad ?? "",
-      origen: borrador?.carga.origen ?? "",
-      destino: borrador?.carga.destino ?? "",
+      origen: origenEfectivo,
+      destino: destinoEfectivo,
       moneda: moneda as Moneda,
       pesoTotal: pesoTotalTn, // requerido; el hook no dispara si es 0
       toleranciaPeso, // decision del ejecutivo (±%); default 0.15
@@ -201,8 +209,17 @@ export function LineaDetalleDrawer({
               </Campo>
             </div>
 
-            {/* Ruta — solo transporte */}
-            {borrador.tipoLinea === "TRANSPORTE" ? (
+            {/* Ruta — solo transporte. Cuando la define la seccion (rutaSeccion) no se
+                edita aca: se muestra de forma informativa para dar contexto. */}
+            {borrador.tipoLinea === "TRANSPORTE" && rutaSeccion ? (
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+                <span className="text-xs text-muted-foreground">Ruta (de la seccion)</span>
+                <span className="font-medium">
+                  {(rutaSeccion.origen || "—") + " → " + (rutaSeccion.destino || "—")}
+                </span>
+              </div>
+            ) : null}
+            {borrador.tipoLinea === "TRANSPORTE" && !rutaSeccion ? (
               <Grupo titulo="Ruta">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Campo label="Origen">
@@ -316,8 +333,8 @@ export function LineaDetalleDrawer({
                 referencia historica: el ejecutivo la usa o cotiza a criterio. */}
             {borrador.tipoLinea === "TRANSPORTE" &&
             borrador.idModalidad &&
-            borrador.carga.origen.trim() !== "" &&
-            borrador.carga.destino.trim() !== "" ? (
+            origenEfectivo.trim() !== "" &&
+            destinoEfectivo.trim() !== "" ? (
               pesoTotalTn > 0 ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
