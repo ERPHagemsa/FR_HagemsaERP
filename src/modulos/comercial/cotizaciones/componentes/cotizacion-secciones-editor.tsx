@@ -14,15 +14,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/compartido/componentes/ui/dialog";
+import { ConfirmarEliminar } from "@/compartido/componentes/ui/confirmar-eliminar";
 
-import type { OrigenTipo } from "../tipos/cotizaciones.tipos";
-import type { DraftLinea, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
-import { montoCargo, seccionVacia } from "../servicios/cotizaciones-editor.utils";
+import type { CatalogoCargoAdicional, OrigenTipo } from "../tipos/cotizaciones.tipos";
+import type {
+  DraftCargoAdicional,
+  DraftLinea,
+  DraftSeccion,
+} from "../servicios/cotizaciones-editor.utils";
+import {
+  cargoAdicionalVacio,
+  lineaVacia,
+  montoCargo,
+  precioVentaLinea,
+  seccionVacia,
+  sincronizarRutaSeccion,
+} from "../servicios/cotizaciones-editor.utils";
 import { useListarCatalogosCargoAdicional } from "../servicios/cotizaciones-queries";
-import { SeccionDetalleModal } from "./seccion-detalle-modal";
+import { LineaDetalleModal } from "./linea-detalle-modal";
+import { CargoDetalleModal } from "./cargo-detalle-modal";
+import { SeccionDatosModal } from "./seccion-datos-modal";
 import { TablaStandby } from "./tabla-standby";
 import type { EntradaStandby } from "./tabla-standby";
-import { TablaCotizacion } from "./tabla-cotizacion";
+import {
+  CeldaDescripcionLinea,
+  TablaCotizacion,
+  rutaDeSeccion,
+  unidadDeLinea,
+} from "./tabla-cotizacion";
 import type { SeccionVista } from "./tabla-cotizacion";
 import { etiquetaTipo, formatearMoneda, totalLinea } from "./lineas-grid.utils";
 
@@ -41,9 +60,10 @@ type Props = {
  *
  * La cotizacion se arma como una lista de secciones; cada seccion define su ruta
  * (origen/destino) y agrupa sus lineas (que heredan la ruta) y sus cargos. Los
- * bloques se muestran en modo lectura con el lenguaje visual del detalle; toda la
- * edicion ocurre en un modal por seccion (SeccionDetalleModal). Componente
- * controlado: cada cambio sale por onChange(secciones).
+ * bloques se muestran en modo lectura con el lenguaje visual del detalle. La edicion
+ * se reparte en modales enfocados: datos de la seccion (nombre + ruta), cargos
+ * adicionales de la seccion, y una linea a la vez. Componente controlado: cada
+ * cambio sale por onChange(secciones).
  */
 export function CotizacionSeccionesEditor({
   secciones,
@@ -57,8 +77,16 @@ export function CotizacionSeccionesEditor({
   const { data: catalogoData } = useListarCatalogosCargoAdicional({ estado: "ACTIVO", porPagina: 50 });
   const opcionesCatalogo = catalogoData?.data ?? [];
 
-  // Seccion abierta en el modal de edicion.
-  const [editando, setEditando] = React.useState<DraftSeccion | null>(null);
+  // Seccion abierta en el modal de DATOS (nombre + ruta).
+  const [datosEditando, setDatosEditando] = React.useState<DraftSeccion | null>(null);
+  // Linea abierta en el modal de edicion de UNA sola linea (editar existente o
+  // agregar nueva). Guarda la seccion a la que pertenece para persistir el cambio.
+  const [lineaEditando, setLineaEditando] = React.useState<{
+    seccionClave: string;
+    seccionNombre: string;
+    rutaSeccion: { origen: string; destino: string };
+    linea: DraftLinea;
+  } | null>(null);
   // Dialog "crear seccion" (pide nombre + ruta antes de abrir el modal de lineas).
   const [crearAbierto, setCrearAbierto] = React.useState(false);
   const [nuevoNombre, setNuevoNombre] = React.useState("");
@@ -86,11 +114,13 @@ export function CotizacionSeccionesEditor({
     nueva.origen = nuevoOrigen.trim();
     nueva.destino = nuevoDestino.trim();
     setCrearAbierto(false);
-    // Abrir el modal para agregar lineas. La seccion NO se agrega todavia: recien
-    // entra a la lista (y se persiste) al pulsar "Aplicar"; "Cancelar" la descarta.
-    setEditando(nueva);
+    // La seccion entra a la lista de inmediato (su bloque aparece con el boton
+    // "Agregar linea"). Una seccion vacia no se persiste hasta tener contenido.
+    guardarSeccion(nueva);
   }
 
+  // Reemplaza la seccion si ya existe, o la agrega si es nueva. No cierra modales:
+  // cada caller cierra el suyo.
   function guardarSeccion(seccion: DraftSeccion) {
     const existe = secciones.some((s) => s.claveCliente === seccion.claveCliente);
     onChange(
@@ -98,11 +128,88 @@ export function CotizacionSeccionesEditor({
         ? secciones.map((s) => (s.claveCliente === seccion.claveCliente ? seccion : s))
         : [...secciones, seccion]
     );
-    setEditando(null);
   }
 
   function eliminarSeccion(clave: string) {
     onChange(secciones.filter((s) => s.claveCliente !== clave));
+  }
+
+  // --- Edicion por linea (modal independiente, solo informacion de la linea) ---
+
+  function abrirEditarLinea(seccion: DraftSeccion, linea: DraftLinea) {
+    setLineaEditando({
+      seccionClave: seccion.claveCliente,
+      seccionNombre: nombreVisibleSeccion(seccion),
+      rutaSeccion: { origen: seccion.origen, destino: seccion.destino },
+      linea,
+    });
+  }
+
+  function abrirAgregarLinea(seccion: DraftSeccion) {
+    // La linea nueva nace con la ruta de la seccion (TRANSPORTE) ya heredada.
+    const nueva = lineaVacia();
+    nueva.carga = { ...nueva.carga, origen: seccion.origen, destino: seccion.destino };
+    setLineaEditando({
+      seccionClave: seccion.claveCliente,
+      seccionNombre: nombreVisibleSeccion(seccion),
+      rutaSeccion: { origen: seccion.origen, destino: seccion.destino },
+      linea: nueva,
+    });
+  }
+
+  // Persiste la linea editada/nueva dentro de su seccion (reemplaza si ya existe,
+  // agrega si es nueva) y sincroniza la ruta de la seccion en las lineas de transporte.
+  function guardarLinea(linea: DraftLinea) {
+    if (!lineaEditando) return;
+    const { seccionClave } = lineaEditando;
+    const seccion = secciones.find((s) => s.claveCliente === seccionClave);
+    if (!seccion) {
+      setLineaEditando(null);
+      return;
+    }
+    const existe = seccion.lineas.some((l) => l.claveCliente === linea.claveCliente);
+    const lineas = existe
+      ? seccion.lineas.map((l) => (l.claveCliente === linea.claveCliente ? linea : l))
+      : [...seccion.lineas, linea];
+    const actualizada = sincronizarRutaSeccion({ ...seccion, lineas });
+    onChange(
+      secciones.map((s) => (s.claveCliente === seccionClave ? actualizada : s))
+    );
+    setLineaEditando(null);
+  }
+
+  function eliminarLinea(seccion: DraftSeccion, clave: string) {
+    const actualizada: DraftSeccion = {
+      ...seccion,
+      lineas: seccion.lineas.filter((l) => l.claveCliente !== clave),
+    };
+    onChange(
+      secciones.map((s) => (s.claveCliente === seccion.claveCliente ? actualizada : s))
+    );
+  }
+
+  // --- Edicion/borrado de un cargo adicional de seccion directo desde la tabla ---
+
+  function guardarCargoSeccion(seccion: DraftSeccion, cargo: DraftCargoAdicional) {
+    const existe = seccion.cargosAdicionales.some((c) => c.claveCliente === cargo.claveCliente);
+    const cargos = existe
+      ? seccion.cargosAdicionales.map((c) => (c.claveCliente === cargo.claveCliente ? cargo : c))
+      : [...seccion.cargosAdicionales, cargo];
+    onChange(
+      secciones.map((s) =>
+        s.claveCliente === seccion.claveCliente ? { ...s, cargosAdicionales: cargos } : s
+      )
+    );
+  }
+
+  function eliminarCargoSeccion(seccion: DraftSeccion, clave: string) {
+    onChange(
+      secciones.map((s) =>
+        s.claveCliente === seccion.claveCliente
+          ? { ...s, cargosAdicionales: s.cargosAdicionales.filter((c) => c.claveCliente !== clave) }
+          : s
+      )
+    );
   }
 
   return (
@@ -125,8 +232,14 @@ export function CotizacionSeccionesEditor({
               seccion={seccion}
               moneda={moneda}
               disabled={disabled}
-              onEditar={() => setEditando(seccion)}
+              opcionesCatalogo={opcionesCatalogo}
+              onEditarDatos={() => setDatosEditando(seccion)}
               onEliminar={() => eliminarSeccion(seccion.claveCliente)}
+              onEditarLinea={(linea) => abrirEditarLinea(seccion, linea)}
+              onEliminarLinea={(clave) => eliminarLinea(seccion, clave)}
+              onAgregarLinea={() => abrirAgregarLinea(seccion)}
+              onGuardarCargo={(cargo) => guardarCargoSeccion(seccion, cargo)}
+              onEliminarCargo={(clave) => eliminarCargoSeccion(seccion, clave)}
             />
           ))}
         </div>
@@ -158,17 +271,31 @@ export function CotizacionSeccionesEditor({
         Estimado — el backend recalcula totales e impuestos al guardar.
       </p>
 
-      {/* Modal de edicion de la seccion */}
-      <SeccionDetalleModal
-        abierto={editando !== null}
-        seccion={editando}
+      {/* Modal de DATOS de la seccion (nombre + ruta) */}
+      <SeccionDatosModal
+        abierto={datosEditando !== null}
+        seccion={datosEditando}
+        disabled={disabled}
+        onCerrar={() => setDatosEditando(null)}
+        onGuardar={(s) => {
+          guardarSeccion(s);
+          setDatosEditando(null);
+        }}
+      />
+
+      {/* Modal de edicion de UNA sola linea (solo informacion de la linea) */}
+      <LineaDetalleModal
+        abierto={lineaEditando !== null}
+        linea={lineaEditando?.linea ?? null}
+        seccionNombre={lineaEditando?.seccionNombre}
+        rutaSeccion={lineaEditando?.rutaSeccion}
         moneda={moneda}
         opcionesCatalogo={opcionesCatalogo}
         disabled={disabled}
         clienteTipo={clienteTipo}
         clienteId={clienteId}
-        onCerrar={() => setEditando(null)}
-        onGuardar={guardarSeccion}
+        onCerrar={() => setLineaEditando(null)}
+        onGuardar={guardarLinea}
       />
 
       {/* Dialog "crear seccion": nombre + ruta */}
@@ -234,27 +361,118 @@ function subtotalSeccion(s: DraftSeccion): number {
   return lineas + cargosSeccion + cargosLineas;
 }
 
+// Nombre visible de la seccion (el bucket por defecto se muestra como "Sin agrupar").
+function nombreVisibleSeccion(seccion: DraftSeccion): string {
+  return seccion.esDefecto
+    ? "Sin agrupar"
+    : seccion.nombre || "Seccion sin nombre";
+}
+
 function BloqueSeccion({
   seccion,
   moneda,
   disabled,
-  onEditar,
+  opcionesCatalogo,
+  onEditarDatos,
   onEliminar,
+  onEditarLinea,
+  onEliminarLinea,
+  onAgregarLinea,
+  onGuardarCargo,
+  onEliminarCargo,
 }: {
   seccion: DraftSeccion;
   moneda: string;
   disabled?: boolean;
-  onEditar: () => void;
+  opcionesCatalogo: CatalogoCargoAdicional[];
+  onEditarDatos: () => void;
   onEliminar: () => void;
+  onEditarLinea: (linea: DraftLinea) => void;
+  onEliminarLinea: (clave: string) => void;
+  onAgregarLinea: () => void;
+  onGuardarCargo: (cargo: DraftCargoAdicional) => void;
+  onEliminarCargo: (clave: string) => void;
 }) {
-  const sinContenido =
-    seccion.lineas.length === 0 && seccion.cargosAdicionales.length === 0;
+  const sinLineas = seccion.lineas.length === 0;
+
+  // Cargo de seccion abierto en el modal (nuevo o editar desde su fila en la tabla).
+  const [cargoEditando, setCargoEditando] = React.useState<DraftCargoAdicional | null>(null);
+
+  // Abre el modal con un cargo nuevo (vacio) para agregarlo directamente a la seccion.
+  function abrirAgregarCargo() {
+    const nuevo = cargoAdicionalVacio();
+    nuevo.orden = seccion.cargosAdicionales.length;
+    setCargoEditando(nuevo);
+  }
+
+  // Acciones por linea: editar (abre el modal de una sola linea) + eliminar (confirmado).
+  const accionesLinea = (linea: DraftLinea) => (
+    <div className="flex items-center justify-end gap-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="size-8"
+        disabled={disabled}
+        onClick={() => onEditarLinea(linea)}
+        aria-label="Editar linea"
+      >
+        <PencilIcon className="size-4" />
+      </Button>
+      <ConfirmarEliminar
+        onConfirmar={() => onEliminarLinea(linea.claveCliente)}
+        descripcion="Se eliminara esta linea y sus cargos adicionales."
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="size-8 text-destructive hover:text-destructive"
+          disabled={disabled}
+          aria-label="Eliminar linea"
+        >
+          <Trash2Icon className="size-4" />
+        </Button>
+      </ConfirmarEliminar>
+    </div>
+  );
+
+  // Acciones por cargo de seccion: editar (abre el modal de un cargo) + eliminar (confirmado).
+  const accionesCargo = (cargo: DraftCargoAdicional) => (
+    <div className="flex items-center justify-end gap-0.5">
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="size-8"
+        disabled={disabled}
+        onClick={() => setCargoEditando(cargo)}
+        aria-label="Editar cargo adicional"
+      >
+        <PencilIcon className="size-4" />
+      </Button>
+      <ConfirmarEliminar
+        onConfirmar={() => onEliminarCargo(cargo.claveCliente)}
+        descripcion="Se eliminara este cargo adicional de la seccion."
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="size-8 text-destructive hover:text-destructive"
+          disabled={disabled}
+          aria-label="Eliminar cargo adicional"
+        >
+          <Trash2Icon className="size-4" />
+        </Button>
+      </ConfirmarEliminar>
+    </div>
+  );
+
   return (
     <div className="overflow-hidden rounded-lg border border-border">
       <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/30 px-3 py-2">
-        <span className="text-sm font-medium">
-          {seccion.esDefecto ? "Sin agrupar" : seccion.nombre || "Seccion sin nombre"}
-        </span>
+        <span className="text-sm font-medium">{nombreVisibleSeccion(seccion)}</span>
         <div className="ml-auto flex items-center gap-1">
           <Button
             type="button"
@@ -262,107 +480,121 @@ function BloqueSeccion({
             size="sm"
             className="size-8"
             disabled={disabled}
-            onClick={onEditar}
-            aria-label="Editar seccion"
+            onClick={onEditarDatos}
+            aria-label="Editar datos de la seccion (nombre y ruta)"
+            title="Nombre y ruta"
           >
             <PencilIcon className="size-4" />
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="size-8 text-destructive hover:text-destructive"
-            disabled={disabled}
-            onClick={onEliminar}
-            aria-label="Eliminar seccion"
+          <ConfirmarEliminar
+            onConfirmar={onEliminar}
+            titulo="¿Eliminar la seccion?"
+            descripcion="Se eliminara la seccion completa, con sus lineas y cargos adicionales."
           >
-            <Trash2Icon className="size-4" />
-          </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="size-8 text-destructive hover:text-destructive"
+              disabled={disabled}
+              aria-label="Eliminar seccion"
+            >
+              <Trash2Icon className="size-4" />
+            </Button>
+          </ConfirmarEliminar>
         </div>
       </div>
 
-      {sinContenido ? (
+      {sinLineas && seccion.cargosAdicionales.length === 0 ? (
         <p className="px-3 py-2 text-sm text-muted-foreground">Sin lineas en esta seccion.</p>
       ) : (
-        <TablaCotizacion seccion={vistaDeSeccion(seccion)} moneda={moneda} />
+        <TablaCotizacion
+          seccion={vistaDeSeccion(seccion, accionesLinea, accionesCargo)}
+          moneda={moneda}
+          conAcciones
+          conPrecios
+        />
       )}
+
+      {/* Acciones del bloque: agregar linea + editar cargos adicionales (modales) */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={onAgregarLinea}
+        >
+          <PlusIcon data-icon="inline-start" />
+          Agregar linea
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          onClick={abrirAgregarCargo}
+        >
+          <PlusIcon data-icon="inline-start" />
+          Agregar cargo adicional
+        </Button>
+      </div>
 
       {/* Stand by — su propia tabla, separada del costo (informativo, no suma). */}
       <TablaStandby entradas={entradasStandby(seccion)} moneda={moneda} />
+
+      {/* Modal para editar un cargo adicional de seccion desde su fila en la tabla */}
+      <CargoDetalleModal
+        abierto={cargoEditando !== null}
+        cargo={cargoEditando}
+        contexto="Cargo de la seccion (aplica al job entero, no a una linea)."
+        moneda={moneda}
+        opcionesCatalogo={opcionesCatalogo}
+        disabled={disabled}
+        onCerrar={() => setCargoEditando(null)}
+        onGuardar={(cargo) => {
+          onGuardarCargo(cargo);
+          setCargoEditando(null);
+        }}
+      />
     </div>
   );
 }
 
-// Convierte una DraftSeccion al view-model de la tabla (layout del PDF).
-function vistaDeSeccion(seccion: DraftSeccion): SeccionVista {
-  const ruta =
-    seccion.origen !== "" || seccion.destino !== ""
-      ? `${seccion.origen || "—"} → ${seccion.destino || "—"}`
-      : "";
+// Convierte una DraftSeccion al view-model de la tabla (layout del PDF). Si se pasan
+// `accionesLinea`/`accionesCargo`, cada linea/cargo de seccion lleva sus botones
+// (editar/eliminar) en la columna Acciones.
+function vistaDeSeccion(
+  seccion: DraftSeccion,
+  accionesLinea?: (linea: DraftLinea) => React.ReactNode,
+  accionesCargo?: (cargo: DraftCargoAdicional) => React.ReactNode
+): SeccionVista {
   return {
-    ruta,
+    ruta: rutaDeSeccion(seccion),
     lineas: seccion.lineas.map((l) => ({
       unidad: unidadDeLinea(l),
-      descripcion: <DescripcionCelda linea={l} />,
+      descripcion: <CeldaDescripcionLinea linea={l} />,
       montoTotal: totalLinea(l),
+      cantidad: parseFloat(l.cantidad) || 0,
+      precioBase: parseFloat(l.precioBase) || 0,
+      precioVenta: precioVentaLinea(l),
       cargos: l.cargosAdicionales.map((c) => ({
+        nombre: c.nombre,
         descripcion: c.descripcion,
         monto: montoCargo(c),
+        cantidad: parseFloat(c.cantidad) || 0,
       })),
+      acciones: accionesLinea?.(l),
     })),
     cargosSeccion: seccion.cargosAdicionales.map((c) => ({
+      nombre: c.nombre,
       descripcion: c.descripcion,
       monto: montoCargo(c),
+      cantidad: parseFloat(c.cantidad) || 0,
+      acciones: accionesCargo?.(c),
     })),
     subtotal: subtotalSeccion(seccion),
   };
-}
-
-// Unidad/recurso de la linea para la columna Unidad (igual que el PDF):
-// tipoVehiculo (transporte), equipoTipo (equipo) o rol (personal).
-function unidadDeLinea(l: DraftLinea): string {
-  switch (l.tipoLinea) {
-    case "TRANSPORTE":
-      return l.carga.tipoVehiculo;
-    case "ALQUILER_EQUIPO":
-      return l.equipo.equipoTipo;
-    case "PERSONAL":
-      return l.personal.rol;
-    default:
-      return "";
-  }
-}
-
-// Celda Descripcion: titulo (descripcion de la linea) + cargas fisicas con sus
-// dimensiones (solo transporte), como en el PDF.
-function DescripcionCelda({ linea }: { linea: DraftLinea }) {
-  const cargas = linea.tipoLinea === "TRANSPORTE" ? linea.carga.cargas : [];
-  if (!linea.descripcion && cargas.length === 0) {
-    return <span className="text-muted-foreground">—</span>;
-  }
-  return (
-    <div className="flex flex-col gap-1">
-      {linea.descripcion ? <span className="font-medium">{linea.descripcion}</span> : null}
-      {cargas.map((c) => {
-        const dims = [
-          c.largoM !== "" ? `L: ${c.largoM} m` : null,
-          c.anchoM !== "" ? `A: ${c.anchoM} m` : null,
-          c.altoM !== "" ? `H: ${c.altoM} m` : null,
-          c.peso !== "" ? `Peso: ${c.peso} ${c.unidadPeso}` : null,
-        ]
-          .filter(Boolean)
-          .join("   ·   ");
-        return (
-          <div key={c.claveCliente} className="flex flex-col">
-            <span className="text-xs font-medium">{c.nombre || "Carga"}</span>
-            {dims ? (
-              <span className="text-[11px] italic text-muted-foreground">{dims}</span>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 // Reune las entradas de stand-by de una seccion (lineas de transporte + cargos de
@@ -372,7 +604,9 @@ function entradasStandby(seccion: DraftSeccion): EntradaStandby[] {
   for (const l of seccion.lineas) {
     if (l.tipoLinea === "TRANSPORTE" && l.standbyDia.trim() !== "") {
       entradas.push({
-        concepto: l.descripcion || l.carga.tipoVehiculo || etiquetaTipo(l.tipoLinea),
+        // El concepto del stand-by de la linea es el TIPO DE UNIDAD (tipoVehiculo),
+        // no la descripcion; con fallback a la descripcion o la etiqueta del tipo.
+        concepto: l.carga.tipoVehiculo || l.descripcion || etiquetaTipo(l.tipoLinea),
         tipo: "Linea",
         precio: parseFloat(l.standbyDia) || 0,
       });
@@ -380,7 +614,7 @@ function entradasStandby(seccion: DraftSeccion): EntradaStandby[] {
     for (const c of l.cargosAdicionales) {
       if (c.standbyDia.trim() !== "") {
         entradas.push({
-          concepto: c.descripcion || "Cargo",
+          concepto: c.nombre || "Cargo",
           tipo: "Cargo de linea",
           precio: parseFloat(c.standbyDia) || 0,
         });
@@ -390,7 +624,7 @@ function entradasStandby(seccion: DraftSeccion): EntradaStandby[] {
   for (const c of seccion.cargosAdicionales) {
     if (c.standbyDia.trim() !== "") {
       entradas.push({
-        concepto: c.descripcion || "Cargo",
+        concepto: c.nombre || "Cargo",
         tipo: "Cargo de seccion",
         precio: parseFloat(c.standbyDia) || 0,
       });

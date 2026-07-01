@@ -190,7 +190,8 @@ export type LeadTime = {
 // monto: calculado por el backend (cantidad × precioUnitario); SOLO LECTURA — nunca se envia.
 export type CargoAdicional = {
   id: string;
-  descripcion: string;
+  nombre: string;              // qué cargo es (del catalogo)
+  descripcion: string | null;  // texto libre opcional
   unidadCobro: UnidadCobro;
   cantidad: number;   // > 0
   precioUnitario: number; // >= 0
@@ -439,7 +440,8 @@ export type PayloadLeadTime = {
 // NUNCA incluir monto — el backend lo calcula (cantidad × precioUnitario).
 // El tipo estructuralmente excluye monto para que el compilador rechace cualquier asignacion accidental.
 export type PayloadCargoAdicional = {
-  descripcion: string;
+  nombre: string;              // qué cargo es (del catalogo, obligatorio)
+  descripcion?: string | null; // texto libre opcional
   unidadCobro: UnidadCobro;
   cantidad: number;
   precioUnitario: number;

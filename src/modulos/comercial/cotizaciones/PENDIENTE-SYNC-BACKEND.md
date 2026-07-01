@@ -34,7 +34,7 @@
   - **Agregar** `standbyDia` a `DraftLinea` y `DraftCargoAdicional` (read → draft → payload), con validación `>= 0` cuando esté presente.
 - Componentes:
   - **Eliminar** `componentes/editor-standby.tsx` (ya no hay editor de stand-by a nivel versión) y su uso en `editor-contenido.tsx` / `editor-borrador-campos.tsx` / `cotizacion-versiones-notebook.tsx`.
-  - **Agregar** un input `standbyDia` en el editor de **línea** y en el de **cargo** (`editor-cargos.tsx`, `linea-detalle-drawer.tsx` / `lineas-grid.utils.ts` según dónde se editen línea y cargo).
+  - **Agregar** un input `standbyDia` en el editor de **línea** y en el de **cargo** (`editor-cargos.tsx`, `linea-formulario.tsx` / `lineas-grid.utils.ts` según dónde se editen línea y cargo).
 - Donde se **muestre** el stand-by de una versión guardada, leerlo ahora de `lineas[].standbyDia` y de los cargos, no de `version.standbys`.
 
 ---

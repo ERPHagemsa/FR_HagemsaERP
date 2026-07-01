@@ -12,12 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/compartido/componentes/ui/tabs";
 import { LightbulbIcon } from "lucide-react";
 
 import type { Moneda, OrigenTipo, PrecioSugerido, TipoLinea } from "../tipos/cotizaciones.tipos";
@@ -25,7 +19,7 @@ import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
 import type { DraftLinea } from "../servicios/cotizaciones-editor.utils";
 import { montoCargo, precioVentaLinea, totalVentaLinea } from "../servicios/cotizaciones-editor.utils";
 import { usePrecioSugerido } from "../servicios/cotizaciones-queries";
-import { EditorCargos } from "./editor-cargos";
+import { ListaCargos } from "./lista-cargos";
 import { EditorCargasFisicas } from "./editor-cargas-fisicas";
 import { ModalidadSelector } from "./modalidad-selector";
 import { TIPOS_LINEA, formatearMoneda } from "./lineas-grid.utils";
@@ -46,9 +40,11 @@ type Props = {
 };
 
 /**
- * Formulario de una linea, organizado en PESTAÑAS (Servicio · Detalle · Precio ·
- * Cargos) para no mostrar todo de una vez: el usuario edita por partes. Es CONTROLADO:
- * cada cambio sale por onChange(linea). Sin contenedor propio (se incrusta donde haga falta).
+ * Formulario de una linea en UN SOLO formulario (sin pestañas). Dos columnas en
+ * pantallas grandes: la izquierda con Servicio + Precio y la derecha con el Detalle
+ * de la carga (son varios datos, por eso va aparte). Los Cargos adicionales van a
+ * lo ancho, debajo. Es CONTROLADO: cada cambio sale por onChange(linea). Sin
+ * contenedor propio (se incrusta donde haga falta).
  */
 export function LineaFormulario({
   linea,
@@ -99,7 +95,19 @@ export function LineaFormulario({
     linea.tipoLinea === "PERSONAL";
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
+      {/* Ruta de la seccion (heredada) — arriba del todo, no se edita aca */}
+      {esTransporte && rutaSeccion ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+            Ruta (de la seccion)
+          </span>
+          <span className="text-sm font-medium">
+            {(rutaSeccion.origen || "—") + " → " + (rutaSeccion.destino || "—")}
+          </span>
+        </div>
+      ) : null}
+
       {/* Resumen siempre visible: aporte + precio de venta por unidad */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
         <div className="flex items-baseline gap-2">
@@ -109,97 +117,192 @@ export function LineaFormulario({
           </span>
         </div>
         <span className="text-xs text-muted-foreground">
-          Venta/unidad:{" "}
+          P. Venta:{" "}
           <span className="font-mono font-medium text-foreground tabular-nums">
             {formatearMoneda(precioVentaLinea(linea), moneda)}
           </span>
         </span>
       </div>
 
-      <Tabs defaultValue="servicio">
-        <TabsList variant="line">
-          <TabsTrigger value="servicio">Servicio</TabsTrigger>
-          {tieneDetalle ? <TabsTrigger value="detalle">Detalle</TabsTrigger> : null}
-          <TabsTrigger value="precio">Precio</TabsTrigger>
-          <TabsTrigger value="cargos">
-            Cargos{linea.cargosAdicionales.length ? ` (${linea.cargosAdicionales.length})` : ""}
-          </TabsTrigger>
-        </TabsList>
+      {/* Columnas: Servicio + Precio | Detalle de la carga | Cargos adicionales.
+          Sin detalle son 2 columnas (Servicio+Precio | Cargos). */}
+      <div className={`grid gap-5 ${tieneDetalle ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+        {/* --- Columna izquierda --- */}
+        <div className="flex flex-col gap-5">
+          {/* Servicio: que se cotiza */}
+          <Seccion titulo="Servicio">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Campo label="Tipo de servicio" obligatorio>
+                <Select
+                  value={linea.tipoLinea}
+                  disabled={disabled}
+                  onValueChange={(v) => set({ tipoLinea: v as TipoLinea, idModalidad: "" })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TIPOS_LINEA.map((t) => (
+                      <SelectItem key={t.valor} value={t.valor}>
+                        {t.etiqueta}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Campo>
 
-        {/* --- Servicio: que se cotiza --- */}
-        <TabsContent value="servicio" className="flex flex-col gap-4 pt-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Campo label="Tipo de servicio" obligatorio>
-              <Select
-                value={linea.tipoLinea}
-                disabled={disabled}
-                onValueChange={(v) => set({ tipoLinea: v as TipoLinea, idModalidad: "" })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIPOS_LINEA.map((t) => (
-                    <SelectItem key={t.valor} value={t.valor}>
-                      {t.etiqueta}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Campo>
+              <Campo label="Modalidad" obligatorio error={erroresCampo.idModalidad}>
+                <ModalidadSelector
+                  name="__modalidad__"
+                  value={linea.idModalidad}
+                  tipoLinea={linea.tipoLinea}
+                  disabled={disabled}
+                  onValueChange={(id, modalidad) =>
+                    set(
+                      modalidad?.margenPct != null
+                        ? { idModalidad: id, margenPct: String(modalidad.margenPct) }
+                        : { idModalidad: id }
+                    )
+                  }
+                />
+              </Campo>
+            </div>
 
-            <Campo label="Modalidad" obligatorio error={erroresCampo.idModalidad}>
-              <ModalidadSelector
-                name="__modalidad__"
-                value={linea.idModalidad}
-                tipoLinea={linea.tipoLinea}
+            <Campo label="Descripcion" error={erroresCampo.descripcion}>
+              <Input
+                value={linea.descripcion}
                 disabled={disabled}
-                onValueChange={(id, modalidad) =>
-                  set(
-                    modalidad?.margenPct != null
-                      ? { idModalidad: id, margenPct: String(modalidad.margenPct) }
-                      : { idModalidad: id }
-                  )
-                }
+                placeholder="Nombre o descripcion del servicio (opcional)"
+                aria-invalid={Boolean(erroresCampo.descripcion)}
+                onChange={(e) => set({ descripcion: e.target.value })}
               />
             </Campo>
-          </div>
+          </Seccion>
 
-          <Campo label="Descripcion" error={erroresCampo.descripcion}>
-            <Input
-              value={linea.descripcion}
-              disabled={disabled}
-              placeholder="Nombre o descripcion del servicio (opcional)"
-              aria-invalid={Boolean(erroresCampo.descripcion)}
-              onChange={(e) => set({ descripcion: e.target.value })}
-            />
-          </Campo>
-        </TabsContent>
+          {/* Precio */}
+          <Seccion titulo="Precio">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Campo label="Cantidad" error={erroresCampo.cantidad}>
+                <Input
+                  type="number"
+                  min={1}
+                  step="1"
+                  value={linea.cantidad}
+                  disabled={disabled}
+                  aria-invalid={Boolean(erroresCampo.cantidad)}
+                  onChange={(e) => set({ cantidad: e.target.value })}
+                />
+              </Campo>
+              <Campo label="Precio base" obligatorio error={erroresCampo.precioBase}>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={linea.precioBase}
+                  disabled={disabled}
+                  aria-invalid={Boolean(erroresCampo.precioBase)}
+                  onChange={(e) => set({ precioBase: e.target.value })}
+                />
+              </Campo>
+              <Campo label="Margen %" obligatorio error={erroresCampo.margenPct}>
+                <Input
+                  type="number"
+                  min={0}
+                  max={99.99}
+                  step="0.01"
+                  value={linea.margenPct}
+                  disabled={disabled}
+                  aria-invalid={Boolean(erroresCampo.margenPct)}
+                  onChange={(e) => set({ margenPct: e.target.value })}
+                />
+              </Campo>
+            </div>
 
-        {/* --- Detalle: campos segun el tipo --- */}
+            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <span className="text-xs text-muted-foreground">Precio de venta (calculado)</span>
+              <span className="font-mono text-sm font-semibold tabular-nums">
+                {formatearMoneda(precioVentaLinea(linea), moneda)}
+                <span className="ml-1 text-xs font-normal text-muted-foreground">/ unidad</span>
+              </span>
+            </div>
+
+            {esTransporte &&
+            linea.idModalidad &&
+            origenEfectivo.trim() !== "" &&
+            destinoEfectivo.trim() !== "" ? (
+              pesoTotalTn > 0 ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-muted-foreground">
+                      Tolerancia de peso del comparable
+                    </Label>
+                    <Select
+                      value={String(toleranciaPeso)}
+                      disabled={disabled}
+                      onValueChange={(v) => setToleranciaPeso(parseFloat(v))}
+                    >
+                      <SelectTrigger size="sm" className="w-24 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0.1">±10%</SelectItem>
+                        <SelectItem value="0.15">±15%</SelectItem>
+                        <SelectItem value="0.2">±20%</SelectItem>
+                        <SelectItem value="0.3">±30%</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <SugerenciaPrecio
+                    estado={sugerenciaPrecio}
+                    moneda={moneda}
+                    disabled={disabled}
+                    onUsar={(monto) => {
+                      const margen = parseFloat(linea.margenPct) || 0;
+                      const base = margen >= 100 ? monto : monto * (1 - margen / 100);
+                      set({ precioBase: String(Math.round(base * 100) / 100) });
+                    }}
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Agregá el peso de la carga (columna Detalle) para ver el precio sugerido.
+                </p>
+              )
+            ) : null}
+
+            
+            {esTransporte ? (
+              <Campo label="Stand by / dia" error={erroresCampo.standbyDia}>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="— (sin stand-by)"
+                  value={linea.standbyDia}
+                  disabled={disabled}
+                  aria-invalid={Boolean(erroresCampo.standbyDia)}
+                  onChange={(e) => set({ standbyDia: e.target.value })}
+                />
+              </Campo>
+            ) : null}
+          </Seccion>
+        </div>
+
+        {/* --- Columna derecha: Detalle de la carga (varios datos) --- */}
         {tieneDetalle ? (
-          <TabsContent value="detalle" className="flex flex-col gap-4 pt-4">
+          <Seccion titulo={esTransporte ? "Detalle de la carga" : "Detalle"}>
             {esTransporte ? (
               <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {rutaSeccion ? (
-                    <Campo label="Ruta (de la seccion)">
-                      <div className="flex h-9 items-center rounded-md border border-input bg-muted/40 px-3 text-sm font-medium">
-                        {(rutaSeccion.origen || "—") + " → " + (rutaSeccion.destino || "—")}
-                      </div>
-                    </Campo>
-                  ) : null}
-                  <Campo label="Tipo de unidad">
-                    <Input
-                      value={linea.carga.tipoVehiculo}
-                      disabled={disabled}
-                      placeholder="Ej: Cama baja"
-                      onChange={(e) =>
-                        set({ carga: { ...linea.carga, tipoVehiculo: e.target.value } })
-                      }
-                    />
-                  </Campo>
-                </div>
+                <Campo label="Tipo de unidad">
+                  <Input
+                    value={linea.carga.tipoVehiculo}
+                    disabled={disabled}
+                    placeholder="Ej: Cama baja"
+                    onChange={(e) =>
+                      set({ carga: { ...linea.carga, tipoVehiculo: e.target.value } })
+                    }
+                  />
+                </Campo>
                 {!rutaSeccion ? (
                   <div className="grid gap-4 sm:grid-cols-2">
                     <Campo label="Origen">
@@ -221,9 +324,9 @@ export function LineaFormulario({
                   </div>
                 ) : null}
                 <div>
-                  <Subtitulo>
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">
                     Cargas{linea.carga.cargas.length ? ` (${linea.carga.cargas.length})` : ""}
-                  </Subtitulo>
+                  </p>
                   <EditorCargasFisicas
                     cargas={linea.carga.cargas}
                     erroresCampo={erroresCampo}
@@ -235,7 +338,7 @@ export function LineaFormulario({
             ) : null}
 
             {linea.tipoLinea === "ALQUILER_EQUIPO" ? (
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <CampoMini label="Tipo de equipo" value={linea.equipo.equipoTipo} disabled={disabled} onChange={(v) => set({ equipo: { ...linea.equipo, equipoTipo: v } })} />
                 <CampoMini label="Marca" value={linea.equipo.marca} disabled={disabled} onChange={(v) => set({ equipo: { ...linea.equipo, marca: v } })} />
                 <CampoMini label="Modelo" value={linea.equipo.modelo} disabled={disabled} onChange={(v) => set({ equipo: { ...linea.equipo, modelo: v } })} />
@@ -257,127 +360,25 @@ export function LineaFormulario({
                 <CampoMini label="Rol" value={linea.personal.rol} disabled={disabled} onChange={(v) => set({ personal: { ...linea.personal, rol: v } })} />
               </div>
             ) : null}
-          </TabsContent>
+          </Seccion>
         ) : null}
 
-        {/* --- Precio --- */}
-        <TabsContent value="precio" className="flex flex-col gap-4 pt-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Campo label="Cantidad" error={erroresCampo.cantidad}>
-              <Input
-                type="number"
-                min={1}
-                step="1"
-                value={linea.cantidad}
-                disabled={disabled}
-                aria-invalid={Boolean(erroresCampo.cantidad)}
-                onChange={(e) => set({ cantidad: e.target.value })}
-              />
-            </Campo>
-            <Campo label="Precio base" obligatorio error={erroresCampo.precioBase}>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={linea.precioBase}
-                disabled={disabled}
-                aria-invalid={Boolean(erroresCampo.precioBase)}
-                onChange={(e) => set({ precioBase: e.target.value })}
-              />
-            </Campo>
-            <Campo label="Margen %" obligatorio error={erroresCampo.margenPct}>
-              <Input
-                type="number"
-                min={0}
-                max={99.99}
-                step="0.01"
-                value={linea.margenPct}
-                disabled={disabled}
-                aria-invalid={Boolean(erroresCampo.margenPct)}
-                onChange={(e) => set({ margenPct: e.target.value })}
-              />
-            </Campo>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
-            <span className="text-xs text-muted-foreground">Precio de venta (calculado)</span>
-            <span className="font-mono text-sm font-semibold tabular-nums">
-              {formatearMoneda(precioVentaLinea(linea), moneda)}
-              <span className="ml-1 text-xs font-normal text-muted-foreground">/ unidad</span>
-            </span>
-          </div>
-
-          {esTransporte ? (
-            <Campo label="Stand by / dia" error={erroresCampo.standbyDia}>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder="— (sin stand-by)"
-                value={linea.standbyDia}
-                disabled={disabled}
-                aria-invalid={Boolean(erroresCampo.standbyDia)}
-                onChange={(e) => set({ standbyDia: e.target.value })}
-              />
-            </Campo>
-          ) : null}
-
-          {esTransporte &&
-          linea.idModalidad &&
-          origenEfectivo.trim() !== "" &&
-          destinoEfectivo.trim() !== "" ? (
-            pesoTotalTn > 0 ? (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Label className="text-xs text-muted-foreground">
-                    Tolerancia de peso del comparable
-                  </Label>
-                  <Select
-                    value={String(toleranciaPeso)}
-                    disabled={disabled}
-                    onValueChange={(v) => setToleranciaPeso(parseFloat(v))}
-                  >
-                    <SelectTrigger size="sm" className="w-24 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0.1">±10%</SelectItem>
-                      <SelectItem value="0.15">±15%</SelectItem>
-                      <SelectItem value="0.2">±20%</SelectItem>
-                      <SelectItem value="0.3">±30%</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <SugerenciaPrecio
-                  estado={sugerenciaPrecio}
-                  moneda={moneda}
-                  disabled={disabled}
-                  onUsar={(monto) => {
-                    const margen = parseFloat(linea.margenPct) || 0;
-                    const base = margen >= 100 ? monto : monto * (1 - margen / 100);
-                    set({ precioBase: String(Math.round(base * 100) / 100) });
-                  }}
-                />
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Agregá el peso de la carga (pestaña Detalle) para ver el precio sugerido.
-              </p>
-            )
-          ) : null}
-        </TabsContent>
-
-        {/* --- Cargos de la linea --- */}
-        <TabsContent value="cargos" className="pt-4">
-          <EditorCargos
+        {/* --- Columna: Cargos adicionales de la linea (tarjetas, columna angosta) --- */}
+        <Seccion
+          titulo={`Cargos adicionales${
+            linea.cargosAdicionales.length ? ` (${linea.cargosAdicionales.length})` : ""
+          }`}
+        >
+          <ListaCargos
             cargos={linea.cargosAdicionales}
+            moneda={moneda}
             opcionesCatalogo={opcionesCatalogo}
-            erroresCampo={erroresCampo}
             disabled={disabled}
+            contexto="Cargo de la linea."
             onChange={(cargos) => set({ cargosAdicionales: cargos })}
           />
-        </TabsContent>
-      </Tabs>
+        </Seccion>
+      </div>
     </div>
   );
 }
@@ -483,11 +484,22 @@ function SugerenciaPrecio({
   );
 }
 
-function Subtitulo({ children }: { children: React.ReactNode }) {
+// Agrupador visual del formulario plano: titulo + borde suave para que las partes
+// (Servicio, Precio, Detalle, Cargos) se distingan sin necesidad de pestañas.
+function Seccion({
+  titulo,
+  children,
+}: {
+  titulo: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
-    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <section className="flex flex-col gap-4 rounded-lg border border-border/60 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {titulo}
+      </p>
       {children}
-    </p>
+    </section>
   );
 }
 

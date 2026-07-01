@@ -50,7 +50,8 @@ export type DraftLeadTime = {
 
 export type DraftCargoAdicional = {
   claveCliente: string; // clave efimera UI
-  descripcion: string;
+  nombre: string;       // qué cargo es (del catalogo, obligatorio)
+  descripcion: string;  // texto libre opcional ("" = sin descripcion)
   unidadCobro: UnidadCobro; // unidad de cobro del cargo
   cantidad: string;          // input numerico como string (> 0)
   precioUnitario: string;    // input numerico como string (>= 0)
@@ -210,6 +211,7 @@ export function leadTimeVacio(): DraftLeadTime {
 export function cargoAdicionalVacio(): DraftCargoAdicional {
   return {
     claveCliente: crypto.randomUUID(),
+    nombre: "",
     descripcion: "",
     unidadCobro: "SERVICIO",
     cantidad: "1",
@@ -221,8 +223,8 @@ export function cargoAdicionalVacio(): DraftCargoAdicional {
 
 /**
  * montoCargo — calcula el monto de un DraftCargoAdicional (cantidad × precioUnitario).
- * Funcion pura; usada tanto en el componente EditorCargos como en los subtotales
- * de EditorContenido para evitar derivar la formula.
+ * Funcion pura; usada por CargoDetalleModal/ListaCargos y por los subtotales del
+ * editor para evitar derivar la formula.
  */
 export function montoCargo(c: DraftCargoAdicional): number {
   return (parseFloat(c.cantidad) || 0) * (parseFloat(c.precioUnitario) || 0);
@@ -297,7 +299,10 @@ function cargoAdicionalReadADraft(c: CargoAdicionalCompat): DraftCargoAdicional 
     : String(c.monto ?? 0);
   return {
     claveCliente: c.id,
-    descripcion: c.descripcion,
+    // Compat: shapes viejos guardaban el nombre en `descripcion`. Si no hay
+    // `nombre`, cae al `descripcion` legado; `descripcion` queda como texto libre.
+    nombre: c.nombre ?? c.descripcion ?? "",
+    descripcion: c.nombre != null ? c.descripcion ?? "" : "",
     unidadCobro,
     cantidad,
     precioUnitario,
@@ -414,7 +419,9 @@ function lineaReadADraft(l: Linea): DraftLinea {
 
 // Migracion graceful para CargoAdicional: shapes anteriores solo tenian {id, descripcion, monto, orden}.
 // Usamos un tipo interseccion con campos opcionales para la compat (patron StandbyCompat).
-type CargoAdicionalCompat = CargoAdicional & {
+type CargoAdicionalCompat = Omit<CargoAdicional, "nombre" | "descripcion"> & {
+  nombre?: string;             // ausente en shapes legacy (el nombre vivia en descripcion)
+  descripcion?: string | null; // texto libre opcional
   unidadCobro?: UnidadCobro;
   cantidad?: number;
   precioUnitario?: number;
@@ -631,11 +638,13 @@ function leadTimeAPayload(l: DraftLeadTime): PayloadLeadTime {
 function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
   // NUNCA emitir monto — el tipo PayloadCargoAdicional lo excluye estructuralmente.
   const payload: PayloadCargoAdicional = {
-    descripcion: c.descripcion,
+    nombre: c.nombre,
     unidadCobro: c.unidadCobro,
     cantidad: parseNumero(c.cantidad),
     precioUnitario: parseNumero(c.precioUnitario),
   };
+  // descripcion es texto libre opcional: solo se envia si el usuario la lleno.
+  if (c.descripcion.trim() !== "") payload.descripcion = c.descripcion.trim();
   // stand-by por dia: solo si el usuario puso un valor (vacio = sin stand-by).
   if (c.standbyDia.trim() !== "") payload.standbyDia = parseNumero(c.standbyDia);
   if (c.orden > 0) payload.orden = c.orden;
@@ -678,8 +687,8 @@ function validarCargo(
   c: DraftCargoAdicional,
   prefijo: string,
 ): void {
-  if (c.descripcion.trim() === "") {
-    errores[`${prefijo}.descripcion`] = "La descripcion del cargo es obligatoria.";
+  if (c.nombre.trim() === "") {
+    errores[`${prefijo}.nombre`] = "El nombre del cargo es obligatorio.";
   }
   if (!UNIDADES_COBRO_VALIDAS.has(c.unidadCobro)) {
     errores[`${prefijo}.unidadCobro`] = "La unidad de cobro es invalida.";
@@ -754,6 +763,12 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
     }
     // Lineas: cantidad debe ser un entero >= 1; cargos de la linea
     s.lineas.forEach((l, k) => {
+      // Modalidad: obligatoria. El backend la valida como UUID; si va vacia (linea
+      // nueva o tras cambiar el tipo de servicio, que resetea idModalidad) rechaza
+      // TODO el borrador (guardado por reemplazo). La atajamos aca con mensaje claro.
+      if (l.idModalidad.trim() === "") {
+        errores[`secciones.${i}.lineas.${k}.idModalidad`] = "La modalidad es obligatoria.";
+      }
       if (l.cantidad !== "") {
         const cantidadNum = parseFloat(l.cantidad);
         if (isNaN(cantidadNum) || cantidadNum < 1 || !Number.isInteger(cantidadNum)) {

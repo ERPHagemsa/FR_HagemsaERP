@@ -100,8 +100,8 @@ export function ResolverIdentidadPanel({ onIdentidadResuelta }: Props) {
 
   return (
     <FieldSet className="gap-3 rounded-lg border border-border px-4 pb-4 pt-1">
-      {/* Mismo prefijo de variante para pisar el text-sm del primitivo (ver Grupo
-          en linea-detalle-drawer): un text-xs plano no lo deduplica twMerge. */}
+      {/* Mismo prefijo de variante para pisar el text-sm del primitivo: un text-xs
+          plano no lo deduplica twMerge. */}
       <FieldLegend
         variant="label"
         className="px-1.5 font-semibold uppercase tracking-wide text-muted-foreground data-[variant=label]:text-xs"

@@ -218,6 +218,7 @@ export function CotizacionVersionesNotebook({
                       ),
                     )}
                     moneda={version.moneda}
+                    conPrecios
                   />
                   <TablaStandby
                     entradas={entradasStandbyLectura(lineasSinSeccion, [])}
@@ -291,6 +292,7 @@ function SeccionBloque({
         <TablaCotizacion
           seccion={vistaLectura(lineas, cargos, seccion.subtotal)}
           moneda={moneda}
+          conPrecios
         />
       )}
 
@@ -314,12 +316,22 @@ function vistaLectura(
       unidad: unidadLectura(l),
       descripcion: <DescCeldaLectura linea={l} />,
       montoTotal: l.precioVentaTotal,
+      cantidad: l.cantidad,
+      precioBase: l.precioBase,
+      precioVenta: l.precioVenta,
       cargos: (l.cargosAdicionales ?? []).map((c) => ({
+        nombre: c.nombre,
         descripcion: c.descripcion,
         monto: c.monto,
+        cantidad: c.cantidad,
       })),
     })),
-    cargosSeccion: cargosSeccion.map((c) => ({ descripcion: c.descripcion, monto: c.monto })),
+    cargosSeccion: cargosSeccion.map((c) => ({
+      nombre: c.nombre,
+      descripcion: c.descripcion,
+      monto: c.monto,
+      cantidad: c.cantidad,
+    })),
     subtotal,
   };
 }
@@ -352,18 +364,20 @@ function entradasStandbyLectura(lineas: Linea[], cargosSeccion: CargoAdicional[]
   const entradas: EntradaStandby[] = [];
   for (const l of lineas) {
     if (l.standbyDia != null) {
-      const concepto = l.carga?.tipoVehiculo ?? l.descripcion ?? formatearTipoLinea(l.tipoLinea);
+      // Concepto del stand-by = TIPO DE UNIDAD (tipoVehiculo); fallback a descripcion/tipo.
+      const concepto =
+        l.carga?.tipoVehiculo || l.descripcion || formatearTipoLinea(l.tipoLinea);
       entradas.push({ concepto, tipo: "Linea", precio: l.standbyDia });
     }
     for (const c of l.cargosAdicionales ?? []) {
       if (c.standbyDia != null) {
-        entradas.push({ concepto: c.descripcion, tipo: "Cargo de linea", precio: c.standbyDia });
+        entradas.push({ concepto: c.nombre, tipo: "Cargo de linea", precio: c.standbyDia });
       }
     }
   }
   for (const c of cargosSeccion) {
     if (c.standbyDia != null) {
-      entradas.push({ concepto: c.descripcion, tipo: "Cargo de seccion", precio: c.standbyDia });
+      entradas.push({ concepto: c.nombre, tipo: "Cargo de seccion", precio: c.standbyDia });
     }
   }
   return entradas;
