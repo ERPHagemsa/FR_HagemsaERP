@@ -300,34 +300,82 @@ function CeldaCargo({ cargo }: { cargo: CargoVista }) {
   );
 }
 
+// Item normalizado de la grilla de dimensiones. Comparten el editor (draft, strings)
+// y la lectura (read model, numbers) mapeando cada uno a esta forma.
+export type DimensionesCarga = {
+  clave: string;
+  nombre: string;
+  largoM: number | null;
+  anchoM: number | null;
+  altoM: number | null;
+  peso: number | null;
+  unidadPeso: string;
+};
+
+// Valor de una dimension; "—" si no viene cargada (mantiene la columna alineada).
+function valorDim(valor: number | null, unidad: string): string {
+  return valor !== null ? `${valor} ${unidad}` : "—";
+}
+
+// Dimensiones de las cargas fisicas en una grilla de 8 columnas (4 pares
+// etiqueta+valor) alineada tipo Excel: mantiene L/A/H/P alineados verticalmente
+// entre todos los items. Layout UNICO usado tanto en edicion como en lectura.
+export function GrillaDimensionesCargas({ items }: { items: DimensionesCarga[] }) {
+  if (items.length === 0) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return (
+    <div className="grid grid-cols-[auto_auto_auto_auto_auto_auto_auto_auto] gap-x-1 gap-y-0.5 text-xs tabular-nums">
+      {items.map((it, idx) => (
+        <React.Fragment key={it.clave}>
+          <span
+            className={idx === 0 ? "col-span-8 font-medium" : "col-span-8 mt-1.5 font-medium"}
+          >
+            {it.nombre || "Carga"}
+          </span>
+          <span className="text-muted-foreground/70">L:</span>
+          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.largoM, "m")}</span>
+          <span className="text-muted-foreground/70">A:</span>
+          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.anchoM, "m")}</span>
+          <span className="text-muted-foreground/70">H:</span>
+          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.altoM, "m")}</span>
+          <span className="text-muted-foreground/70">P:</span>
+          <span className="text-right text-muted-foreground">
+            {valorDim(it.peso, it.unidadPeso)}
+          </span>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+// Parsea un valor numerico del draft (string) a number | null ("" o invalido = null).
+function numDesdeDraft(valor: string): number | null {
+  if (valor.trim() === "") return null;
+  const n = parseFloat(valor);
+  return Number.isNaN(n) ? null : n;
+}
+
 // Celda Descripcion: titulo (descripcion de la linea) + cargas fisicas con sus
-// dimensiones (solo transporte), como en el PDF.
+// dimensiones (solo transporte). Usa la MISMA grilla que la vista de lectura.
 export function CeldaDescripcionLinea({ linea }: { linea: DraftLinea }) {
   const cargas = linea.tipoLinea === "TRANSPORTE" ? linea.carga.cargas : [];
   if (!linea.descripcion && cargas.length === 0) {
     return <span className="text-muted-foreground">—</span>;
   }
+  const items: DimensionesCarga[] = cargas.map((c) => ({
+    clave: c.claveCliente,
+    nombre: c.nombre,
+    largoM: numDesdeDraft(c.largoM),
+    anchoM: numDesdeDraft(c.anchoM),
+    altoM: numDesdeDraft(c.altoM),
+    peso: numDesdeDraft(c.peso),
+    unidadPeso: c.unidadPeso,
+  }));
   return (
     <div className="flex flex-col gap-1">
       {linea.descripcion ? <span className="font-medium">{linea.descripcion}</span> : null}
-      {cargas.map((c) => {
-        const dims = [
-          c.largoM !== "" ? `L: ${c.largoM} m` : null,
-          c.anchoM !== "" ? `A: ${c.anchoM} m` : null,
-          c.altoM !== "" ? `H: ${c.altoM} m` : null,
-          c.peso !== "" ? `Peso: ${c.peso} ${c.unidadPeso}` : null,
-        ]
-          .filter(Boolean)
-          .join("   ·   ");
-        return (
-          <div key={c.claveCliente} className="flex flex-col">
-            <span className="text-base font-medium">{c.nombre || "Carga"}</span>
-            {dims ? (
-              <span className="text-sm text-muted-foreground">{dims}</span>
-            ) : null}
-          </div>
-        );
-      })}
+      {cargas.length > 0 ? <GrillaDimensionesCargas items={items} /> : null}
     </div>
   );
 }

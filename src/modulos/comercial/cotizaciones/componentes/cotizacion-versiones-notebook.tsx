@@ -23,7 +23,7 @@ import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import { CotizacionVersionEditable } from "./cotizacion-version-editable";
 import { TablaStandby } from "./tabla-standby";
 import type { EntradaStandby } from "./tabla-standby";
-import { TablaCotizacion } from "./tabla-cotizacion";
+import { GrillaDimensionesCargas, TablaCotizacion } from "./tabla-cotizacion";
 import type { SeccionVista } from "./tabla-cotizacion";
 import type {
   CargaHijo,
@@ -408,41 +408,25 @@ function DescripcionLinea({ linea }: { linea: Linea }) {
   );
 }
 
-// Transporte: cada item fisico con su nombre (arriba) y dimensiones L/A/H/P
-// (debajo). Una sola grilla compartida (8 columnas: 4 pares etiqueta+valor)
-// mantiene L/A/H/P alineados verticalmente entre todos los items, como Excel.
+// Transporte: dimensiones de las cargas fisicas. Usa la grilla compartida
+// (GrillaDimensionesCargas) para que el diseño sea identico en edicion y lectura.
 function CargaDescripcion({ carga }: { carga: CargaHijo }) {
   if (carga.cargas.length === 0) {
     return <span className="text-muted-foreground">—</span>;
   }
   return (
-    <div className="grid grid-cols-[auto_auto_auto_auto_auto_auto_auto_auto] gap-x-1 gap-y-0.5 tabular-nums">
-      {carga.cargas.map((it, idx) => (
-        <React.Fragment key={it.id}>
-          <span
-            className={idx === 0 ? "col-span-8 font-medium" : "col-span-8 mt-1.5 font-medium"}
-          >
-            {it.nombre || "Carga"}
-          </span>
-          <span className="text-muted-foreground/70">L:</span>
-          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.largoM, "m")}</span>
-          <span className="text-muted-foreground/70">A:</span>
-          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.anchoM, "m")}</span>
-          <span className="text-muted-foreground/70">H:</span>
-          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.altoM, "m")}</span>
-          <span className="text-muted-foreground/70">P:</span>
-          <span className="text-right text-muted-foreground">
-            {valorDim(it.peso, it.unidadPeso ?? "TN")}
-          </span>
-        </React.Fragment>
-      ))}
-    </div>
+    <GrillaDimensionesCargas
+      items={carga.cargas.map((it) => ({
+        clave: it.id,
+        nombre: it.nombre,
+        largoM: it.largoM,
+        anchoM: it.anchoM,
+        altoM: it.altoM,
+        peso: it.peso,
+        unidadPeso: it.unidadPeso ?? "TN",
+      }))}
+    />
   );
-}
-
-// Valor de una dimension; "—" si no viene cargada (mantiene la columna alineada).
-function valorDim(valor: number | null, unidad: string): string {
-  return valor !== null ? `${valor} ${unidad}` : "—";
 }
 
 function EquipoDetalle({ equipo }: { equipo: EquipoHijo }) {
