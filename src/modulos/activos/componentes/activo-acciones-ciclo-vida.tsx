@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -27,7 +26,6 @@ type Props = {
 };
 
 export function ActivoAccionesCicloVida({ activo }: Props) {
-  const router = useRouter();
   const [motivo, setMotivo] = React.useState("");
   const [causaBaja, setCausaBaja] = React.useState<"INACTIVO" | "SINIESTRADO">(
     "INACTIVO"
@@ -65,10 +63,9 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
               },
             });
 
-      router.push(
+      window.location.assign(
         `/activos/${saved.codigo}?${causaBaja === "SINIESTRADO" ? "siniestrado" : "inactive"}=1`
       );
-      router.refresh();
       setMostrarConfirmacionBaja(false);
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo dar de baja el activo"));
@@ -89,8 +86,7 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
           usuario: "activos.web",
         },
       });
-      router.push(`/activos/${saved.codigo}?deleted=1`);
-      router.refresh();
+      window.location.assign("/activos/inventario?deleted=1");
       setMostrarConfirmacionBorrado(false);
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo borrar el activo"));
@@ -106,13 +102,15 @@ export function ActivoAccionesCicloVida({ activo }: Props) {
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            onClick={() => setMostrarConfirmacionBaja(true)}
-            disabled={yaEstaDeBaja || isSaving}
-          >
-            Dar de baja
-          </Button>
+          {!yaEstaDeBaja ? (
+            <Button
+              type="button"
+              onClick={() => setMostrarConfirmacionBaja(true)}
+              disabled={isSaving}
+            >
+              Dar de baja
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="destructive"

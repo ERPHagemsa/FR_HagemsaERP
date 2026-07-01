@@ -586,6 +586,80 @@ export async function buscarActivosPorPlaca(placa: string): Promise<Activo[]> {
   return [...data.datos];
 }
 
+/**
+ * Busca activos por codigo O placa (no hay un solo filtro que cubra ambos
+ * en el backend), para listas de seleccion tipo "que activos cubre este
+ * documento compartido". Combina y deduplica por id.
+ */
+export async function buscarActivosPorCodigoOPlaca(
+  texto: string
+): Promise<Activo[]> {
+  const limpio = texto.trim();
+  if (!limpio) return [];
+
+  const [porCodigo, porPlaca] = await Promise.all([
+    clienteActivos.get<RespuestaPaginada<Activo>>("/activos", {
+      params: { codigo: limpio, estadoRegistro: true, limite: 20 },
+    }),
+    clienteActivos.get<RespuestaPaginada<Activo>>("/activos", {
+      params: { placa: limpio, estadoRegistro: true, limite: 20 },
+    }),
+  ]);
+
+  const vistos = new Set<number>();
+  const combinados: Activo[] = [];
+  for (const activo of [...porCodigo.data.datos, ...porPlaca.data.datos]) {
+    if (vistos.has(activo.id)) continue;
+    vistos.add(activo.id);
+    combinados.push(activo);
+  }
+  return combinados;
+}
+
+export type FiltrosBusquedaActivo = {
+  codigo?: string;
+  placa?: string;
+  marca?: string;
+  modelo?: string;
+  anioFabricacion?: number;
+  tipoActivoReferenciaId?: number;
+  claseVehiculoReferenciaId?: number;
+  limite?: number;
+};
+
+/**
+ * Busqueda de activos para la "mesa de trabajo" de documentos: filtros
+ * separados (marca/modelo/ano/tipo/clase ademas de codigo/placa), todos
+ * opcionales y combinables. Solo activos vigentes (`estadoRegistro: true`).
+ */
+export async function buscarActivosConFiltros(
+  filtros: FiltrosBusquedaActivo
+): Promise<Activo[]> {
+  const queryParams: Record<string, unknown> = {
+    estadoRegistro: true,
+    limite: filtros.limite ?? 50,
+  };
+  if (filtros.codigo?.trim()) queryParams.codigo = filtros.codigo.trim();
+  if (filtros.placa?.trim()) queryParams.placa = filtros.placa.trim();
+  if (filtros.marca?.trim()) queryParams.marca = filtros.marca.trim();
+  if (filtros.modelo?.trim()) queryParams.modelo = filtros.modelo.trim();
+  if (filtros.anioFabricacion) {
+    queryParams.anioFabricacion = filtros.anioFabricacion;
+  }
+  if (filtros.tipoActivoReferenciaId) {
+    queryParams.tipoActivoReferenciaId = filtros.tipoActivoReferenciaId;
+  }
+  if (filtros.claseVehiculoReferenciaId) {
+    queryParams.claseVehiculoReferenciaId = filtros.claseVehiculoReferenciaId;
+  }
+
+  const { data } = await clienteActivos.get<RespuestaPaginada<Activo>>(
+    "/activos",
+    { params: queryParams }
+  );
+  return [...data.datos];
+}
+
 export async function obtenerPerfilFlotaPorPlaca(
   placa: string
 ): Promise<PerfilFlota | null> {
