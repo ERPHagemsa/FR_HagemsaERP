@@ -63,16 +63,22 @@ import { CrearContratoDesdeTarifario } from "@/modulos/comercial/contratos/compo
 import { useContratoDetalleQuery } from "@/modulos/comercial/contratos/servicios/contratos-queries"
 
 import {
+  useActualizarCargoMutation,
   useActualizarTarifaMutation,
+  useAgregarCargoMutation,
   useAgregarTarifaMutation,
   useAnularTarifarioMutation,
+  useEliminarCargoMutation,
   useEliminarTarifaMutation,
   useTarifarioDetalleQuery,
 } from "../servicios/tarifarios-queries"
 import {
   etiquetaTipoOrigen,
+  UNIDADES_COBRO,
   type PayloadTarifa,
+  type PayloadTarifaCargo,
   type Tarifa,
+  type TarifaCargo,
 } from "../tipos/tarifarios.tipos"
 
 type FormTarifa = {
@@ -216,6 +222,182 @@ function CamposTarifa({
   )
 }
 
+type FormCargo = {
+  idModalidad: string
+  concepto: string
+  unidadCobro: string
+  origen: string
+  destino: string
+  condicion: string
+  precio: string
+  tarifaStandbyDia: string
+}
+
+const FORM_CARGO_VACIO: FormCargo = {
+  idModalidad: "",
+  concepto: "",
+  unidadCobro: "SERVICIO",
+  origen: "",
+  destino: "",
+  condicion: "",
+  precio: "",
+  tarifaStandbyDia: "",
+}
+
+function formDesdeCargo(c: TarifaCargo): FormCargo {
+  return {
+    idModalidad: c.idModalidad,
+    concepto: c.concepto,
+    unidadCobro: c.unidadCobro,
+    origen: c.origen ?? "",
+    destino: c.destino ?? "",
+    condicion: c.condicion ?? "",
+    precio: String(c.precio),
+    tarifaStandbyDia: c.tarifaStandbyDia != null ? String(c.tarifaStandbyDia) : "",
+  }
+}
+
+function payloadCargoDesdeForm(form: FormCargo): PayloadTarifaCargo | null {
+  const precio = Number(form.precio)
+  if (
+    !form.idModalidad ||
+    form.concepto.trim() === "" ||
+    !form.unidadCobro ||
+    form.precio.trim() === "" ||
+    isNaN(precio) ||
+    precio < 0
+  ) {
+    return null
+  }
+  const payload: PayloadTarifaCargo = {
+    idModalidad: form.idModalidad,
+    concepto: form.concepto.trim(),
+    unidadCobro: form.unidadCobro,
+    precio,
+  }
+  if (form.origen.trim()) payload.origen = form.origen.trim()
+  if (form.destino.trim()) payload.destino = form.destino.trim()
+  if (form.condicion.trim()) payload.condicion = form.condicion.trim()
+  if (form.tarifaStandbyDia.trim()) {
+    const sb = Number(form.tarifaStandbyDia)
+    if (!isNaN(sb)) payload.tarifaStandbyDia = sb
+  }
+  return payload
+}
+
+function CamposCargo({
+  form,
+  onChange,
+  modalidades,
+}: {
+  form: FormCargo
+  onChange: (parcial: Partial<FormCargo>) => void
+  modalidades: { id: string; nombre: string; codigo: string }[]
+}) {
+  return (
+    <div className="flex flex-col gap-3 py-4">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="c-concepto">Concepto</Label>
+        <Input
+          id="c-concepto"
+          value={form.concepto}
+          onChange={(e) => onChange({ concepto: e.target.value })}
+          placeholder="Ej. Escolta, Movilizacion, Estudio de ruta"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label>Modalidad</Label>
+          <Select
+            value={form.idModalidad}
+            onValueChange={(v) => onChange({ idModalidad: v })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar modalidad" />
+            </SelectTrigger>
+            <SelectContent>
+              {modalidades.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.nombre} ({m.codigo})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label>Unidad de cobro</Label>
+          <Select
+            value={form.unidadCobro}
+            onValueChange={(v) => onChange({ unidadCobro: v })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar unidad" />
+            </SelectTrigger>
+            <SelectContent>
+              {UNIDADES_COBRO.map((u) => (
+                <SelectItem key={u.valor} value={u.valor}>
+                  {u.etiqueta}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="c-origen">Origen</Label>
+          <Input
+            id="c-origen"
+            value={form.origen}
+            onChange={(e) => onChange({ origen: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="c-destino">Destino</Label>
+          <Input
+            id="c-destino"
+            value={form.destino}
+            onChange={(e) => onChange({ destino: e.target.value })}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="c-condicion">Condicion</Label>
+        <Input
+          id="c-condicion"
+          value={form.condicion}
+          onChange={(e) => onChange({ condicion: e.target.value })}
+          placeholder="Ej. Por evento"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="c-precio">Precio</Label>
+          <Input
+            id="c-precio"
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.precio}
+            onChange={(e) => onChange({ precio: e.target.value })}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="c-standby">Standby/dia</Label>
+          <Input
+            id="c-standby"
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.tarifaStandbyDia}
+            onChange={(e) => onChange({ tarifaStandbyDia: e.target.value })}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface Props {
   idTarifario: string
 }
@@ -246,6 +428,9 @@ export function TarifarioDetalle({ idTarifario }: Props) {
   const [agregarAbierto, setAgregarAbierto] = useState(false)
   const [tarifaEditando, setTarifaEditando] = useState<Tarifa | null>(null)
   const [tarifaEliminando, setTarifaEliminando] = useState<Tarifa | null>(null)
+  const [agregarCargoAbierto, setAgregarCargoAbierto] = useState(false)
+  const [cargoEditando, setCargoEditando] = useState<TarifaCargo | null>(null)
+  const [cargoEliminando, setCargoEliminando] = useState<TarifaCargo | null>(null)
   const [anularAbierto, setAnularAbierto] = useState(false)
 
   const vigente = tarifario?.estado === "VIGENTE"
@@ -441,6 +626,102 @@ export function TarifarioDetalle({ idTarifario }: Props) {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="border-b border-border">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Cargos adicionales</CardTitle>
+              <CardDescription>
+                Accesorios derivados de la cotizacion (los de nivel seccion usan
+                la modalidad SIN_MODALIDAD).
+              </CardDescription>
+            </div>
+            {vigente ? (
+              <Button size="sm" onClick={() => setAgregarCargoAbierto(true)}>
+                <Plus />
+                Agregar cargo
+              </Button>
+            ) : null}
+          </div>
+        </CardHeader>
+        <CardContent className="pt-5">
+          <div className="overflow-hidden rounded-xl border border-border">
+            <Table className="w-full [&_td]:px-2 [&_th]:px-2">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Concepto</TableHead>
+                  <TableHead>Modalidad</TableHead>
+                  <TableHead>Origen</TableHead>
+                  <TableHead>Destino</TableHead>
+                  <TableHead>Unidad</TableHead>
+                  <TableHead>Condicion</TableHead>
+                  <TableHead className="text-right">Precio</TableHead>
+                  <TableHead className="text-right">Standby</TableHead>
+                  {vigente ? <TableHead className="text-center">Acciones</TableHead> : null}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tarifario.cargos.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={vigente ? 9 : 8}
+                      className="h-24 text-center text-muted-foreground"
+                    >
+                      Sin cargos adicionales. {vigente ? "Agrega el primero." : ""}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  tarifario.cargos.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="text-sm">{c.concepto}</TableCell>
+                      <TableCell className="text-sm">
+                        {nombreModalidad(c.idModalidad)}
+                      </TableCell>
+                      <TableCell className="text-sm">{c.origen ?? "—"}</TableCell>
+                      <TableCell className="text-sm">{c.destino ?? "—"}</TableCell>
+                      <TableCell className="text-sm">{c.unidadCobro}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {c.condicion ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm">
+                        {c.precio.toLocaleString("es-PE")}
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-muted-foreground">
+                        {c.tarifaStandbyDia != null
+                          ? c.tarifaStandbyDia.toLocaleString("es-PE")
+                          : "—"}
+                      </TableCell>
+                      {vigente ? (
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Button
+                              size="icon-sm"
+                              variant="outline"
+                              aria-label="Editar"
+                              onClick={() => setCargoEditando(c)}
+                            >
+                              <Pencil />
+                            </Button>
+                            <Button
+                              size="icon-sm"
+                              variant="outline"
+                              aria-label="Eliminar"
+                              onClick={() => setCargoEliminando(c)}
+                            >
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      ) : null}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
       <SheetAgregarTarifa
         idTarifario={idTarifario}
         abierto={agregarAbierto}
@@ -457,6 +738,23 @@ export function TarifarioDetalle({ idTarifario }: Props) {
         idTarifario={idTarifario}
         tarifa={tarifaEliminando}
         onCerrar={() => setTarifaEliminando(null)}
+      />
+      <SheetAgregarCargo
+        idTarifario={idTarifario}
+        abierto={agregarCargoAbierto}
+        onCerrar={() => setAgregarCargoAbierto(false)}
+        modalidades={modalidades}
+      />
+      <SheetEditarCargo
+        idTarifario={idTarifario}
+        cargo={cargoEditando}
+        onCerrar={() => setCargoEditando(null)}
+        modalidades={modalidades}
+      />
+      <DialogEliminarCargo
+        idTarifario={idTarifario}
+        cargo={cargoEliminando}
+        onCerrar={() => setCargoEliminando(null)}
       />
       <DialogAnular
         idTarifario={idTarifario}
@@ -645,6 +943,203 @@ function DialogEliminarTarifa({
           <AlertDialogTitle>Quitar tarifa</AlertDialogTitle>
           <AlertDialogDescription>
             Se quitara la tarifa del tarifario. Esta accion no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTitle>No se pudo quitar</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={eliminar.isPending}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={() => eliminar.mutate()} disabled={eliminar.isPending}>
+            {eliminar.isPending ? "Quitando..." : "Quitar"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+function SheetAgregarCargo({
+  idTarifario,
+  abierto,
+  onCerrar,
+  modalidades,
+}: {
+  idTarifario: string
+  abierto: boolean
+  onCerrar: () => void
+  modalidades: { id: string; nombre: string; codigo: string }[]
+}) {
+  const [form, setForm] = useState<FormCargo>(FORM_CARGO_VACIO)
+  const [error, setError] = useState<string | null>(null)
+  const agregar = useAgregarCargoMutation(idTarifario, {
+    onSuccess: () => {
+      setError(null)
+      setForm(FORM_CARGO_VACIO)
+      onCerrar()
+    },
+    onError: (err) => setError(extraerMensajeError(err)),
+  })
+
+  function handleConfirmar() {
+    const payload = payloadCargoDesdeForm(form)
+    if (!payload) return
+    setError(null)
+    agregar.mutate(payload)
+  }
+
+  return (
+    <Sheet
+      open={abierto}
+      onOpenChange={(o) => {
+        if (!o) {
+          setError(null)
+          setForm(FORM_CARGO_VACIO)
+          onCerrar()
+        }
+      }}
+    >
+      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
+        <SheetHeader className="border-b border-border">
+          <SheetTitle>Agregar cargo</SheetTitle>
+          <SheetDescription>Define el concepto, modalidad y precio.</SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6">
+          {error ? (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTitle>No se pudo agregar</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <CamposCargo
+            form={form}
+            onChange={(p) => setForm((prev) => ({ ...prev, ...p }))}
+            modalidades={modalidades}
+          />
+        </div>
+        <Separator />
+        <SheetFooter className="flex-row justify-end gap-2">
+          <SheetClose asChild>
+            <Button variant="outline" disabled={agregar.isPending}>
+              Cancelar
+            </Button>
+          </SheetClose>
+          <Button
+            onClick={handleConfirmar}
+            disabled={agregar.isPending || payloadCargoDesdeForm(form) === null}
+          >
+            {agregar.isPending ? "Agregando..." : "Agregar"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function SheetEditarCargo({
+  idTarifario,
+  cargo,
+  onCerrar,
+  modalidades,
+}: {
+  idTarifario: string
+  cargo: TarifaCargo | null
+  onCerrar: () => void
+  modalidades: { id: string; nombre: string; codigo: string }[]
+}) {
+  const [form, setForm] = useState<FormCargo>(cargo ? formDesdeCargo(cargo) : FORM_CARGO_VACIO)
+  const [claveActual, setClaveActual] = useState<string | null>(cargo?.id ?? null)
+  const [error, setError] = useState<string | null>(null)
+
+  const idEntrante = cargo?.id ?? null
+  if (idEntrante !== claveActual) {
+    setClaveActual(idEntrante)
+    setForm(cargo ? formDesdeCargo(cargo) : FORM_CARGO_VACIO)
+    setError(null)
+  }
+
+  const actualizar = useActualizarCargoMutation(idTarifario, cargo?.id ?? "", {
+    onSuccess: () => {
+      setError(null)
+      onCerrar()
+    },
+    onError: (err) => setError(extraerMensajeError(err)),
+  })
+
+  function handleConfirmar() {
+    const payload = payloadCargoDesdeForm(form)
+    if (!payload) return
+    setError(null)
+    actualizar.mutate(payload)
+  }
+
+  return (
+    <Sheet open={cargo !== null} onOpenChange={(o) => !o && onCerrar()}>
+      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
+        <SheetHeader className="border-b border-border">
+          <SheetTitle>Editar cargo</SheetTitle>
+          <SheetDescription>Ajusta el concepto, el precio u otros campos.</SheetDescription>
+        </SheetHeader>
+        <div className="flex-1 overflow-y-auto px-6">
+          {error ? (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTitle>No se pudo actualizar</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <CamposCargo
+            form={form}
+            onChange={(p) => setForm((prev) => ({ ...prev, ...p }))}
+            modalidades={modalidades}
+          />
+        </div>
+        <Separator />
+        <SheetFooter className="flex-row justify-end gap-2">
+          <SheetClose asChild>
+            <Button variant="outline" disabled={actualizar.isPending}>
+              Cancelar
+            </Button>
+          </SheetClose>
+          <Button
+            onClick={handleConfirmar}
+            disabled={actualizar.isPending || payloadCargoDesdeForm(form) === null}
+          >
+            {actualizar.isPending ? "Guardando..." : "Guardar"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function DialogEliminarCargo({
+  idTarifario,
+  cargo,
+  onCerrar,
+}: {
+  idTarifario: string
+  cargo: TarifaCargo | null
+  onCerrar: () => void
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const eliminar = useEliminarCargoMutation(idTarifario, cargo?.id ?? "", {
+    onSuccess: () => {
+      setError(null)
+      onCerrar()
+    },
+    onError: (err) => setError(extraerMensajeError(err)),
+  })
+
+  return (
+    <AlertDialog open={cargo !== null} onOpenChange={(o) => !o && onCerrar()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Quitar cargo</AlertDialogTitle>
+          <AlertDialogDescription>
+            Se quitara el cargo del tarifario. Esta accion no se puede deshacer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? (

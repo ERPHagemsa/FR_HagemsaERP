@@ -89,6 +89,29 @@ export interface ItemTarifarioConsolidado {
   vigenciaFin: string | null
 }
 
+// Un cargo adicional del tarifario consolidado (identificado por concepto + unidad).
+export interface ItemCargoConsolidado {
+  idContrato: string
+  idTarifario: string
+  idModalidad: string
+  concepto: string
+  unidadCobro: string
+  origen: string | null
+  destino: string | null
+  condicion: string | null
+  precio: number
+  moneda: Moneda
+  tarifaStandbyDia: number | null
+  vigenciaInicio: string | null
+  vigenciaFin: string | null
+}
+
+// Respuesta del tarifario consolidado: tarifas (vehiculo) + cargos (accessorials).
+export interface TarifarioConsolidado {
+  tarifas: ItemTarifarioConsolidado[]
+  cargos: ItemCargoConsolidado[]
+}
+
 export const ESTADOS_CONTRATO: ReadonlyArray<{
   valor: EstadoContrato
   etiqueta: string

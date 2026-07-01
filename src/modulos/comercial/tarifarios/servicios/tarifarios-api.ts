@@ -3,8 +3,10 @@ import { clienteComercial } from "@/compartido/api/clientes-backend"
 import type {
   FiltrosTarifarios,
   PayloadActualizarTarifa,
+  PayloadActualizarTarifaCargo,
   PayloadCrearTarifarioManual,
   PayloadTarifa,
+  PayloadTarifaCargo,
   RespuestaListaTarifarios,
   Tarifario,
 } from "../tipos/tarifarios.tipos"
@@ -20,7 +22,7 @@ export async function listarTarifarios(
   return data
 }
 
-// GET /tarifarios/:id — detalle con sus tarifas.
+// GET /tarifarios/:id — detalle con sus tarifas y cargos adicionales.
 export async function consultarTarifario(id: string): Promise<Tarifario> {
   const { data } = await clienteComercial.get<Tarifario>(`/tarifarios/${id}`)
   return data
@@ -82,4 +84,36 @@ export async function eliminarTarifa(
   idTarifa: string,
 ): Promise<void> {
   await clienteComercial.delete(`/tarifarios/${idTarifario}/tarifas/${idTarifa}`)
+}
+
+// POST /tarifarios/:id/cargos — agregar un cargo adicional (201).
+export async function agregarTarifaCargo(
+  idTarifario: string,
+  payload: PayloadTarifaCargo,
+): Promise<{ id: string }> {
+  const { data } = await clienteComercial.post<{ id: string }>(
+    `/tarifarios/${idTarifario}/cargos`,
+    payload,
+  )
+  return data
+}
+
+// PATCH /tarifarios/:id/cargos/:idCargo — editar un cargo (204).
+export async function actualizarTarifaCargo(
+  idTarifario: string,
+  idCargo: string,
+  payload: PayloadActualizarTarifaCargo,
+): Promise<void> {
+  await clienteComercial.patch(
+    `/tarifarios/${idTarifario}/cargos/${idCargo}`,
+    payload,
+  )
+}
+
+// DELETE /tarifarios/:id/cargos/:idCargo — quitar un cargo (204).
+export async function eliminarTarifaCargo(
+  idTarifario: string,
+  idCargo: string,
+): Promise<void> {
+  await clienteComercial.delete(`/tarifarios/${idTarifario}/cargos/${idCargo}`)
 }

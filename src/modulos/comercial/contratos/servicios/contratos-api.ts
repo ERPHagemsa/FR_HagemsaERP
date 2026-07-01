@@ -3,9 +3,9 @@ import { clienteComercial } from "@/compartido/api/clientes-backend"
 import type {
   Contrato,
   FiltrosContratos,
-  ItemTarifarioConsolidado,
   PayloadCrearContratoDesdeTarifario,
   RespuestaListaContratos,
+  TarifarioConsolidado,
 } from "../tipos/contratos.tipos"
 
 // GET /contratos — listado paginado con filtros.
@@ -39,11 +39,12 @@ export async function crearContratoDesdeTarifario(
 }
 
 // GET /contratos/tarifario-consolidado/:idClienteExterno — tarifario consolidado
-// del cliente (HU-03-025): union de las tarifas de sus contratos vigentes.
+// del cliente (HU-03-025): union de las tarifas y cargos de sus contratos vigentes.
+// El backend responde { tarifas, cargos } (no un array plano).
 export async function consultarTarifarioConsolidado(
   idClienteExterno: string,
-): Promise<ItemTarifarioConsolidado[]> {
-  const { data } = await clienteComercial.get<ItemTarifarioConsolidado[]>(
+): Promise<TarifarioConsolidado> {
+  const { data } = await clienteComercial.get<TarifarioConsolidado>(
     `/contratos/tarifario-consolidado/${idClienteExterno}`,
   )
   return data

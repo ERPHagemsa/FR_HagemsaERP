@@ -18,6 +18,21 @@ export interface Tarifa {
   orden: number
 }
 
+// Una fila de cargo (accessorial) dentro del detalle del tarifario. Los cargos
+// de nivel seccion de la cotizacion se derivan aqui con la modalidad SIN_MODALIDAD.
+export interface TarifaCargo {
+  id: string
+  idModalidad: string
+  concepto: string
+  unidadCobro: string
+  origen: string | null
+  destino: string | null
+  condicion: string | null
+  precio: number
+  tarifaStandbyDia: number | null
+  orden: number
+}
+
 // Detalle completo del tarifario (GET /tarifarios/:id).
 export interface Tarifario {
   id: string
@@ -31,6 +46,7 @@ export interface Tarifario {
   vigenciaInicio: string | null
   vigenciaFin: string | null
   tarifas: Tarifa[]
+  cargos: TarifaCargo[]
   fechaCreacion: string
   usuarioCreacion: string
   fechaModificacion: string | null
@@ -93,6 +109,33 @@ export interface PayloadCrearTarifarioManual {
 
 // Todos los campos opcionales (cambio parcial / enriquecimiento).
 export type PayloadActualizarTarifa = Partial<PayloadTarifa>
+
+// Payload de un cargo (accessorial) al agregarlo al detalle del tarifario.
+export interface PayloadTarifaCargo {
+  idModalidad: string
+  concepto: string
+  unidadCobro: string
+  origen?: string
+  destino?: string
+  condicion?: string
+  precio: number
+  tarifaStandbyDia?: number
+  orden?: number
+}
+
+export type PayloadActualizarTarifaCargo = Partial<PayloadTarifaCargo>
+
+// Unidades de cobro validas para un cargo (espeja el enum UnidadCobro del backend).
+export const UNIDADES_COBRO: ReadonlyArray<{ valor: string; etiqueta: string }> = [
+  { valor: "VIAJE", etiqueta: "Viaje" },
+  { valor: "DIA", etiqueta: "Dia" },
+  { valor: "M2", etiqueta: "M2" },
+  { valor: "SERVICIO", etiqueta: "Servicio" },
+  { valor: "HORA", etiqueta: "Hora" },
+  { valor: "TONELADA", etiqueta: "Tonelada" },
+  { valor: "CONTENEDOR", etiqueta: "Contenedor" },
+  { valor: "OTRO", etiqueta: "Otro" },
+]
 
 export const MONEDAS: ReadonlyArray<{ valor: Moneda; etiqueta: string }> = [
   { valor: "PEN", etiqueta: "Soles (PEN)" },

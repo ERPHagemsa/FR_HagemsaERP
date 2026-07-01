@@ -68,7 +68,9 @@ export function ContratoDetalle({ idContrato }: Props) {
   const consolidadoQuery = useTarifarioConsolidadoQuery(
     contrato?.idClienteExterno ?? "",
   )
-  const consolidado = consolidadoQuery.data ?? []
+  // El backend responde { tarifas, cargos } (antes era un array plano).
+  const tarifasConsolidadas = consolidadoQuery.data?.tarifas ?? []
+  const cargosConsolidados = consolidadoQuery.data?.cargos ?? []
 
   // Código de la cotización origen (COT-AAAA-NNNNN) en vez del UUID.
   const cotizacionOrigenQuery = useConsultarCotizacion(
@@ -231,6 +233,7 @@ export function ContratoDetalle({ idContrato }: Props) {
               </AlertDescription>
             </Alert>
           ) : (
+            <div className="flex flex-col gap-5">
             <div className="overflow-hidden rounded-xl border border-border">
               <Table className="w-full [&_td]:px-2 [&_th]:px-2">
                 <TableHeader>
@@ -245,7 +248,7 @@ export function ContratoDetalle({ idContrato }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {consolidado.length === 0 ? (
+                  {tarifasConsolidadas.length === 0 ? (
                     <TableRow>
                       <TableCell
                         colSpan={7}
@@ -255,7 +258,7 @@ export function ContratoDetalle({ idContrato }: Props) {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    consolidado.map((t, i) => (
+                    tarifasConsolidadas.map((t, i) => (
                       <TableRow key={`${t.idTarifario}-${i}`}>
                         <TableCell className="text-sm">
                           {nombreModalidad(t.idModalidad)}
@@ -281,6 +284,64 @@ export function ContratoDetalle({ idContrato }: Props) {
                   )}
                 </TableBody>
               </Table>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-muted-foreground">
+                Cargos adicionales
+              </p>
+              <div className="overflow-hidden rounded-xl border border-border">
+                <Table className="w-full [&_td]:px-2 [&_th]:px-2">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Concepto</TableHead>
+                      <TableHead>Modalidad</TableHead>
+                      <TableHead>Origen</TableHead>
+                      <TableHead>Destino</TableHead>
+                      <TableHead>Unidad</TableHead>
+                      <TableHead>Condicion</TableHead>
+                      <TableHead className="text-right">Precio</TableHead>
+                      <TableHead className="text-right">Standby</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cargosConsolidados.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="h-24 text-center text-muted-foreground"
+                        >
+                          El cliente no tiene cargos vigentes consolidados.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      cargosConsolidados.map((c, i) => (
+                        <TableRow key={`${c.idTarifario}-cargo-${i}`}>
+                          <TableCell className="text-sm">{c.concepto}</TableCell>
+                          <TableCell className="text-sm">
+                            {nombreModalidad(c.idModalidad)}
+                          </TableCell>
+                          <TableCell className="text-sm">{c.origen ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{c.destino ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{c.unidadCobro}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {c.condicion ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-right text-sm">
+                            {c.moneda} {c.precio.toLocaleString("es-PE")}
+                          </TableCell>
+                          <TableCell className="text-right text-sm text-muted-foreground">
+                            {c.tarifaStandbyDia != null
+                              ? c.tarifaStandbyDia.toLocaleString("es-PE")
+                              : "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
             </div>
           )}
         </CardContent>

@@ -20,6 +20,7 @@ import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
+import { CLAVE_COTIZACION_DETALLE } from "@/modulos/comercial/claves-consulta";
 import { accionesPermitidas, etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
 import type { Cotizacion, EstadoCotizacion } from "../tipos/cotizaciones.tipos";
 
@@ -30,9 +31,13 @@ type Props = {
 // Layout denso estilo Odoo: statusbar + pipeline + smart buttons + grupos
 // inline + notebook de versiones (una sola version visible a la vez).
 export function CotizacionDetalleVista({ id }: Props) {
+  // `clave` suscribe esta consulta al registro de invalidacion: tras enviar /
+  // ganar / perder / cancelar (que llaman invalidarConsulta(CLAVE_COTIZACION_DETALLE))
+  // la pagina refetchea sola, sin necesidad de refrescar a mano.
   const { data: cotizacion, isLoading } = useConsulta(
     () => consultarCotizacion(id).catch(() => null),
     [id],
+    { clave: CLAVE_COTIZACION_DETALLE },
   );
 
   if (isLoading) {

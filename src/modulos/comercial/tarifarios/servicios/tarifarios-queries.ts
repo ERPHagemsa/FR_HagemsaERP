@@ -9,19 +9,24 @@ import {
 
 import {
   actualizarTarifa,
+  actualizarTarifaCargo,
   agregarTarifa,
+  agregarTarifaCargo,
   anularTarifario,
   consultarTarifario,
   crearTarifarioManual,
   eliminarTarifa,
+  eliminarTarifaCargo,
   generarTarifarioDesdeCotizacion,
   listarTarifarios,
 } from "./tarifarios-api"
 import type {
   FiltrosTarifarios,
   PayloadActualizarTarifa,
+  PayloadActualizarTarifaCargo,
   PayloadCrearTarifarioManual,
   PayloadTarifa,
+  PayloadTarifaCargo,
 } from "../tipos/tarifarios.tipos"
 
 export interface OpcionesMutacion {
@@ -118,6 +123,52 @@ export function useEliminarTarifaMutation(
 ) {
   return useMutar<void, void>({
     fn: () => eliminarTarifa(idTarifario, idTarifa),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_TARIFARIO_DETALLE)
+      invalidarConsulta(CLAVE_TARIFARIOS)
+      opciones.onSuccess?.()
+    },
+    onError: (err) => opciones.onError?.(err),
+  })
+}
+
+export function useAgregarCargoMutation(
+  idTarifario: string,
+  opciones: OpcionesMutacion = {},
+) {
+  return useMutar<PayloadTarifaCargo, { id: string }>({
+    fn: (payload) => agregarTarifaCargo(idTarifario, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_TARIFARIO_DETALLE)
+      invalidarConsulta(CLAVE_TARIFARIOS)
+      opciones.onSuccess?.()
+    },
+    onError: (err) => opciones.onError?.(err),
+  })
+}
+
+export function useActualizarCargoMutation(
+  idTarifario: string,
+  idCargo: string,
+  opciones: OpcionesMutacion = {},
+) {
+  return useMutar<PayloadActualizarTarifaCargo, void>({
+    fn: (payload) => actualizarTarifaCargo(idTarifario, idCargo, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_TARIFARIO_DETALLE)
+      opciones.onSuccess?.()
+    },
+    onError: (err) => opciones.onError?.(err),
+  })
+}
+
+export function useEliminarCargoMutation(
+  idTarifario: string,
+  idCargo: string,
+  opciones: OpcionesMutacion = {},
+) {
+  return useMutar<void, void>({
+    fn: () => eliminarTarifaCargo(idTarifario, idCargo),
     onSuccess: () => {
       invalidarConsulta(CLAVE_TARIFARIO_DETALLE)
       invalidarConsulta(CLAVE_TARIFARIOS)
