@@ -45,7 +45,6 @@ export function CotizacionEditorNuevo({ solicitudClienteId, clienteTipo, cliente
     secciones: [],
     standbys: [],
     leadTimes: [],
-    condiciones: [],
   });
   const [erroresCampo, setErroresCampo] = React.useState<Record<string, string>>({});
   const [guardando, setGuardando] = React.useState(false);

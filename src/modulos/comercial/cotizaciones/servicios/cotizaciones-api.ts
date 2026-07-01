@@ -6,6 +6,7 @@ import type {
   FiltrosCotizaciones,
   FiltrosResumenCotizaciones,
   ParamsPrecioSugerido,
+  PayloadActualizarCondicionesVersion,
   PayloadBorrador,
   PayloadEnviar,
   PayloadNuevaVersion,
@@ -107,6 +108,14 @@ export async function actualizarBorrador(
   payload: PayloadBorrador
 ): Promise<void> {
   await clienteComercial.patch(`/cotizaciones/${id}/borrador`, payload);
+}
+
+// PATCH /cotizaciones/:id/condiciones → 204
+export async function actualizarCondicionesVersion(
+  idCotizacion: string,
+  payload: PayloadActualizarCondicionesVersion
+): Promise<void> {
+  await clienteComercial.patch(`/cotizaciones/${idCotizacion}/condiciones`, payload);
 }
 
 // ---------------------------------------------------------------------------

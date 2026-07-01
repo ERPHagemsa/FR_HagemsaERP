@@ -35,7 +35,7 @@ export function CotizacionEditor({ cotizacion }: Props) {
   // Inicializar draft desde la version vigente (o vacio si no existe aun)
   const [draft, setDraft] = React.useState<DraftBorrador>(() => {
     if (versionVigente) return derivarDraft(versionVigente);
-    return { moneda: "PEN", secciones: [], standbys: [], leadTimes: [], condiciones: [] };
+    return { moneda: "PEN", secciones: [], standbys: [], leadTimes: [] };
   });
 
   // Snapshot del estado persistido al montar, para el indicador dirty mientras

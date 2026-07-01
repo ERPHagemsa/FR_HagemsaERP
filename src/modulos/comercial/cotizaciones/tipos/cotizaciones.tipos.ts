@@ -437,12 +437,7 @@ export type EstadoCatalogoCondicion = "ACTIVO" | "INACTIVO";
 
 export type CategoriaCondicion = "CONSIDERACIONES_SERVICIO" | "TARIFAS_INCLUYEN";
 
-export type ParametroCondicion = {
-  nombre: string;
-  fuente: "AUTO" | "MANUAL";
-  tipoEntrada?: "ENUM" | "TEXTO";
-  opciones?: string[];
-};
+export type ParametroCondicion = string;
 
 export type CatalogoCondicion = {
   id: string;
@@ -450,7 +445,7 @@ export type CatalogoCondicion = {
   texto: string;
   categoria: CategoriaCondicion;
   parametros: ParametroCondicion[];
-  esConstante: boolean;
+  porDefecto: boolean;
   ordenSugerido: number;
   estado: EstadoCatalogoCondicion;
 };
@@ -479,6 +474,7 @@ export type CondicionVersion = {
   idCatalogoCondicion: string | null;
   categoria: CategoriaCondicion;
   textoResuelto: string;
+  valores: Record<string, string>;
   orden: number;
 };
 
@@ -518,14 +514,17 @@ export type PayloadStandby = {
   orden?: number;
 };
 
-// --- PayloadCondicionBorrador (canal separado de condiciones — WU-9) ---
+// --- PayloadCondicionVersion (endpoint dedicado de condiciones por version) ---
 // El backend espera el conjunto completo de condiciones seleccionadas (replacement
-// idempotente, ADR-10). AUTO placeholders (cliente, moneda) los resuelve el backend;
-// MANUAL placeholders (dias_validez, lugar) los provee el frontend en parametrosManual.
-export type PayloadCondicionBorrador = {
+// idempotente). Cada condicion viaja con los valores crudos de sus placeholders.
+export type PayloadCondicionVersion = {
   idCatalogoCondicion: string;
-  parametrosManual?: Record<string, string>; // solo para parametros MANUAL
-  orden?: number;
+  valores?: Record<string, string>;
+  orden: number;
+};
+
+export type PayloadActualizarCondicionesVersion = {
+  condiciones: PayloadCondicionVersion[];
 };
 
 // Hijos polimorficos del write model (sin id — el backend los re-crea)
@@ -593,18 +592,16 @@ export type PayloadSeccion = {
   cargosAdicionales?: PayloadCargoAdicional[];
 };
 
-// Borrador: moneda + secciones + standbys raiz + leadTimes raiz + condiciones raiz.
+// Borrador: moneda + secciones + standbys raiz + leadTimes raiz.
 // Contrato 2026-06-08 (§5.4): NO existe canal de lineas raiz — toda linea va
 // dentro de secciones[].lineas; el caso "plano" es una seccion sin nombre.
 // standbys[] raiz = standbys de la version (informativo, no suman al total)
 // leadTimes[] raiz = plazos de entrega de la version
-// condiciones[] raiz = condiciones seleccionadas (canal separado WU-9; replacement idempotente)
 export type PayloadBorrador = {
   moneda?: Moneda;       // default PEN en el backend
   secciones?: PayloadSeccion[];
   standbys?: PayloadStandby[];                  // SOLO root (antes standbyTarifas)
   leadTimes?: PayloadLeadTime[];                // SOLO root
-  condiciones?: PayloadCondicionBorrador[];     // SOLO root; omitir = no cambiar condiciones
 };
 
 // SC y transiciones — union discriminada por origenTipo

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Printer } from "lucide-react";
+import { ListChecks, Printer } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -18,8 +18,15 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/compartido/componentes/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/compartido/componentes/ui/tooltip";
 
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
+import { DialogoCondicionesVersion } from "./dialogo-condiciones-version";
 import type {
   CargaHijo,
   EquipoHijo,
@@ -34,13 +41,19 @@ type Props = {
   idCotizacion: string;
   versiones: Version[];
   versionVigente: number | null;
+  onCondicionesActualizadas: () => Promise<unknown>;
 };
 
 // Notebook estilo Odoo: UNA sola version visible a la vez.
 // El selector elige que version se ve; las pestañas parten el detalle
 // de esa version (Resumen / Lineas / Lead times / Standby) para que
 // nada quede apilado infinitamente hacia abajo.
-export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVigente }: Props) {
+export function CotizacionVersionesNotebook({
+  idCotizacion,
+  versiones,
+  versionVigente,
+  onCondicionesActualizadas,
+}: Props) {
   const { imprimir, generando } = useImprimirPdf(idCotizacion);
   const ordenadas = React.useMemo(
     () => [...versiones].sort((a, b) => b.numeroVersion - a.numeroVersion),
@@ -49,6 +62,7 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
 
   const inicial = versionVigente ?? ordenadas[0]?.numeroVersion ?? null;
   const [seleccionada, setSeleccionada] = React.useState<number | null>(inicial);
+  const [dialogoCondicionesAbierto, setDialogoCondicionesAbierto] = React.useState(false);
 
   if (ordenadas.length === 0) {
     return (
@@ -138,8 +152,37 @@ export function CotizacionVersionesNotebook({ idCotizacion, versiones, versionVi
             <Printer data-icon="inline-start" />
             {generando ? "Generando..." : "Imprimir version"}
           </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDialogoCondicionesAbierto(true)}
+                    disabled={version.congelada}
+                  >
+                    <ListChecks data-icon="inline-start" />
+                    Condiciones
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {version.congelada ? (
+                <TooltipContent>La version esta congelada.</TooltipContent>
+              ) : null}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
+
+      <DialogoCondicionesVersion
+        abierto={dialogoCondicionesAbierto}
+        idCotizacion={idCotizacion}
+        version={version}
+        onGuardado={onCondicionesActualizadas}
+        onOpenChange={setDialogoCondicionesAbierto}
+      />
 
       {version.motivo ? (
         <p className="text-sm text-muted-foreground">{version.motivo}</p>

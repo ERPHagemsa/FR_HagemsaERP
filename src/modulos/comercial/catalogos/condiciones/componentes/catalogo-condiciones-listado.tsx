@@ -1,7 +1,7 @@
 "use client"
 
-import { type FormEvent, useState } from "react"
-import { CircleCheck, CircleX, Pencil, Plus, Search, Trash2 } from "lucide-react"
+import { type FormEvent, useEffect, useState } from "react"
+import { CircleCheck, CircleX, Pencil, Plus, Search } from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api/formato-error"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select"
-import { Separator } from "@/compartido/componentes/ui/separator"
 import {
   Sheet,
   SheetClose,
@@ -67,172 +66,26 @@ const ETIQUETAS_CATEGORIA: Record<CategoriaCondicion, string> = {
   TARIFAS_INCLUYEN: "Nuestras tarifas incluyen",
 }
 
-// ---------------------------------------------------------------------------
-// Editor de parametros (array dinamico)
-// ---------------------------------------------------------------------------
-
-type ParametroDraft = {
-  nombre: string
-  fuente: "AUTO" | "MANUAL"
-  tipoEntrada: "ENUM" | "TEXTO" | ""
-  opcionesTexto: string // comma-separated raw input
+function extraerParametros(texto: string): ParametroCondicion[] {
+  return Array.from(texto.matchAll(/\{(\w+)\}/g), (match) => match[1]).filter(
+    (nombre, indice, todos) => todos.indexOf(nombre) === indice
+  )
 }
 
-function parametrosDraftDesde(parametros: ParametroCondicion[]): ParametroDraft[] {
-  return parametros.map((p) => ({
-    nombre: p.nombre,
-    fuente: p.fuente,
-    tipoEntrada: p.tipoEntrada ?? "",
-    opcionesTexto: (p.opciones ?? []).join(", "),
-  }))
-}
-
-function parametrosDraftAPayload(drafts: ParametroDraft[]): ParametroCondicion[] {
-  return drafts.map((d) => {
-    const base: ParametroCondicion = { nombre: d.nombre.trim(), fuente: d.fuente }
-    if (d.fuente === "MANUAL") {
-      if (d.tipoEntrada) base.tipoEntrada = d.tipoEntrada as "ENUM" | "TEXTO"
-      if (d.tipoEntrada === "ENUM" && d.opcionesTexto.trim()) {
-        base.opciones = d.opcionesTexto
-          .split(",")
-          .map((o) => o.trim())
-          .filter(Boolean)
-      }
-    }
-    return base
-  })
-}
-
-function EditorParametros({
-  drafts,
-  onChange,
-}: {
-  drafts: ParametroDraft[]
-  onChange: (siguiente: ParametroDraft[]) => void
-}) {
-  function agregarFila() {
-    onChange([...drafts, { nombre: "", fuente: "MANUAL", tipoEntrada: "TEXTO", opcionesTexto: "" }])
-  }
-
-  function eliminarFila(indice: number) {
-    onChange(drafts.filter((_, i) => i !== indice))
-  }
-
-  function actualizarFila(indice: number, cambios: Partial<ParametroDraft>) {
-    onChange(
-      drafts.map((d, i) => {
-        if (i !== indice) return d
-        const siguiente = { ...d, ...cambios }
-        // Si se cambia a AUTO, limpiar tipoEntrada y opciones
-        if (cambios.fuente === "AUTO") {
-          siguiente.tipoEntrada = ""
-          siguiente.opcionesTexto = ""
-        }
-        // Si se cambia tipoEntrada a TEXTO, limpiar opciones
-        if (cambios.tipoEntrada === "TEXTO") {
-          siguiente.opcionesTexto = ""
-        }
-        return siguiente
-      })
-    )
-  }
+function ParametrosDetectados({ texto }: { texto: string }) {
+  const parametros = extraerParametros(texto)
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">Parametros de placeholder</span>
-        <Button type="button" variant="outline" size="sm" onClick={agregarFila}>
-          <Plus className="size-3.5" />
-          Agregar
-        </Button>
-      </div>
-
-      {drafts.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          Sin parametros — la condicion no contiene placeholders.
-        </p>
+    <div className="rounded-md border border-dashed border-border bg-muted/20 p-3">
+      <p className="text-xs font-medium text-muted-foreground">Huecos detectados</p>
+      {parametros.length === 0 ? (
+        <p className="mt-1 text-xs text-muted-foreground">Sin huecos en el texto.</p>
       ) : (
-        <div className="flex flex-col gap-3">
-          {drafts.map((draft, indice) => (
-            <div key={indice} className="rounded-md border border-border p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Parametro {indice + 1}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="size-7 p-0 text-destructive hover:text-destructive"
-                  onClick={() => eliminarFila(indice)}
-                >
-                  <Trash2 className="size-3.5" />
-                  <span className="sr-only">Eliminar parametro</span>
-                </Button>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <div className="grid gap-1">
-                  <Label className="text-xs">Nombre del placeholder</Label>
-                  <Input
-                    placeholder="ej. dias_validez"
-                    value={draft.nombre}
-                    onChange={(e) => actualizarFila(indice, { nombre: e.target.value })}
-                    className="h-8 text-sm"
-                  />
-                </div>
-
-                <div className="grid gap-1">
-                  <Label className="text-xs">Fuente de resolucion</Label>
-                  <Select
-                    value={draft.fuente}
-                    onValueChange={(v) =>
-                      actualizarFila(indice, { fuente: v as "AUTO" | "MANUAL" })
-                    }
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="AUTO">AUTO (del contexto de la cotizacion)</SelectItem>
-                      <SelectItem value="MANUAL">MANUAL (el usuario lo ingresa)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {draft.fuente === "MANUAL" ? (
-                  <div className="grid gap-1">
-                    <Label className="text-xs">Tipo de entrada</Label>
-                    <Select
-                      value={draft.tipoEntrada}
-                      onValueChange={(v) =>
-                        actualizarFila(indice, { tipoEntrada: v as "ENUM" | "TEXTO" })
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Seleccionar..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="TEXTO">Texto libre</SelectItem>
-                        <SelectItem value="ENUM">Seleccion de opciones</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
-
-                {draft.fuente === "MANUAL" && draft.tipoEntrada === "ENUM" ? (
-                  <div className="grid gap-1">
-                    <Label className="text-xs">Opciones (separadas por coma)</Label>
-                    <Input
-                      placeholder="ej. 10, 15, 30"
-                      value={draft.opcionesTexto}
-                      onChange={(e) => actualizarFila(indice, { opcionesTexto: e.target.value })}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {parametros.map((parametro) => (
+            <Badge key={parametro} variant="outline" className="text-xs">
+              {parametro}
+            </Badge>
           ))}
         </div>
       )}
@@ -255,8 +108,8 @@ function DialogCrear({
 }) {
   const [errorCrear, setErrorCrear] = useState<string | null>(null)
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<CategoriaCondicion | "">("")
-  const [esConstante, setEsConstante] = useState(true)
-  const [parametros, setParametros] = useState<ParametroDraft[]>([])
+  const [porDefecto, setPorDefecto] = useState(true)
+  const [texto, setTexto] = useState("")
 
   const crear = useCrearCatalogoCondicionMutation({
     onSuccess: () => {
@@ -288,8 +141,8 @@ function DialogCrear({
       texto,
       categoria: categoriaSeleccionada,
       ordenSugerido,
-      esConstante,
-      parametros: parametrosDraftAPayload(parametros),
+      porDefecto,
+      parametros: extraerParametros(texto),
     })
   }
 
@@ -297,8 +150,8 @@ function DialogCrear({
     if (!open) {
       setErrorCrear(null)
       setCategoriaSeleccionada("")
-      setEsConstante(true)
-      setParametros([])
+      setPorDefecto(true)
+      setTexto("")
       onCerrar()
     }
   }
@@ -363,6 +216,8 @@ function DialogCrear({
                 <Textarea
                   id="crear-texto"
                   name="texto"
+                  value={texto}
+                  onChange={(event) => setTexto(event.target.value)}
                   placeholder="Texto de la clausula. Usa {nombre_placeholder} para variables."
                   rows={5}
                   required
@@ -386,28 +241,25 @@ function DialogCrear({
                 </div>
                 <div className="flex items-end gap-2 pb-0.5">
                   <Checkbox
-                    id="crear-esConstante"
-                    checked={esConstante}
-                    onCheckedChange={(v) => setEsConstante(Boolean(v))}
+                    id="crear-porDefecto"
+                    checked={porDefecto}
+                    onCheckedChange={(v) => setPorDefecto(Boolean(v))}
                   />
                   <div className="grid gap-0.5">
-                    <Label htmlFor="crear-esConstante" className="cursor-pointer">
-                      Preseleccionar por defecto
+                    <Label htmlFor="crear-porDefecto" className="cursor-pointer">
+                      Agregar por defecto a nuevas cotizaciones
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Se incluye automaticamente en nuevas cotizaciones.
+                      El popup la sugerira cuando la version no tenga condiciones.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <Separator />
-
-              <EditorParametros drafts={parametros} onChange={setParametros} />
+              <ParametrosDetectados texto={texto} />
             </div>
           </div>
 
-          <Separator />
           <SheetFooter className="flex-row justify-end gap-2">
             <SheetClose asChild>
               <Button type="button" variant="outline" disabled={crear.isPending}>
@@ -441,10 +293,8 @@ function DialogEditar({
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<CategoriaCondicion | "">(
     item?.categoria ?? ""
   )
-  const [esConstante, setEsConstante] = useState(item?.esConstante ?? true)
-  const [parametros, setParametros] = useState<ParametroDraft[]>(
-    item ? parametrosDraftDesde(item.parametros) : []
-  )
+  const [porDefecto, setPorDefecto] = useState(item?.porDefecto ?? true)
+  const [texto, setTexto] = useState(item?.texto ?? "")
 
   const actualizar = useActualizarCatalogoCondicionMutation(item?.id ?? "", {
     onSuccess: () => {
@@ -456,6 +306,12 @@ function DialogEditar({
       setErrorEditar(extraerMensajeError(err))
     },
   })
+
+  useEffect(() => {
+    setCategoriaSeleccionada(item?.categoria ?? "")
+    setPorDefecto(item?.porDefecto ?? true)
+    setTexto(item?.texto ?? "")
+  }, [item])
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -476,8 +332,8 @@ function DialogEditar({
       texto,
       categoria: categoriaSeleccionada,
       ordenSugerido,
-      esConstante,
-      parametros: parametrosDraftAPayload(parametros),
+      porDefecto,
+      parametros: extraerParametros(texto),
     })
   }
 
@@ -548,7 +404,8 @@ function DialogEditar({
                 <Textarea
                   id="editar-texto"
                   name="texto"
-                  defaultValue={item?.texto ?? ""}
+                  value={texto}
+                  onChange={(event) => setTexto(event.target.value)}
                   placeholder="Texto de la clausula. Usa {nombre_placeholder} para variables."
                   rows={5}
                   required
@@ -572,28 +429,25 @@ function DialogEditar({
                 </div>
                 <div className="flex items-end gap-2 pb-0.5">
                   <Checkbox
-                    id="editar-esConstante"
-                    checked={esConstante}
-                    onCheckedChange={(v) => setEsConstante(Boolean(v))}
+                    id="editar-porDefecto"
+                    checked={porDefecto}
+                    onCheckedChange={(v) => setPorDefecto(Boolean(v))}
                   />
                   <div className="grid gap-0.5">
-                    <Label htmlFor="editar-esConstante" className="cursor-pointer">
-                      Preseleccionar por defecto
+                    <Label htmlFor="editar-porDefecto" className="cursor-pointer">
+                      Agregar por defecto a nuevas cotizaciones
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Se incluye automaticamente en nuevas cotizaciones.
+                      El popup la sugerira cuando la version no tenga condiciones.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <Separator />
-
-              <EditorParametros drafts={parametros} onChange={setParametros} />
+              <ParametrosDetectados texto={texto} />
             </div>
           </div>
 
-          <Separator />
           <SheetFooter className="flex-row justify-end gap-2">
             <SheetClose asChild>
               <Button type="button" variant="outline" disabled={actualizar.isPending}>
@@ -704,10 +558,10 @@ function BadgeCategoria({ categoria }: { categoria: CategoriaCondicion }) {
   )
 }
 
-function BadgeConstante({ esConstante }: { esConstante: boolean }) {
+function BadgePorDefecto({ porDefecto }: { porDefecto: boolean }) {
   return (
-    <Badge variant={esConstante ? "secondary" : "outline"} className="text-xs">
-      {esConstante ? "Constante" : "Variable"}
+    <Badge variant={porDefecto ? "secondary" : "outline"} className="text-xs">
+      {porDefecto ? "Por defecto" : "Opcional"}
     </Badge>
   )
 }
@@ -743,9 +597,9 @@ const COLUMNAS: ColumnaTabla<CatalogoCondicion>[] = [
   },
   {
     id: "tipo",
-    encabezado: "Tipo",
+    encabezado: "Uso",
     ancho: "w-[10%]",
-    celda: (item) => <BadgeConstante esConstante={item.esConstante} />,
+    celda: (item) => <BadgePorDefecto porDefecto={item.porDefecto} />,
   },
   {
     id: "estado",

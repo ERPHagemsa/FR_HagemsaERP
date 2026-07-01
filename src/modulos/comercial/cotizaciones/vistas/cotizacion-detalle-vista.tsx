@@ -20,6 +20,7 @@ import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
+import { CLAVE_COTIZACION_DETALLE } from "../../claves-consulta";
 import { etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
 import type { Cotizacion, EstadoCotizacion } from "../tipos/cotizaciones.tipos";
 
@@ -30,9 +31,10 @@ type Props = {
 // Layout denso estilo Odoo: statusbar + pipeline + smart buttons + grupos
 // inline + notebook de versiones (una sola version visible a la vez).
 export function CotizacionDetalleVista({ id }: Props) {
-  const { data: cotizacion, isLoading } = useConsulta(
+  const { data: cotizacion, isLoading, refetch } = useConsulta(
     () => consultarCotizacion(id).catch(() => null),
     [id],
+    { clave: CLAVE_COTIZACION_DETALLE },
   );
 
   if (isLoading) {
@@ -118,6 +120,7 @@ export function CotizacionDetalleVista({ id }: Props) {
           idCotizacion={cotizacion.id}
           versiones={cotizacion.versiones}
           versionVigente={cotizacion.versionVigente}
+          onCondicionesActualizadas={refetch}
         />
       </div>
     </main>
@@ -336,4 +339,3 @@ function formatearFechaHora(value: string) {
     minute: "2-digit",
   }).format(new Date(value));
 }
-

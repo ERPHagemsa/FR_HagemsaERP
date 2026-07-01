@@ -25,8 +25,7 @@ import {
 } from "@/compartido/componentes/ui/select";
 
 import type { Moneda, OrigenTipo } from "../tipos/cotizaciones.tipos";
-import type { DraftBorrador, DraftCondicion, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
-import { EditorCondiciones } from "./editor-condiciones";
+import type { DraftBorrador, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
 import { EditorContenido } from "./editor-contenido";
 import { EditorLeadtimes } from "./editor-leadtimes";
 import { EditorStandby } from "./editor-standby";
@@ -75,10 +74,6 @@ export function EditorBorradorCampos({
 }: Props) {
   function actualizarSecciones(secciones: DraftSeccion[]) {
     setDraft((d) => ({ ...d, secciones }));
-  }
-
-  function actualizarCondiciones(condiciones: DraftCondicion[]) {
-    setDraft((d) => ({ ...d, condiciones }));
   }
 
   return (
@@ -183,28 +178,6 @@ export function EditorBorradorCampos({
                   erroresCampo={erroresCampo}
                   disabled={guardando}
                   onChange={(leadTimes) => setDraft((d) => ({ ...d, leadTimes }))}
-                />
-              </AccordionContent>
-            </AccordionItem>
-
-            <AccordionItem value="condiciones">
-              <AccordionTrigger className="px-6">
-                <div className="flex flex-col items-start gap-0.5 text-left">
-                  <span className="text-sm font-medium">
-                    Condiciones del contrato ({draft.condiciones.length} seleccionadas)
-                  </span>
-                  <span className="text-xs font-normal text-muted-foreground">
-                    Clausulas de consideraciones del servicio y tarifas incluidas. Se
-                    imprimen en el PDF de la cotizacion.
-                  </span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="h-auto px-6 pb-4">
-                <EditorCondiciones
-                  condiciones={draft.condiciones}
-                  erroresCampo={erroresCampo}
-                  disabled={guardando}
-                  onChange={actualizarCondiciones}
                 />
               </AccordionContent>
             </AccordionItem>

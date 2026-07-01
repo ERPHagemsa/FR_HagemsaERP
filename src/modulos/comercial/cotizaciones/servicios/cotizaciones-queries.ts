@@ -1,6 +1,7 @@
 "use client";
 
 import { invalidarConsulta, useConsulta, useMutar } from "@/compartido/api";
+import { toast } from "sonner";
 
 import type {
   FiltrosCatalogosCargoAdicional,
@@ -8,6 +9,7 @@ import type {
   FiltrosModalidades,
   FiltrosResumenCotizaciones,
   ParamsPrecioSugerido,
+  PayloadActualizarCondicionesVersion,
   PayloadBorrador,
   PayloadEnviar,
   PayloadNuevaVersion,
@@ -15,6 +17,7 @@ import type {
 } from "../tipos/cotizaciones.tipos";
 import {
   actualizarBorrador,
+  actualizarCondicionesVersion,
   cancelarCotizacion,
   consultarCotizacion,
   enviarCotizacion,
@@ -126,6 +129,19 @@ export function useActualizarBorradorMutation(id: string) {
     fn: (payload) => actualizarBorrador(id, payload),
     onSuccess: () => {
       invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+    },
+  });
+}
+
+export function useActualizarCondicionesVersionMutation(idCotizacion: string) {
+  return useMutar<
+    PayloadActualizarCondicionesVersion,
+    Awaited<ReturnType<typeof actualizarCondicionesVersion>>
+  >({
+    fn: (payload) => actualizarCondicionesVersion(idCotizacion, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+      toast.success("Condiciones guardadas correctamente.");
     },
   });
 }

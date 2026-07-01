@@ -23,7 +23,7 @@ export async function crearCatalogoCondicion(payload: {
   texto: string;
   categoria: string;
   ordenSugerido?: number;
-  esConstante?: boolean;
+  porDefecto?: boolean;
   parametros?: ParametroCondicion[];
 }): Promise<{ id: string }> {
   const { data } = await clienteComercial.post<{ id: string }>(
@@ -41,7 +41,7 @@ export async function actualizarCatalogoCondicion(
     texto?: string;
     categoria?: string;
     ordenSugerido?: number;
-    esConstante?: boolean;
+    porDefecto?: boolean;
     parametros?: ParametroCondicion[];
   }
 ): Promise<void> {
