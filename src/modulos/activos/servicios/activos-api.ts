@@ -616,6 +616,50 @@ export async function buscarActivosPorCodigoOPlaca(
   return combinados;
 }
 
+export type FiltrosBusquedaActivo = {
+  codigo?: string;
+  placa?: string;
+  marca?: string;
+  modelo?: string;
+  anioFabricacion?: number;
+  tipoActivoReferenciaId?: number;
+  claseVehiculoReferenciaId?: number;
+  limite?: number;
+};
+
+/**
+ * Busqueda de activos para la "mesa de trabajo" de documentos: filtros
+ * separados (marca/modelo/ano/tipo/clase ademas de codigo/placa), todos
+ * opcionales y combinables. Solo activos vigentes (`estadoRegistro: true`).
+ */
+export async function buscarActivosConFiltros(
+  filtros: FiltrosBusquedaActivo
+): Promise<Activo[]> {
+  const queryParams: Record<string, unknown> = {
+    estadoRegistro: true,
+    limite: filtros.limite ?? 50,
+  };
+  if (filtros.codigo?.trim()) queryParams.codigo = filtros.codigo.trim();
+  if (filtros.placa?.trim()) queryParams.placa = filtros.placa.trim();
+  if (filtros.marca?.trim()) queryParams.marca = filtros.marca.trim();
+  if (filtros.modelo?.trim()) queryParams.modelo = filtros.modelo.trim();
+  if (filtros.anioFabricacion) {
+    queryParams.anioFabricacion = filtros.anioFabricacion;
+  }
+  if (filtros.tipoActivoReferenciaId) {
+    queryParams.tipoActivoReferenciaId = filtros.tipoActivoReferenciaId;
+  }
+  if (filtros.claseVehiculoReferenciaId) {
+    queryParams.claseVehiculoReferenciaId = filtros.claseVehiculoReferenciaId;
+  }
+
+  const { data } = await clienteActivos.get<RespuestaPaginada<Activo>>(
+    "/activos",
+    { params: queryParams }
+  );
+  return [...data.datos];
+}
+
 export async function obtenerPerfilFlotaPorPlaca(
   placa: string
 ): Promise<PerfilFlota | null> {

@@ -33,8 +33,9 @@ type Props = {
 export function CotizacionDetalleVista({ id }: Props) {
   // `clave` suscribe esta consulta al registro de invalidacion: tras enviar /
   // ganar / perder / cancelar (que llaman invalidarConsulta(CLAVE_COTIZACION_DETALLE))
-  // la pagina refetchea sola, sin necesidad de refrescar a mano.
-  const { data: cotizacion, isLoading } = useConsulta(
+  // la pagina refetchea sola, sin necesidad de refrescar a mano. `refetch` se usa
+  // ademas para refrescar tras actualizar las condiciones de la version.
+  const { data: cotizacion, isLoading, refetch } = useConsulta(
     () => consultarCotizacion(id).catch(() => null),
     [id],
     { clave: CLAVE_COTIZACION_DETALLE },
@@ -131,6 +132,7 @@ export function CotizacionDetalleVista({ id }: Props) {
           editable={editable}
           clienteTipo={cotizacion.origenTipo}
           clienteId={cotizacion.origenId}
+          onCondicionesActualizadas={refetch}
         />
       </div>
     </main>
@@ -349,4 +351,3 @@ function formatearFechaHora(value: string) {
     minute: "2-digit",
   }).format(new Date(value));
 }
-

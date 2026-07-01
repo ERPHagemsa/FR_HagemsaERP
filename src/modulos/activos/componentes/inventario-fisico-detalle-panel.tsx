@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   ClipboardCheck,
@@ -13,6 +14,16 @@ import {
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/compartido/componentes/ui/alert-dialog";
 import {
   Card,
   CardContent,
@@ -87,6 +98,8 @@ export function InventarioFisicoDetallePanel({
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
   const [error, setError] = React.useState<string | null>(null);
   const [cerrando, setCerrando] = React.useState(false);
+  const [confirmarCierreAbierto, setConfirmarCierreAbierto] =
+    React.useState(false);
   const [detalleSeleccionadoKey, setDetalleSeleccionadoKey] = React.useState<
     string | null
   >(null);
@@ -238,12 +251,19 @@ export function InventarioFisicoDetallePanel({
       }
 
       setInventario(actualizado);
+      setDetalleSeleccionadoKey(null);
+      toast.success("Revision guardada", {
+        description: "El resultado fisico fue registrado correctamente.",
+      });
     } catch (err) {
-      setError(
+      const mensaje =
         err instanceof Error
           ? err.message
-          : "No se pudo actualizar el detalle del inventario"
-      );
+          : "No se pudo actualizar el detalle del inventario";
+      setError(mensaje);
+      toast.error("No se pudo guardar la revision", {
+        description: mensaje,
+      });
     }
   }
 
@@ -252,15 +272,6 @@ export function InventarioFisicoDetallePanel({
       setError("El inventario ya esta cerrado o anulado.");
       return;
     }
-
-    const mensajePendientes = resumen.pendientes
-      ? `Hay ${resumen.pendientes} activos pendientes de revision.`
-      : "Todos los activos tienen revision registrada.";
-    const confirmado = window.confirm(
-      `${mensajePendientes}\n\nDeseas cerrar este inventario fisico? Al cerrarlo quedara en modo solo lectura.`
-    );
-
-    if (!confirmado) return;
 
     setError(null);
     setCerrando(true);
@@ -271,10 +282,17 @@ export function InventarioFisicoDetallePanel({
         observacion: `Cierre desde Inventario Fisico. Inventariados: ${resumen.inventariados}. Pendientes: ${resumen.pendientes}. Faltantes: ${resumen.faltantes}. Observados: ${resumen.observados}.`,
       });
       setInventario(actualizado);
+      setConfirmarCierreAbierto(false);
+      toast.success("Inventario cerrado", {
+        description: "El inventario quedo en modo solo lectura.",
+      });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "No se pudo cerrar el inventario"
-      );
+      const mensaje =
+        err instanceof Error ? err.message : "No se pudo cerrar el inventario";
+      setError(mensaje);
+      toast.error("No se pudo cerrar el inventario", {
+        description: mensaje,
+      });
     } finally {
       setCerrando(false);
     }
@@ -290,7 +308,12 @@ export function InventarioFisicoDetallePanel({
             {inventario.descripcion || "Revision fisica de activos vigentes."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Badge variant="outline">{formatear(inventario.estado)}</Badge>
+            <Badge
+              variant="outline"
+              className={estadoInventarioClassName(inventario.estado)}
+            >
+              {formatear(inventario.estado)}
+            </Badge>
             <Badge variant="outline">{resumen.inventariados} inventariados</Badge>
             <Badge variant="outline">{resumen.candidatos} candidatos</Badge>
             <Badge variant="outline">{resumen.pendientes} pendientes</Badge>
@@ -306,13 +329,40 @@ export function InventarioFisicoDetallePanel({
             </Link>
           </Button>
           {inventario.estado !== "CERRADO" && inventario.estado !== "ANULADO" ? (
-            <Button onClick={cerrarInventario} disabled={cerrando}>
+            <Button
+              onClick={() => setConfirmarCierreAbierto(true)}
+              disabled={cerrando}
+            >
               <ClipboardCheck className="size-4" />
               {cerrando ? "Cerrando..." : "Cerrar inventario"}
             </Button>
           ) : null}
         </div>
       </div>
+
+      <AlertDialog
+        open={confirmarCierreAbierto}
+        onOpenChange={setConfirmarCierreAbierto}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cerrar inventario fisico</AlertDialogTitle>
+            <AlertDialogDescription>
+              {resumen.pendientes
+                ? `Hay ${resumen.pendientes} activos pendientes de revision.`
+                : "Todos los activos tienen revision registrada."}{" "}
+              Al cerrar el inventario quedara en modo solo lectura y ya no se
+              podran editar resultados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cerrando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={cerrarInventario} disabled={cerrando}>
+              {cerrando ? "Cerrando..." : "Cerrar inventario"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {error ? (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -2168,4 +2218,21 @@ function formatear(value?: unknown) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function estadoInventarioClassName(estado: InventarioFisico["estado"]) {
+  switch (estado) {
+    case "CREADO":
+      return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300";
+    case "ABIERTO":
+      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+    case "EN_REVISION":
+      return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300";
+    case "CERRADO":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
+    case "ANULADO":
+      return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300";
+    default:
+      return "";
+  }
 }

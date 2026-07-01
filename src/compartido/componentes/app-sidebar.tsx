@@ -63,12 +63,10 @@ const data = {
         { title: "Listado de activos", url: "/activos/inventario" },
         { title: "Inventario fisico", url: "/activos/inventario-fisico" },
         { title: "Nuevo activo", url: "/activos/nuevo" },
-        { title: "Carga masiva", url: "/activos/carga-masiva" },
+        { title: "Carga masiva activos", url: "/activos/carga-masiva" },
         { title: "Carga masiva documentos", url: "/activos/carga-masiva-documentos" },
         { title: "Replaqueo", url: "/activos/nuevo-acople" },
         { title: "Administrador de maestros", url: "/activos/maestros" },
-        { title: "Estados", url: "#" },
-        { title: "Documentos", url: "#" },
       ],
     },
     {
@@ -102,6 +100,7 @@ const data = {
         { title: "Contratos", url: "/comercial/contratos" },
         { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
         { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
+        { title: "Condiciones", url: "/comercial/catalogos/condiciones" },
         // Listado global de cotizaciones: vista secundaria/reporte. El camino principal
         // para cotizar es Solicitudes de cliente (la cotizacion nace de una SC).
         { title: "Todas las cotizaciones", url: "/comercial/cotizaciones" },

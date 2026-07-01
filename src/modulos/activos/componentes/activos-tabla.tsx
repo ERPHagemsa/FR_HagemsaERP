@@ -213,25 +213,26 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
 
   // Paginación: externa (server-side) o interna (client-side)
   const usarPaginacionExterna = paginacionExterna !== undefined;
-  const totalPaginas = usarPaginacionExterna
+  const usarPaginacionRemota = usarPaginacionExterna && !hayFiltros;
+  const totalPaginas = usarPaginacionRemota
     ? paginacionExterna.totalPaginas
     : Math.max(1, Math.ceil(ordenados.length / registrosPorPagina));
   const inicioPagina = (pagina - 1) * registrosPorPagina;
   const finPagina = inicioPagina + registrosPorPagina;
   // Si es server-side los activos ya vienen paginados; no re-sliceamos
-  const visibles = usarPaginacionExterna
+  const visibles = usarPaginacionRemota
     ? ordenados
     : ordenados.slice(inicioPagina, finPagina);
-  const totalParaTexto = usarPaginacionExterna
+  const totalParaTexto = usarPaginacionRemota
     ? paginacionExterna.total
     : ordenados.length;
-  const paginaActual = usarPaginacionExterna ? paginacionExterna.pagina : pagina;
+  const paginaActual = usarPaginacionRemota ? paginacionExterna.pagina : pagina;
   const desdeVisible = totalParaTexto
-    ? usarPaginacionExterna
+    ? usarPaginacionRemota
       ? (paginaActual - 1) * registrosPorPagina + 1
       : inicioPagina + 1
     : 0;
-  const hastaVisible = usarPaginacionExterna
+  const hastaVisible = usarPaginacionRemota
     ? Math.min(paginaActual * registrosPorPagina, paginacionExterna.total)
     : Math.min(finPagina, ordenados.length);
 
@@ -799,7 +800,7 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                 onChange={(event) => {
                   const nuevo = Number(event.target.value);
                   setRegistrosPorPagina(nuevo);
-                  if (usarPaginacionExterna) {
+                  if (usarPaginacionRemota) {
                     paginacionExterna.onCambiarLimite(nuevo);
                   }
                 }}
@@ -813,9 +814,9 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={usarPaginacionExterna ? !paginacionExterna.tieneAnterior : pagina === 1}
+              disabled={usarPaginacionRemota ? !paginacionExterna.tieneAnterior : pagina === 1}
               onClick={() => {
-                if (usarPaginacionExterna) {
+                if (usarPaginacionRemota) {
                   paginacionExterna.onCambiarPagina(paginaActual - 1);
                 } else {
                   setPagina((actual) => Math.max(1, actual - 1));
@@ -831,9 +832,9 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={usarPaginacionExterna ? !paginacionExterna.tieneSiguiente : pagina === totalPaginas}
+              disabled={usarPaginacionRemota ? !paginacionExterna.tieneSiguiente : pagina === totalPaginas}
               onClick={() => {
-                if (usarPaginacionExterna) {
+                if (usarPaginacionRemota) {
                   paginacionExterna.onCambiarPagina(paginaActual + 1);
                 } else {
                   setPagina((actual) => Math.min(totalPaginas, actual + 1));

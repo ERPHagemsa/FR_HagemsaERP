@@ -238,11 +238,12 @@ export type Version = {
   validezDias: number | null;
   fechaVencimiento: string | null;
   fechaEnvio: string | null;
-  condiciones: string | null;
+  condiciones: string | null; // legacy free-text (a eliminar en WU-7); aun presente en el backend
   notas: string | null;
   secciones: Seccion[];
   lineas: Linea[];
   leadTimes: LeadTime[]; // nivel version
+  condicionesVersion?: CondicionVersion[]; // snapshots de condiciones resueltas (WU-4+)
 };
 
 export type Cotizacion = {
@@ -421,6 +422,55 @@ export type FiltrosCatalogosCargoAdicional = {
 };
 
 // ---------------------------------------------------------------------------
+// Catalogo de condiciones de cotizacion
+// ---------------------------------------------------------------------------
+
+export type EstadoCatalogoCondicion = "ACTIVO" | "INACTIVO";
+
+export type CategoriaCondicion = "CONSIDERACIONES_SERVICIO" | "TARIFAS_INCLUYEN";
+
+export type ParametroCondicion = string;
+
+export type CatalogoCondicion = {
+  id: string;
+  titulo: string;
+  texto: string;
+  categoria: CategoriaCondicion;
+  parametros: ParametroCondicion[];
+  porDefecto: boolean;
+  ordenSugerido: number;
+  estado: EstadoCatalogoCondicion;
+};
+
+export type RespuestaPaginadaCatalogosCondicion = {
+  data: CatalogoCondicion[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+};
+
+export type FiltrosCatalogosCondicion = {
+  estado?: EstadoCatalogoCondicion;
+  categoria?: CategoriaCondicion;
+  busqueda?: string;
+  pagina?: number;
+  porPagina?: number;
+};
+
+// Snapshot de una condicion resuelta en la version (read model — shape que
+// devuelve el backend en version.condicionesVersion[]). idCatalogoCondicion
+// es nullable por diseno de desacoplamiento (el snapshot sobrevive al borrado
+// del maestro), pero en v1 siempre viene poblado.
+export type CondicionVersion = {
+  id: string;
+  idCatalogoCondicion: string | null;
+  categoria: CategoriaCondicion;
+  textoResuelto: string;
+  valores: Record<string, string>;
+  orden: number;
+};
+
+// ---------------------------------------------------------------------------
 // DTOs de escritura (write model — anidado, lo que acepta el backend)
 // CRITICO: NUNCA enviar idSeccion, precioVenta, precioVentaTotal ni totales (los calcula el backend).
 // `precioBase` y `margenPct` (ambos requeridos) y `cantidad` (opcional, default 1) SI se envian a
@@ -447,6 +497,19 @@ export type PayloadCargoAdicional = {
   precioUnitario: number;
   standbyDia?: number | null; // stand-by del cargo (>= 0) o null
   orden?: number;
+};
+
+// --- PayloadCondicionVersion (endpoint dedicado de condiciones por version) ---
+// El backend espera el conjunto completo de condiciones seleccionadas (replacement
+// idempotente). Cada condicion viaja con los valores crudos de sus placeholders.
+export type PayloadCondicionVersion = {
+  idCatalogoCondicion: string;
+  valores?: Record<string, string>;
+  orden: number;
+};
+
+export type PayloadActualizarCondicionesVersion = {
+  condiciones: PayloadCondicionVersion[];
 };
 
 // Hijos polimorficos del write model (sin id — el backend los re-crea)

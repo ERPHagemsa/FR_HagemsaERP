@@ -213,7 +213,12 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
+                        <Badge
+                          variant="outline"
+                          className={estadoInventarioClassName(
+                            inventario.estado
+                          )}
+                        >
                           {formatear(inventario.estado)}
                         </Badge>
                       </TableCell>
@@ -443,6 +448,23 @@ function formatear(value?: string | null) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function estadoInventarioClassName(estado: InventarioFisico["estado"]) {
+  switch (estado) {
+    case "CREADO":
+      return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300";
+    case "ABIERTO":
+      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+    case "EN_REVISION":
+      return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300";
+    case "CERRADO":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
+    case "ANULADO":
+      return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300";
+    default:
+      return "";
+  }
 }
 
 function formatearFecha(fecha?: string | null) {
