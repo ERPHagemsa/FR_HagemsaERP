@@ -44,6 +44,13 @@ function formatearFecha(iso: string | null): string {
   return new Date(iso).toLocaleDateString("es-PE")
 }
 
+// Vigencia es fecha-solo (se guarda como medianoche UTC). Se formatea en UTC para
+// no correrla un dia por la zona horaria local (Lima UTC-5).
+function formatearFechaVigencia(iso: string | null): string {
+  if (!iso) return "—"
+  return new Date(iso).toLocaleDateString("es-PE", { timeZone: "UTC" })
+}
+
 interface Props {
   idContrato: string
 }
@@ -123,9 +130,9 @@ export function ContratoDetalle({ idContrato }: Props) {
           <div>
             <p className="text-xs text-muted-foreground">Vigencia</p>
             <p>
-              {formatearFecha(contrato.vigenciaInicio)}
+              {formatearFechaVigencia(contrato.vigenciaInicio)}
               {" → "}
-              {formatearFecha(contrato.vigenciaFin)}
+              {formatearFechaVigencia(contrato.vigenciaFin)}
             </p>
           </div>
           <div>

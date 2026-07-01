@@ -444,6 +444,12 @@ export function TarifarioDetalle({ idTarifario }: Props) {
     Boolean(tarifario?.idClienteExterno) &&
     !tarifario?.idContrato
 
+  // La edicion de CONTENIDO (tarifas, cargos, vigencia) solo aplica a tarifarios
+  // MANUALES. Los generados desde una cotizacion ganada son de SOLO LECTURA
+  // (consagran lo pactado); igual permiten anular y crear contrato.
+  const editable = vigente && tarifario?.tipoOrigen === "MANUAL"
+  const soloLectura = vigente && !editable
+
   if (consulta.isLoading) {
     return <Skeleton className="h-96 w-full" />
   }
@@ -479,7 +485,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
               </Link>
             </Button>
           ) : null}
-          {vigente ? (
+          {editable ? (
             <Button
               variant="outline"
               onClick={() => setEditarVigenciaAbierto(true)}
@@ -501,12 +507,20 @@ export function TarifarioDetalle({ idTarifario }: Props) {
         <CardHeader className="border-b border-border">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle>Tarifario</CardTitle>
-            <Badge variant={vigente ? "default" : "secondary"}>
-              {etiquetaEstadoTarifario(tarifario.estado)}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {soloLectura ? (
+                <Badge variant="outline">Solo lectura</Badge>
+              ) : null}
+              <Badge variant={vigente ? "default" : "secondary"}>
+                {etiquetaEstadoTarifario(tarifario.estado)}
+              </Badge>
+            </div>
           </div>
           <CardDescription>
             {etiquetaTipoOrigen(tarifario.tipoOrigen)} · {tarifario.moneda}
+            {soloLectura
+              ? " · Generado desde una cotización (no editable)"
+              : ""}
             {tarifario.nombreClienteExterno ?? tarifario.idClienteExterno
               ? ` · Cliente ${tarifario.nombreClienteExterno ?? tarifario.idClienteExterno}`
               : ""}
@@ -537,11 +551,15 @@ export function TarifarioDetalle({ idTarifario }: Props) {
             <p className="text-xs text-muted-foreground">Vigencia</p>
             <p>
               {tarifario.vigenciaInicio
-                ? new Date(tarifario.vigenciaInicio).toLocaleDateString("es-PE")
+                ? new Date(tarifario.vigenciaInicio).toLocaleDateString("es-PE", {
+                    timeZone: "UTC",
+                  })
                 : "—"}
               {" → "}
               {tarifario.vigenciaFin
-                ? new Date(tarifario.vigenciaFin).toLocaleDateString("es-PE")
+                ? new Date(tarifario.vigenciaFin).toLocaleDateString("es-PE", {
+                    timeZone: "UTC",
+                  })
                 : "—"}
             </p>
           </div>
@@ -556,7 +574,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
         <CardHeader className="border-b border-border">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Tarifas</CardTitle>
-            {vigente ? (
+            {editable ? (
               <Button size="sm" onClick={() => setAgregarAbierto(true)}>
                 <Plus />
                 Agregar tarifa
@@ -576,17 +594,17 @@ export function TarifarioDetalle({ idTarifario }: Props) {
                   <TableHead>Condicion</TableHead>
                   <TableHead className="text-right">Precio</TableHead>
                   <TableHead className="text-right">Standby</TableHead>
-                  {vigente ? <TableHead className="text-center">Acciones</TableHead> : null}
+                  {editable ? <TableHead className="text-center">Acciones</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tarifario.tarifas.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={vigente ? 8 : 7}
+                      colSpan={editable ? 8 : 7}
                       className="h-24 text-center text-muted-foreground"
                     >
-                      Sin tarifas. {vigente ? "Agrega la primera." : ""}
+                      Sin tarifas. {editable ? "Agrega la primera." : ""}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -607,7 +625,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
                           ? t.tarifaStandbyDia.toLocaleString("es-PE")
                           : "—"}
                       </TableCell>
-                      {vigente ? (
+                      {editable ? (
                         <TableCell>
                           <div className="flex items-center justify-center gap-1.5">
                             <Button
@@ -648,7 +666,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
                 la modalidad SIN_MODALIDAD).
               </CardDescription>
             </div>
-            {vigente ? (
+            {editable ? (
               <Button size="sm" onClick={() => setAgregarCargoAbierto(true)}>
                 <Plus />
                 Agregar cargo
@@ -669,17 +687,17 @@ export function TarifarioDetalle({ idTarifario }: Props) {
                   <TableHead>Condicion</TableHead>
                   <TableHead className="text-right">Precio</TableHead>
                   <TableHead className="text-right">Standby</TableHead>
-                  {vigente ? <TableHead className="text-center">Acciones</TableHead> : null}
+                  {editable ? <TableHead className="text-center">Acciones</TableHead> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {tarifario.cargos.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={vigente ? 9 : 8}
+                      colSpan={editable ? 9 : 8}
                       className="h-24 text-center text-muted-foreground"
                     >
-                      Sin cargos adicionales. {vigente ? "Agrega el primero." : ""}
+                      Sin cargos adicionales. {editable ? "Agrega el primero." : ""}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -703,7 +721,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
                           ? c.tarifaStandbyDia.toLocaleString("es-PE")
                           : "—"}
                       </TableCell>
-                      {vigente ? (
+                      {editable ? (
                         <TableCell>
                           <div className="flex items-center justify-center gap-1.5">
                             <Button

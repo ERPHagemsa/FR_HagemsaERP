@@ -656,11 +656,16 @@ function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
  *
  * Contrato 2026-06 (API-Cotizaciones.md §5.4): NO existe canal de lineas raiz.
  * Toda linea va dentro de secciones[].lineas; el caso "plano" (bucket por defecto)
- * es una seccion SIN nombre (se omite `nombre`). Se descartan secciones vacias
- * (sin lineas ni cargos) para no enviar ruido.
+ * es una seccion SIN nombre (se omite `nombre`).
+ *
+ * Se descarta solo el RUIDO: la seccion por defecto vacia, o una seccion sin nombre
+ * y vacia. Una seccion CON nombre (creada a proposito por el usuario) se CONSERVA
+ * aunque aun no tenga lineas — se crea primero y luego se le agrega contenido; si se
+ * descartara, al reemplazar el borrador desapareceria tras el refetch.
  */
 function seccionAPayload(s: DraftSeccion): PayloadSeccion | null {
-  if (s.lineas.length === 0 && s.cargosAdicionales.length === 0) {
+  const vacia = s.lineas.length === 0 && s.cargosAdicionales.length === 0;
+  if (vacia && (s.esDefecto || s.nombre.trim() === "")) {
     return null;
   }
   // La ruta vive en la seccion: la propagamos a la carga de cada linea de transporte

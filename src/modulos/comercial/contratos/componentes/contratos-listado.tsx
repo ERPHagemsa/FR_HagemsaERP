@@ -56,6 +56,13 @@ function formatearFecha(iso: string | null): string {
   return new Date(iso).toLocaleDateString("es-PE")
 }
 
+// Vigencia es fecha-solo (medianoche UTC): se formatea en UTC para no correrla un
+// dia por la zona horaria local.
+function formatearFechaVigencia(iso: string | null): string {
+  if (!iso) return "—"
+  return new Date(iso).toLocaleDateString("es-PE", { timeZone: "UTC" })
+}
+
 interface Props {
   filtros: FiltrosContratos
   onFiltrosChange: (f: Partial<FiltrosContratos>) => void
@@ -183,9 +190,9 @@ export function ContratosListado({ filtros, onFiltrosChange }: Props) {
                       {item.nombreClienteExterno ?? item.idClienteExterno}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {formatearFecha(item.vigenciaInicio)}
+                      {formatearFechaVigencia(item.vigenciaInicio)}
                       {" → "}
-                      {formatearFecha(item.vigenciaFin)}
+                      {formatearFechaVigencia(item.vigenciaFin)}
                     </TableCell>
                     <TableCell className="text-center">
                       {item.tienePdf ? (
