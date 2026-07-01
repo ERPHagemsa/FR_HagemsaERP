@@ -3,7 +3,7 @@
 
 export type Moneda = "PEN" | "USD"
 export type TipoOrigenTarifa = "COTIZACION" | "CONTRATO" | "MANUAL"
-export type EstadoTarifario = "VIGENTE" | "ANULADO"
+export type EstadoTarifario = "VIGENTE" | "ANULADO" | "VENCIDO"
 
 // Una fila de tarifa dentro del detalle del tarifario.
 export interface Tarifa {
@@ -109,6 +109,20 @@ export interface PayloadCrearTarifarioManual {
 
 // Todos los campos opcionales (cambio parcial / enriquecimiento).
 export type PayloadActualizarTarifa = Partial<PayloadTarifa>
+
+// Fija/actualiza el rango de vigencia (fechas ISO "YYYY-MM-DD" o null para limpiar).
+export interface PayloadEstablecerVigencia {
+  vigenciaInicio?: string | null
+  vigenciaFin?: string | null
+}
+
+export function etiquetaEstadoTarifario(valor: EstadoTarifario): string {
+  return valor === "VIGENTE"
+    ? "Vigente"
+    : valor === "VENCIDO"
+      ? "Vencido"
+      : "Anulado"
+}
 
 // Payload de un cargo (accessorial) al agregarlo al detalle del tarifario.
 export interface PayloadTarifaCargo {

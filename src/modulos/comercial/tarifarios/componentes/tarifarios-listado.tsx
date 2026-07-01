@@ -88,6 +88,8 @@ function SheetCrearManual({
   const [moneda, setMoneda] = useState<Moneda>("PEN")
   const [idClienteExterno, setIdClienteExterno] = useState("")
   const [nombreClienteExterno, setNombreClienteExterno] = useState("")
+  const [vigenciaInicio, setVigenciaInicio] = useState("")
+  const [vigenciaFin, setVigenciaFin] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   const crear = useCrearTarifarioManualMutation({
@@ -102,6 +104,8 @@ function SheetCrearManual({
         moneda,
         idClienteExterno: idClienteExterno.trim() || undefined,
         nombreClienteExterno: nombreClienteExterno.trim() || undefined,
+        vigenciaInicio: vigenciaInicio || undefined,
+        vigenciaFin: vigenciaFin || undefined,
         tarifas: [],
       })
       .catch(() => null)
@@ -166,6 +170,27 @@ function SheetCrearManual({
               onChange={(e) => setIdClienteExterno(e.target.value)}
               placeholder="Id del cliente en Socio de Negocio"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="vig-ini">Vigencia inicio (opcional)</Label>
+              <Input
+                id="vig-ini"
+                type="date"
+                value={vigenciaInicio}
+                onChange={(e) => setVigenciaInicio(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="vig-fin">Vigencia fin (opcional)</Label>
+              <Input
+                id="vig-fin"
+                type="date"
+                value={vigenciaFin}
+                onChange={(e) => setVigenciaFin(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 

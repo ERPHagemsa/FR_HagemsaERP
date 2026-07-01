@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Ban, Pencil, Plus, Trash2 } from "lucide-react"
+import { ArrowLeft, Ban, CalendarClock, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api/formato-error"
 import {
@@ -70,9 +70,11 @@ import {
   useAnularTarifarioMutation,
   useEliminarCargoMutation,
   useEliminarTarifaMutation,
+  useEstablecerVigenciaMutation,
   useTarifarioDetalleQuery,
 } from "../servicios/tarifarios-queries"
 import {
+  etiquetaEstadoTarifario,
   etiquetaTipoOrigen,
   UNIDADES_COBRO,
   type PayloadTarifa,
@@ -432,6 +434,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
   const [cargoEditando, setCargoEditando] = useState<TarifaCargo | null>(null)
   const [cargoEliminando, setCargoEliminando] = useState<TarifaCargo | null>(null)
   const [anularAbierto, setAnularAbierto] = useState(false)
+  const [editarVigenciaAbierto, setEditarVigenciaAbierto] = useState(false)
 
   const vigente = tarifario?.estado === "VIGENTE"
   // El contrato nace del tarifario: solo si esta vigente, tiene cliente y aun no
@@ -477,6 +480,15 @@ export function TarifarioDetalle({ idTarifario }: Props) {
             </Button>
           ) : null}
           {vigente ? (
+            <Button
+              variant="outline"
+              onClick={() => setEditarVigenciaAbierto(true)}
+            >
+              <CalendarClock />
+              Editar vigencia
+            </Button>
+          ) : null}
+          {vigente ? (
             <Button variant="outline" onClick={() => setAnularAbierto(true)}>
               <Ban />
               Anular tarifario
@@ -490,7 +502,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle>Tarifario</CardTitle>
             <Badge variant={vigente ? "default" : "secondary"}>
-              {vigente ? "Vigente" : "Anulado"}
+              {etiquetaEstadoTarifario(tarifario.estado)}
             </Badge>
           </div>
           <CardDescription>
@@ -755,6 +767,13 @@ export function TarifarioDetalle({ idTarifario }: Props) {
         idTarifario={idTarifario}
         cargo={cargoEliminando}
         onCerrar={() => setCargoEliminando(null)}
+      />
+      <DialogEditarVigencia
+        idTarifario={idTarifario}
+        abierto={editarVigenciaAbierto}
+        vigenciaInicio={tarifario.vigenciaInicio}
+        vigenciaFin={tarifario.vigenciaFin}
+        onCerrar={() => setEditarVigenciaAbierto(false)}
       />
       <DialogAnular
         idTarifario={idTarifario}
@@ -1156,6 +1175,116 @@ function DialogEliminarCargo({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  )
+}
+
+function DialogEditarVigencia({
+  idTarifario,
+  abierto,
+  vigenciaInicio,
+  vigenciaFin,
+  onCerrar,
+}: {
+  idTarifario: string
+  abierto: boolean
+  vigenciaInicio: string | null
+  vigenciaFin: string | null
+  onCerrar: () => void
+}) {
+  const aFecha = (v: string | null) => (v ? v.slice(0, 10) : "")
+  const [inicio, setInicio] = useState(aFecha(vigenciaInicio))
+  const [fin, setFin] = useState(aFecha(vigenciaFin))
+  const [visto, setVisto] = useState(abierto)
+  const [error, setError] = useState<string | null>(null)
+
+  // Reinicia los campos desde las props cada vez que se (re)abre el sheet.
+  if (abierto !== visto) {
+    setVisto(abierto)
+    if (abierto) {
+      setInicio(aFecha(vigenciaInicio))
+      setFin(aFecha(vigenciaFin))
+      setError(null)
+    }
+  }
+
+  const guardar = useEstablecerVigenciaMutation(idTarifario, {
+    onSuccess: () => {
+      setError(null)
+      onCerrar()
+    },
+    onError: (err) => setError(extraerMensajeError(err)),
+  })
+
+  const rangoInvalido = Boolean(inicio && fin && fin < inicio)
+
+  function handleConfirmar() {
+    if (rangoInvalido) return
+    setError(null)
+    guardar.mutate({
+      vigenciaInicio: inicio || null,
+      vigenciaFin: fin || null,
+    })
+  }
+
+  return (
+    <Sheet open={abierto} onOpenChange={(o) => !o && onCerrar()}>
+      <SheetContent
+        side="right"
+        className="w-full gap-0 data-[side=right]:sm:max-w-md"
+      >
+        <SheetHeader className="border-b border-border">
+          <SheetTitle>Editar vigencia</SheetTitle>
+          <SheetDescription>
+            Define el rango de fechas. Dejalas en blanco para quitar la vigencia.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-6 py-4">
+          {error ? (
+            <Alert variant="destructive">
+              <AlertTitle>No se pudo guardar</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="ev-ini">Vigencia inicio</Label>
+            <Input
+              id="ev-ini"
+              type="date"
+              value={inicio}
+              onChange={(e) => setInicio(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="ev-fin">Vigencia fin</Label>
+            <Input
+              id="ev-fin"
+              type="date"
+              value={fin}
+              onChange={(e) => setFin(e.target.value)}
+            />
+          </div>
+          {rangoInvalido ? (
+            <p className="text-xs text-destructive">
+              La fecha de fin no puede ser anterior a la de inicio.
+            </p>
+          ) : null}
+        </div>
+        <Separator />
+        <SheetFooter className="flex-row justify-end gap-2">
+          <SheetClose asChild>
+            <Button variant="outline" disabled={guardar.isPending}>
+              Cancelar
+            </Button>
+          </SheetClose>
+          <Button
+            onClick={handleConfirmar}
+            disabled={guardar.isPending || rangoInvalido}
+          >
+            {guardar.isPending ? "Guardando..." : "Guardar"}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }
 

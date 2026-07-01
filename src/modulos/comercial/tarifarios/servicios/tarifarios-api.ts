@@ -5,6 +5,7 @@ import type {
   PayloadActualizarTarifa,
   PayloadActualizarTarifaCargo,
   PayloadCrearTarifarioManual,
+  PayloadEstablecerVigencia,
   PayloadTarifa,
   PayloadTarifaCargo,
   RespuestaListaTarifarios,
@@ -52,6 +53,14 @@ export async function generarTarifarioDesdeCotizacion(
 // PATCH /tarifarios/:id/anular (204).
 export async function anularTarifario(id: string): Promise<void> {
   await clienteComercial.patch(`/tarifarios/${id}/anular`)
+}
+
+// PATCH /tarifarios/:id/vigencia — fija/actualiza el rango de vigencia (204).
+export async function establecerVigenciaTarifario(
+  id: string,
+  payload: PayloadEstablecerVigencia,
+): Promise<void> {
+  await clienteComercial.patch(`/tarifarios/${id}/vigencia`, payload)
 }
 
 // POST /tarifarios/:id/tarifas — agregar una tarifa (201).

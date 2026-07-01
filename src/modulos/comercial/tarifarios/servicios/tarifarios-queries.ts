@@ -17,6 +17,7 @@ import {
   crearTarifarioManual,
   eliminarTarifa,
   eliminarTarifaCargo,
+  establecerVigenciaTarifario,
   generarTarifarioDesdeCotizacion,
   listarTarifarios,
 } from "./tarifarios-api"
@@ -25,6 +26,7 @@ import type {
   PayloadActualizarTarifa,
   PayloadActualizarTarifaCargo,
   PayloadCrearTarifarioManual,
+  PayloadEstablecerVigencia,
   PayloadTarifa,
   PayloadTarifaCargo,
 } from "../tipos/tarifarios.tipos"
@@ -77,6 +79,21 @@ export function useAnularTarifarioMutation(
 ) {
   return useMutar<void, void>({
     fn: () => anularTarifario(id),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_TARIFARIOS)
+      invalidarConsulta(CLAVE_TARIFARIO_DETALLE)
+      opciones.onSuccess?.()
+    },
+    onError: (err) => opciones.onError?.(err),
+  })
+}
+
+export function useEstablecerVigenciaMutation(
+  id: string,
+  opciones: OpcionesMutacion = {},
+) {
+  return useMutar<PayloadEstablecerVigencia, void>({
+    fn: (payload) => establecerVigenciaTarifario(id, payload),
     onSuccess: () => {
       invalidarConsulta(CLAVE_TARIFARIOS)
       invalidarConsulta(CLAVE_TARIFARIO_DETALLE)
