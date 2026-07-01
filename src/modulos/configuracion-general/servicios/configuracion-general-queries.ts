@@ -11,6 +11,7 @@ import {
   inhabilitarConfiguracionGeneral,
   listarPorTipo,
   modificarPorTipo,
+  obtenerJerarquiaUbicaciones,
   obtenerEstadoBcConfiguracionGeneral,
   obtenerResumenDashboardConfiguracionGeneral,
   reactivarConfiguracionGeneral,
@@ -52,6 +53,18 @@ export function useListarPorTipoQuery(
   return useConsulta(
     () => listarPorTipo(tipo, query),
     [tipo, JSON.stringify(query ?? {})],
+    { enabled },
+  )
+}
+
+/** Jerarquia de ubicaciones (ubicacion -> sedes -> areas/almacenes) en una llamada. */
+export function useJerarquiaUbicacionesQuery(
+  query?: ConsultarConfiguracionGeneralQuery,
+  enabled = true,
+) {
+  return useConsulta(
+    () => obtenerJerarquiaUbicaciones(query),
+    [JSON.stringify(query ?? {})],
     { enabled },
   )
 }

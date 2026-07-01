@@ -93,7 +93,7 @@ const modulosRegistro: RegistroModulo[] = [
     orden: 7,
     tipo: "CARGO",
     icon: ShieldCheck,
-    dependencia: "Puesto y jerarquia de cargo.",
+    dependencia: "Puesto de trabajo y a quien reporta.",
   },
   {
     orden: 8,
@@ -112,6 +112,18 @@ const rutasRegistroConfiguracion: Record<TipoDatoMaestro, string> = {
   CONTRATO: "contrato",
   CARGO: "cargo",
   REGIMEN: "regimen",
+}
+
+// Ruta de la pantalla (seccion) de cada tipo, para volver tras crear/cancelar.
+const rutaListadoPorTipo: Record<TipoDatoMaestro, string> = {
+  UBICACION: "/configuracion/ubicaciones",
+  SEDE: "/configuracion/sedes-areas",
+  AREA: "/configuracion/sedes-areas",
+  ALMACEN: "/configuracion/almacenes",
+  CUENTA: "/configuracion/cuentas-contratos",
+  CONTRATO: "/configuracion/cuentas-contratos",
+  CARGO: "/configuracion/cargos",
+  REGIMEN: "/configuracion/regimenes",
 }
 
 const detalleFormularioMaestro: Record<
@@ -137,9 +149,9 @@ const detalleFormularioMaestro: Record<
   },
   AREA: {
     titulo: "Configurar area",
-    descripcion: "Define una gerencia o un area hija dentro de una sede.",
+    descripcion: "Define una gerencia o un area dentro de una sede.",
     alcance: "Organizacion",
-    seccion: "Jerarquia del area",
+    seccion: "Sede y gerencia",
   },
   ALMACEN: {
     titulo: "Configurar almacen",
@@ -149,21 +161,21 @@ const detalleFormularioMaestro: Record<
   },
   CUENTA: {
     titulo: "Configurar cuenta",
-    descripcion: "Crea una cuenta comercial e indica su nivel en la jerarquia.",
+    descripcion: "Crea una cuenta comercial.",
     alcance: "Comercial",
-    seccion: "Nivel de la cuenta",
+    seccion: "Datos de la cuenta",
   },
   CONTRATO: {
     titulo: "Configurar contrato",
-    descripcion: "Registra un contrato, su nivel y su cuenta o contrato padre.",
+    descripcion: "Registra un contrato e indica la cuenta o contrato del que depende.",
     alcance: "Comercial",
-    seccion: "Jerarquia del contrato",
+    seccion: "Cuenta o contrato principal",
   },
   CARGO: {
     titulo: "Configurar cargo",
-    descripcion: "Registra un puesto de trabajo y su cargo superior si aplica.",
+    descripcion: "Registra un puesto de trabajo e indica a quien reporta si aplica.",
     alcance: "Cargos",
-    seccion: "Jerarquia del cargo",
+    seccion: "A quien reporta",
   },
   REGIMEN: {
     titulo: "Configurar regimen",
@@ -235,27 +247,56 @@ function ejemplosFormulario(tipo: TipoDatoMaestro) {
   return ejemplos[tipo]
 }
 
+// Mismas secciones que el menu/listado: sedes y areas juntas, cuentas y
+// contratos juntas. La navegacion del registro las refleja para mantener una
+// estructura coherente con el resto de Configuracion General.
+const seccionesRegistro: Array<{ titulo: string; tipos: TipoDatoMaestro[] }> = [
+  { titulo: "Ubicaciones", tipos: ["UBICACION"] },
+  { titulo: "Sedes y areas", tipos: ["SEDE", "AREA"] },
+  { titulo: "Almacenes", tipos: ["ALMACEN"] },
+  { titulo: "Cuentas y contratos", tipos: ["CUENTA", "CONTRATO"] },
+  { titulo: "Cargos", tipos: ["CARGO"] },
+  { titulo: "Regimenes", tipos: ["REGIMEN"] },
+]
+
 function NavegacionRegistroConfiguracion({ tipoActivo }: { tipoActivo: TipoDatoMaestro }) {
   return (
-    <section className="flex flex-wrap gap-2 rounded-lg border border-border bg-card p-3 shadow-sm">
-      {modulosRegistro.map((modulo) => {
-        const activo = modulo.tipo === tipoActivo
-        const Icon = modulo.icon
-
-        return (
-          <Button
-            key={modulo.tipo}
-            asChild
-            variant={activo ? "default" : "outline"}
-            size="sm"
+    <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
+      <p className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Que quieres registrar
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {seccionesRegistro.map((seccion) => (
+          <div
+            key={seccion.titulo}
+            className="rounded-md border border-border/70 bg-background p-2"
           >
-            <Link href={rutaRegistroConfiguracion(modulo.tipo)}>
-              <Icon data-icon="inline-start" />
-              {etiquetaTipo(modulo.tipo)}
-            </Link>
-          </Button>
-        )
-      })}
+            <p className="mb-1.5 px-1 text-xs font-medium text-muted-foreground">
+              {seccion.titulo}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {seccion.tipos.map((tipo) => {
+                const activo = tipo === tipoActivo
+                const Icon = modulosRegistro.find((modulo) => modulo.tipo === tipo)?.icon ?? MapPin
+
+                return (
+                  <Button
+                    key={tipo}
+                    asChild
+                    variant={activo ? "default" : "outline"}
+                    size="sm"
+                  >
+                    <Link href={rutaRegistroConfiguracion(tipo)}>
+                      <Icon data-icon="inline-start" />
+                      {etiquetaTipo(tipo)}
+                    </Link>
+                  </Button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </section>
   )
 }
@@ -329,7 +370,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
           }
         : tipoNuevo === "CONTRATO" && cuentas.length === 0 && contratos.length === 0
           ? {
-              mensaje: "Primero registra una cuenta o contrato padre para crear contratos.",
+              mensaje: "Primero registra una cuenta o contrato principal para crear contratos.",
               accion: "Registrar cuenta",
               tipoDestino: "CUENTA" as TipoDatoMaestro,
             }
@@ -364,7 +405,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
     }
 
     if (tipoNuevo === "CONTRATO" && !contratoPadreId) {
-      setError("Selecciona la cuenta o contrato padre.")
+      setError("Selecciona la cuenta o contrato principal.")
       return
     }
 
@@ -389,7 +430,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
       form.reset()
       setNombreNuevo("")
       setMensaje(
-        `${creado.tipoDatoMaestro} #${creado.id} - ${creado.codigo} fue registrado.`,
+        `${etiquetaTipo(tipoNuevo)} "${creado.nombre || nombreNuevo.trim()}" fue registrado correctamente.`,
       )
     } catch (err) {
       setError(obtenerMensajeError(err))
@@ -407,14 +448,14 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
         ]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-        <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-5">
+        <div className="flex w-full flex-col gap-5">
           <section className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div className="min-w-0">
               <h1 className="text-xl font-semibold tracking-normal">Registrar configuracion</h1>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <Button asChild variant="outline" className="sm:w-auto">
-                <Link href="/configuracion/listar">Cancelar</Link>
+                <Link href={rutaListadoPorTipo[tipoNuevo]}>Cancelar</Link>
               </Button>
               <Button
                 type="submit"
@@ -484,14 +525,14 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
               </div>
             </div>
 
-            <div className="mx-auto flex w-full max-w-4xl flex-col p-5 md:p-8">
+            <div className="flex w-full flex-col p-5 md:p-8">
               {tieneNodoPadre ? (
                 <>
                   <Card size="sm">
                     <CardHeader>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">Nodo existente</Badge>
-                        <CardTitle>Selecciona la rama padre</CardTitle>
+                        <Badge variant="outline">Donde se ubica</Badge>
+                        <CardTitle>Selecciona a que pertenece</CardTitle>
                       </div>
                       <CardDescription>{detalleFormulario.seccion}</CardDescription>
                     </CardHeader>
@@ -522,7 +563,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
                 <Card className="ring-2 ring-primary" size="sm">
                   <CardHeader>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Badge>Nuevo nodo</Badge>
+                      <Badge>Nuevo registro</Badge>
                       <CardTitle>
                         {nombreNuevo.trim() || `Nuevo ${etiquetaTipo(tipoNuevo).toLowerCase()}`}
                       </CardTitle>

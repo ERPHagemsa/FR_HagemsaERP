@@ -325,7 +325,7 @@ export function SocioNegocioHistorialVista() {
                     )
                   }
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full" aria-label="Filtrar por accion">
                     <SelectValue placeholder="Accion" />
                   </SelectTrigger>
                   <SelectContent>
@@ -575,7 +575,6 @@ export function SocioNegocioHistorialDetalleVista({ id }: { id: string }) {
                         <div className="flex min-w-0 max-w-full flex-1 flex-col gap-3 pr-3 md:flex-row md:items-start md:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <Badge variant="outline">#{item.idRegistro}</Badge>
                               <Badge
                                 variant="outline"
                                 className={cn(

@@ -1,4 +1,7 @@
-import { clienteSocioNegocios } from "@/compartido/api/clientes-backend"
+import {
+  clienteConfiguracionGeneral,
+  clienteSocioNegocios,
+} from "@/compartido/api/clientes-backend"
 
 import type { RespuestaDto } from "../tipos/socio-negocio"
 import type {
@@ -111,6 +114,58 @@ export async function consultarOpcionesConfiguracionGeneral(
     RespuestaDto<ConfiguracionGeneralOpcionResponse[]>
   >(`${BASE_ENDPOINT}/configuracion-general/opciones${queryString ? `?${queryString}` : ""}`)
   return data.datos
+}
+
+/**
+ * Forma de cada area tal como la entrega el backend de Configuracion General
+ * (bc14) en su recurso dedicado `/configuracion-general/areas`. A diferencia de
+ * `opciones-formulario` (que devuelve `areas: []`), este endpoint si filtra por
+ * sede y trae `sedeId`/`sedeNombre`/`nivelArea`.
+ */
+interface AreaConfiguracionGeneralResponse {
+  id: number | string
+  codigo: string
+  nombre: string
+  estado: string
+  estadoRegistro: string
+  sedeId?: number | string | null
+  sedeNombre?: string | null
+  nivelArea?: string | null
+  gerenciaId?: number | string | null
+  gerenciaNombre?: string | null
+}
+
+/**
+ * Lista las areas ACTIVAS de una sede. El combo de area del formulario de
+ * asignacion depende de la sede elegida, asi que se cargan bajo demanda en vez
+ * de venir en `opciones-formulario`.
+ */
+export async function obtenerAreasPorSede(
+  sedeId: string | number,
+): Promise<ConfiguracionGeneralOpcionResponse[]> {
+  const params = new URLSearchParams({
+    sedeId: String(sedeId),
+    estado: "ACTIVO",
+    estadoRegistro: "ACTIVO",
+    // El backend de Configuracion General limita pageSize a 100.
+    pageSize: "100",
+  })
+  const { data } = await clienteConfiguracionGeneral.get<{
+    datos: AreaConfiguracionGeneralResponse[]
+  }>(`/configuracion-general/areas?${params.toString()}`)
+  return (data.datos ?? []).map((area) => ({
+    id: String(area.id),
+    tipoDatoMaestro: "AREA",
+    codigo: area.codigo,
+    nombre: area.nombre,
+    estado: area.estado,
+    estadoRegistro: area.estadoRegistro,
+    nivelArea: area.nivelArea ?? undefined,
+    gerenciaId: area.gerenciaId != null ? String(area.gerenciaId) : undefined,
+    gerenciaNombre: area.gerenciaNombre ?? undefined,
+    sedeId: area.sedeId != null ? String(area.sedeId) : undefined,
+    sedeNombre: area.sedeNombre ?? undefined,
+  }))
 }
 
 export async function obtenerAsignacionPersonal(

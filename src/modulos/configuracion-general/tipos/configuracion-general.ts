@@ -14,19 +14,22 @@ export type EstadoRegistro = "ACTIVO" | "ANULADO"
 
 export type NivelArea = "GERENCIA" | "AREA"
 
+// tipoUbicacion clasifica SOLO que es el lugar. No incluye operaciones ni
+// temporalidad: PUNTO_CARGA/DESCARGA/ACOPIO se eliminaron (la operacion/actividad
+// del punto pertenece a la parte operativa y se modelara a futuro, fuera de esta
+// configuracion) y ALMACEN_TEMPORAL tambien (la temporalidad vive en
+// Almacen.esTemporal). No reintroducir esos valores.
 export type TipoUbicacion =
   | "SEDE"
   | "CLIENTE"
   | "PLANTA"
   | "MINA"
   | "PUERTO"
+  | "PEAJE"
+  | "ESTACIONAMIENTO"
   | "ALMACEN"
-  | "ALMACEN_TEMPORAL"
   | "PATIO"
   | "TERMINAL"
-  | "PUNTO_CARGA"
-  | "PUNTO_DESCARGA"
-  | "PUNTO_ACOPIO"
   | "OTRO"
 
 export interface PaginationMeta {
@@ -144,9 +147,21 @@ export interface ConsultarConfiguracionGeneralQuery {
   estadoRegistro?: EstadoRegistro
   codigo?: string
   nombre?: string
+  // Filtros geograficos de UBICACION.
+  tipoUbicacion?: TipoUbicacion
+  pais?: string
   departamento?: string
   provincia?: string
   distrito?: string
+  // Filtros especificos por tipo (cada recurso dedicado los reconoce).
+  cargoSuperiorId?: number
+  ubicacionId?: number
+  sedeId?: number
+  nivelArea?: NivelArea
+  gerenciaId?: number
+  esTemporal?: boolean
+  contratoPadreId?: number
+  nivelCuentaContrato?: number
   page?: number
   pageSize?: number
   sortBy?:
@@ -158,6 +173,26 @@ export interface ConsultarConfiguracionGeneralQuery {
     | "estadoRegistro"
     | "fechaCreacion"
   sortOrder?: "asc" | "desc"
+}
+
+// ---------------------------------------------------------------------------
+// Jerarquia de ubicaciones
+//
+// Respuesta de GET /configuracion-general/ubicaciones/jerarquia: ubicaciones
+// con sus sedes (y, dentro de cada sede, sus areas y almacenes) y los almacenes
+// colgados directamente de la ubicacion. Una sola llamada paginada por ubicacion
+// en lugar de un request por nivel (evita el patron N+1 y el truncado a 100 al
+// armar el arbol en el navegador).
+// ---------------------------------------------------------------------------
+
+export interface SedeJerarquiaResponse extends ConfiguracionGeneralResponse {
+  areas?: ConfiguracionGeneralResponse[]
+  almacenes?: ConfiguracionGeneralResponse[]
+}
+
+export interface UbicacionJerarquiaResponse extends ConfiguracionGeneralResponse {
+  sedes?: SedeJerarquiaResponse[]
+  almacenes?: ConfiguracionGeneralResponse[]
 }
 
 export type FormatoExportacionConfiguracionGeneral = "EXCEL" | "PDF"
@@ -214,6 +249,10 @@ export interface RegistrarUbicacionRequest extends RegistrarBaseRequest {
   distrito?: string | null
   direccion?: string | null
   referenciaUbicacion?: string | null
+  // Coordenada en formato "latitud, longitud" (Google). El backend la separa y
+  // redondea. Alternativa a enviar latitud/longitud por separado.
+  coordenadasGoogle?: string
+  coordenadas?: string
   latitud?: number | null
   longitud?: number | null
 }
@@ -225,6 +264,8 @@ export interface ModificarUbicacionRequest extends ModificarBaseRequest {
   distrito?: string | null
   direccion?: string | null
   referenciaUbicacion?: string | null
+  coordenadasGoogle?: string
+  coordenadas?: string
   latitud?: number | null
   longitud?: number | null
 }

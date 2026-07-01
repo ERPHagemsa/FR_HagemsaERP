@@ -1,4 +1,4 @@
-import type { TipoRegimenPersonal } from "./tareo-personal"
+import type { FormaTareo, TipoRegimenPersonal } from "./tareo-personal"
 
 export type TipoAsignacionCuentaContrato = "CUENTA" | "CONTRATO"
 
@@ -205,6 +205,8 @@ export interface AsignacionPersonalResponse {
   configuracionLaboralId?: number
   tipoTareoCodigo?: string
   tipoTareoNombre?: string
+  /** Forma del tareo resuelta en el snapshot (turno, horario o regimen). */
+  tipoTareoForma?: FormaTareo
   configuracionLaboralCodigo?: string
   configuracionLaboralNombre?: string
   tipoRegimen?: TipoRegimenPersonal
@@ -212,6 +214,9 @@ export interface AsignacionPersonalResponse {
   turnoNombre?: string
   horarioCodigo?: string
   horarioNombre?: string
+  /** Horas reales del turno/horario copiadas al snapshot (HH:mm). */
+  horaInicio?: string
+  horaFin?: string
   regimenCodigo?: string
   regimenNombre?: string
   regimenPatron?: string
@@ -238,8 +243,8 @@ export type TipoDatoMaestroAsignable =
 
 /**
  * Opcion de Configuracion General tal como la entrega BC-01 (forma simple para
- * combos). No incluye datos geograficos (departamento/provincia/distrito) ni
- * `sedeId`; para eso usar el BC de Configuracion General directamente.
+ * combos). No incluye datos geograficos (departamento/provincia/distrito). Las
+ * opciones de AREA si traen `sedeId`/`sedeNombre` para filtrar por sede.
  */
 export interface ConfiguracionGeneralOpcionResponse {
   id: string
@@ -257,6 +262,10 @@ export interface ConfiguracionGeneralOpcionResponse {
   gerenciaId?: string
   gerenciaCodigo?: string
   gerenciaNombre?: string
+  // Las opciones de AREA traen la sede a la que pertenecen para poder filtrar el
+  // combo de area por la sede elegida en el formulario de asignacion.
+  sedeId?: string
+  sedeNombre?: string
 }
 
 /**

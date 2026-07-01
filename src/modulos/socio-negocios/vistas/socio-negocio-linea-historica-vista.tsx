@@ -50,7 +50,6 @@ function RegistroVersion({
       <div className="flex flex-col gap-3 border-b border-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">Versión {registro.numeroVersion}</Badge>
-          <Badge variant="outline">#{registro.id}</Badge>
           {registro.esRaiz ? <Badge variant="secondary">Raíz</Badge> : null}
           {registro.esActual ? <Badge>Actual</Badge> : null}
           <span
@@ -78,7 +77,7 @@ function RegistroVersion({
       <div className="flex flex-col gap-3 p-4">
         {registro.registroAnteriorId ? (
           <p className="text-sm text-muted-foreground">
-            Proviene del registro #{registro.registroAnteriorId}.
+            Proviene del registro anterior.
           </p>
         ) : null}
 
@@ -154,15 +153,12 @@ export function SocioNegocioLineaHistoricaVista({ id }: { id: string }) {
               <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
                 <ResumenDato label="Total registros" value={linea.totalRegistros} />
                 <ResumenDato label="Reingresos" value={linea.totalReingresos} />
-                <ResumenDato label="Registro raíz" value={`#${linea.registroRaizId}`} />
-                <ResumenDato label="Registro actual" value={`#${linea.registroActualId}`} />
               </dl>
 
               {linea.registroAnteriorInmediato?.motivoBaja ? (
                 <Alert>
                   <AlertTitle>Último motivo de baja</AlertTitle>
                   <AlertDescription>
-                    Registro #{linea.registroAnteriorInmediato.id}:{" "}
                     {linea.registroAnteriorInmediato.motivoBaja}
                   </AlertDescription>
                 </Alert>

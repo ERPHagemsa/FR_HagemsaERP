@@ -178,7 +178,7 @@ function DisponibilidadDialog({
     <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>
-          {modo === "crear" ? "Nueva disponibilidad" : `Editar disponibilidad #${disponibilidad?.id}`}
+          {modo === "crear" ? "Nueva disponibilidad" : "Editar disponibilidad"}
         </DialogTitle>
         <DialogDescription>
           Registra un periodo previsto del personal (vacaciones, permiso, descanso, etc.). Es

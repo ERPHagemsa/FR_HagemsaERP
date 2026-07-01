@@ -304,8 +304,8 @@ export function PersonalListadoVista() {
           ) : null}
 
           <section className="flex flex-col gap-4">
-            <div className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
-              <div className="flex flex-col gap-3 border-b border-border bg-muted/20 px-4 py-4">
+            <div className="overflow-hidden rounded-xl border border-border/50 bg-card text-card-foreground">
+              <div className="flex flex-col gap-3 border-b border-border/40 bg-card px-4 py-4">
                 <form
                   className="grid gap-3 md:grid-cols-2 xl:grid-cols-6"
                   onSubmit={(event) => {
@@ -319,6 +319,7 @@ export function PersonalListadoVista() {
                         <Search />
                       </InputGroupAddon>
                       <InputGroupInput
+                        aria-label="Buscar por apellido paterno"
                         value={obtenerValorFiltro(filtrosFormulario, "apellidoPaterno")}
                         placeholder="Buscar por apellido paterno"
                         onChange={(event) => actualizarFiltro("apellidoPaterno", event.target.value)}
@@ -327,6 +328,7 @@ export function PersonalListadoVista() {
                   </Field>
                   <Field>
                     <Input
+                      aria-label="Filtrar por primer nombre"
                       value={obtenerValorFiltro(filtrosFormulario, "primerNombre")}
                       placeholder="Primer nombre"
                       onChange={(event) => actualizarFiltro("primerNombre", event.target.value)}
@@ -334,6 +336,7 @@ export function PersonalListadoVista() {
                   </Field>
                   <Field>
                     <Input
+                      aria-label="Filtrar por apellido materno"
                       value={obtenerValorFiltro(filtrosFormulario, "apellidoMaterno")}
                       placeholder="Apellido materno"
                       onChange={(event) => actualizarFiltro("apellidoMaterno", event.target.value)}
@@ -341,6 +344,7 @@ export function PersonalListadoVista() {
                   </Field>
                   <Field>
                     <Input
+                      aria-label="Filtrar por DNI"
                       value={obtenerValorFiltro(filtrosFormulario, "numeroDocumento")}
                       placeholder="DNI"
                       onChange={(event) => actualizarFiltro("numeroDocumento", event.target.value)}
@@ -353,7 +357,7 @@ export function PersonalListadoVista() {
                         actualizarFiltro("estado", value as ConsultarPersonalQuery["estado"] | "TODOS")
                       }
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Filtrar por estado">
                         <SelectValue placeholder="Estado" />
                       </SelectTrigger>
                       <SelectContent>
@@ -375,7 +379,7 @@ export function PersonalListadoVista() {
                         )
                       }
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Filtrar por estado de registro">
                         <SelectValue placeholder="Registro" />
                       </SelectTrigger>
                       <SelectContent>
@@ -393,7 +397,7 @@ export function PersonalListadoVista() {
                         actualizarFiltro("origen", value as ConsultarPersonalQuery["origen"] | "TODOS")
                       }
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Filtrar por origen">
                         <SelectValue placeholder="Origen" />
                       </SelectTrigger>
                       <SelectContent>
@@ -416,7 +420,7 @@ export function PersonalListadoVista() {
                         )
                       }
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Filtrar por cuenta o contrato">
                         <SelectValue placeholder="Cuenta / contrato" />
                       </SelectTrigger>
                       <SelectContent>
@@ -451,7 +455,7 @@ export function PersonalListadoVista() {
                     </Button>
                   </div>
                 </form>
-                <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-3">
                   <span className="mr-auto text-sm text-muted-foreground">
                     Exporta el resultado filtrado para reportes o revision interna.
                   </span>
@@ -486,14 +490,28 @@ export function PersonalListadoVista() {
                 <Empty className="py-12">
                   <EmptyHeader>
                     <EmptyTitle>Sin personal</EmptyTitle>
-                    <EmptyDescription>No existen registros para el filtro aplicado.</EmptyDescription>
+                    <EmptyDescription>
+                      No existen registros para el filtro aplicado. Limpia la busqueda o registra
+                      personal nuevo si corresponde.
+                    </EmptyDescription>
                   </EmptyHeader>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={limpiarBusqueda}>
+                      Limpiar busqueda
+                    </Button>
+                    <Button asChild size="sm">
+                      <Link href="/socio-negocios/nuevo?tipo=PERSONAL">
+                        <Plus data-icon="inline-start" />
+                        Nuevo personal
+                      </Link>
+                    </Button>
+                  </div>
                 </Empty>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-background hover:bg-transparent">
+                      <TableRow className="border-border/40 bg-muted/30 hover:bg-muted/30">
                         <TableHead className="w-10">Acciones</TableHead>
                         <TableHead className="text-right">ID</TableHead>
                         <TableHead>Nombre completo</TableHead>

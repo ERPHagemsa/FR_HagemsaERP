@@ -102,7 +102,7 @@ export function AsignacionPersonalCard({
       )}
     >
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-        <Badge variant="outline">Asignación #{asignacion.id}</Badge>
+        <Badge variant="outline">Asignación</Badge>
         <EstadoBadge estado={asignacion.estado ?? "VIGENTE"} />
         <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
           <CalendarRange className="size-3.5" />

@@ -36,11 +36,6 @@ import {
 import { Separator } from "@/compartido/componentes/ui/separator"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/compartido/componentes/ui/tabs"
-import {
   Table,
   TableBody,
   TableCell,
@@ -55,17 +50,7 @@ import {
   useExportarConfiguracionGeneralQuery,
   useResumenDashboardConfiguracionGeneralQuery,
 } from "../servicios/configuracion-general-queries"
-import {
-  ConfiguracionGeneralAlmacenesListarVista,
-  ConfiguracionGeneralAreasListarVista,
-  ConfiguracionGeneralCargosListarVista,
-  ConfiguracionGeneralContratosListarVista,
-  ConfiguracionGeneralCuentasListarVista,
-  ConfiguracionGeneralListadoPorTipoVista,
-  ConfiguracionGeneralRegimenesListarVista,
-  ConfiguracionGeneralSedesListarVista,
-  ConfiguracionGeneralUbicacionesListarVista,
-} from "../componentes/configuracion-general-listados"
+import { ConfiguracionGeneralListadoPorTipoVista } from "../componentes/configuracion-general-listados"
 import type {
   ConfiguracionGeneralResponse,
   ConsultarConfiguracionGeneralQuery,
@@ -86,74 +71,85 @@ const tipos: Array<{ value: "TODOS" | TipoDatoMaestro; label: string }> = [
   { value: "REGIMEN", label: "Regimen" },
 ]
 
-const tiposConsumibles: TipoDatoMaestro[] = ["CARGO", "SEDE", "AREA", "CUENTA", "CONTRATO"]
+// Slug de la ruta de registro de cada tipo (/configuracion/nuevo/<slug>).
+const rutaNuevoPorTipo: Record<TipoDatoMaestro, string> = {
+  UBICACION: "ubicacion",
+  SEDE: "sede",
+  AREA: "area",
+  ALMACEN: "almacen",
+  CUENTA: "cuenta",
+  CONTRATO: "contrato",
+  CARGO: "cargo",
+  REGIMEN: "regimen",
+}
 
-type GrupoRegistro = "base" | "organizacion" | "comercial" | "cargos"
+// Ruta de la pantalla (seccion) que contiene cada tipo. Sedes y areas comparten
+// pantalla; cuentas y contratos tambien.
+const rutaListadoPorTipo: Record<TipoDatoMaestro, string> = {
+  UBICACION: "/configuracion/ubicaciones",
+  SEDE: "/configuracion/sedes-areas",
+  AREA: "/configuracion/sedes-areas",
+  ALMACEN: "/configuracion/almacenes",
+  CUENTA: "/configuracion/cuentas-contratos",
+  CONTRATO: "/configuracion/cuentas-contratos",
+  CARGO: "/configuracion/cargos",
+  REGIMEN: "/configuracion/regimenes",
+}
 
-const modulosConfiguracion: Array<{
-  dependencia: string
-  grupo: GrupoRegistro
-  icon: typeof Database
-  orden: number
-  tipo: TipoDatoMaestro
-}> = [
-  {
-    orden: 1,
-    tipo: "UBICACION",
-    grupo: "base",
-    icon: MapPin,
-    dependencia: "Define el punto fisico o logistico.",
+// Secciones del menu de configuracion. Algunas agrupan dos tipos relacionados en
+// una sola pantalla con un selector (sedes/areas, cuentas/contratos).
+type SeccionConfiguracion = {
+  titulo: string
+  descripcion: string
+  tipos: TipoDatoMaestro[]
+}
+
+export const seccionesConfiguracion = {
+  ubicaciones: {
+    titulo: "Ubicaciones",
+    descripcion: "Lugares donde opera la empresa (plantas, minas, puertos, etc.).",
+    tipos: ["UBICACION"],
   },
-  {
-    orden: 2,
-    tipo: "SEDE",
-    grupo: "organizacion",
-    icon: Building2,
-    dependencia: "Requiere una ubicacion activa.",
+  "sedes-areas": {
+    titulo: "Sedes y areas",
+    descripcion: "Centros de trabajo y las areas que hay dentro de cada uno.",
+    tipos: ["SEDE", "AREA"],
   },
-  {
-    orden: 3,
-    tipo: "AREA",
-    grupo: "organizacion",
-    icon: Network,
-    dependencia: "Requiere sede; si es area, tambien gerencia.",
+  almacenes: {
+    titulo: "Almacenes",
+    descripcion: "Almacenes fijos o temporales de cada ubicacion.",
+    tipos: ["ALMACEN"],
   },
-  {
-    orden: 4,
-    tipo: "ALMACEN",
-    grupo: "organizacion",
-    icon: Warehouse,
-    dependencia: "Requiere ubicacion; sede es opcional.",
+  "cuentas-contratos": {
+    titulo: "Cuentas y contratos",
+    descripcion: "Cuentas de la empresa y los contratos que dependen de ellas.",
+    tipos: ["CUENTA", "CONTRATO"],
   },
-  {
-    orden: 5,
-    tipo: "CUENTA",
-    grupo: "comercial",
-    icon: BriefcaseBusiness,
-    dependencia: "Independiente.",
+  cargos: {
+    titulo: "Cargos",
+    descripcion: "Puestos de trabajo y a quien reporta cada uno.",
+    tipos: ["CARGO"],
   },
-  {
-    orden: 6,
-    tipo: "CONTRATO",
-    grupo: "comercial",
-    icon: ClipboardList,
-    dependencia: "Cuenta asociada opcional.",
+  regimenes: {
+    titulo: "Regimenes",
+    descripcion: "Regimenes de trabajo con sus dias y jornada.",
+    tipos: ["REGIMEN"],
   },
-  {
-    orden: 7,
-    tipo: "CARGO",
-    grupo: "cargos",
-    icon: ShieldCheck,
-    dependencia: "Independiente; cargo superior opcional.",
-  },
-  {
-    orden: 8,
-    tipo: "REGIMEN",
-    grupo: "cargos",
-    icon: CalendarClock,
-    dependencia: "Ciclo de trabajo/descanso y jornada diaria.",
-  },
-]
+} satisfies Record<string, SeccionConfiguracion>
+
+export type SeccionConfiguracionClave = keyof typeof seccionesConfiguracion
+
+// Titulo (en plural) y descripcion corta de cada pantalla por tipo.
+const tituloMaestro: Record<TipoDatoMaestro, string> = {
+  UBICACION: "Ubicaciones",
+  SEDE: "Sedes",
+  AREA: "Areas",
+  ALMACEN: "Almacenes",
+  CUENTA: "Cuentas",
+  CONTRATO: "Contratos",
+  CARGO: "Cargos",
+  REGIMEN: "Regimenes",
+}
 
 function obtenerMensajeError(error: unknown) {
   return error instanceof Error ? error.message : "No se pudo completar la operacion."
@@ -203,12 +199,12 @@ function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
 
 function etiquetaDetalleEspecifico(tipo: TipoDatoMaestro) {
   if (tipo === "UBICACION") return "Tipo / direccion"
-  if (tipo === "CARGO") return "Cargo superior"
+  if (tipo === "CARGO") return "Reporta a"
   if (tipo === "SEDE") return "Ubicacion"
   if (tipo === "AREA") return "Gerencia / sede"
   if (tipo === "ALMACEN") return "Ubicacion / sede"
-  if (tipo === "CONTRATO") return "Contrato padre"
-  return "Dato especifico"
+  if (tipo === "CONTRATO") return "Pertenece a"
+  return "Detalle"
 }
 
 function textoEstadoConfiguracion(dato: ConfiguracionGeneralResponse) {
@@ -246,7 +242,7 @@ function TipoBadge({ tipo }: { tipo: TipoDatoMaestro }) {
       variant="outline"
       className="h-6 rounded-full border-border bg-background px-2.5 text-[12px] font-medium text-foreground shadow-xs"
     >
-      {tipo}
+      {tituloMaestro[tipo]}
     </Badge>
   )
 }
@@ -283,9 +279,9 @@ function MetricasMaestros({
     {
       etiqueta: "Configuraciones",
       valor: total || datos.length,
-      detalle: "Ubicacion, Sede, Area, Almacen, Cargo, Cuenta y Contrato consultados.",
+      detalle: "Ubicaciones, sedes, areas, almacenes, cargos, cuentas y contratos.",
       icon: Database,
-      contexto: "Catalogo",
+      contexto: "Total",
     },
     {
       etiqueta: "Activos vigentes",
@@ -306,7 +302,7 @@ function MetricasMaestros({
       valor: historial ?? "-",
       detalle: "Movimientos registrados para seguimiento.",
       icon: History,
-      contexto: "Trazabilidad",
+      contexto: "Historial",
     },
   ]
 
@@ -356,32 +352,32 @@ function MetricasResumenDashboard({
 }) {
   const metricas = [
     {
-      etiqueta: "Maestros",
+      etiqueta: "Configuraciones",
       valor: resumen?.totalMaestros ?? 0,
-      detalle: "Total gobernado por Configuracion General.",
+      detalle: "Total de registros administrados en esta seccion.",
       icon: Database,
-      contexto: "Gobierno",
+      contexto: "Total",
     },
     {
       etiqueta: "Activos",
       valor: resumen?.activos ?? 0,
-      detalle: "Registros habilitados para consumo interno.",
+      detalle: "Registros listos para usarse en el sistema.",
       icon: ShieldCheck,
       contexto: "Estado",
     },
     {
-      etiqueta: "Consumibles",
+      etiqueta: "Listos para usar",
       valor: resumen?.vigentesConsumibles ?? 0,
-      detalle: "Activos y vigentes para otros bounded contexts.",
+      detalle: "Registros activos y vigentes, disponibles para el resto del sistema.",
       icon: CheckCircle2,
-      contexto: "Catalogo",
+      contexto: "Disponibles",
     },
     {
-      etiqueta: "Retenidos",
+      etiqueta: "Inactivos o anulados",
       valor: (resumen?.inactivos ?? 0) + (resumen?.anulados ?? 0),
       detalle: `${resumen?.inactivos ?? 0} inactivos y ${resumen?.anulados ?? 0} anulados.`,
       icon: History,
-      contexto: "Control",
+      contexto: "Seguimiento",
     },
   ]
 
@@ -423,7 +419,6 @@ function ResumenPorTipoDashboard({
   resumen?: ResumenConfiguracionGeneralResponse
 }) {
   const datos = resumen?.porTipoDatoMaestro ?? []
-  const totalBase = Math.max(...datos.map((item) => item.total), 1)
   const datosOrdenados = [...datos].sort((a, b) =>
     a.tipoDatoMaestro.localeCompare(b.tipoDatoMaestro),
   )
@@ -432,17 +427,11 @@ function ResumenPorTipoDashboard({
     <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
       <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-base font-semibold">Cobertura del catalogo</h2>
+          <h2 className="text-base font-semibold">Resumen por tipo</h2>
           <p className="text-sm text-muted-foreground">
-            Lectura por tipo de maestro y disponibilidad para consumo.
+            Cantidad de registros por tipo. Toca uno para abrir su pantalla.
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/configuracion/listar">
-            Ver listado
-            <ArrowRight data-icon="inline-end" />
-          </Link>
-        </Button>
       </div>
       <div className="grid gap-3 p-4 md:grid-cols-2">
         {cargando ? (
@@ -454,32 +443,31 @@ function ResumenPorTipoDashboard({
           </>
         ) : datosOrdenados.length > 0 ? (
           datosOrdenados.map((item) => (
-            <div key={item.tipoDatoMaestro} className="grid gap-2 rounded-md border border-border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <TipoBadge tipo={item.tipoDatoMaestro} />
-                  {tiposConsumibles.includes(item.tipoDatoMaestro) ? (
-                    <Badge variant="secondary">Consumible</Badge>
-                  ) : (
-                    <Badge variant="outline">Base</Badge>
-                  )}
-                </div>
-                <span className="text-sm font-medium tabular-nums">
-                  {item.vigentesConsumibles}/{item.total}
+            <Link
+              key={item.tipoDatoMaestro}
+              href={rutaListadoPorTipo[item.tipoDatoMaestro]}
+              className="group grid gap-2 rounded-md border border-border p-3 transition-colors hover:border-primary/40 hover:bg-muted/40"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <TipoBadge tipo={item.tipoDatoMaestro} />
+                <span className="flex items-baseline gap-1 tabular-nums">
+                  <span className="text-lg font-semibold">{item.total}</span>
+                  <span className="text-xs text-muted-foreground">registros</span>
+                  <ArrowRight className="ml-1 size-3.5 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-primary"
-                  style={{ width: `${Math.max((item.total / totalBase) * 100, 3)}%` }}
+                  style={{ width: `${Math.max((item.activos / Math.max(item.total, 1)) * 100, 3)}%` }}
                 />
               </div>
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <span>Activos: {item.activos}</span>
+              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <span className="text-emerald-600 dark:text-emerald-400">Activos: {item.activos}</span>
                 <span>Inactivos: {item.inactivos}</span>
                 <span>Anulados: {item.anulados}</span>
               </div>
-            </div>
+            </Link>
           ))
         ) : (
           <div className="py-8 text-center text-sm text-muted-foreground md:col-span-2">
@@ -504,8 +492,8 @@ function EstadoResumenDashboard({
   return (
     <Card className="border-border shadow-sm">
       <CardHeader>
-        <CardTitle>Estado y consumo</CardTitle>
-        <CardDescription>Disponibilidad del servicio y vigencia del catalogo.</CardDescription>
+        <CardTitle>Estado del servicio</CardTitle>
+        <CardDescription>Disponibilidad del servicio y de los registros.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 text-sm">
         <div className="flex items-center justify-between gap-3">
@@ -541,10 +529,10 @@ function EstadoResumenDashboard({
 function FlujosConfiguracionGeneral() {
   const flujos = [
     {
-      titulo: "Catalogos consumibles",
-      descripcion: "Listado activo de cargos, ubicaciones, sedes, areas, cuentas y contratos.",
-      href: "/configuracion/listar",
-      accion: "Ver catalogo",
+      titulo: "Ubicaciones",
+      descripcion: "Punto de partida de la estructura: lugares donde opera la empresa.",
+      href: "/configuracion/ubicaciones",
+      accion: "Abrir",
       icon: Layers3,
     },
     {
@@ -615,7 +603,7 @@ function OrdenRegistroConfiguracionGeneral() {
       <div className="border-b border-border px-5 py-4">
         <h2 className="text-base font-semibold">Orden recomendado de registro</h2>
         <p className="text-sm text-muted-foreground">
-          Sigue esta secuencia para que los maestros aparezcan correctamente en las asignaciones.
+          Sigue esta secuencia para que los registros aparezcan correctamente en las asignaciones.
         </p>
       </div>
       <div className="grid md:grid-cols-4">
@@ -632,38 +620,6 @@ function OrdenRegistroConfiguracionGeneral() {
         ))}
       </div>
     </section>
-  )
-}
-
-function TabsListadoMaestros({
-  tipoActivo,
-  onTipoChange,
-}: {
-  onTipoChange: (tipo: "TODOS" | TipoDatoMaestro) => void
-  tipoActivo: "TODOS" | TipoDatoMaestro
-}) {
-  return (
-    <Tabs
-      value={tipoActivo}
-      onValueChange={(value) => onTipoChange(value as "TODOS" | TipoDatoMaestro)}
-      className="gap-0"
-    >
-      <div className="border-b border-border px-4 py-3">
-        <TabsList className="w-full justify-start overflow-x-auto" variant="line">
-          <TabsTrigger value="TODOS">Todos</TabsTrigger>
-          {modulosConfiguracion.map((modulo) => {
-            const Icon = modulo.icon
-
-            return (
-              <TabsTrigger key={modulo.tipo} value={modulo.tipo}>
-                <Icon data-icon="inline-start" />
-                {etiquetaTipo(modulo.tipo)}
-              </TabsTrigger>
-            )
-          })}
-        </TabsList>
-      </div>
-    </Tabs>
   )
 }
 
@@ -703,7 +659,7 @@ function TablaDatosMaestros({
             <TableHead className="w-16">#</TableHead>
             <TableHead>Codigo</TableHead>
             <TableHead>Nombre</TableHead>
-            <TableHead>Dato especifico</TableHead>
+            <TableHead>Detalle</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>Registro</TableHead>
             <TableHead>Ultimo movimiento</TableHead>
@@ -791,12 +747,6 @@ export function ConfiguracionGeneralDashboardVista() {
               <h1 className="text-xl font-semibold tracking-normal">Configuracion general</h1>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-              <Button asChild variant="outline">
-                <Link href="/configuracion/listar">
-                  <Database data-icon="inline-start" />
-                  Listar
-                </Link>
-              </Button>
               <Button asChild>
                 <Link href="/configuracion/nuevo/ubicacion">
                   <Plus data-icon="inline-start" />
@@ -861,12 +811,6 @@ export function ConfiguracionGeneralDashboardVista() {
                       Ver reportes
                     </Link>
                   </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/configuracion/listar">
-                      <Database data-icon="inline-start" />
-                      Listar
-                    </Link>
-                  </Button>
                 </CardContent>
               </Card>
             </aside>
@@ -877,71 +821,116 @@ export function ConfiguracionGeneralDashboardVista() {
   )
 }
 
-export function ConfiguracionGeneralListadoVista() {
-  const [tipoActivo, setTipoActivo] = useState<"TODOS" | TipoDatoMaestro>("UBICACION")
-  const rutaNuevoPorTipo: Record<TipoDatoMaestro, string> = {
-    UBICACION: "ubicacion",
-    SEDE: "sede",
-    AREA: "area",
-    ALMACEN: "almacen",
-    CUENTA: "cuenta",
-    CONTRATO: "contrato",
-    CARGO: "cargo",
-    REGIMEN: "regimen",
+// Icono propio de cada tipo de configuracion (se declara como componente para no
+// crear componentes dentro del render).
+function IconoMaestro({ tipo, className }: { tipo: TipoDatoMaestro; className?: string }) {
+  switch (tipo) {
+    case "UBICACION":
+      return <MapPin className={className} />
+    case "SEDE":
+      return <Building2 className={className} />
+    case "AREA":
+      return <Network className={className} />
+    case "ALMACEN":
+      return <Warehouse className={className} />
+    case "CARGO":
+      return <ShieldCheck className={className} />
+    case "CUENTA":
+      return <BriefcaseBusiness className={className} />
+    case "CONTRATO":
+      return <ClipboardList className={className} />
+    default:
+      return <CalendarClock className={className} />
   }
-  const tipoNuevo = tipoActivo === "TODOS" ? "UBICACION" : tipoActivo
-  const hrefNuevo = `/configuracion/nuevo/${rutaNuevoPorTipo[tipoNuevo]}`
+}
 
-  function renderListado() {
-    if (tipoActivo === "UBICACION") return <ConfiguracionGeneralUbicacionesListarVista />
-    if (tipoActivo === "SEDE") return <ConfiguracionGeneralSedesListarVista />
-    if (tipoActivo === "AREA") return <ConfiguracionGeneralAreasListarVista />
-    if (tipoActivo === "ALMACEN") return <ConfiguracionGeneralAlmacenesListarVista />
-    if (tipoActivo === "CUENTA") return <ConfiguracionGeneralCuentasListarVista />
-    if (tipoActivo === "CONTRATO") return <ConfiguracionGeneralContratosListarVista />
-    if (tipoActivo === "CARGO") return <ConfiguracionGeneralCargosListarVista />
-    if (tipoActivo === "REGIMEN") return <ConfiguracionGeneralRegimenesListarVista />
-    return <ConfiguracionGeneralListadoPorTipoVista tipo="TODOS" />
-  }
+/**
+ * Pantalla dedicada a un solo tipo de configuracion (ubicaciones, sedes, areas,
+ * etc.). Tiene su propia ruta y entrada en el sidebar, en vez de vivir como una
+ * pestana dentro de una pantalla compartida. Reusa el listado por tipo, que ya
+ * elige el endpoint especifico correcto.
+ */
+export function ConfiguracionGeneralSeccionVista({
+  seccion,
+}: {
+  seccion: SeccionConfiguracionClave
+}) {
+  const config = seccionesConfiguracion[seccion]
+  const tipos = config.tipos as TipoDatoMaestro[]
+  const [activo, setActivo] = useState<TipoDatoMaestro>(tipos[0])
+  const hayVarios = tipos.length > 1
+  const singular = etiquetaTipo(activo).toLowerCase()
+  const hrefNuevo = `/configuracion/nuevo/${rutaNuevoPorTipo[activo]}`
 
   return (
     <>
       <SiteHeader
-        title="Configuraciones"
+        title={config.titulo}
         breadcrumbs={[
           { title: "CS-Configuracion General", href: "/configuracion" },
-          { title: "Configuraciones" },
+          { title: config.titulo },
         ]}
       />
-      <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
+      <main className="min-h-screen bg-muted/30 px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
-          <section className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-normal">Listar configuracion general</h1>
+          {/* Banner de la seccion de configuracion: identidad visual propia. */}
+          <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex flex-col gap-4 border-l-4 border-l-primary px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                  <IconoMaestro tipo={tipos[0]} className="size-6" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+                    Configuracion general
+                  </p>
+                  <h1 className="text-xl font-semibold tracking-normal">{config.titulo}</h1>
+                  <p className="mt-0.5 text-sm text-muted-foreground">{config.descripcion}</p>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                <Button asChild variant="outline" className="w-full sm:w-auto">
+                  <Link href="/configuracion">
+                    <ArrowRight className="size-4 rotate-180" data-icon="inline-start" />
+                    Inicio
+                  </Link>
+                </Button>
+                <Button asChild className="w-full sm:w-auto">
+                  <Link href={hrefNuevo}>
+                    <Plus data-icon="inline-start" />
+                    Nuevo {singular}
+                  </Link>
+                </Button>
+              </div>
             </div>
-            <Button asChild className="w-full md:w-auto">
-              <Link href={hrefNuevo}>
-                <Plus data-icon="inline-start" />
-                Nuevo {etiquetaTipo(tipoNuevo).toLowerCase()}
-              </Link>
-            </Button>
+
+            {/* Selector cuando la seccion agrupa dos tipos (sedes/areas, cuentas/contratos). */}
+            {hayVarios ? (
+              <div className="border-t border-border bg-muted/30 px-5 py-3">
+                <div className="inline-flex rounded-lg border border-border bg-background p-1">
+                  {tipos.map((t) => {
+                    const seleccionado = t === activo
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setActivo(t)}
+                        className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                          seleccionado
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {tituloMaestro[t]}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
           </section>
 
-          <section>
-            <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-              <div className="border-b border-border px-4 py-3">
-                <h2 className="text-base font-semibold">Maestros</h2>
-                <p className="text-sm text-muted-foreground">
-                  Selecciona un maestro para consultar, buscar y exportar sus registros.
-                </p>
-              </div>
-              <TabsListadoMaestros
-                tipoActivo={tipoActivo}
-                onTipoChange={setTipoActivo}
-              />
-            </section>
-          </section>
-          {renderListado()}
+          <ConfiguracionGeneralListadoPorTipoVista key={activo} tipo={activo} ocultarEncabezado />
         </div>
       </main>
     </>

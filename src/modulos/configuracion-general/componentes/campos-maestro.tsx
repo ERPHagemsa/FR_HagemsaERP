@@ -77,13 +77,11 @@ export const tiposUbicacion: Array<{ value: TipoUbicacion; label: string }> = [
   { value: "PLANTA", label: "Planta" },
   { value: "MINA", label: "Mina" },
   { value: "PUERTO", label: "Puerto" },
+  { value: "PEAJE", label: "Peaje" },
+  { value: "ESTACIONAMIENTO", label: "Estacionamiento" },
   { value: "ALMACEN", label: "Almacen" },
-  { value: "ALMACEN_TEMPORAL", label: "Almacen temporal" },
   { value: "PATIO", label: "Patio" },
   { value: "TERMINAL", label: "Terminal" },
-  { value: "PUNTO_CARGA", label: "Punto de carga" },
-  { value: "PUNTO_DESCARGA", label: "Punto de descarga" },
-  { value: "PUNTO_ACOPIO", label: "Punto de acopio" },
   { value: "OTRO", label: "Otro" },
 ]
 
@@ -413,11 +411,12 @@ export function CamposMaestro({
   const [departamentoUbigeo, setDepartamentoUbigeo] = useState(valoresIniciales?.departamento ?? "")
   const [provinciaUbigeo, setProvinciaUbigeo] = useState(valoresIniciales?.provincia ?? "")
   const [distritoUbigeo, setDistritoUbigeo] = useState(valoresIniciales?.distrito ?? "")
-  const [latitudUbigeo, setLatitudUbigeo] = useState(
-    valoresIniciales?.latitud != null ? String(valoresIniciales.latitud) : "",
-  )
-  const [longitudUbigeo, setLongitudUbigeo] = useState(
-    valoresIniciales?.longitud != null ? String(valoresIniciales.longitud) : "",
+  // Coordenadas en un solo campo "lat, long" (formato Google). El backend lo
+  // separa y redondea; el frontend solo lo envia como coordenadasGoogle.
+  const [coordenadas, setCoordenadas] = useState(() =>
+    valoresIniciales?.latitud != null && valoresIniciales?.longitud != null
+      ? `${valoresIniciales.latitud}, ${valoresIniciales.longitud}`
+      : "",
   )
   const paisSeleccionado = obtenerPais(paisUbicacion)
   const opcionesPaises = useMemo<OpcionUbicacion[]>(
@@ -442,23 +441,20 @@ export function CamposMaestro({
     setDepartamentoUbigeo("")
     setProvinciaUbigeo("")
     setDistritoUbigeo("")
-    setLatitudUbigeo("")
-    setLongitudUbigeo("")
+    setCoordenadas("")
   }
 
   function seleccionarDepartamento(departamento: string) {
     setDepartamentoUbigeo(departamento)
     setProvinciaUbigeo("")
     setDistritoUbigeo("")
-    setLatitudUbigeo("")
-    setLongitudUbigeo("")
+    setCoordenadas("")
   }
 
   function seleccionarProvincia(provincia: string) {
     setProvinciaUbigeo(provincia)
     setDistritoUbigeo("")
-    setLatitudUbigeo("")
-    setLongitudUbigeo("")
+    setCoordenadas("")
   }
 
   function seleccionarDistrito(distrito: string) {
@@ -472,8 +468,9 @@ export function CamposMaestro({
         item.distrito === distrito,
     )
 
-    setLatitudUbigeo(ubigeo?.latitud ?? "")
-    setLongitudUbigeo(ubigeo?.longitud ?? "")
+    setCoordenadas(
+      ubigeo?.latitud && ubigeo?.longitud ? `${ubigeo.latitud}, ${ubigeo.longitud}` : "",
+    )
   }
 
   if (tipo === "REGIMEN") {
@@ -537,7 +534,7 @@ export function CamposMaestro({
     if (seccion === "detalle") return null
     return (
       <div className="grid gap-2 md:col-span-2">
-        <label className="text-sm font-medium" htmlFor="cargoSuperiorId">Cargo superior</label>
+        <label className="text-sm font-medium" htmlFor="cargoSuperiorId">Reporta a</label>
         <Select
           name="cargoSuperiorId"
           defaultValue={valoresIniciales?.cargoSuperiorId != null ? String(valoresIniciales.cargoSuperiorId) : "__none"}
@@ -551,10 +548,10 @@ export function CamposMaestro({
           }
         >
           <SelectTrigger id="cargoSuperiorId" className="w-full">
-            <SelectValue placeholder="Selecciona un cargo superior" />
+            <SelectValue placeholder="Selecciona a quien reporta" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="__none">Sin cargo superior</SelectItem>
+            <SelectItem value="__none">No reporta a nadie</SelectItem>
             {cargos.filter((cargo) => cargo.id !== valoresIniciales?.id).length > 0 ? (
               cargos
                 .filter((cargo) => cargo.id !== valoresIniciales?.id)
@@ -656,29 +653,21 @@ export function CamposMaestro({
             placeholder="Frente al patio principal"
           />
         </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="latitud">Latitud</label>
+        <div className="grid gap-2 md:col-span-2">
+          <label className="text-sm font-medium" htmlFor="coordenadasGoogle">
+            Coordenadas (Google Maps)
+          </label>
           <Input
-            id="latitud"
-            name="latitud"
-            type="number"
-            step="any"
-            value={latitudUbigeo}
-            placeholder="-12.046374"
-            onChange={(event) => setLatitudUbigeo(event.target.value)}
+            id="coordenadasGoogle"
+            name="coordenadasGoogle"
+            value={coordenadas}
+            placeholder="-16.425802, -71.673141"
+            onChange={(event) => setCoordenadas(event.target.value)}
           />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium" htmlFor="longitud">Longitud</label>
-          <Input
-            id="longitud"
-            name="longitud"
-            type="number"
-            step="any"
-            value={longitudUbigeo}
-            placeholder="-76.98745"
-            onChange={(event) => setLongitudUbigeo(event.target.value)}
-          />
+          <p className="text-xs text-muted-foreground">
+            Pega la coordenada de Google tal cual (latitud, longitud). El sistema la separa
+            automaticamente. Se autocompleta al elegir el distrito.
+          </p>
         </div>
       </>
     )
@@ -895,8 +884,7 @@ export function CamposMaestro({
     // La cuenta no tiene campos propios editables: el backend asigna su nivel.
     return (
       <p className="text-sm text-muted-foreground md:col-span-2">
-        La cuenta solo necesita nombre y descripcion. El nivel en la jerarquia lo
-        asigna el sistema automaticamente.
+        La cuenta solo necesita un nombre y una descripcion.
       </p>
     )
   }
@@ -906,8 +894,7 @@ export function CamposMaestro({
   if (esEdicion) {
     return (
       <p className="text-sm text-muted-foreground md:col-span-2">
-        El contrato padre y el nivel no se modifican. El nivel actual es{" "}
-        <span className="font-medium">{valoresIniciales?.nivelCuentaContrato ?? "-"}</span>.
+        La cuenta o contrato del que depende no se puede cambiar despues de crearlo.
       </p>
     )
   }
@@ -917,7 +904,7 @@ export function CamposMaestro({
   return (
     <>
       <div className="grid gap-2 md:col-span-2">
-        <label className="text-sm font-medium" htmlFor="contratoPadreId">Contrato o cuenta padre</label>
+        <label className="text-sm font-medium" htmlFor="contratoPadreId">Cuenta o contrato principal</label>
         <Select
           name="contratoPadreId"
           onValueChange={(value) => {
@@ -932,7 +919,7 @@ export function CamposMaestro({
           required
         >
           <SelectTrigger id="contratoPadreId" className="w-full">
-            <SelectValue placeholder="Selecciona una cuenta o contrato padre" />
+            <SelectValue placeholder="Selecciona la cuenta o contrato del que depende" />
           </SelectTrigger>
           <SelectContent>
             {cuentas.length > 0 ? (
@@ -956,7 +943,7 @@ export function CamposMaestro({
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          El nivel del contrato se calcula a partir del padre seleccionado.
+          El contrato quedara dentro de la cuenta o contrato que elijas.
         </p>
       </div>
     </>
@@ -983,6 +970,28 @@ function numero(formData: FormData, key: string) {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+// Separa una coordenada "lat, long" (formato Google) en numeros. Se envia junto
+// con coordenadasGoogle para ser compatible tanto con backends que ya hacen la
+// conversion como con los que solo aceptan latitud/longitud.
+function parseCoordenadas(valor?: string): {
+  coordenadasGoogle?: string
+  latitud: number | null
+  longitud: number | null
+} {
+  if (!valor) return { coordenadasGoogle: undefined, latitud: null, longitud: null }
+  const partes = valor.split(",").map((parte) => parte.trim())
+  if (partes.length !== 2) {
+    return { coordenadasGoogle: valor, latitud: null, longitud: null }
+  }
+  const lat = Number(partes[0])
+  const lng = Number(partes[1])
+  return {
+    coordenadasGoogle: valor,
+    latitud: Number.isFinite(lat) ? lat : null,
+    longitud: Number.isFinite(lng) ? lng : null,
+  }
+}
+
 /** Construye el request de registro para `tipo` a partir del formulario. */
 export function construirPayloadRegistro<T extends TipoDatoMaestro>(
   tipo: T,
@@ -1001,7 +1010,8 @@ export function construirPayloadRegistro<T extends TipoDatoMaestro>(
         ...comun,
         cargoSuperiorId: numero(formData, "cargoSuperiorId") ?? null,
       } as RegistrarRequestPorTipo[T]
-    case "UBICACION":
+    case "UBICACION": {
+      const coords = parseCoordenadas(texto(formData, "coordenadasGoogle"))
       return {
         ...comun,
         tipoUbicacion: (texto(formData, "tipoUbicacion") as TipoUbicacion | undefined) ?? "OTRO",
@@ -1011,9 +1021,11 @@ export function construirPayloadRegistro<T extends TipoDatoMaestro>(
         distrito: texto(formData, "distrito") ?? null,
         direccion: texto(formData, "direccion") ?? null,
         referenciaUbicacion: texto(formData, "referenciaUbicacion") ?? null,
-        latitud: numero(formData, "latitud") ?? null,
-        longitud: numero(formData, "longitud") ?? null,
+        coordenadasGoogle: coords.coordenadasGoogle,
+        latitud: coords.latitud,
+        longitud: coords.longitud,
       } as RegistrarRequestPorTipo[T]
+    }
     case "SEDE":
       return {
         ...comun,
@@ -1074,7 +1086,8 @@ export function construirPayloadModificacion<T extends TipoDatoMaestro>(
         ...comun,
         cargoSuperiorId: numero(formData, "cargoSuperiorId") ?? null,
       } as ModificarRequestPorTipo[T]
-    case "UBICACION":
+    case "UBICACION": {
+      const coords = parseCoordenadas(texto(formData, "coordenadasGoogle"))
       return {
         ...comun,
         tipoUbicacion: texto(formData, "tipoUbicacion") as TipoUbicacion | undefined,
@@ -1084,9 +1097,11 @@ export function construirPayloadModificacion<T extends TipoDatoMaestro>(
         distrito: texto(formData, "distrito") ?? null,
         direccion: texto(formData, "direccion") ?? null,
         referenciaUbicacion: texto(formData, "referenciaUbicacion") ?? null,
-        latitud: numero(formData, "latitud") ?? null,
-        longitud: numero(formData, "longitud") ?? null,
+        coordenadasGoogle: coords.coordenadasGoogle,
+        latitud: coords.latitud,
+        longitud: coords.longitud,
       } as ModificarRequestPorTipo[T]
+    }
     case "SEDE":
       return {
         ...comun,

@@ -13,6 +13,7 @@ import type {
   RegistrarRequestPorTipo,
   ResumenConfiguracionGeneralResponse,
   TipoDatoMaestro,
+  UbicacionJerarquiaResponse,
 } from "../tipos/configuracion-general"
 import { RUTA_POR_TIPO } from "../tipos/configuracion-general"
 
@@ -113,6 +114,20 @@ export async function consultarCatalogoConfiguracionGeneral(
   return data
 }
 
+/**
+ * Endpoint especifico recomendado para arboles de ubicacion -> sedes -> areas ->
+ * almacenes. Devuelve la estructura anidada en una sola llamada paginada por
+ * ubicacion, evitando el patron N+1 y el truncado al armar el arbol en memoria.
+ */
+export async function obtenerJerarquiaUbicaciones(
+  query?: ConsultarConfiguracionGeneralQuery,
+): Promise<PaginatedResponse<UbicacionJerarquiaResponse>> {
+  const { data } = await clienteConfiguracionGeneral.get<
+    PaginatedResponse<UbicacionJerarquiaResponse>
+  >(`${BASE_ENDPOINT}/ubicaciones/jerarquia${crearQueryString(query)}`)
+  return data
+}
+
 export async function exportarConfiguracionGeneral(
   query?: ExportarConfiguracionGeneralQuery,
 ): Promise<PaginatedResponse<ConfiguracionGeneralResponse>> {
@@ -146,7 +161,16 @@ export async function listarPorTipo(
   const { data } = await clienteConfiguracionGeneral.get<
     PaginatedResponse<ConfiguracionGeneralResponse>
   >(`${rutaTipo(tipo)}${crearQueryString(resto)}`)
-  return data
+  // Los endpoints planos no devuelven tipoDatoMaestro (lo define la ruta). Lo
+  // reinyectamos para que el resto del modulo (acciones de ciclo de vida, ficha,
+  // edicion por tipo) siga teniendo el tipo disponible en cada registro.
+  return {
+    ...data,
+    datos: (data.datos ?? []).map((item) => ({
+      ...item,
+      tipoDatoMaestro: item.tipoDatoMaestro ?? tipo,
+    })),
+  }
 }
 
 /** Registra un maestro en su recurso dedicado con solo sus campos propios. */

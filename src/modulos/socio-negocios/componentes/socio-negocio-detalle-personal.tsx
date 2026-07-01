@@ -59,11 +59,10 @@ function DisponibilidadesVigentes({
               {item.observacion ? (
                 <p className="mt-1 text-sm text-muted-foreground">{item.observacion}</p>
               ) : null}
-              <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-                <span>Asignacion #{item.asignacionPersonalId}</span>
+              <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                 <span>
                   {item.asignacionPersonalCuentaContratoId
-                    ? `Cuenta/contrato #${item.asignacionPersonalCuentaContratoId}`
+                    ? "Cuenta/contrato asignado"
                     : "Sin cuenta/contrato especifico"}
                 </span>
                 <span>

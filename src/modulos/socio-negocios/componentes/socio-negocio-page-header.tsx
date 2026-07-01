@@ -20,7 +20,7 @@ export function SocioNegocioPageHeader({
   return (
     <section
       className={cn(
-        "border-b border-border pb-5 text-foreground",
+        "pb-4 text-foreground",
         className,
       )}
     >

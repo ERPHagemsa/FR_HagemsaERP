@@ -6,7 +6,6 @@ import {
   ArchiveRestore,
   ArchiveX,
   BriefcaseBusiness,
-  Ban,
   CheckCircle2,
   CircleDashed,
   CircleX,
@@ -16,7 +15,6 @@ import {
   Loader2,
   MoreVertical,
   Pencil,
-  SendHorizontal,
   TrendingUp,
 } from "lucide-react"
 
@@ -50,11 +48,9 @@ import {
   useAprobarSocioDeNegocioMutation,
   useDarDeBajaSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
-  useRechazarSocioDeNegocioMutation,
 } from "../servicios/socio-negocios-queries"
 import {
   puedeGestionarAsignacionesPersonal,
-  puedeReenviarAprobacionSocio,
   puedeResolverAprobacionSocio,
 } from "../tipos/socio-negocio"
 import type {
@@ -163,11 +159,11 @@ export function obtenerClaseFilaSocio(socio: {
   const anulado = socio.estadoRegistro === "ANULADO"
 
   return cn(
-    "border-border/80 hover:bg-transparent",
+    "border-border/40 transition-colors hover:bg-muted/25",
     inactivo && !anulado &&
-      "border-l-4 border-l-muted-foreground/40 bg-muted/45 hover:bg-muted/45",
+      "border-l-4 border-l-muted-foreground/30 bg-muted/25 hover:bg-muted/30",
     anulado &&
-      "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/5",
+      "border-l-4 border-l-destructive/70 bg-destructive/5 text-muted-foreground hover:bg-destructive/5",
   )
 }
 
@@ -181,7 +177,7 @@ export function EstadoSocioBadge({ estado }: { estado: EstadoSocioDeNegocio }) {
   return (
     <Badge
       variant="outline"
-      className="h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+      className="h-6 gap-1.5 rounded-full border-border/50 bg-background px-2.5 text-[12px] font-medium text-foreground"
     >
       {estado === "ACTIVO" ? (
         <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
@@ -197,7 +193,7 @@ export function EstadoRegistroBadge({ estadoRegistro }: { estadoRegistro: Estado
   return (
     <Badge
       variant="outline"
-      className="h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+      className="h-6 gap-1.5 rounded-full border-border/50 bg-background px-2.5 text-[12px] font-medium text-foreground"
     >
       {estadoRegistro === "ACTIVO" ? (
         <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
@@ -211,7 +207,7 @@ export function EstadoRegistroBadge({ estadoRegistro }: { estadoRegistro: Estado
 
 export function EstadoAprobacionBadge({ estado }: { estado: EstadoAprobacion }) {
   const baseClase =
-    "h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+    "h-6 gap-1.5 rounded-full border-border/50 bg-background px-2.5 text-[12px] font-medium text-foreground"
 
   if (estado === "APROBADO") {
     return (
@@ -249,7 +245,7 @@ export function ResumenListado({
   value: number
 }) {
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-background p-3">
+    <div className="min-w-0 rounded-lg border border-border/50 bg-background p-3">
       <div className="flex items-center gap-3">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
           <Icon className="size-4" />
@@ -291,27 +287,22 @@ export function AccionesSocio({
   const aprobarMutation = useAprobarSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
-  const rechazarMutation = useRechazarSocioDeNegocioMutation(socio.id, {
-    onSuccess: onActualizado,
-  })
-  const [accion, setAccion] = useState<"anular" | "rechazar" | "reactivar" | null>(null)
+  const [accion, setAccion] = useState<"anular" | "reactivar" | null>(null)
   const [motivo, setMotivo] = useState("")
   const procesando =
     bajaMutation.isPending ||
     reactivarMutation.isPending ||
-    aprobarMutation.isPending ||
-    rechazarMutation.isPending
+    aprobarMutation.isPending
   const registroAnulado = socio.estadoRegistro === "ANULADO"
   const puedeReactivar =
     socio.estado === "INACTIVO" && socio.estadoRegistro === "ACTIVO"
   const puedeGestionarAsignaciones = puedeGestionarAsignacionesPersonal(socio)
   const puedeResolverAprobacion = puedeResolverAprobacionSocio(socio)
-  const puedeReenviarAprobacion = puedeReenviarAprobacionSocio(socio)
-  const requiereMotivo = accion === "anular" || accion === "rechazar"
+  const requiereMotivo = accion === "anular"
   const detalleHref = `/socio-negocios/${socio.id}?tipo=${socio.tipo}`
   const editarHref = `/socio-negocios/${socio.id}?tipo=${socio.tipo}&modo=editar`
 
-  function abrirAccion(nuevaAccion: "anular" | "rechazar" | "reactivar") {
+  function abrirAccion(nuevaAccion: "anular" | "reactivar") {
     setMotivo(nuevaAccion === "anular" ? "Documento registrado incorrectamente" : "")
     setAccion(nuevaAccion)
   }
@@ -334,11 +325,6 @@ export function AccionesSocio({
           estadoRegistro: "ANULADO",
         })
         onMensaje(`${nombre} fue anulado.`)
-      }
-
-      if (accion === "rechazar") {
-        await rechazarMutation.mutateAsync({ usuarioId, motivo: motivo.trim() })
-        onMensaje(`${nombre} fue rechazado.`)
       }
 
       if (accion === "reactivar") {
@@ -405,29 +391,12 @@ export function AccionesSocio({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {puedeResolverAprobacion ? (
-                  <>
-                    <DropdownMenuItem
-                      disabled={procesando}
-                      onSelect={() => void aprobar()}
-                    >
-                      <CheckCircle2 data-icon="inline-start" />
-                      Aprobar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={procesando}
-                      onSelect={() => abrirAccion("rechazar")}
-                    >
-                      <Ban data-icon="inline-start" />
-                      Rechazar
-                    </DropdownMenuItem>
-                  </>
-                ) : null}
-                {puedeReenviarAprobacion ? (
-                  <DropdownMenuItem asChild disabled={procesando}>
-                    <Link href={`/socio-negocios/${socio.id}?tipo=${socio.tipo}&modo=corregir`}>
-                      <SendHorizontal data-icon="inline-start" />
-                      Corregir y reenviar
-                    </Link>
+                  <DropdownMenuItem
+                    disabled={procesando}
+                    onSelect={() => void aprobar()}
+                  >
+                    <CheckCircle2 data-icon="inline-start" />
+                    Aprobar
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem
@@ -454,20 +423,12 @@ export function AccionesSocio({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {accion === "anular"
-                ? "Anular socio"
-                : accion === "rechazar"
-                  ? "Rechazar socio"
-                  : "Reactivar socio"}
+              {accion === "anular" ? "Anular socio" : "Reactivar socio"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {accion === "reactivar"
                 ? `Confirma la reactivacion de ${nombre}.`
-                : accion === "rechazar"
-                  ? "El socio quedara inactivo. El motivo se registra en la auditoria."
-                  : accion === "anular"
-                    ? "El motivo quedara registrado en la auditoria del socio."
-                    : `Registra el motivo para ${nombre}.`}
+                : "El motivo quedara registrado en la auditoria del socio."}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -499,20 +460,14 @@ export function AccionesSocio({
           <AlertDialogFooter>
             <AlertDialogCancel disabled={procesando}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              variant={accion === "anular" || accion === "rechazar" ? "destructive" : "default"}
+              variant={accion === "anular" ? "destructive" : "default"}
               disabled={procesando || (requiereMotivo && !motivo.trim())}
               onClick={(event) => {
                 event.preventDefault()
                 void confirmarAccion()
               }}
             >
-              {procesando
-                ? "Procesando..."
-                : accion === "anular"
-                  ? "Anular"
-                  : accion === "rechazar"
-                    ? "Rechazar"
-                    : "Confirmar"}
+              {procesando ? "Procesando..." : accion === "anular" ? "Anular" : "Confirmar"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

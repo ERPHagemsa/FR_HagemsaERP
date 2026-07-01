@@ -56,6 +56,8 @@ export interface ConsultarTiposTareoPersonalQuery {
 export interface ConfiguracionLaboralPersonalResponse {
   id: number
   tipoTareoId: number
+  /** Forma del tipo de tareo al que pertenece (turno, horario o regimen). */
+  tipoTareoForma?: FormaTareo
   codigo: string
   nombre: string
   tipoRegimen?: TipoRegimenPersonal

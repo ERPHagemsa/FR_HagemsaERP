@@ -124,7 +124,7 @@ export function SocioNegocioAsignacionesVista({ id }: { id: string }) {
                 <AsignacionesPersonalSeccion
                   personalId={socio.id}
                   titulo="Asignacion del personal"
-                  descripcion={`Base organizacional y contractual del personal #${socio.id}.`}
+                  descripcion="Base organizacional y contractual del personal."
                   vacioTitulo="Sin asignacion vigente"
                   vacioDescripcion="Este registro actual todavia no tiene asignaciones."
                 />

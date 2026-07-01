@@ -203,8 +203,8 @@ export function ProveedoresListadoVista() {
           ) : null}
 
           <section className="flex flex-col gap-4">
-            <div className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
-              <div className="flex flex-col gap-3 border-b border-border bg-muted/20 px-4 py-4">
+            <div className="overflow-hidden rounded-xl border border-border/50 bg-card text-card-foreground">
+              <div className="flex flex-col gap-3 border-b border-border/40 bg-card px-4 py-4">
                 <form
                   className="grid gap-3 md:grid-cols-2 xl:grid-cols-6"
                   onSubmit={(event) => {
@@ -218,6 +218,7 @@ export function ProveedoresListadoVista() {
                         <Search />
                       </InputGroupAddon>
                       <InputGroupInput
+                        aria-label="Buscar por razon social"
                         value={obtenerValorFiltro(filtrosFormulario, "razonSocial")}
                         placeholder="Buscar por razon social"
                         onChange={(event) => actualizarFiltro("razonSocial", event.target.value)}
@@ -226,6 +227,7 @@ export function ProveedoresListadoVista() {
                   </Field>
                   <Field>
                     <Input
+                      aria-label="Filtrar por RUC o DNI"
                       value={obtenerValorFiltro(filtrosFormulario, "numeroDocumento")}
                       placeholder="RUC/DNI"
                       onChange={(event) => actualizarFiltro("numeroDocumento", event.target.value)}
@@ -233,6 +235,7 @@ export function ProveedoresListadoVista() {
                   </Field>
                   <Field>
                     <Input
+                      aria-label="Filtrar por codigo SAP"
                       value={obtenerValorFiltro(filtrosFormulario, "codigoInternoSap")}
                       placeholder="Codigo SAP"
                       onChange={(event) => actualizarFiltro("codigoInternoSap", event.target.value)}
@@ -248,7 +251,7 @@ export function ProveedoresListadoVista() {
                         )
                       }
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Filtrar por estado">
                         <SelectValue placeholder="Estado" />
                       </SelectTrigger>
                       <SelectContent>
@@ -270,7 +273,7 @@ export function ProveedoresListadoVista() {
                         )
                       }
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Filtrar por estado de registro">
                         <SelectValue placeholder="Registro" />
                       </SelectTrigger>
                       <SelectContent>
@@ -291,7 +294,7 @@ export function ProveedoresListadoVista() {
                         )
                       }
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Filtrar por origen">
                         <SelectValue placeholder="Origen" />
                       </SelectTrigger>
                       <SelectContent>
@@ -314,7 +317,7 @@ export function ProveedoresListadoVista() {
                         )
                       }
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full" aria-label="Filtrar por sincronizacion SAP">
                         <SelectValue placeholder="Sincronizacion SAP" />
                       </SelectTrigger>
                       <SelectContent>
@@ -340,7 +343,7 @@ export function ProveedoresListadoVista() {
                     </Button>
                   </div>
                 </form>
-                <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/40 pt-3">
                   <span className="mr-auto text-sm text-muted-foreground">
                     Exporta el resultado filtrado para reportes o revision interna.
                   </span>
@@ -375,14 +378,28 @@ export function ProveedoresListadoVista() {
                 <Empty className="py-12">
                   <EmptyHeader>
                     <EmptyTitle>Sin proveedores</EmptyTitle>
-                    <EmptyDescription>No existen registros para el filtro aplicado.</EmptyDescription>
+                    <EmptyDescription>
+                      No existen registros para el filtro aplicado. Limpia la busqueda o crea un
+                      nuevo proveedor si corresponde.
+                    </EmptyDescription>
                   </EmptyHeader>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={limpiarBusqueda}>
+                      Limpiar busqueda
+                    </Button>
+                    <Button asChild size="sm">
+                      <Link href="/socio-negocios/nuevo?tipo=PROVEEDOR">
+                        <Plus data-icon="inline-start" />
+                        Nuevo proveedor
+                      </Link>
+                    </Button>
+                  </div>
                 </Empty>
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-background hover:bg-transparent">
+                      <TableRow className="border-border/40 bg-muted/30 hover:bg-muted/30">
                         <TableHead className="w-10">Acciones</TableHead>
                         <TableHead className="text-right">ID</TableHead>
                         <TableHead>Codigo SAP</TableHead>

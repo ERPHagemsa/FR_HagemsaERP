@@ -30,14 +30,12 @@ import {
   ArchiveRestore,
   ArchiveX,
   ArrowLeft,
-  Ban,
   BriefcaseBusiness,
   CalendarRange,
   CheckCircle2,
   CircleX,
   GitBranch,
   Pencil,
-  SendHorizontal,
   TrendingUp,
 } from "lucide-react"
 
@@ -46,9 +44,7 @@ import {
   useDarDeBajaSocioDeNegocioMutation,
   useModificarSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
-  useRechazarSocioDeNegocioMutation,
   useReemplazarSocioDeNegocioMutation,
-  useReenviarAprobacionSocioDeNegocioMutation,
   useSocioDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
@@ -60,7 +56,6 @@ import { SocioNegocioDetallePersonal } from "../componentes/socio-negocio-detall
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 import {
   puedeGestionarAsignacionesPersonal,
-  puedeReenviarAprobacionSocio,
   puedeResolverAprobacionSocio,
 } from "../tipos/socio-negocio"
 import type {
@@ -171,8 +166,6 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
   const [motivo, setMotivo] = useState("")
   const [dialogoEstadoAbierto, setDialogoEstadoAbierto] = useState(false)
   const [accionEstado, setAccionEstado] = useState<"baja" | "anular" | null>(null)
-  const [dialogoRechazoAbierto, setDialogoRechazoAbierto] = useState(false)
-  const [motivoRechazo, setMotivoRechazo] = useState("")
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const bajaMutation = useDarDeBajaSocioDeNegocioMutation(id, {
@@ -190,24 +183,15 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
   const aprobarMutation = useAprobarSocioDeNegocioMutation(id, {
     onSuccess: () => void socioQuery.refetch(),
   })
-  const rechazarMutation = useRechazarSocioDeNegocioMutation(id, {
-    onSuccess: () => void socioQuery.refetch(),
-  })
-  const reenviarAprobacionMutation = useReenviarAprobacionSocioDeNegocioMutation(id, {
-    onSuccess: () => void socioQuery.refetch(),
-  })
-
   const puedeDarBaja =
     socio?.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
-  // Aprobar/Rechazar solo mientras el socio esta pendiente de aprobacion.
+  // Aprobar solo mientras el socio esta pendiente de aprobacion.
   const puedeResolverAprobacion = socio
     ? puedeResolverAprobacionSocio(socio)
     : false
-  // Reenviar a aprobacion solo cuando el socio fue RECHAZADO y ya se corrigio.
-  const puedeReenviarAprobacion = socio ? puedeReenviarAprobacionSocio(socio) : false
   // Gestionar asignaciones solo cuando el personal ya esta APROBADO. Mientras
-  // este pendiente, en su lugar se ofrece Aprobar/Rechazar aqui mismo (no hay
-  // que entrar a otra ventana para aprobar).
+  // este pendiente, en su lugar se ofrece Aprobar aqui mismo (no hay que entrar
+  // a otra ventana para aprobar).
   const puedeGestionarAsignaciones = socio
     ? puedeGestionarAsignacionesPersonal(socio) &&
       socio.estadoAprobacion === "APROBADO"
@@ -215,13 +199,6 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
   const registroAnulado = socio?.estadoRegistro === "ANULADO"
   const modoEdicion =
     searchParams.get("modo") === "editar" && socio?.estadoRegistro !== "ANULADO"
-  // Correccion guiada de un socio RECHAZADO: reutiliza el formulario de edicion y,
-  // tras guardar (PUT), reenvia a aprobacion en la misma accion. Solo aplica a
-  // registros rechazados y vigentes; en otro caso cae al modo de solo lectura.
-  const modoCorregir =
-    searchParams.get("modo") === "corregir" &&
-    socio?.estadoRegistro === "ACTIVO" &&
-    socio?.estadoAprobacion === "RECHAZADO"
   const modoReemplazo =
     searchParams.get("modo") === "reemplazar" && socio?.estadoRegistro !== "ANULADO"
   const formEditarId = `editar-socio-${id}`
@@ -280,20 +257,6 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
     }
   }
 
-  async function rechazar() {
-    if (!socio || !motivoRechazo.trim()) return
-    try {
-      setError(null)
-      setMensaje(null)
-      await rechazarMutation.mutateAsync({ usuarioId, motivo: motivoRechazo.trim() })
-      setMensaje(`${obtenerNombreSocio(socio)} fue rechazado.`)
-      setMotivoRechazo("")
-      setDialogoRechazoAbierto(false)
-    } catch (err) {
-      setError(obtenerMensajeError(err))
-    }
-  }
-
   async function guardarCambios(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!socio) return
@@ -313,14 +276,7 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       setError(null)
       setMensaje(null)
       await modificarMutation.mutateAsync(payload)
-      if (modoCorregir) {
-        // Correccion guiada: tras guardar los datos, reenvia a aprobacion para que
-        // el socio rechazado vuelva a quedar pendiente en una sola accion.
-        await reenviarAprobacionMutation.mutateAsync({ usuarioId })
-        setMensaje(`${obtenerNombreSocio(socio)} fue corregido y reenviado a aprobacion.`)
-      } else {
-        setMensaje(`${obtenerNombreSocio(socio)} fue editado.`)
-      }
+      setMensaje(`${obtenerNombreSocio(socio)} fue editado.`)
       router.replace(`/socio-negocios/${id}?tipo=${socio.tipo}`)
     } catch (err) {
       setError(obtenerMensajeError(err))
@@ -426,7 +382,7 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                 meta={<EstadoResumen socio={socio} />}
                 actions={
                   <>
-                    {modoEdicion || modoCorregir ? (
+                    {modoEdicion ? (
                       <>
                         <Button
                           type="button"
@@ -440,13 +396,9 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                           type="submit"
                           form={formEditarId}
                           size="sm"
-                          disabled={modificarMutation.isPending || reenviarAprobacionMutation.isPending}
+                          disabled={modificarMutation.isPending}
                         >
-                          {modificarMutation.isPending || reenviarAprobacionMutation.isPending
-                            ? "Guardando..."
-                            : modoCorregir
-                              ? "Guardar y reenviar a aprobacion"
-                              : "Guardar cambios"}
+                          {modificarMutation.isPending ? "Guardando..." : "Guardar cambios"}
                         </Button>
                       </>
                     ) : modoReemplazo ? (
@@ -510,28 +462,6 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                             Aprobar
                           </Button>
                         ) : null}
-                        {puedeResolverAprobacion ? (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            disabled={rechazarMutation.isPending}
-                            onClick={() => {
-                              setMotivoRechazo("")
-                              setDialogoRechazoAbierto(true)
-                            }}
-                          >
-                            <Ban data-icon="inline-start" />
-                            Rechazar
-                          </Button>
-                        ) : null}
-                        {puedeReenviarAprobacion ? (
-                          <Button asChild size="sm">
-                            <Link href={`/socio-negocios/${id}?tipo=${socio.tipo}&modo=corregir`}>
-                              <SendHorizontal data-icon="inline-start" />
-                              Corregir y reenviar a aprobacion
-                            </Link>
-                          </Button>
-                        ) : null}
                         {!registroAnulado ? (
                           <Button
                             variant="destructive"
@@ -585,21 +515,12 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                 }
               />
 
-              {modoEdicion || modoCorregir ? (
+              {modoEdicion ? (
                 <form
                   id={formEditarId}
                   className="grid gap-5"
                   onSubmit={(event) => void guardarCambios(event)}
                 >
-                  {modoCorregir ? (
-                    <Alert>
-                      <AlertTitle>Correccion de socio rechazado</AlertTitle>
-                      <AlertDescription>
-                        Corrige los datos observados. Al guardar, el socio se reenviara a
-                        aprobacion y volvera a quedar pendiente.
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
                   <section className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
                     <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
                     <h2 className="text-base font-semibold">Datos que no se modifican</h2>
@@ -904,47 +825,6 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog
-        open={dialogoRechazoAbierto}
-        onOpenChange={(open) => {
-          setDialogoRechazoAbierto(open)
-          if (!open) setMotivoRechazo("")
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Rechazar socio</AlertDialogTitle>
-            <AlertDialogDescription>
-              El socio quedara inactivo. El motivo se registra en la auditoria.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <Field>
-            <FieldLabel htmlFor={`motivo-rechazo-${id}`}>Motivo</FieldLabel>
-            <Textarea
-              id={`motivo-rechazo-${id}`}
-              value={motivoRechazo}
-              onChange={(event) => setMotivoRechazo(event.target.value)}
-              placeholder="Datos incompletos del socio"
-              disabled={rechazarMutation.isPending}
-            />
-          </Field>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={rechazarMutation.isPending}>
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={!motivoRechazo.trim() || rechazarMutation.isPending}
-              onClick={(event) => {
-                event.preventDefault()
-                void rechazar()
-              }}
-            >
-              {rechazarMutation.isPending ? "Procesando..." : "Rechazar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }

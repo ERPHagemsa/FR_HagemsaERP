@@ -9,6 +9,7 @@ import {
   consultarOpcionesConfiguracionGeneral,
   consultarHistorialAsignacionPersonal,
   crearAsignacionPersonal,
+  obtenerAreasPorSede,
   modificarAsignacionPersonal,
   obtenerAsignacionPersonal,
   obtenerOpcionesFormularioAsignacion,
@@ -57,6 +58,18 @@ export function useOpcionesFormularioAsignacionQuery(
     () => obtenerOpcionesFormularioAsignacion(soloActivos),
     ["opciones-formulario-asignacion", String(soloActivos)],
     { enabled },
+  )
+}
+
+/**
+ * Areas de una sede concreta. El combo de area del formulario depende de la sede
+ * elegida; se consulta bajo demanda porque `opciones-formulario` no trae areas.
+ */
+export function useAreasPorSedeQuery(sedeId: string, enabled = Boolean(sedeId)) {
+  return useConsulta(
+    () => obtenerAreasPorSede(sedeId),
+    ["areas-por-sede", sedeId],
+    { enabled: enabled && Boolean(sedeId) },
   )
 }
 

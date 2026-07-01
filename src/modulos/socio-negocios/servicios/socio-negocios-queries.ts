@@ -84,9 +84,9 @@ export function useSocioDeNegocioQuery(id: string, tipo?: TipoSocioDeNegocio) {
   })
 }
 
-export function useLineaHistoricaPersonalQuery(id: string) {
+export function useLineaHistoricaPersonalQuery(id: string, enabled = true) {
   return useConsulta(() => obtenerLineaHistoricaPersonal(id), [id], {
-    enabled: Boolean(id),
+    enabled: enabled && Boolean(id),
   })
 }
 

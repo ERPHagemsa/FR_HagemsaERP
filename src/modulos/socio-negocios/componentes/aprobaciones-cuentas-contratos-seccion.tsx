@@ -130,7 +130,7 @@ function FilaAprobacion({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-medium">
-            #{aprobacion.ordenAprobacion} · {aprobacion.aprobadorNombre || aprobacion.aprobadorCodigo || "Aprobador"}
+            {aprobacion.aprobadorNombre || aprobacion.aprobadorCodigo || "Aprobador"}
           </p>
           <p className="text-xs text-muted-foreground">
             {[
