@@ -124,3 +124,27 @@ export type IniciarInspeccionPayload = {
   operadoresDocumentos?: string[] | null;
   observaciones?: string | null;
 };
+
+// ── Captura de respuestas (HU-04-010) ─────────────────────────────────────────
+
+export type RespuestaItemPayload = {
+  itemId: string;
+  estadoItem?: EstadoItem;
+  cantidad?: number | null;
+  valorNumerico?: number | null;
+  valorTexto?: string | null;
+  valorBooleano?: boolean | null;
+  observacion?: string | null;
+};
+
+export type LecturaNeumaticoPayload = {
+  neumaticoId: string;
+  cocadaMm?: number | null;
+  otro?: string | null;
+  fecha?: string | null;
+};
+
+export type RegistrarRespuestasPayload = {
+  respuestas?: RespuestaItemPayload[];
+  neumaticos?: LecturaNeumaticoPayload[];
+};

@@ -4,14 +4,18 @@ import { invalidarConsulta, useConsulta } from "@/compartido/api/use-consulta";
 import { useMutar } from "@/compartido/api/use-mutar";
 import {
   anularInspeccion,
+  autoguardarRespuestas,
+  cerrarInspeccion,
   iniciarInspeccion,
   listarInspecciones,
   obtenerInspeccion,
+  registrarRespuestas,
 } from "./inspeccion-api";
 import type {
   FiltrosInspecciones,
   IniciarInspeccionPayload,
   Inspeccion,
+  RegistrarRespuestasPayload,
 } from "../tipos/inspeccion.tipos";
 
 const CLAVE_INSPECCIONES = "flota:checklist:inspecciones";
@@ -57,6 +61,46 @@ export function useAnularInspeccionMutation(
   return useMutar<void, Inspeccion>({
     fn: () => anularInspeccion(id),
     onSuccess: (inspeccion) => {
+      invalidarConsulta(CLAVE_INSPECCIONES);
+      opciones.onSuccess?.(inspeccion);
+    },
+    onError: (err) => opciones.onError?.(err),
+  });
+}
+
+// Autoguardado por debounce: NO invalida la consulta (evitaría refetch mientras
+// el usuario sigue escribiendo). El componente de captura fusiona la respuesta
+// del servidor en su propio estado local.
+export function useAutoguardarRespuestasMutation(
+  id: string,
+  opciones: OpcionesMutacionInspeccion = {},
+) {
+  return useMutar<RegistrarRespuestasPayload, Inspeccion>({
+    fn: (payload) => autoguardarRespuestas(id, payload),
+    onSuccess: (inspeccion) => opciones.onSuccess?.(inspeccion),
+    onError: (err) => opciones.onError?.(err),
+  });
+}
+
+export function useRegistrarRespuestasMutation(
+  id: string,
+  opciones: OpcionesMutacionInspeccion = {},
+) {
+  return useMutar<RegistrarRespuestasPayload, Inspeccion>({
+    fn: (payload) => registrarRespuestas(id, payload),
+    onSuccess: (inspeccion) => opciones.onSuccess?.(inspeccion),
+    onError: (err) => opciones.onError?.(err),
+  });
+}
+
+export function useCerrarInspeccionMutation(
+  id: string,
+  opciones: OpcionesMutacionInspeccion = {},
+) {
+  return useMutar<void, Inspeccion>({
+    fn: () => cerrarInspeccion(id),
+    onSuccess: (inspeccion) => {
+      invalidarConsulta(`${CLAVE_INSPECCIONES}:${id}`);
       invalidarConsulta(CLAVE_INSPECCIONES);
       opciones.onSuccess?.(inspeccion);
     },

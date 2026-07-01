@@ -1,7 +1,7 @@
 "use client";
 
 import { SiteHeader } from "@/compartido/componentes/site-header";
-import { InspeccionDetalle } from "../componentes/inspeccion-detalle";
+import { InspeccionCaptura } from "../componentes/inspeccion-captura";
 
 export function InspeccionDetalleVista({ inspeccionId }: { inspeccionId: string }) {
   return (
@@ -16,7 +16,7 @@ export function InspeccionDetalleVista({ inspeccionId }: { inspeccionId: string 
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
-          <InspeccionDetalle inspeccionId={inspeccionId} />
+          <InspeccionCaptura inspeccionId={inspeccionId} />
         </div>
       </main>
     </>

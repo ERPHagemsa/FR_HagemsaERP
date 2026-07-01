@@ -3,6 +3,7 @@ import type {
   FiltrosInspecciones,
   IniciarInspeccionPayload,
   Inspeccion,
+  RegistrarRespuestasPayload,
   RespuestaPaginadaInspecciones,
 } from "../tipos/inspeccion.tipos";
 
@@ -40,6 +41,39 @@ export async function iniciarInspeccion(
 export async function anularInspeccion(id: string): Promise<Inspeccion> {
   const { data } = await clienteFlota.patch<{ datos: Inspeccion; mensaje: string }>(
     `/flota/inspecciones/${encodeURIComponent(id)}/anular`,
+    {},
+  );
+  return data.datos;
+}
+
+// Guardado EXPLÍCITO (deja evento de auditoría). Usar en acciones deliberadas
+// del usuario (p. ej. un botón "Guardar"), no en el autoguardado por debounce.
+export async function registrarRespuestas(
+  id: string,
+  payload: RegistrarRespuestasPayload,
+): Promise<Inspeccion> {
+  const { data } = await clienteFlota.patch<{ datos: Inspeccion; mensaje: string }>(
+    `/flota/inspecciones/${encodeURIComponent(id)}/respuestas`,
+    payload,
+  );
+  return data.datos;
+}
+
+// Autoguardado idempotente por debounce: no deja evento de auditoría de rutina.
+export async function autoguardarRespuestas(
+  id: string,
+  payload: RegistrarRespuestasPayload,
+): Promise<Inspeccion> {
+  const { data } = await clienteFlota.patch<{ datos: Inspeccion; mensaje: string }>(
+    `/flota/inspecciones/${encodeURIComponent(id)}/respuestas/autoguardar`,
+    payload,
+  );
+  return data.datos;
+}
+
+export async function cerrarInspeccion(id: string): Promise<Inspeccion> {
+  const { data } = await clienteFlota.patch<{ datos: Inspeccion; mensaje: string }>(
+    `/flota/inspecciones/${encodeURIComponent(id)}/cerrar`,
     {},
   );
   return data.datos;

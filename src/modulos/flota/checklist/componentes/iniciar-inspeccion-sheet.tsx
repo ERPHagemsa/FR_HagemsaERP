@@ -33,21 +33,6 @@ import { useColoresRotulacionQuery } from "../servicios/colores-rotulacion-queri
 import { useIniciarInspeccionMutation } from "../servicios/inspecciones-queries";
 import type { Inspeccion } from "../tipos/inspeccion.tipos";
 
-// Etiqueta legible de una asignación (contrato / cuenta vienen como `unknown`).
-function etiquetaReferencia(ref: unknown): string | null {
-  if (!ref || typeof ref !== "object") return null;
-  const r = ref as Record<string, unknown>;
-  const codigo = typeof r.codigo === "string" ? r.codigo : null;
-  const nombre = typeof r.nombre === "string" ? r.nombre : null;
-  return [codigo, nombre].filter(Boolean).join(" — ") || null;
-}
-
-function etiquetaAsignacion(a: NonNullable<VehiculoFlota["asignaciones"]>[number]): string {
-  const contrato = etiquetaReferencia(a.contrato);
-  const cuenta = etiquetaReferencia(a.cuenta);
-  return [contrato, cuenta].filter(Boolean).join(" · ") || `Asignación ${a.id ?? ""}`;
-}
-
 function aNumeroONull(valor: FormDataEntryValue | null): number | null {
   const s = String(valor ?? "").trim();
   if (!s) return null;
@@ -71,17 +56,13 @@ export function IniciarInspeccionSheet({
 }) {
   const [errorForm, setErrorForm] = useState<string | null>(null);
   const [tipoId, setTipoId] = useState<string>("");
-  const [asignacionId, setAsignacionId] = useState<string>("");
   const [colorId, setColorId] = useState<string>("");
 
   const tiposConsulta = useTiposChecklistQuery({ estadoRegistro: "ACTIVO", limite: 100 });
-  const tipos = tiposConsulta.data?.datos ?? [];
+  const tipos = useMemo(() => tiposConsulta.data?.datos ?? [], [tiposConsulta.data?.datos]);
 
   const coloresConsulta = useColoresRotulacionQuery({ estadoRegistro: "ACTIVO", limite: 100 });
   const colores = coloresConsulta.data?.datos ?? [];
-
-  const asignaciones = unidad.asignaciones ?? [];
-  const requiereAsignacion = asignaciones.length > 0;
 
   const tipoSel = useMemo(() => tipos.find((t) => t.id === tipoId) ?? null, [tipos, tipoId]);
   const operadoresRequeridos = tipoSel?.operadoresRequeridos ?? 1;
@@ -108,8 +89,10 @@ export function IniciarInspeccionSheet({
       setErrorForm("Seleccione un tipo de checklist.");
       return;
     }
-    if (requiereAsignacion && !asignacionId) {
-      setErrorForm("Esta unidad tiene asignaciones vigentes; seleccione una.");
+    if (!unidad.id) {
+      setErrorForm(
+        "Esta unidad no tiene un identificador valido; no se puede iniciar la inspeccion.",
+      );
       return;
     }
 
@@ -123,7 +106,6 @@ export function IniciarInspeccionSheet({
     iniciar.mutate({
       tipoChecklistId: tipoId,
       unidadId: unidad.id,
-      asignacionId: asignacionId ? Number(asignacionId) : null,
       horometro: aNumeroONull(formData.get("horometro")),
       hubodometro: aNumeroONull(formData.get("hubodometro")),
       kilometraje: aNumeroONull(formData.get("kilometraje")),
@@ -176,27 +158,6 @@ export function IniciarInspeccionSheet({
                   </span>
                 </div>
               </div>
-
-              {/* Asignación (contrato/cuenta) */}
-              {requiereAsignacion ? (
-                <div className="grid gap-1.5">
-                  <Label htmlFor="ins-asignacion">
-                    Asignación (contrato / cuenta) <span className="text-destructive">*</span>
-                  </Label>
-                  <Select value={asignacionId} onValueChange={setAsignacionId}>
-                    <SelectTrigger id="ins-asignacion" className="w-full">
-                      <SelectValue placeholder="Seleccione la asignación vigente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {asignaciones.map((a) => (
-                        <SelectItem key={a.id ?? etiquetaAsignacion(a)} value={String(a.id ?? "")}>
-                          {etiquetaAsignacion(a)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
 
               {/* Tipo de checklist */}
               <div className="grid gap-1.5">

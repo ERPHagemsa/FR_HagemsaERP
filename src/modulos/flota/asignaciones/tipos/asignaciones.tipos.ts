@@ -1,5 +1,7 @@
 export type VehiculoFlota = {
   id: string;
+  // Id externo en BC-Activos, mantenido solo como referencia del maestro origen.
+  activoId?: string | null;
   codigo?: string | null;
   descripcion?: string | null;
   tipoActivo?: string | null;
