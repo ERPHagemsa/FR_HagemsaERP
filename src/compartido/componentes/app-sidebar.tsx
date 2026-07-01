@@ -102,6 +102,7 @@ const data = {
         { title: "Contratos", url: "/comercial/contratos" },
         { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
         { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
+        { title: "Condiciones", url: "/comercial/catalogos/condiciones" },
         // Listado global de cotizaciones: vista secundaria/reporte. El camino principal
         // para cotizar es Solicitudes de cliente (la cotizacion nace de una SC).
         { title: "Todas las cotizaciones", url: "/comercial/cotizaciones" },
