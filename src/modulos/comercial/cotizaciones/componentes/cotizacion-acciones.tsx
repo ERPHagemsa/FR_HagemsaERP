@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Send, GitBranch, Trophy, XCircle, X, Printer } from "lucide-react";
+import Link from "next/link";
+import { Send, GitBranch, Trophy, XCircle, X, Printer, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -43,6 +44,7 @@ import {
   useCancelarCotizacionMutation,
 } from "../servicios/cotizaciones-queries";
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
+import { useTarifariosQuery } from "@/modulos/comercial/tarifarios/servicios/tarifarios-queries";
 import { normalizarErrorAccion } from "../servicios/cotizaciones-error-handler";
 import { invalidarConsulta } from "@/compartido/api";
 import {
@@ -77,6 +79,8 @@ export function CotizacionAcciones({ cotizacion }: Props) {
   return (
     <div className="flex flex-wrap gap-2">
       <BotonImprimirPdf idCotizacion={id} version={versionVigente} />
+
+      {estado === "GANADA" ? <BotonTarifario idCotizacion={id} /> : null}
 
       {acciones.enviar ? (
         <DialogEnviar
@@ -116,6 +120,31 @@ export function CotizacionAcciones({ cotizacion }: Props) {
         />
       ) : null}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Boton: Tarifario (solo cuando la cotizacion esta GANADA y ya tiene tarifario)
+// El tarifario nace al ganar; lo ubicamos por su idCotizacionOrigen y enlazamos
+// a su pagina de detalle. Si aun no existe (o falla), no se muestra el boton.
+// ---------------------------------------------------------------------------
+
+function BotonTarifario({ idCotizacion }: { idCotizacion: string }) {
+  const { data } = useTarifariosQuery({
+    idCotizacionOrigen: idCotizacion,
+    porPagina: 1,
+  });
+  const tarifario = data?.data?.[0];
+
+  if (!tarifario) return null;
+
+  return (
+    <Button asChild variant="outline">
+      <Link href={`/comercial/tarifarios/${tarifario.id}`}>
+        <ScrollText data-icon="inline-start" />
+        Tarifario
+      </Link>
+    </Button>
   );
 }
 
