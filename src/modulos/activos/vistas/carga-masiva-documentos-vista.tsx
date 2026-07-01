@@ -4,8 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
-  FileUp,
   Layers,
+  Plus,
   Search,
   Trash2,
   Upload,
@@ -42,8 +42,10 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades/utils";
+import { extraerMensajeError } from "@/compartido/api";
+import { useCatalogosActivos } from "../ganchos/use-catalogos-activos";
 import {
-  buscarActivosPorCodigoOPlaca,
+  buscarActivosConFiltros,
   obtenerTiposDocumento,
   procesarCargaMasivaDocumentos,
 } from "../servicios/activos-api";
@@ -55,26 +57,38 @@ import type {
   TipoDocumentoMaestro,
 } from "../tipos/carga-masiva.tipos";
 
-type Paso = "configurar" | "revisar" | "resultado";
-
-const TIPOS_DOCUMENTO: Array<{ valor: TipoDocumentoCarga; etiqueta: string }> = [
-  { valor: "SOAT", etiqueta: "SOAT" },
-  { valor: "POLIZA", etiqueta: "Poliza" },
-  { valor: "TARJETA_PROPIEDAD", etiqueta: "Tarjeta de propiedad" },
-  { valor: "REVISION_TECNICA", etiqueta: "Revision tecnica" },
-  { valor: "FACTURA", etiqueta: "Factura" },
-  { valor: "CERTIFICADO", etiqueta: "Certificado" },
-  { valor: "MANUAL", etiqueta: "Manual" },
-  { valor: "OTRO", etiqueta: "Otro" },
-];
-
 const TAM_MAX_MB = 10;
 
-/** Extrae placa/codigo del nombre: stem sin extension, antes del primer "_". */
-function identificadorDesdeNombre(nombre: string): string {
-  const sinExtension = nombre.replace(/\.[^.]+$/, "");
-  return sinExtension.split("_")[0].trim().toUpperCase();
-}
+/** Documento individual en borrador, agregado a UN activo. */
+type DocIndividual = {
+  id: string;
+  tipoDocumento: TipoDocumentoCarga;
+  numero: string;
+  fechaEmision: string;
+  fechaVencimiento: string;
+  nombreArchivo: string;
+  contenidoBase64: string;
+};
+
+type Filtros = {
+  codigo: string;
+  placa: string;
+  marca: string;
+  modelo: string;
+  anio: string;
+  tipoActivoReferenciaId: string;
+  claseVehiculoReferenciaId: string;
+};
+
+const FILTROS_VACIOS: Filtros = {
+  codigo: "",
+  placa: "",
+  marca: "",
+  modelo: "",
+  anio: "",
+  tipoActivoReferenciaId: "",
+  claseVehiculoReferenciaId: "",
+};
 
 function archivoADataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -86,100 +100,113 @@ function archivoADataUrl(file: File): Promise<string> {
 }
 
 export function CargaMasivaDocumentosVista() {
-  const [paso, setPaso] = React.useState<Paso>("configurar");
-  const [tipoDocumento, setTipoDocumento] =
-    React.useState<TipoDocumentoCarga>("SOAT");
-  const [fechaVencimiento, setFechaVencimiento] = React.useState("");
-  const [archivos, setArchivos] = React.useState<ArchivoDocumentoMasivo[]>([]);
-  const [seleccionados, setSeleccionados] = React.useState<Activo[]>([]);
-  const [prellenado, setPrellenado] = React.useState(false);
-  const [busquedaTexto, setBusquedaTexto] = React.useState("");
-  const [resultadosBusqueda, setResultadosBusqueda] = React.useState<Activo[]>(
-    [],
-  );
-  const [buscando, setBuscando] = React.useState(false);
-  const [procesando, setProcesando] = React.useState(false);
-  const [resultado, setResultado] =
-    React.useState<CargaMasivaDocumentosResultado | null>(null);
+  const catalogos = useCatalogosActivos();
   const [tiposMaestro, setTiposMaestro] = React.useState<
     TipoDocumentoMaestro[]
   >([]);
-  const [codigosLote, setCodigosLote] = React.useState<string[]>([]);
+  const tiposCompartidos = React.useMemo(
+    () => tiposMaestro.filter((t) => t.alcance === "COMPARTIDO"),
+    [tiposMaestro],
+  );
+  const tiposIndividuales = React.useMemo(
+    () => tiposMaestro.filter((t) => t.alcance === "INDIVIDUAL"),
+    [tiposMaestro],
+  );
 
-  // Maestro Documentario: define alcance y si el tipo requiere vencimiento.
+  const [filtros, setFiltros] = React.useState<Filtros>(FILTROS_VACIOS);
+  const [resultados, setResultados] = React.useState<Activo[]>([]);
+  const [buscando, setBuscando] = React.useState(false);
+  const [yaSeBusco, setYaSeBusco] = React.useState(false);
+
+  const [seleccionados, setSeleccionados] = React.useState<Activo[]>([]);
+
+  // Documento compartido (uno): cualquier tipo con alcance=COMPARTIDO en el
+  // catalogo (hoy solo "Poliza de seguro", pero el maestro puede sumar mas
+  // sin tocar este flujo). Aplica a TODOS los seleccionados.
+  const [compartidoTipo, setCompartidoTipo] = React.useState<string>("");
+  const [compartidoNumero, setCompartidoNumero] = React.useState("");
+  const [compartidoFechaEmision, setCompartidoFechaEmision] = React.useState("");
+  const [compartidoFecha, setCompartidoFecha] = React.useState("");
+  const [compartidoArchivo, setCompartidoArchivo] = React.useState<{
+    nombreArchivo: string;
+    contenidoBase64: string;
+  } | null>(null);
+
+  // Usuario que carga el lote: un solo campo para todo el envio, igual que
+  // "usuarioCarga" en el formulario de documentos por activo.
+  const [usuarioCarga, setUsuarioCarga] = React.useState("");
+
+  // Documentos individuales por activo (SOAT, revision tecnica, etc.).
+  const [docsPorActivo, setDocsPorActivo] = React.useState<
+    Record<number, DocIndividual[]>
+  >({});
+
+  const [procesando, setProcesando] = React.useState(false);
+  const [resultado, setResultado] =
+    React.useState<CargaMasivaDocumentosResultado | null>(null);
+
   React.useEffect(() => {
-    let activo = true;
     obtenerTiposDocumento()
-      .then((tipos) => {
-        if (activo) setTiposMaestro(tipos);
-      })
-      .catch(() => {
-        // Si falla, se asume comportamiento INDIVIDUAL (como antes).
-      });
-    return () => {
-      activo = false;
-    };
+      .then(setTiposMaestro)
+      .catch(() => setTiposMaestro([]));
   }, []);
 
-  // Si llegamos desde "Agregar documentos a estos activos" (carga masiva de
-  // activos), traemos los codigos del lote para prellenar placas si el
-  // siguiente documento resulta ser compartido (ej. poliza de flota).
-  React.useEffect(() => {
-    const guardado = window.sessionStorage.getItem(
-      "activos:loteParaDocumentos",
-    );
-    if (!guardado) return;
-    window.sessionStorage.removeItem("activos:loteParaDocumentos");
-    try {
-      const codigos = JSON.parse(guardado);
-      if (Array.isArray(codigos) && codigos.length > 0) {
-        setCodigosLote(codigos);
-      }
-    } catch {
-      // Dato corrupto: se ignora, el usuario escribe las placas a mano.
-    }
-  }, []);
+  const compartidoTipoMeta = tiposCompartidos.find((t) => t.codigo === compartidoTipo);
 
-  const tipoMeta = React.useMemo(
-    () => tiposMaestro.find((tipo) => tipo.codigo === tipoDocumento),
-    [tiposMaestro, tipoDocumento],
-  );
-  const esCompartido = tipoMeta?.alcance === "COMPARTIDO";
-  const requiereVencimiento = tipoMeta?.requiereVencimiento ?? false;
-  const placasCompartido = React.useMemo(
-    () => seleccionados.map((activo) => activo.codigo),
-    [seleccionados],
-  );
+  // Busqueda automatica con debounce: igual que el listado de activos, sin
+  // boton "Buscar" — cada cambio de filtro vuelve a consultar solo. No
+  // dispara nada mientras no haya al menos un filtro escrito (evita listar
+  // el maestro completo de entrada).
+  const hayFiltroActivo = Object.values(filtros).some((v) => v.trim() !== "");
 
-  // Busqueda con debounce: por codigo o placa, para tildar activos en vez de
-  // escribirlos de memoria.
   React.useEffect(() => {
-    if (!esCompartido || !busquedaTexto.trim()) {
-      setResultadosBusqueda([]);
+    if (!hayFiltroActivo) {
+      setResultados([]);
+      setYaSeBusco(false);
       return;
     }
     let cancelado = false;
     setBuscando(true);
     const temporizador = setTimeout(() => {
-      buscarActivosPorCodigoOPlaca(busquedaTexto)
+      buscarActivosConFiltros({
+        codigo: filtros.codigo,
+        placa: filtros.placa,
+        marca: filtros.marca,
+        modelo: filtros.modelo,
+        anioFabricacion: filtros.anio ? Number(filtros.anio) : undefined,
+        tipoActivoReferenciaId: filtros.tipoActivoReferenciaId
+          ? Number(filtros.tipoActivoReferenciaId)
+          : undefined,
+        claseVehiculoReferenciaId: filtros.claseVehiculoReferenciaId
+          ? Number(filtros.claseVehiculoReferenciaId)
+          : undefined,
+      })
         .then((activos) => {
-          if (!cancelado) setResultadosBusqueda(activos);
+          if (cancelado) return;
+          setResultados(activos);
+          setYaSeBusco(true);
         })
-        .catch(() => {
-          if (!cancelado) setResultadosBusqueda([]);
+        .catch((error) => {
+          if (cancelado) return;
+          console.error(error);
+          toast.error("No se pudieron buscar los activos.");
+          setResultados([]);
         })
         .finally(() => {
           if (!cancelado) setBuscando(false);
         });
-    }, 300);
+    }, 350);
     return () => {
       cancelado = true;
       clearTimeout(temporizador);
     };
-  }, [busquedaTexto, esCompartido]);
+  }, [filtros]);
 
-  function toggleSeleccionado(activo: Activo, marcar: boolean) {
-    setPrellenado(false);
+  function limpiarFiltros() {
+    setFiltros(FILTROS_VACIOS);
+  }
+
+  function toggleSeleccion(activo: Activo, marcar: boolean) {
     setSeleccionados((actuales) =>
       marcar
         ? actuales.some((a) => a.id === activo.id)
@@ -187,498 +214,139 @@ export function CargaMasivaDocumentosVista() {
           : [...actuales, activo]
         : actuales.filter((a) => a.id !== activo.id),
     );
+    if (!marcar) {
+      setDocsPorActivo((actuales) => {
+        const copia = { ...actuales };
+        delete copia[activo.id];
+        return copia;
+      });
+    }
   }
+
+  async function onCompartidoArchivo(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > TAM_MAX_MB * 1024 * 1024) {
+      toast.error(`${file.name} supera ${TAM_MAX_MB} MB.`);
+      return;
+    }
+    setCompartidoArchivo({
+      nombreArchivo: file.name,
+      contenidoBase64: await archivoADataUrl(file),
+    });
+  }
+
+  function agregarDocIndividual(activoId: number, doc: DocIndividual) {
+    setDocsPorActivo((actuales) => ({
+      ...actuales,
+      [activoId]: [...(actuales[activoId] ?? []), doc],
+    }));
+  }
+
+  function quitarDocIndividual(activoId: number, docId: string) {
+    setDocsPorActivo((actuales) => ({
+      ...actuales,
+      [activoId]: (actuales[activoId] ?? []).filter((d) => d.id !== docId),
+    }));
+  }
+
+  const compartidoActivo = Boolean(compartidoTipo && compartidoArchivo);
+  const totalIndividuales = React.useMemo(
+    () =>
+      seleccionados.reduce(
+        (suma, a) => suma + (docsPorActivo[a.id]?.length ?? 0),
+        0,
+      ),
+    [seleccionados, docsPorActivo],
+  );
 
   function reiniciar() {
-    setPaso("configurar");
-    setArchivos([]);
     setResultado(null);
-    setFechaVencimiento("");
     setSeleccionados([]);
-    setPrellenado(false);
-    setBusquedaTexto("");
-    setResultadosBusqueda([]);
+    setDocsPorActivo({});
+    setCompartidoTipo("");
+    setCompartidoNumero("");
+    setCompartidoFechaEmision("");
+    setCompartidoFecha("");
+    setCompartidoArchivo(null);
+    setUsuarioCarga("");
+    limpiarFiltros();
   }
 
-  function cambiarTipo(valor: TipoDocumentoCarga) {
-    setTipoDocumento(valor);
-    // El alcance cambia el flujo: reiniciamos la seleccion para evitar mezclas.
-    setArchivos([]);
-    setBusquedaTexto("");
-    setResultadosBusqueda([]);
-    const metaNuevoTipo = tiposMaestro.find((tipo) => tipo.codigo === valor);
-    const esCompartidoNuevo = metaNuevoTipo?.alcance === "COMPARTIDO";
-    if (esCompartidoNuevo && codigosLote.length > 0) {
-      // Si venimos de un lote recien creado y el tipo es compartido (poliza),
-      // pre-tildamos esos activos en vez de dejar la seleccion vacia.
-      Promise.all(
-        codigosLote.map((codigo) => buscarActivosPorCodigoOPlaca(codigo)),
-      ).then((resultados) => {
-        const encontrados = resultados
-          .flat()
-          .filter((activo, i, arr) =>
-            codigosLote.includes(activo.codigo) &&
-            arr.findIndex((a) => a.id === activo.id) === i,
-          );
-        setSeleccionados(encontrados);
-        setPrellenado(encontrados.length > 0);
-      });
-    } else {
-      setSeleccionados([]);
-      setPrellenado(false);
-    }
-    setPaso("configurar");
-  }
-
-  async function onArchivos(event: React.ChangeEvent<HTMLInputElement>) {
-    const lista = Array.from(event.target.files ?? []);
-    event.target.value = "";
-    if (lista.length === 0) return;
-
-    const validos: File[] = [];
-    for (const file of lista) {
-      if (file.size > TAM_MAX_MB * 1024 * 1024) {
-        toast.error(`${file.name} supera ${TAM_MAX_MB} MB y se omitio.`);
-        continue;
+  async function guardarTodo() {
+    if (compartidoActivo) {
+      if (!compartidoNumero.trim()) {
+        toast.error("Completa el numero del documento compartido.");
+        return;
       }
-      validos.push(file);
-    }
-    if (validos.length === 0) return;
-
-    if (esCompartido) {
-      // Un solo documento (ej. poliza) que luego se abre a varias placas.
-      const file = validos[0];
-      setArchivos([
-        {
-          nombreArchivo: file.name,
-          identificador: "",
-          tipoDocumento,
-          fechaVencimiento: fechaVencimiento || undefined,
-          contenidoBase64: await archivoADataUrl(file),
-        },
-      ]);
-      return;
+      if (!compartidoFechaEmision) {
+        toast.error("Completa la fecha de emision del documento compartido.");
+        return;
+      }
+      if (compartidoTipoMeta?.requiereVencimiento && !compartidoFecha) {
+        toast.error("Este documento requiere fecha de vencimiento.");
+        return;
+      }
     }
 
-    const nuevos: ArchivoDocumentoMasivo[] = [];
-    for (const file of validos) {
-      nuevos.push({
-        nombreArchivo: file.name,
-        identificador: identificadorDesdeNombre(file.name),
-        tipoDocumento,
-        fechaVencimiento: fechaVencimiento || undefined,
-        contenidoBase64: await archivoADataUrl(file),
+    const archivos: ArchivoDocumentoMasivo[] = [];
+
+    if (compartidoActivo && compartidoArchivo && seleccionados.length > 0) {
+      archivos.push({
+        nombreArchivo: compartidoArchivo.nombreArchivo,
+        identificador: seleccionados[0].codigo,
+        identificadores: seleccionados.map((a) => a.codigo),
+        tipoDocumento: compartidoTipo as TipoDocumentoCarga,
+        numero: compartidoNumero.trim(),
+        fechaEmision: compartidoFechaEmision,
+        fechaVencimiento: compartidoFecha || undefined,
+        contenidoBase64: compartidoArchivo.contenidoBase64,
       });
     }
-    setArchivos((actuales) => [...actuales, ...nuevos]);
-    setPaso("revisar");
-  }
 
-  function quitarArchivo(indice: number) {
-    setArchivos((actuales) => actuales.filter((_, i) => i !== indice));
-  }
-
-  async function confirmar() {
-    if (archivos.length === 0) return;
-    if (requiereVencimiento && !fechaVencimiento) {
-      toast.error("Este tipo de documento requiere fecha de vencimiento.");
-      return;
+    for (const activo of seleccionados) {
+      for (const doc of docsPorActivo[activo.id] ?? []) {
+        archivos.push({
+          nombreArchivo: doc.nombreArchivo,
+          identificador: activo.codigo,
+          tipoDocumento: doc.tipoDocumento,
+          numero: doc.numero,
+          fechaEmision: doc.fechaEmision,
+          fechaVencimiento: doc.fechaVencimiento || undefined,
+          contenidoBase64: doc.contenidoBase64,
+        });
+      }
     }
-    if (esCompartido && placasCompartido.length === 0) {
-      toast.error("Indica al menos una placa o codigo que cubra el documento.");
+
+    if (archivos.length === 0) {
+      toast.error(
+        "Agrega un documento compartido o documentos individuales antes de guardar.",
+      );
       return;
     }
 
     setProcesando(true);
     try {
       const datos = await procesarCargaMasivaDocumentos({
-        archivos: archivos.map((archivo) => ({
-          ...archivo,
-          tipoDocumento,
-          fechaVencimiento: fechaVencimiento || archivo.fechaVencimiento,
-          ...(esCompartido
-            ? {
-                identificador: placasCompartido[0],
-                identificadores: placasCompartido,
-              }
-            : {}),
-        })),
+        archivos,
+        usuario: usuarioCarga.trim() || "usuario.activos",
       });
       setResultado(datos);
-      setPaso("resultado");
       toast.success(
         `${datos.totalAsociados} asociados, ${datos.totalSinActivo} sin activo.`,
       );
     } catch (error) {
       console.error(error);
-      toast.error("No se pudo procesar la carga de documentos.");
+      toast.error(extraerMensajeError(error, "No se pudo guardar."));
     } finally {
       setProcesando(false);
     }
   }
 
-  return (
-    <div className="flex flex-col gap-6 p-4 md:p-6">
-      {paso === "configurar" && (
-        <Card className="border-0 shadow-sm">
-          <CardHeader>
-            <CardTitle>Carga masiva de documentos</CardTitle>
-            <CardDescription>
-              Sube documentos (SOAT, polizas, etc.) y se asocian solos al
-              activo. El tipo define si el documento es de un activo o
-              compartido por varios.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {esCompartido ? (
-              <div className="rounded-lg border border-sky-200 bg-sky-50/60 p-4 text-sm dark:border-sky-900 dark:bg-sky-950/30">
-                <p className="flex items-center gap-2 font-medium text-sky-800 dark:text-sky-300">
-                  <Layers className="size-4" />
-                  Documento compartido
-                </p>
-                <p className="mt-1 text-muted-foreground">
-                  Este tipo cubre <strong>varios activos</strong> (ej. una
-                  poliza de flota). Sube <strong>un solo archivo</strong> e
-                  indica las placas o codigos que cubre. Se asociara a cada uno.
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-                <p className="font-medium">Como nombrar los archivos</p>
-                <p className="mt-1 text-muted-foreground">
-                  El nombre debe empezar con la{" "}
-                  <strong>placa o el codigo</strong> del activo. Ejemplos:
-                </p>
-                <ul className="mt-2 list-inside list-disc text-muted-foreground">
-                  <li>
-                    <code>BTZ-750.pdf</code> &rarr; activo con placa BTZ-750
-                  </li>
-                  <li>
-                    <code>BTZ-750_SOAT.pdf</code> &rarr; placa BTZ-750 (lo de
-                    despues del &quot;_&quot; se ignora)
-                  </li>
-                  <li>
-                    <code>ACT-000901.pdf</code> &rarr; activo con codigo
-                    ACT-000901
-                  </li>
-                </ul>
-              </div>
-            )}
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Tipo de documento</Label>
-                <Select
-                  value={tipoDocumento}
-                  onValueChange={(v) => cambiarTipo(v as TipoDocumentoCarga)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIPOS_DOCUMENTO.map((t) => (
-                      <SelectItem key={t.valor} value={t.valor}>
-                        {t.etiqueta}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  {esCompartido
-                    ? "Compartido: un archivo para varias placas."
-                    : "Aplica a todos los archivos de este lote."}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Fecha de vencimiento{" "}
-                  {requiereVencimiento ? (
-                    <span className="text-destructive">(obligatorio)</span>
-                  ) : (
-                    "(opcional)"
-                  )}
-                </Label>
-                <Input
-                  type="date"
-                  value={fechaVencimiento}
-                  onChange={(e) => setFechaVencimiento(e.target.value)}
-                  className={cn(
-                    requiereVencimiento &&
-                      !fechaVencimiento &&
-                      "border-destructive",
-                  )}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Comun para SOAT/poliza del mismo periodo.
-                </p>
-              </div>
-            </div>
-
-            {esCompartido && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label>Buscar activos que cubre este documento</Label>
-                  {prellenado && (
-                    <p className="text-xs text-sky-700 dark:text-sky-400">
-                      Pre-tildados los {seleccionados.length} activo(s) que
-                      acabas de crear. Destilda los que no apliquen.
-                    </p>
-                  )}
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-                    <Input
-                      className="pl-8"
-                      placeholder="Buscar por placa o codigo (ej: BTZ-750, ACT-000901)"
-                      value={busquedaTexto}
-                      onChange={(e) => setBusquedaTexto(e.target.value)}
-                    />
-                  </div>
-                  {busquedaTexto.trim() && (
-                    <div className="max-h-48 overflow-auto rounded-lg border">
-                      {buscando ? (
-                        <p className="p-3 text-sm text-muted-foreground">
-                          Buscando...
-                        </p>
-                      ) : resultadosBusqueda.length === 0 ? (
-                        <p className="p-3 text-sm text-muted-foreground">
-                          Sin resultados para &quot;{busquedaTexto}&quot;.
-                        </p>
-                      ) : (
-                        resultadosBusqueda.map((activo) => {
-                          const marcado = seleccionados.some(
-                            (a) => a.id === activo.id,
-                          );
-                          return (
-                            <label
-                              key={activo.id}
-                              htmlFor={`activo-${activo.id}`}
-                              className="flex cursor-pointer items-center gap-3 border-b p-2.5 last:border-b-0 hover:bg-accent"
-                            >
-                              <Checkbox
-                                id={`activo-${activo.id}`}
-                                checked={marcado}
-                                onCheckedChange={(checked) =>
-                                  toggleSeleccionado(activo, Boolean(checked))
-                                }
-                              />
-                              <span className="flex flex-col">
-                                <span className="text-sm font-medium">
-                                  {activo.codigo}
-                                  {activo.vehiculo?.placa
-                                    ? ` — ${activo.vehiculo.placa}`
-                                    : ""}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {activo.descripcion}
-                                </span>
-                              </span>
-                            </label>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>
-                    Seleccionados ({seleccionados.length})
-                  </Label>
-                  {seleccionados.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      Busca arriba y marca los activos que cubre este
-                      documento.
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {seleccionados.map((activo) => (
-                        <Badge
-                          key={activo.id}
-                          variant="secondary"
-                          className="gap-1 pr-1"
-                        >
-                          {activo.codigo}
-                          <button
-                            type="button"
-                            aria-label={`Quitar ${activo.codigo}`}
-                            onClick={() => toggleSeleccionado(activo, false)}
-                            className="rounded-full p-0.5 hover:bg-muted-foreground/20"
-                          >
-                            <X className="size-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center gap-3">
-              <label htmlFor="archivos-docs">
-                <input
-                  id="archivos-docs"
-                  type="file"
-                  multiple={!esCompartido}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  className="hidden"
-                  onChange={onArchivos}
-                />
-                <Button type="button" asChild>
-                  <span className="cursor-pointer">
-                    <Upload className="size-4" />
-                    {esCompartido
-                      ? "Seleccionar documento"
-                      : "Seleccionar documentos"}
-                  </span>
-                </Button>
-              </label>
-
-              {esCompartido && archivos.length > 0 && (
-                <>
-                  <span className="text-sm text-muted-foreground">
-                    {archivos[0].nombreArchivo}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="ml-auto"
-                    disabled={placasCompartido.length === 0}
-                    onClick={() => setPaso("revisar")}
-                  >
-                    Continuar
-                  </Button>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {paso === "revisar" && (
-        <Card className="border-0 shadow-sm">
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <CardTitle>Revisar documentos</CardTitle>
-                <CardDescription>
-                  {esCompartido
-                    ? `1 documento para ${placasCompartido.length} activo(s).`
-                    : `${archivos.length} archivo(s). Verifica que el identificador (placa/codigo) sea correcto antes de cargar.`}
-                </CardDescription>
-              </div>
-              <Badge variant={esCompartido ? "default" : "outline"}>
-                {esCompartido && <Layers className="mr-1 size-3" />}
-                {TIPOS_DOCUMENTO.find((t) => t.valor === tipoDocumento)
-                  ?.etiqueta}
-                {esCompartido ? " - compartido" : ""}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {esCompartido ? (
-              <div className="space-y-3">
-                <div className="rounded-lg border p-3 text-sm">
-                  <span className="text-muted-foreground">Documento:</span>{" "}
-                  <span className="font-medium">
-                    {archivos[0]?.nombreArchivo}
-                  </span>
-                </div>
-                <div>
-                  <p className="mb-2 text-sm text-muted-foreground">
-                    Se asociara a estas placas/codigos:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {placasCompartido.map((placa) => (
-                      <Badge key={placa} variant="secondary">
-                        {placa}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="max-h-[26rem] overflow-auto rounded-lg border">
-                <Table>
-                  <TableHeader className="sticky top-0 bg-muted">
-                    <TableRow>
-                      <TableHead>Archivo</TableHead>
-                      <TableHead>Identificador (placa/codigo)</TableHead>
-                      <TableHead className="w-16"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {archivos.map((archivo, i) => (
-                      <TableRow key={`${archivo.nombreArchivo}-${i}`}>
-                        <TableCell>{archivo.nombreArchivo}</TableCell>
-                        <TableCell className="font-medium">
-                          {archivo.identificador || (
-                            <span className="text-destructive">
-                              (nombre invalido)
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => quitarArchivo(i)}
-                          >
-                            <Trash2 className="size-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setPaso("configurar")}
-                >
-                  Volver
-                </Button>
-                {!esCompartido && (
-                  <label htmlFor="archivos-docs-mas">
-                    <input
-                      id="archivos-docs-mas"
-                      type="file"
-                      multiple
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      className="hidden"
-                      onChange={onArchivos}
-                    />
-                    <Button type="button" variant="outline" asChild>
-                      <span className="cursor-pointer">
-                        <FileUp className="size-4" />
-                        Agregar mas
-                      </span>
-                    </Button>
-                  </label>
-                )}
-              </div>
-              <Button
-                type="button"
-                onClick={confirmar}
-                disabled={archivos.length === 0 || procesando}
-              >
-                {procesando
-                  ? "Cargando..."
-                  : esCompartido
-                    ? `Cargar a ${placasCompartido.length} activo(s)`
-                    : `Cargar ${archivos.length} documento(s)`}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {paso === "resultado" && resultado && (
+  if (resultado) {
+    return (
+      <div className="flex flex-col gap-6 p-4 md:p-6">
         <Card className="border-0 shadow-sm">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -707,8 +375,8 @@ export function CargaMasivaDocumentosVista() {
                 <TableHeader className="sticky top-0 bg-muted">
                   <TableRow>
                     <TableHead className="w-24">Estado</TableHead>
-                    <TableHead>Archivo</TableHead>
                     <TableHead>Activo</TableHead>
+                    <TableHead>Archivo</TableHead>
                     <TableHead>Detalle</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -731,10 +399,10 @@ export function CargaMasivaDocumentosVista() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>{detalle.nombreArchivo}</TableCell>
                       <TableCell className="font-medium">
                         {detalle.codigoActivo || detalle.identificador}
                       </TableCell>
+                      <TableCell>{detalle.nombreArchivo}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {detalle.mensajeError || "Documento cargado"}
                       </TableCell>
@@ -753,6 +421,576 @@ export function CargaMasivaDocumentosVista() {
             </div>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6 p-4 md:p-6">
+      {/* PASO 1 — Buscar y seleccionar activos */}
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{seleccionados.length} seleccionados</Badge>
+            <h2 className="text-lg font-semibold">1. Selecciona los activos</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Filtra y marca los activos. Luego aplicales un documento compartido
+            y/o documentos individuales sin salir de esta pantalla.
+          </p>
+        </div>
+
+        <Card className="overflow-hidden">
+          <CardContent className="flex flex-col gap-4 p-0">
+            <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+              <div className="flex flex-1 flex-wrap items-center gap-2">
+                <div className="relative w-44">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    aria-label="Codigo"
+                    className="h-9 w-full rounded-4xl pl-9"
+                    placeholder="Codigo"
+                    value={filtros.codigo}
+                    onChange={(e) =>
+                      setFiltros((f) => ({ ...f, codigo: e.target.value }))
+                    }
+                  />
+                </div>
+                <Input
+                  aria-label="Placa"
+                  className="h-9 w-36 rounded-4xl"
+                  placeholder="Placa"
+                  value={filtros.placa}
+                  onChange={(e) =>
+                    setFiltros((f) => ({ ...f, placa: e.target.value }))
+                  }
+                />
+                <Select
+                  value={filtros.tipoActivoReferenciaId || "TODOS"}
+                  onValueChange={(v) =>
+                    setFiltros((f) => ({
+                      ...f,
+                      tipoActivoReferenciaId: v === "TODOS" ? "" : v,
+                    }))
+                  }
+                >
+                  <SelectTrigger aria-label="Tipo de activo" className="h-9 w-40">
+                    <SelectValue placeholder="Tipo: todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Tipo: todos</SelectItem>
+                    {catalogos.tiposActivo.map((t) => (
+                      <SelectItem key={t.id} value={String(t.id)}>
+                        {t.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={filtros.claseVehiculoReferenciaId || "TODOS"}
+                  onValueChange={(v) =>
+                    setFiltros((f) => ({
+                      ...f,
+                      claseVehiculoReferenciaId: v === "TODOS" ? "" : v,
+                    }))
+                  }
+                >
+                  <SelectTrigger aria-label="Clase de vehiculo" className="h-9 w-40">
+                    <SelectValue placeholder="Clase: todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODOS">Clase: todas</SelectItem>
+                    {catalogos.clasesVehiculo.map((c) => (
+                      <SelectItem key={c.id} value={String(c.id)}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  aria-label="Marca"
+                  className="h-9 w-32 rounded-4xl"
+                  placeholder="Marca"
+                  value={filtros.marca}
+                  onChange={(e) =>
+                    setFiltros((f) => ({ ...f, marca: e.target.value }))
+                  }
+                />
+                <Input
+                  aria-label="Modelo"
+                  className="h-9 w-32 rounded-4xl"
+                  placeholder="Modelo"
+                  value={filtros.modelo}
+                  onChange={(e) =>
+                    setFiltros((f) => ({ ...f, modelo: e.target.value }))
+                  }
+                />
+                <Input
+                  aria-label="Ano de fabricacion"
+                  className="h-9 w-24 rounded-4xl"
+                  type="number"
+                  placeholder="Ano"
+                  value={filtros.anio}
+                  onChange={(e) =>
+                    setFiltros((f) => ({ ...f, anio: e.target.value }))
+                  }
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={limpiarFiltros}
+              >
+                Limpiar
+              </Button>
+            </div>
+
+            <div className="mx-4 mb-4 overflow-hidden rounded-xl border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10" />
+                    <TableHead>Codigo</TableHead>
+                    <TableHead>Unidad</TableHead>
+                    <TableHead>Placa</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {buscando ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        className="h-28 text-center text-muted-foreground"
+                      >
+                        Buscando...
+                      </TableCell>
+                    </TableRow>
+                  ) : resultados.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        className="h-28 text-center text-muted-foreground"
+                      >
+                        {yaSeBusco
+                          ? "Sin resultados con esos filtros."
+                          : "Escribe o filtra para buscar activos."}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    resultados.map((activo) => {
+                      const marcado = seleccionados.some(
+                        (a) => a.id === activo.id,
+                      );
+                      return (
+                        <TableRow
+                          key={activo.id}
+                          className="cursor-pointer"
+                          data-state={marcado ? "selected" : undefined}
+                          onClick={() => toggleSeleccion(activo, !marcado)}
+                        >
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={marcado}
+                              onCheckedChange={(checked) =>
+                                toggleSeleccion(activo, Boolean(checked))
+                              }
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {activo.codigo}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {[activo.vehiculo?.marca, activo.vehiculo?.modelo]
+                              .filter(Boolean)
+                              .join(" ") || activo.descripcion}
+                          </TableCell>
+                          <TableCell>{activo.vehiculo?.placa ?? "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {seleccionados.length > 0 && (
+        <>
+          {/* PASO 2A — Documento compartido */}
+          {tiposCompartidos.length > 0 && (
+            <Card className="border-0 shadow-sm">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Layers className="size-4 text-sky-600" />
+                  Documento compartido (opcional)
+                </CardTitle>
+                <CardDescription>
+                  Un solo archivo que cubre a los {seleccionados.length} activo(s)
+                  seleccionados. Ej. poliza de flota, u otro tipo que se marque
+                  como compartido en el Maestro Documentario.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tipo</Label>
+                  <Select value={compartidoTipo} onValueChange={setCompartidoTipo}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiposCompartidos.map((t) => (
+                        <SelectItem key={t.codigo} value={t.codigo}>
+                          {t.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    Numero <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    placeholder="POL-2026-000123"
+                    value={compartidoNumero}
+                    onChange={(e) => setCompartidoNumero(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    Fecha emision <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={compartidoFechaEmision}
+                    onChange={(e) => setCompartidoFechaEmision(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">
+                    Vencimiento{" "}
+                    {compartidoTipoMeta?.requiereVencimiento ? (
+                      <span className="text-destructive">*</span>
+                    ) : null}
+                  </Label>
+                  <Input
+                    type="date"
+                    value={compartidoFecha}
+                    onChange={(e) => setCompartidoFecha(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Archivo</Label>
+                  <input
+                    id="compartido-archivo"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={onCompartidoArchivo}
+                  />
+                  <label htmlFor="compartido-archivo" className="block">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      asChild
+                    >
+                      <span className="cursor-pointer truncate">
+                        <Upload className="size-4" />
+                        {compartidoArchivo
+                          ? compartidoArchivo.nombreArchivo
+                          : "Subir archivo"}
+                      </span>
+                    </Button>
+                  </label>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* PASO 2B — Documentos individuales por activo */}
+          <Card className="border-0 shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-base">
+                Documentos individuales por activo
+              </CardTitle>
+              <CardDescription>
+                Para SOAT, revision tecnica, etc. — un archivo propio por activo.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {seleccionados.map((activo) => (
+                <FilaActivoSeleccionado
+                  key={activo.id}
+                  activo={activo}
+                  docs={docsPorActivo[activo.id] ?? []}
+                  tiposIndividuales={tiposIndividuales}
+                  onAgregar={(doc) => agregarDocIndividual(activo.id, doc)}
+                  onQuitarDoc={(docId) => quitarDocIndividual(activo.id, docId)}
+                  onQuitarActivo={() => toggleSeleccion(activo, false)}
+                />
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Guardar */}
+          <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4">
+            <div className="max-w-xs space-y-1.5">
+              <Label className="text-xs">Cargado por</Label>
+              <Input
+                placeholder="usuario.activos"
+                value={usuarioCarga}
+                onChange={(e) => setUsuarioCarga(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                {compartidoActivo && (
+                  <span className="font-medium text-foreground">
+                    1 documento compartido ({seleccionados.length} activos)
+                  </span>
+                )}
+                {compartidoActivo && totalIndividuales > 0 ? " + " : ""}
+                {totalIndividuales > 0 && (
+                  <span className="font-medium text-foreground">
+                    {totalIndividuales} individual(es)
+                  </span>
+                )}
+                {!compartidoActivo && totalIndividuales === 0 &&
+                  "Aun no agregaste documentos."}
+              </p>
+              <Button
+                type="button"
+                onClick={guardarTodo}
+                disabled={procesando || (!compartidoActivo && totalIndividuales === 0)}
+              >
+                {procesando ? "Guardando..." : "Guardar todo"}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Una fila del paso 2B: un activo con sus documentos individuales + mini-form. */
+function FilaActivoSeleccionado({
+  activo,
+  docs,
+  tiposIndividuales,
+  onAgregar,
+  onQuitarDoc,
+  onQuitarActivo,
+}: {
+  activo: Activo;
+  docs: DocIndividual[];
+  tiposIndividuales: TipoDocumentoMaestro[];
+  onAgregar: (doc: DocIndividual) => void;
+  onQuitarDoc: (docId: string) => void;
+  onQuitarActivo: () => void;
+}) {
+  const [abierto, setAbierto] = React.useState(false);
+  const [tipo, setTipo] = React.useState<string>("");
+  const [numero, setNumero] = React.useState("");
+  const [fechaEmision, setFechaEmision] = React.useState("");
+  const [fecha, setFecha] = React.useState("");
+  const [archivo, setArchivo] = React.useState<{
+    nombreArchivo: string;
+    contenidoBase64: string;
+  } | null>(null);
+
+  const tipoMeta = tiposIndividuales.find((t) => t.codigo === tipo);
+
+  async function onArchivo(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > TAM_MAX_MB * 1024 * 1024) {
+      toast.error(`${file.name} supera ${TAM_MAX_MB} MB.`);
+      return;
+    }
+    setArchivo({
+      nombreArchivo: file.name,
+      contenidoBase64: await archivoADataUrl(file),
+    });
+  }
+
+  function agregar() {
+    if (!tipo) {
+      toast.error("Selecciona el tipo de documento.");
+      return;
+    }
+    if (!numero.trim()) {
+      toast.error("Completa el numero del documento.");
+      return;
+    }
+    if (!fechaEmision) {
+      toast.error("Completa la fecha de emision.");
+      return;
+    }
+    if (!archivo) {
+      toast.error("Sube el archivo del documento.");
+      return;
+    }
+    if (tipoMeta?.requiereVencimiento && !fecha) {
+      toast.error("Este tipo requiere fecha de vencimiento.");
+      return;
+    }
+    onAgregar({
+      id: crypto.randomUUID(),
+      tipoDocumento: tipo as TipoDocumentoCarga,
+      numero: numero.trim(),
+      fechaEmision,
+      fechaVencimiento: fecha,
+      nombreArchivo: archivo.nombreArchivo,
+      contenidoBase64: archivo.contenidoBase64,
+    });
+    setTipo("");
+    setNumero("");
+    setFechaEmision("");
+    setFecha("");
+    setArchivo(null);
+    setAbierto(false);
+  }
+
+  return (
+    <div className="rounded-lg border p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">
+            {activo.codigo}
+            {activo.vehiculo?.placa ? ` — ${activo.vehiculo.placa}` : ""}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {docs.length === 0
+              ? "Sin documentos individuales"
+              : `${docs.length} documento(s)`}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setAbierto((v) => !v)}
+          >
+            <Plus className="size-4" />
+            Agregar documento
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={`Quitar ${activo.codigo}`}
+            onClick={onQuitarActivo}
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+      </div>
+
+      {docs.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {docs.map((doc) => {
+            const etiqueta = tiposIndividuales.find(
+              (t) => t.codigo === doc.tipoDocumento,
+            )?.nombre;
+            return (
+              <Badge key={doc.id} variant="secondary" className="gap-1 pr-1">
+                {etiqueta ?? doc.tipoDocumento}
+                {doc.numero ? ` · N° ${doc.numero}` : ""}
+                {doc.fechaVencimiento ? ` · Vence ${doc.fechaVencimiento}` : ""}
+                <button
+                  type="button"
+                  aria-label="Quitar documento"
+                  onClick={() => onQuitarDoc(doc.id)}
+                  className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+                >
+                  <Trash2 className="size-3" />
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
+
+      {abierto && (
+        <div className="mt-3 grid gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Tipo</Label>
+            <Select value={tipo} onValueChange={setTipo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {tiposIndividuales.map((t) => (
+                  <SelectItem key={t.codigo} value={t.codigo}>
+                    {t.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Numero</Label>
+            <Input
+          
+              value={numero}
+              onChange={(e) => setNumero(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Fecha emision</Label>
+            <Input
+              type="date"
+              value={fechaEmision}
+              onChange={(e) => setFechaEmision(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">
+              Vencimiento{" "}
+              {tipoMeta?.requiereVencimiento ? (
+                <span className="text-destructive">*</span>
+              ) : null}
+            </Label>
+            <Input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className={cn(
+                tipoMeta?.requiereVencimiento && !fecha && "border-destructive",
+              )}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Archivo</Label>
+            <input
+              id={`ind-archivo-${activo.id}`}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={onArchivo}
+            />
+            <label htmlFor={`ind-archivo-${activo.id}`} className="block">
+              <Button type="button" variant="outline" className="w-full" asChild>
+                <span className="cursor-pointer truncate">
+                  <Upload className="size-4" />
+                  {archivo ? archivo.nombreArchivo : "Archivo"}
+                </span>
+              </Button>
+            </label>
+          </div>
+          <div className="flex items-end">
+            <Button type="button" className="w-full" onClick={agregar}>
+              Agregar
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

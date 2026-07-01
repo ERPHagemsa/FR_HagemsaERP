@@ -37,7 +37,7 @@ export function TabVehiculo({
   activo?: Activo;
   catalogos: CatalogosActivos;
   claseVehiculoSeleccionadaId: number | null;
-  onClaseChange: (nuevaClaseId: number) => void;
+  onClaseChange: (nuevaClaseId: number | null) => void;
   selectedCarroceriaReferenciaId: string;
   carroceriaTexto: string;
   carroceriasReferencia: CarroceriaReferencia[];
@@ -65,8 +65,15 @@ export function TabVehiculo({
             }
             required
             className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-            onChange={(event) => onClaseChange(Number(event.target.value))}
+            onInput={(event) => event.stopPropagation()}
+            onChange={(event) => {
+              event.stopPropagation();
+              onClaseChange(
+                event.target.value ? Number(event.target.value) : null
+              );
+            }}
           >
+            <option value="">Seleccionar clase</option>
             {catalogos.clasesVehiculo.map((opcion) => (
               <option key={opcion.id} value={opcion.id}>
                 {opcion.nombre}

@@ -162,6 +162,10 @@ export function NavMain({
                         <SidebarMenuSubButton
                           asChild
                           isActive={subItem.url === subUrlActiva}
+                          className={cn(
+                            subItem.url === subUrlActiva &&
+                              "bg-primary/10 font-medium text-primary hover:bg-primary/15 hover:text-primary focus-visible:ring-primary/30"
+                          )}
                         >
                           <Link
                             href={subItem.url}

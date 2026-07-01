@@ -348,7 +348,7 @@ export function ActivoFormulario({
     input.value = value === null || value === undefined ? "" : String(value);
   }
 
-  function cambiarClaseVehiculo(nuevaClaseId: number) {
+  function cambiarClaseVehiculo(nuevaClaseId: number | null) {
     setClaseVehiculoSeleccionadaId(nuevaClaseId);
     setSelectedCarroceriaReferenciaId("");
     setCarroceriaTexto("");

@@ -33,6 +33,7 @@ type Props = {
 
 export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
   const router = useRouter();
+  const [tanquesActuales, setTanquesActuales] = React.useState(tanques);
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [tipoTanque, setTipoTanque] = React.useState<TipoTanqueActivo>("DIESEL");
   const [isSaving, setIsSaving] = React.useState(false);
@@ -40,8 +41,12 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
   const crearTanqueMutation = useCrearTanqueActivoMutation(codigo);
   const eliminarTanqueMutation = useEliminarTanqueActivoMutation(codigo);
 
-  const totalDiesel = sumarCapacidad(tanques, "DIESEL");
-  const totalUrea = sumarCapacidad(tanques, "UREA");
+  React.useEffect(() => {
+    setTanquesActuales(tanques);
+  }, [tanques]);
+
+  const totalDiesel = sumarCapacidad(tanquesActuales, "DIESEL");
+  const totalUrea = sumarCapacidad(tanquesActuales, "UREA");
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,13 +61,16 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
     setIsSaving(true);
 
     try {
-      await crearTanqueMutation.mutateAsync({
+      const tanqueCreado = await crearTanqueMutation.mutateAsync({
         tipoTanque: tipoTanqueSeleccionado,
         capacidad,
         orden,
         observacion: observacion || undefined,
       });
 
+      setTanquesActuales((actuales) =>
+        [...actuales, tanqueCreado].sort((a, b) => a.orden - b.orden)
+      );
       form.reset();
       setTipoTanque("DIESEL");
       setMostrarFormulario(false);
@@ -86,6 +94,9 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
 
     try {
       await eliminarTanqueMutation.mutateAsync(tanque.id);
+      setTanquesActuales((actuales) =>
+        actuales.filter((item) => item.id !== tanque.id)
+      );
       toast.success("Tanque eliminado correctamente.");
       router.refresh();
     } catch (error) {
@@ -101,8 +112,9 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
         <div>
           <p className="font-semibold">Tanques del activo</p>
           <p className="text-sm text-muted-foreground">
-            {tanques.length} tanque{tanques.length === 1 ? "" : "s"} registrado
-            {tanques.length === 1 ? "" : "s"}
+            {tanquesActuales.length} tanque
+            {tanquesActuales.length === 1 ? "" : "s"} registrado
+            {tanquesActuales.length === 1 ? "" : "s"}
           </p>
         </div>
         {editable ? (
@@ -179,7 +191,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tanques.map((tanque) => (
+            {tanquesActuales.map((tanque) => (
               <TableRow key={tanque.id}>
                 <TableCell>{tanque.orden}</TableCell>
                 <TableCell>
@@ -213,7 +225,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
                 ) : null}
               </TableRow>
             ))}
-            {!tanques.length ? (
+            {!tanquesActuales.length ? (
               <TableRow>
                 <TableCell
                   colSpan={editable ? 7 : 6}
