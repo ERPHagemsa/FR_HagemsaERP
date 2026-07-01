@@ -124,6 +124,7 @@ const data = {
         { title: "Conductores", url: "#" },
         { title: "Disponibilidad", url: "#" },
         { title: "Prestamos", url: "#" },
+        { title: "Inspecciones", url: "/flota/checklist/inspecciones" },
       ],
     },
     {

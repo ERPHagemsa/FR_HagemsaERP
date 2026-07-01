@@ -1,0 +1,15 @@
+
+> frontddd@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.20.205:3000
+- Environments: .env.local
+✓ Ready in 1688ms
+
+○ Compiling /flota ...
+ GET /flota 200 in 6.4s (next.js: 5.3s, proxy.ts: 682ms, application-code: 465ms)
+ GET /api/auth/yo 200 in 451ms (next.js: 428ms, proxy.ts: 6ms, application-code: 18ms)
+ GET /api/auth/yo 200 in 20ms (next.js: 3ms, proxy.ts: 3ms, application-code: 14ms)
+ GET /api/flota/flota/unidades 200 in 1324ms (next.js: 1185ms, proxy.ts: 6ms, application-code: 133ms)
