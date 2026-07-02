@@ -156,6 +156,8 @@ export type PaginadoActivosParams = {
   pagina?: number;
   limite?: number;
   estadoRegistro?: EstadoRegistro;
+  /** true = el backend lista visibles y anulados juntos (ignora estadoRegistro). */
+  incluirAnulados?: boolean;
   placa?: string;
   tipoActivoReferenciaId?: number;
 };
@@ -195,6 +197,9 @@ export async function obtenerActivosPaginado(
   };
   if (params?.estadoRegistro !== undefined) {
     queryParams.estadoRegistro = params.estadoRegistro;
+  }
+  if (params?.incluirAnulados) {
+    queryParams.incluirAnulados = true;
   }
   if (params?.placa) queryParams.placa = params.placa;
   if (params?.tipoActivoReferenciaId !== undefined) {

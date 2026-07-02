@@ -99,6 +99,9 @@ function archivoADataUrl(file: File): Promise<string> {
   });
 }
 
+/* Radix Select no acepta value="" en un item; sentinel para "sin seleccion". */
+const SIN_TIPO_COMPARTIDO = "__ninguno__";
+
 export function CargaMasivaDocumentosVista() {
   const catalogos = useCatalogosActivos();
   const [tiposMaestro, setTiposMaestro] = React.useState<
@@ -636,11 +639,22 @@ export function CargaMasivaDocumentosVista() {
               <CardContent className="grid gap-3 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs">Tipo</Label>
-                  <Select value={compartidoTipo} onValueChange={setCompartidoTipo}>
+                  <Select
+                    value={compartidoTipo}
+                    onValueChange={(v) =>
+                      setCompartidoTipo(v === SIN_TIPO_COMPARTIDO ? "" : v)
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem
+                        value={SIN_TIPO_COMPARTIDO}
+                        className="text-muted-foreground"
+                      >
+                        Ninguno
+                      </SelectItem>
                       {tiposCompartidos.map((t) => (
                         <SelectItem key={t.codigo} value={t.codigo}>
                           {t.nombre}
@@ -936,15 +950,18 @@ function FilaActivoSeleccionado({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Numero</Label>
+            <Label className="text-xs">
+              Numero <span className="text-destructive">*</span>
+            </Label>
             <Input
-          
               value={numero}
               onChange={(e) => setNumero(e.target.value)}
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Fecha emision</Label>
+            <Label className="text-xs">
+              Fecha emision <span className="text-destructive">*</span>
+            </Label>
             <Input
               type="date"
               value={fechaEmision}

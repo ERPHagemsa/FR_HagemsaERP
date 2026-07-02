@@ -10,7 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui
 import { Button } from "@/compartido/componentes/ui/button";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
-import { ActivosTabla } from "../componentes/activos-tabla";
+import { ActivosTabla, type FiltroRegistro } from "../componentes/activos-tabla";
 import { obtenerActivosPaginado } from "../servicios/activos-api";
 
 const LIMITE_DEFECTO = 20;
@@ -18,10 +18,21 @@ const LIMITE_DEFECTO = 20;
 export function ActivosInventarioVista() {
   const [pagina, setPagina] = React.useState(1);
   const [limite, setLimite] = React.useState(LIMITE_DEFECTO);
+  const [filtroRegistro, setFiltroRegistro] =
+    React.useState<FiltroRegistro>("ACTIVO");
 
   const { data, isLoading, isError, error } = useConsulta(
-    () => obtenerActivosPaginado({ pagina, limite }),
-    [pagina, limite],
+    () =>
+      obtenerActivosPaginado({
+        pagina,
+        limite,
+        // El filtro de registro debe resolverse en el SERVIDOR: los anulados
+        // no vienen en la respuesta por defecto, asi que filtrarlos solo
+        // localmente en la tabla siempre daria 0 filas.
+        estadoRegistro: filtroRegistro === "ANULADO" ? false : undefined,
+        incluirAnulados: filtroRegistro === "TODOS" ? true : undefined,
+      }),
+    [pagina, limite, filtroRegistro],
   );
 
   function handleCambiarPagina(nuevaPagina: number) {
@@ -30,6 +41,11 @@ export function ActivosInventarioVista() {
 
   function handleCambiarLimite(nuevoLimite: number) {
     setLimite(nuevoLimite);
+    setPagina(1);
+  }
+
+  function handleCambiarFiltroRegistro(filtro: FiltroRegistro) {
+    setFiltroRegistro(filtro);
     setPagina(1);
   }
 
@@ -67,6 +83,8 @@ export function ActivosInventarioVista() {
         ) : (
           <ActivosTabla
             activos={data?.datos ? [...data.datos] : []}
+            onCambiarFiltroRegistro={handleCambiarFiltroRegistro}
+            filtroRegistroInicial={filtroRegistro}
             paginacionExterna={
               data?.paginacion
                 ? {
