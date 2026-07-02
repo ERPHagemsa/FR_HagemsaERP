@@ -463,7 +463,7 @@ function AccionesFlota({
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href={`/flota/unidades/${id}/auditoria`}>
+            <Link href={`/flota/unidades/${id}/historial`}>
               <TrendingUp data-icon="inline-start" />
               Auditar
             </Link>

@@ -1,12 +1,18 @@
-import { clienteSocioNegocios } from "@/compartido/api/clientes-backend"
+import {
+  clienteConfiguracionGeneral,
+  clienteSocioNegocios,
+} from "@/compartido/api/clientes-backend"
 
 import type { RespuestaDto } from "../tipos/socio-negocio"
 import type {
-  AprobarAsignacionPersonalRequest,
   AsignacionPersonalHistorialResponse,
   AsignacionPersonalResponse,
+  ConfiguracionGeneralOpcionResponse,
+  ConsultarConfiguracionGeneralOpcionesQuery,
   CrearAsignacionPersonalRequest,
+  DecidirAprobacionCuentaContratoRequest,
   ModificarAsignacionPersonalRequest,
+  OpcionesFormularioAsignacionResponse,
   ReemplazarCuentasContratosRequest,
 } from "../tipos/asignacion-personal"
 
@@ -71,6 +77,97 @@ export async function consultarAsignacionesPorPersonal(
   return consulta
 }
 
+/**
+ * Trae en una sola llamada todas las opciones para el formulario de asignacion:
+ * cargos, sedes, areas, cuentas, contratos (desde Configuracion General, ya
+ * resueltos por BC-01), tipos de tareo, configuraciones laborales y los
+ * catalogos de disponibilidad. Reemplaza el patron de pedir combo por combo.
+ */
+export async function obtenerOpcionesFormularioAsignacion(
+  soloActivos = true,
+): Promise<OpcionesFormularioAsignacionResponse> {
+  const query = soloActivos ? "" : "?soloActivos=false"
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<OpcionesFormularioAsignacionResponse>
+  >(`${BASE_ENDPOINT}/opciones-formulario${query}`)
+  return data.datos
+}
+
+/**
+ * Lista opciones de Configuracion General ya resueltas por BC-01 para un combo
+ * puntual (o varios via `tiposDatoMaestro`). Para inicializar el formulario
+ * completo, preferir `obtenerOpcionesFormularioAsignacion`.
+ */
+export async function consultarOpcionesConfiguracionGeneral(
+  query?: ConsultarConfiguracionGeneralOpcionesQuery,
+): Promise<ConfiguracionGeneralOpcionResponse[]> {
+  const params = new URLSearchParams()
+  if (query?.tipoDatoMaestro) params.set("tipoDatoMaestro", query.tipoDatoMaestro)
+  if (query?.tiposDatoMaestro?.length) {
+    params.set("tiposDatoMaestro", query.tiposDatoMaestro.join(","))
+  }
+  if (query?.busqueda) params.set("busqueda", query.busqueda)
+  if (query?.soloActivos === false) params.set("soloActivos", "false")
+  const queryString = params.toString()
+
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<ConfiguracionGeneralOpcionResponse[]>
+  >(`${BASE_ENDPOINT}/configuracion-general/opciones${queryString ? `?${queryString}` : ""}`)
+  return data.datos
+}
+
+/**
+ * Forma de cada area tal como la entrega el backend de Configuracion General
+ * (bc14) en su recurso dedicado `/configuracion-general/areas`. A diferencia de
+ * `opciones-formulario` (que devuelve `areas: []`), este endpoint si filtra por
+ * sede y trae `sedeId`/`sedeNombre`/`nivelArea`.
+ */
+interface AreaConfiguracionGeneralResponse {
+  id: number | string
+  codigo: string
+  nombre: string
+  estado: string
+  estadoRegistro: string
+  sedeId?: number | string | null
+  sedeNombre?: string | null
+  nivelArea?: string | null
+  gerenciaId?: number | string | null
+  gerenciaNombre?: string | null
+}
+
+/**
+ * Lista las areas ACTIVAS de una sede. El combo de area del formulario de
+ * asignacion depende de la sede elegida, asi que se cargan bajo demanda en vez
+ * de venir en `opciones-formulario`.
+ */
+export async function obtenerAreasPorSede(
+  sedeId: string | number,
+): Promise<ConfiguracionGeneralOpcionResponse[]> {
+  const params = new URLSearchParams({
+    sedeId: String(sedeId),
+    estado: "ACTIVO",
+    estadoRegistro: "ACTIVO",
+    // El backend de Configuracion General limita pageSize a 100.
+    pageSize: "100",
+  })
+  const { data } = await clienteConfiguracionGeneral.get<{
+    datos: AreaConfiguracionGeneralResponse[]
+  }>(`/configuracion-general/areas?${params.toString()}`)
+  return (data.datos ?? []).map((area) => ({
+    id: String(area.id),
+    tipoDatoMaestro: "AREA",
+    codigo: area.codigo,
+    nombre: area.nombre,
+    estado: area.estado,
+    estadoRegistro: area.estadoRegistro,
+    nivelArea: area.nivelArea ?? undefined,
+    gerenciaId: area.gerenciaId != null ? String(area.gerenciaId) : undefined,
+    gerenciaNombre: area.gerenciaNombre ?? undefined,
+    sedeId: area.sedeId != null ? String(area.sedeId) : undefined,
+    sedeNombre: area.sedeNombre ?? undefined,
+  }))
+}
+
 export async function obtenerAsignacionPersonal(
   id: string | number,
 ): Promise<AsignacionPersonalResponse> {
@@ -111,13 +208,43 @@ export async function reemplazarCuentasContratos(
   return data.datos
 }
 
-export async function aprobarAsignacionPersonal(
+/**
+ * Aprueba una firma de aprobacion de un detalle cuenta/contrato. La decision es
+ * secuencial: el backend solo deja decidir la firma pendiente de menor orden.
+ */
+export async function aprobarAprobacionCuentaContrato(
   id: string | number,
-  payload: AprobarAsignacionPersonalRequest,
+  detalleId: string | number,
+  aprobacionId: string | number,
+  payload: DecidirAprobacionCuentaContratoRequest = {},
 ): Promise<AsignacionPersonalResponse> {
   const { data } = await clienteSocioNegocios.patch<
     RespuestaDto<AsignacionPersonalResponse>
-  >(`${BASE_ENDPOINT}/${encodeURIComponent(String(id))}/aprobar`, payload)
+  >(
+    `${BASE_ENDPOINT}/${encodeURIComponent(String(id))}/cuentas-contratos/${encodeURIComponent(
+      String(detalleId),
+    )}/aprobaciones/${encodeURIComponent(String(aprobacionId))}/aprobar`,
+    payload,
+  )
+  invalidarAsignacionesPorPersonal(data.datos.personalId)
+  return data.datos
+}
+
+/** Rechaza una firma de aprobacion; el detalle cuenta/contrato queda RECHAZADO. */
+export async function rechazarAprobacionCuentaContrato(
+  id: string | number,
+  detalleId: string | number,
+  aprobacionId: string | number,
+  payload: DecidirAprobacionCuentaContratoRequest = {},
+): Promise<AsignacionPersonalResponse> {
+  const { data } = await clienteSocioNegocios.patch<
+    RespuestaDto<AsignacionPersonalResponse>
+  >(
+    `${BASE_ENDPOINT}/${encodeURIComponent(String(id))}/cuentas-contratos/${encodeURIComponent(
+      String(detalleId),
+    )}/aprobaciones/${encodeURIComponent(String(aprobacionId))}/rechazar`,
+    payload,
+  )
   invalidarAsignacionesPorPersonal(data.datos.personalId)
   return data.datos
 }

@@ -3,12 +3,10 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { SiteHeader } from "@/compartido/componentes/site-header"
-import { ApiError } from "@/compartido/api/axios"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -18,24 +16,12 @@ import {
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/compartido/componentes/ui/dropdown-menu"
-import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
 } from "@/compartido/componentes/ui/empty"
-import {
-  Field,
-  FieldDescription,
-  FieldLabel,
-} from "@/compartido/componentes/ui/field"
+import { Field } from "@/compartido/componentes/ui/field"
 import { Input } from "@/compartido/componentes/ui/input"
 import {
   InputGroup,
@@ -51,7 +37,6 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
-import { Textarea } from "@/compartido/componentes/ui/textarea"
 import {
   Table,
   TableBody,
@@ -62,511 +47,50 @@ import {
 } from "@/compartido/componentes/ui/table"
 import { cn } from "@/compartido/utilidades/utils"
 import {
-  BriefcaseBusiness,
-  ArchiveRestore,
-  ArchiveX,
   Building2,
-  CheckCircle2,
   CircleDashed,
-  CircleX,
   Clock,
   Download,
-  Eye,
-  type LucideIcon,
-  MoreVertical,
+  Filter,
   Package,
-  Pencil,
   Plus,
   Search,
-  TrendingUp,
   User,
-  Loader2,
 } from "lucide-react"
 
 import {
   useExportarSociosDeNegocioQuery,
-  useReactivarSocioDeNegocioMutation,
-  useRechazarSocioDeNegocioMutation,
   useSociosDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
-import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 import { PaginationControls } from "../componentes/pagination-controls"
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
 import { EstadoSincronizacionSapBadge } from "../componentes/estado-sincronizacion-sap-badge"
 import type {
   ConsultarSociosDeNegocioQuery,
   ReporteSociosDeNegocioResponse,
-  SocioDeNegocioResponse,
 } from "../tipos/socio-negocio"
 import {
   puedeGestionarAsignacionesPersonal,
   puedeResolverAprobacionSocio,
 } from "../tipos/socio-negocio"
-
-type SocioNegocioVistaProps = {
-  titulo: string
-  accionPrincipal?: string
-  crearHref?: string
-  filtros?: ConsultarSociosDeNegocioQuery
-}
-
-type ErrorOperacion = {
-  titulo: string
-  descripcion: string
-}
-
-const estadoVariant = {
-  ACTIVO: "outline",
-  INACTIVO: "outline",
-} as const
-
-const estadoRegistroVariant = {
-  ACTIVO: "outline",
-  ANULADO: "outline",
-} as const
-
-const estadoClassName = {
-  ACTIVO: "border-border/70 bg-card text-foreground shadow-xs",
-  INACTIVO: "border-border/70 bg-card text-foreground shadow-xs",
-} as const
-
-const estadoRegistroClassName = {
-  ACTIVO: "border-border/70 bg-card text-foreground shadow-xs",
-  ANULADO: "border-border/70 bg-card text-foreground shadow-xs",
-} as const
-
-const estadoIconClassName = {
-  ACTIVO: "text-emerald-600 dark:text-emerald-400",
-  INACTIVO: "text-muted-foreground",
-} as const
-
-const estadoRegistroIconClassName = {
-  ACTIVO: "text-emerald-600 dark:text-emerald-400",
-  ANULADO: "text-destructive",
-} as const
-
-function obtenerMensajeError(error: unknown) {
-  return error instanceof Error ? error.message : "No se pudo completar la operacion."
-}
-
-function obtenerErrorOperacion(error: unknown): ErrorOperacion {
-  if (error instanceof ApiError && error.status === 409) {
-    return {
-      titulo: "Operacion no permitida",
-      descripcion:
-        error.message ||
-        "El socio tiene un conflicto de estado o ya existe una operacion equivalente.",
-    }
-  }
-
-  if (error instanceof ApiError && (error.status === 400 || error.status === 422)) {
-    return {
-      titulo: "Solicitud invalida",
-      descripcion: error.message,
-    }
-  }
-
-  if (error instanceof ApiError && error.status === 0) {
-    return {
-      titulo: "Sin conexion con el servidor",
-      descripcion: error.message,
-    }
-  }
-
-  return {
-    titulo: "No se pudo completar la operacion",
-    descripcion: obtenerMensajeError(error),
-  }
-}
-
-function tipoMimeReporte(formato: ReporteSociosDeNegocioResponse["formato"]) {
-  return formato === "PDF"
-    ? "application/pdf"
-    : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-}
-
-function descargarReporte(reporte: ReporteSociosDeNegocioResponse) {
-  const enlace = document.createElement("a")
-  const contenido = reporte.contenido
-  const url = contenido.startsWith("data:")
-    ? contenido
-    : `data:${tipoMimeReporte(reporte.formato)};base64,${contenido}`
-
-  enlace.href = url
-  enlace.download = reporte.nombreArchivo
-  enlace.style.display = "none"
-  document.body.appendChild(enlace)
-  enlace.click()
-  enlace.remove()
-}
-
-function formatearFecha(fecha?: string) {
-  if (!fecha) {
-    return "-"
-  }
-
-  const valor = new Date(fecha)
-
-  if (Number.isNaN(valor.getTime())) {
-    return fecha
-  }
-
-  return new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(valor)
-}
-
-function EstadoSocioBadge({
-  estado,
-}: {
-  estado: SocioDeNegocioResponse["estado"]
-}) {
-  return (
-    <Badge
-      variant={estadoVariant[estado]}
-      className={`h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${estadoClassName[estado]}`}
-    >
-      {estado === "ACTIVO" ? (
-        <CheckCircle2 data-icon="inline-start" className={estadoIconClassName[estado]} />
-      ) : (
-        <CircleDashed data-icon="inline-start" className={estadoIconClassName[estado]} />
-      )}
-      {estado}
-    </Badge>
-  )
-}
-
-function EstadoRegistroBadge({
-  estadoRegistro,
-}: {
-  estadoRegistro: SocioDeNegocioResponse["estadoRegistro"]
-}) {
-  return (
-      <Badge
-      variant={estadoRegistroVariant[estadoRegistro]}
-      className={`h-6 gap-1.5 rounded-full px-2.5 text-[12px] font-medium ${estadoRegistroClassName[estadoRegistro]}`}
-    >
-      {estadoRegistro === "ACTIVO" ? (
-        <CheckCircle2 data-icon="inline-start" className={estadoRegistroIconClassName[estadoRegistro]} />
-      ) : (
-        <CircleX data-icon="inline-start" className={estadoRegistroIconClassName[estadoRegistro]} />
-      )}
-      {estadoRegistro}
-    </Badge>
-  )
-}
-
-type AccionesSocioProps = {
-  socio: SocioDeNegocioResponse
-  onActualizado: () => void
-  onMensaje: (mensaje: string) => void
-  onError: (error: ErrorOperacion) => void
-}
-
-function limpiarFiltros(query: ConsultarSociosDeNegocioQuery) {
-  return Object.fromEntries(
-    Object.entries(query).filter(([, value]) => {
-      if (value === undefined || value === null) return false
-      if (typeof value === "string") return value.trim() !== ""
-      return true
-    }),
-  ) as ConsultarSociosDeNegocioQuery
-}
-
-function obtenerValorFiltro(
-  filtros: ConsultarSociosDeNegocioQuery,
-  key: keyof ConsultarSociosDeNegocioQuery,
-) {
-  const value = filtros[key]
-  return typeof value === "string" ? value : ""
-}
-
-function obtenerClaseFilaSocio(socio: SocioDeNegocioResponse) {
-  const inactivo = socio.estado === "INACTIVO"
-  const anulado = socio.estadoRegistro === "ANULADO"
-
-  return cn(
-    "border-border/80 hover:bg-transparent",
-    inactivo && !anulado &&
-      "border-l-4 border-l-muted-foreground/40 bg-muted/45 hover:bg-muted/45",
-    anulado &&
-      "border-l-4 border-l-destructive bg-destructive/5 text-muted-foreground hover:bg-destructive/5",
-  )
-}
-
-function EstadoAprobacionBadge({
-  estado,
-}: {
-  estado: SocioDeNegocioResponse["estadoAprobacion"]
-}) {
-  const baseClase = "bg-card border-border/70 shadow-sm gap-1.5"
-
-  if (estado === "APROBADO") {
-    return (
-      <Badge variant="outline" className={cn(baseClase, "text-foreground")}>
-        <CheckCircle2
-          data-icon="inline-start"
-          className="text-emerald-600 dark:text-emerald-400"
-        />
-        Aprobado
-      </Badge>
-    )
-  }
-
-  if (estado === "PENDIENTE_APROBACION") {
-    return (
-      <Badge variant="outline" className={cn(baseClase, "text-foreground")}>
-        <Clock
-          data-icon="inline-start"
-          className="text-amber-500 dark:text-amber-400"
-        />
-        Pendiente
-      </Badge>
-    )
-  }
-
-  return (
-    <Badge variant="outline" className={cn(baseClase, "text-foreground")}>
-      <CircleX data-icon="inline-start" className="text-destructive" />
-      No aprobado
-    </Badge>
-  )
-}
-
-function obtenerClaseContenidoSocio(socio: SocioDeNegocioResponse) {
-  return socio.estadoRegistro === "ANULADO"
-    ? "line-through decoration-destructive/70 decoration-2"
-    : undefined
-}
-
-function ResumenListado({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon
-  label: string
-  value: number
-}) {
-  return (
-    <div className="min-w-0 rounded-lg border border-border bg-background p-3">
-      <div className="flex items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-          <Icon className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-semibold tabular-nums">{value}</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function AccionesSocio({
-  socio,
-  onActualizado,
-  onMensaje,
-  onError,
-}: AccionesSocioProps) {
-  const { usuario } = useSesion()
-  const rechazarMutation = useRechazarSocioDeNegocioMutation(socio.id, {
-    onSuccess: onActualizado,
-  })
-  const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
-    onSuccess: onActualizado,
-  })
-  const [accion, setAccion] = useState<"anular" | "reactivar" | null>(null)
-  const [motivo, setMotivo] = useState("")
-  const procesando =
-    rechazarMutation.isPending ||
-    reactivarMutation.isPending
-  const registroAnulado = socio.estadoRegistro === "ANULADO"
-  const puedeReactivar =
-    socio.estado === "INACTIVO" && socio.estadoRegistro === "ACTIVO"
-  const puedeGestionarAsignaciones = puedeGestionarAsignacionesPersonal(socio)
-  const puedeResolverAprobacion = puedeResolverAprobacionSocio(socio)
-  const requiereMotivo = accion === "anular"
-
-  function abrirAccion(nuevaAccion: "anular" | "reactivar") {
-    setMotivo(
-      nuevaAccion === "anular"
-        ? "Documento registrado incorrectamente"
-        : "",
-    )
-    setAccion(nuevaAccion)
-  }
-
-  async function confirmarAccion() {
-    try {
-      if (accion === "anular") {
-        await rechazarMutation.mutateAsync({
-          motivo: motivo.trim(),
-          usuarioId: usuario?.nombreUsuario ?? "",
-        })
-        onMensaje(`${socio.razonSocial} fue rechazado.`)
-      }
-
-      if (accion === "reactivar") {
-        await reactivarMutation.mutateAsync({ usuarioId: usuario?.nombreUsuario ?? "" })
-        onMensaje(`Se creo un nuevo registro pendiente para ${socio.razonSocial}.`)
-      }
-
-      setAccion(null)
-    } catch (error) {
-      onError(obtenerErrorOperacion(error))
-    }
-  }
-
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label="Acciones" disabled={procesando}>
-            {procesando ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <MoreVertical />
-            )}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuGroup>
-            <DropdownMenuItem asChild>
-              <Link href={`/socio-negocios/${socio.id}`}>
-                <Eye data-icon="inline-start" />
-                Ver
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/socio-negocios/historial/${socio.id}`}>
-                <TrendingUp data-icon="inline-start" />
-                Auditar
-              </Link>
-            </DropdownMenuItem>
-            {puedeGestionarAsignaciones ? (
-              <DropdownMenuItem asChild disabled={procesando}>
-                <Link href={`/socio-negocios/${socio.id}/asignaciones`}>
-                  <BriefcaseBusiness data-icon="inline-start" />
-                  Asignaciones
-                </Link>
-              </DropdownMenuItem>
-            ) : null}
-            {!registroAnulado ? (
-              <>
-                <DropdownMenuItem asChild disabled={procesando}>
-                  <Link href={`/socio-negocios/${socio.id}?modo=editar`}>
-                    <Pencil data-icon="inline-start" />
-                    Editar datos
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  asChild
-                  disabled={
-                    socio.estado !== "ACTIVO" ||
-                    socio.estadoRegistro !== "ACTIVO" ||
-                    socio.estadoAprobacion !== "APROBADO" ||
-                    procesando
-                  }
-                >
-                  <Link href={`/socio-negocios/${socio.id}`}>
-                    <ArchiveX data-icon="inline-start" />
-                    Dar de baja
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  disabled={!puedeResolverAprobacion || procesando}
-                  onSelect={() => abrirAccion("anular")}
-                >
-                  <CircleX data-icon="inline-start" />
-                  Rechazar
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  disabled={!puedeReactivar || procesando}
-                  onSelect={() => abrirAccion("reactivar")}
-                >
-                  <ArchiveRestore data-icon="inline-start" />
-                  Reactivar
-                </DropdownMenuItem>
-              </>
-            ) : null}
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      <AlertDialog open={accion !== null} onOpenChange={(open) => !open && setAccion(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {accion === "anular"
-                ? "Rechazar socio pendiente"
-                : "Reactivar socio"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {accion === "reactivar"
-                ? `Confirma la reactivacion de ${socio.razonSocial}.`
-                : accion === "anular"
-                  ? "El motivo quedara registrado en la auditoria del socio."
-                  : `Registra el motivo para ${socio.razonSocial}.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
-              <p className="font-medium">{socio.razonSocial}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {socio.codigoInternoSap} · {socio.numeroDocumento}
-              </p>
-            </div>
-
-            {requiereMotivo ? (
-              <Field>
-                <FieldLabel htmlFor={`motivo-${socio.id}`}>Motivo</FieldLabel>
-                <Textarea
-                  id={`motivo-${socio.id}`}
-                  value={motivo}
-                  onChange={(event) => setMotivo(event.target.value)}
-                  placeholder={
-                    accion === "anular"
-                      ? "Registro creado por error"
-                      : "Informacion incorrecta"
-                  }
-                  disabled={procesando}
-                />
-                <FieldDescription>
-                  Este motivo quedara asociado al movimiento del socio.
-                </FieldDescription>
-              </Field>
-            ) : null}
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={procesando}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant={
-                accion === "anular" ? "destructive" : "default"
-              }
-              disabled={procesando || (requiereMotivo && !motivo.trim())}
-              onClick={(event) => {
-                event.preventDefault()
-                void confirmarAccion()
-              }}
-            >
-              {procesando
-                ? "Procesando..."
-                : accion === "anular"
-                  ? "Rechazar"
-                  : "Confirmar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-    </>
-  )
-}
+import { AccionesSocio } from "./socio-negocio-listado/acciones-socio"
+import {
+  EstadoAprobacionBadge,
+  EstadoRegistroBadge,
+  EstadoSocioBadge,
+  type ErrorOperacion,
+  type SocioNegocioVistaProps,
+  ResumenListado,
+  descargarReporte,
+  formatearFecha,
+  limpiarFiltros,
+  obtenerClaseContenidoSocio,
+  obtenerClaseFilaSocio,
+  obtenerFiltrosActivos,
+  obtenerMensajeError,
+  obtenerSiguienteAccion,
+  obtenerValorFiltro,
+} from "./socio-negocio-listado/utilidades"
 
 export function SocioNegocioVista({
   titulo,
@@ -587,13 +111,13 @@ export function SocioNegocioVista({
     )
   const [filtrosAplicados, setFiltrosAplicados] =
     useState<ConsultarSociosDeNegocioQuery>(() => filtrosFormulario)
-  
+
   const filtrosConPaginacion = useMemo(() => ({
     ...filtrosAplicados,
     page: paginaActual,
     pageSize: registrosPorPagina,
   }), [filtrosAplicados, paginaActual, registrosPorPagina])
-  
+
   const sociosQuery = useSociosDeNegocioQuery(filtrosConPaginacion)
   const exportacionExcelQuery = useExportarSociosDeNegocioQuery(
     {
@@ -616,13 +140,32 @@ export function SocioNegocioVista({
       clientes: socios.filter((socio) => socio.tipo === "CLIENTE").length,
       proveedores: socios.filter((socio) => socio.tipo === "PROVEEDOR").length,
       personal: socios.filter((socio) => socio.tipo === "PERSONAL").length,
-      pendientes: socios.filter((socio) => socio.estadoAprobacion === "PENDIENTE_APROBACION").length,
     }),
     [socios],
+  )
+  const indicadoresOperacion = useMemo(
+    () => ({
+      pendientesAprobacion: socios.filter((socio) =>
+        puedeResolverAprobacionSocio(socio),
+      ).length,
+      pendientesSap: socios.filter((socio) =>
+        socio.estadoSincronizacionSap === "PENDIENTE" ||
+        socio.estadoSincronizacionSap === "FALLIDO",
+      ).length,
+    }),
+    [socios],
+  )
+  const filtrosActivos = useMemo(
+    () => obtenerFiltrosActivos(filtrosAplicados),
+    [filtrosAplicados],
   )
   const cargando = sociosQuery.isLoading
   const error = sociosQuery.error ? obtenerMensajeError(sociosQuery.error) : null
   const tipoBloqueado = Boolean(filtros?.tipo)
+  const totalResultados = metaPaginacion?.total ?? socios.length
+  const textoResultados = metaPaginacion
+    ? `Pagina ${metaPaginacion.pagina} de ${metaPaginacion.totalPaginas || 1}`
+    : `${socios.length} visibles`
 
   async function exportar(formato: ReporteSociosDeNegocioResponse["formato"]) {
     setReporteGenerado(null)
@@ -694,9 +237,13 @@ export function SocioNegocioVista({
             title="Listado de Socios de Negocio"
             description="Busca, filtra y opera el maestro de socios con una vista clara para trabajo diario."
             meta={
-              metaPaginacion ? (
-                <Badge variant="secondary">{metaPaginacion.total} registros</Badge>
-              ) : null
+              <>
+                <Badge variant="secondary">{totalResultados} registros</Badge>
+                <Badge variant="outline">{textoResultados}</Badge>
+                {filtrosActivos.length > 0 ? (
+                  <Badge variant="outline">{filtrosActivos.length} filtros activos</Badge>
+                ) : null}
+              </>
             }
             actions={
               crearHref ? (
@@ -708,7 +255,36 @@ export function SocioNegocioVista({
                 </Button>
               ) : null
             }
-          />
+            />
+
+          <section className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-xl border border-primary/15 bg-card p-4 shadow-xs">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-sm font-semibold">Flujo recomendado</h2>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Registra o edita el socio, valida aprobaciones pendientes y usa el historial para auditar cada cambio.
+                </p>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-xs font-medium text-muted-foreground">1. Buscar</p>
+                  <p className="mt-1 text-sm">Filtra por nombre, documento, tipo o SAP.</p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-xs font-medium text-muted-foreground">2. Resolver</p>
+                  <p className="mt-1 text-sm">Aprueba, corrige, anula o reactiva desde acciones.</p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-xs font-medium text-muted-foreground">3. Auditar</p>
+                  <p className="mt-1 text-sm">Consulta historial y descarga reportes filtrados.</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              <ResumenListado icon={Clock} label="Por aprobar" value={indicadoresOperacion.pendientesAprobacion} />
+              <ResumenListado icon={CircleDashed} label="SAP pendiente" value={indicadoresOperacion.pendientesSap} />
+            </div>
+          </section>
 
           {error ? (
             <Alert variant="destructive">
@@ -741,11 +317,10 @@ export function SocioNegocioVista({
                       Combina criterios para encontrar rapidamente el registro que necesitas.
                     </p>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:w-[520px] xl:grid-cols-4">
+                  <div className="grid gap-2 sm:grid-cols-3 lg:w-[400px]">
                     <ResumenListado icon={Building2} label="Clientes" value={conteoVisible.clientes} />
                     <ResumenListado icon={Package} label="Proveedores" value={conteoVisible.proveedores} />
                     <ResumenListado icon={User} label="Personal" value={conteoVisible.personal} />
-                    <ResumenListado icon={Clock} label="Pendientes" value={conteoVisible.pendientes} />
                   </div>
                 </div>
               </div>
@@ -764,7 +339,7 @@ export function SocioNegocioVista({
                       </InputGroupAddon>
                       <InputGroupInput
                         value={obtenerValorFiltro(filtrosFormulario, "razonSocial")}
-                        placeholder="Buscar socio"
+                        placeholder="Razon social, nombre comercial o contacto"
                         onChange={(event) =>
                           actualizarFiltro("razonSocial", event.target.value)
                         }
@@ -852,29 +427,6 @@ export function SocioNegocioVista({
                   </Field>
                   <Field>
                     <Select
-                      value={filtrosFormulario.estadoAprobacion ?? "TODOS"}
-                      onValueChange={(value) =>
-                        actualizarFiltro(
-                          "estadoAprobacion",
-                          value as ConsultarSociosDeNegocioQuery["estadoAprobacion"] | "TODOS",
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Aprobacion" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          <SelectItem value="TODOS">Aprobacion: todas</SelectItem>
-                          <SelectItem value="PENDIENTE_APROBACION">Pendientes</SelectItem>
-                          <SelectItem value="APROBADO">Aprobados</SelectItem>
-                          <SelectItem value="RECHAZADO">Rechazados</SelectItem>
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field>
-                    <Select
                       value={filtrosFormulario.origen ?? "TODOS"}
                       onValueChange={(value) =>
                         actualizarFiltro(
@@ -940,6 +492,23 @@ export function SocioNegocioVista({
                   </div>
                 </form>
                 <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+                  <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Filter data-icon="inline-start" />
+                    Filtros activos
+                  </span>
+                  {filtrosActivos.length > 0 ? (
+                    filtrosActivos.map((filtro) => (
+                      <Badge key={`${filtro.key}-${filtro.value}`} variant="secondary">
+                        {filtro.label}: {filtro.value}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      Sin filtros adicionales. Se muestran registros vigentes por defecto.
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
                   <span className="mr-auto text-sm text-muted-foreground">
                     Exporta el resultado filtrado para reportes o revision interna.
                   </span>
@@ -974,9 +543,22 @@ export function SocioNegocioVista({
                 <EmptyHeader>
                   <EmptyTitle>Sin socios de negocio</EmptyTitle>
                   <EmptyDescription>
-                    No existen registros para el filtro aplicado.
+                    No existen registros para el filtro aplicado. Limpia la busqueda o crea un nuevo socio si corresponde.
                   </EmptyDescription>
                 </EmptyHeader>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={limpiarBusqueda}>
+                    Limpiar busqueda
+                  </Button>
+                  {crearHref ? (
+                    <Button asChild size="sm">
+                      <Link href={crearHref}>
+                        <Plus data-icon="inline-start" />
+                        {accionPrincipal}
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
               </Empty>
             ) : (
               <div className="overflow-x-auto">
@@ -992,6 +574,7 @@ export function SocioNegocioVista({
                       <TableHead>Registro</TableHead>
                       <TableHead>Aprobacion</TableHead>
                       <TableHead>Asignacion vigente</TableHead>
+                      <TableHead>Siguiente accion</TableHead>
                       <TableHead>Sincronizacion SAP</TableHead>
                       <TableHead>Origen</TableHead>
                       <TableHead>Documento</TableHead>
@@ -1079,17 +662,26 @@ export function SocioNegocioVista({
                             </Button>
                           ) : socio.tipo === "PERSONAL" ? (
                             <span className="text-sm text-muted-foreground">
-                              Requiere aprobacion
+                              No disponible
                             </span>
                           ) : (
                             <span className="text-sm text-muted-foreground">No aplica</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          <EstadoSincronizacionSapBadge
-                            estado={socio.estadoSincronizacionSap}
-                            ultimoError={socio.ultimoErrorSincronizacionSap}
-                          />
+                          <Badge variant="secondary" className="whitespace-nowrap">
+                            {obtenerSiguienteAccion(socio)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {socio.estadoSincronizacionSap ? (
+                            <EstadoSincronizacionSapBadge
+                              estado={socio.estadoSincronizacionSap}
+                              ultimoError={socio.ultimoErrorSincronizacionSap}
+                            />
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No aplica</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{socio.origen}</Badge>

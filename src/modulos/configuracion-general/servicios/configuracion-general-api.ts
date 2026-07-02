@@ -7,12 +7,15 @@ import type {
   EstadoBcConfiguracionGeneralResponse,
   ExportarConfiguracionGeneralQuery,
   InhabilitarConfiguracionGeneralRequest,
-  ModificarConfiguracionGeneralRequest,
+  ModificarRequestPorTipo,
   PaginatedResponse,
   ReactivarConfiguracionGeneralRequest,
-  RegistrarConfiguracionGeneralRequest,
+  RegistrarRequestPorTipo,
   ResumenConfiguracionGeneralResponse,
+  TipoDatoMaestro,
+  UbicacionJerarquiaResponse,
 } from "../tipos/configuracion-general"
+import { RUTA_POR_TIPO } from "../tipos/configuracion-general"
 
 const BASE_ENDPOINT = "/configuracion-general"
 
@@ -60,52 +63,36 @@ export async function obtenerResumenDashboardConfiguracionGeneral(): Promise<Res
   return extraerDatos(data)
 }
 
-export async function registrarConfiguracionGeneral(
-  payload: RegistrarConfiguracionGeneralRequest,
-): Promise<ConfiguracionGeneralResponse> {
-  const { data } = await clienteConfiguracionGeneral.post<
-    ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
-  >(BASE_ENDPOINT, payload)
-  return extraerDatos(data)
-}
-
-export async function modificarConfiguracionGeneral(
-  id: string,
-  payload: ModificarConfiguracionGeneralRequest,
-): Promise<ConfiguracionGeneralResponse> {
-  const { data } = await clienteConfiguracionGeneral.put<
-    ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
-  >(`${BASE_ENDPOINT}/${id}`, payload)
-  return extraerDatos(data)
-}
-
 export async function inhabilitarConfiguracionGeneral(
-  id: string,
+  id: number,
+  tipo: TipoDatoMaestro,
   payload: InhabilitarConfiguracionGeneralRequest,
 ): Promise<ConfiguracionGeneralResponse> {
   const { data } = await clienteConfiguracionGeneral.patch<
     ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
-  >(`${BASE_ENDPOINT}/${id}/inhabilitar`, payload)
+  >(`${BASE_ENDPOINT}/${id}/inhabilitar?tipoDatoMaestro=${tipo}`, payload)
   return extraerDatos(data)
 }
 
 export async function reactivarConfiguracionGeneral(
-  id: string,
+  id: number,
+  tipo: TipoDatoMaestro,
   payload: ReactivarConfiguracionGeneralRequest,
 ): Promise<ConfiguracionGeneralResponse> {
   const { data } = await clienteConfiguracionGeneral.patch<
     ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
-  >(`${BASE_ENDPOINT}/${id}/reactivar`, payload)
+  >(`${BASE_ENDPOINT}/${id}/reactivar?tipoDatoMaestro=${tipo}`, payload)
   return extraerDatos(data)
 }
 
 export async function anularConfiguracionGeneral(
-  id: string,
+  id: number,
+  tipo: TipoDatoMaestro,
   payload: AnularConfiguracionGeneralRequest,
 ): Promise<ConfiguracionGeneralResponse> {
   const { data } = await clienteConfiguracionGeneral.patch<
     ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
-  >(`${BASE_ENDPOINT}/${id}/anular`, payload)
+  >(`${BASE_ENDPOINT}/${id}/anular?tipoDatoMaestro=${tipo}`, payload)
   return extraerDatos(data)
 }
 
@@ -127,6 +114,20 @@ export async function consultarCatalogoConfiguracionGeneral(
   return data
 }
 
+/**
+ * Endpoint especifico recomendado para arboles de ubicacion -> sedes -> areas ->
+ * almacenes. Devuelve la estructura anidada en una sola llamada paginada por
+ * ubicacion, evitando el patron N+1 y el truncado al armar el arbol en memoria.
+ */
+export async function obtenerJerarquiaUbicaciones(
+  query?: ConsultarConfiguracionGeneralQuery,
+): Promise<PaginatedResponse<UbicacionJerarquiaResponse>> {
+  const { data } = await clienteConfiguracionGeneral.get<
+    PaginatedResponse<UbicacionJerarquiaResponse>
+  >(`${BASE_ENDPOINT}/ubicaciones/jerarquia${crearQueryString(query)}`)
+  return data
+}
+
 export async function exportarConfiguracionGeneral(
   query?: ExportarConfiguracionGeneralQuery,
 ): Promise<PaginatedResponse<ConfiguracionGeneralResponse>> {
@@ -134,4 +135,63 @@ export async function exportarConfiguracionGeneral(
     PaginatedResponse<ConfiguracionGeneralResponse>
   >(`${BASE_ENDPOINT}/exportar${crearQueryString(query)}`)
   return data
+}
+
+// ---------------------------------------------------------------------------
+// Endpoints por tipo de dato maestro
+//
+// Cada tipo tiene su recurso dedicado: /configuracion-general/<plural>. Listar,
+// registrar y modificar viajan solo con los campos propios del tipo. El ciclo
+// de vida (inhabilitar/reactivar/anular), el dashboard y la
+// exportacion siguen siendo genericos sobre /configuracion-general/:id/...
+// ---------------------------------------------------------------------------
+
+function rutaTipo(tipo: TipoDatoMaestro) {
+  return `${BASE_ENDPOINT}/${RUTA_POR_TIPO[tipo]}`
+}
+
+/** Lista los registros de un tipo concreto desde su recurso dedicado. */
+export async function listarPorTipo(
+  tipo: TipoDatoMaestro,
+  query?: ConsultarConfiguracionGeneralQuery,
+): Promise<PaginatedResponse<ConfiguracionGeneralResponse>> {
+  // El recurso ya esta acotado al tipo: no reenviamos tipoDatoMaestro.
+  const { tipoDatoMaestro: _omitido, ...resto } = query ?? {}
+  void _omitido
+  const { data } = await clienteConfiguracionGeneral.get<
+    PaginatedResponse<ConfiguracionGeneralResponse>
+  >(`${rutaTipo(tipo)}${crearQueryString(resto)}`)
+  // Los endpoints planos no devuelven tipoDatoMaestro (lo define la ruta). Lo
+  // reinyectamos para que el resto del modulo (acciones de ciclo de vida, ficha,
+  // edicion por tipo) siga teniendo el tipo disponible en cada registro.
+  return {
+    ...data,
+    datos: (data.datos ?? []).map((item) => ({
+      ...item,
+      tipoDatoMaestro: item.tipoDatoMaestro ?? tipo,
+    })),
+  }
+}
+
+/** Registra un maestro en su recurso dedicado con solo sus campos propios. */
+export async function registrarPorTipo<T extends TipoDatoMaestro>(
+  tipo: T,
+  payload: RegistrarRequestPorTipo[T],
+): Promise<ConfiguracionGeneralResponse> {
+  const { data } = await clienteConfiguracionGeneral.post<
+    ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
+  >(rutaTipo(tipo), payload)
+  return extraerDatos(data)
+}
+
+/** Modifica un maestro en su recurso dedicado con solo sus campos propios. */
+export async function modificarPorTipo<T extends TipoDatoMaestro>(
+  tipo: T,
+  id: number,
+  payload: ModificarRequestPorTipo[T],
+): Promise<ConfiguracionGeneralResponse> {
+  const { data } = await clienteConfiguracionGeneral.put<
+    ConfiguracionGeneralResponse | RespuestaConDatos<ConfiguracionGeneralResponse>
+  >(`${rutaTipo(tipo)}/${id}`, payload)
+  return extraerDatos(data)
 }

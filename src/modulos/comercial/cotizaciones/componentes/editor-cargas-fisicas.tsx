@@ -3,6 +3,7 @@
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
+import { ConfirmarEliminar } from "@/compartido/componentes/ui/confirmar-eliminar";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -97,7 +98,7 @@ export function EditorCargasFisicas({ cargas, erroresCampo = {}, disabled, onCha
                     />
                   </div>
                   <div className="grid shrink-0 gap-1">
-                    <Label className="text-xs text-muted-foreground">Unidad</Label>
+                    <Label className="text-xs text-muted-foreground">Concepto</Label>
                     <Select
                       value={carga.unidadPeso}
                       disabled={disabled}
@@ -119,17 +120,21 @@ export function EditorCargasFisicas({ cargas, erroresCampo = {}, disabled, onCha
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="size-8 shrink-0 text-destructive hover:text-destructive"
-                    disabled={disabled}
-                    onClick={() => eliminar(carga.claveCliente)}
-                    aria-label="Eliminar carga"
+                  <ConfirmarEliminar
+                    onConfirmar={() => eliminar(carga.claveCliente)}
+                    descripcion="Se eliminara esta carga."
                   >
-                    <Trash2Icon data-icon="inline-start" />
-                  </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="size-8 shrink-0 text-destructive hover:text-destructive"
+                      disabled={disabled}
+                      aria-label="Eliminar carga"
+                    >
+                      <Trash2Icon data-icon="inline-start" />
+                    </Button>
+                  </ConfirmarEliminar>
                 </div>
                 {errNombre ? (
                   <p className="-mt-1.5 text-xs text-destructive">{errNombre}</p>

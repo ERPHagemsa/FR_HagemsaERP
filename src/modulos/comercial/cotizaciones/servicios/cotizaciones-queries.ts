@@ -1,12 +1,15 @@
 "use client";
 
-import { useConsulta, useMutar } from "@/compartido/api";
+import { invalidarConsulta, useConsulta, useMutar } from "@/compartido/api";
+import { toast } from "sonner";
 
 import type {
   FiltrosCatalogosCargoAdicional,
   FiltrosCotizaciones,
   FiltrosModalidades,
+  FiltrosResumenCotizaciones,
   ParamsPrecioSugerido,
+  PayloadActualizarCondicionesVersion,
   PayloadBorrador,
   PayloadEnviar,
   PayloadNuevaVersion,
@@ -14,6 +17,7 @@ import type {
 } from "../tipos/cotizaciones.tipos";
 import {
   actualizarBorrador,
+  actualizarCondicionesVersion,
   cancelarCotizacion,
   consultarCotizacion,
   enviarCotizacion,
@@ -21,7 +25,9 @@ import {
   marcarGanada,
   marcarPerdida,
   nuevaVersion,
+  obtenerEjecutivosCotizaciones,
   obtenerPrecioSugerido,
+  obtenerResumenCotizaciones,
   obtenerSugerenciasCarga,
 } from "./cotizaciones-api";
 import { listarCatalogosCargoAdicional } from "./catalogos-cargo-adicional-api";
@@ -31,6 +37,8 @@ import {
   CLAVE_CARGOS_ADICIONALES,
   CLAVE_COTIZACION_DETALLE,
   CLAVE_COTIZACIONES,
+  CLAVE_COTIZACIONES_EJECUTIVOS,
+  CLAVE_COTIZACIONES_RESUMEN,
   CLAVE_MODALIDADES,
 } from "../../claves-consulta";
 
@@ -43,6 +51,17 @@ export function useListarCotizaciones(filtros: FiltrosCotizaciones = {}) {
     () => listarCotizaciones(filtros),
     [JSON.stringify(filtros)],
     { clave: CLAVE_COTIZACIONES }
+  );
+}
+
+// KPIs del pipeline. Solo depende del contexto (origenTipo/idEjecutivoResponsable/busqueda):
+// no refetchea al cambiar de bucket o de pagina, porque la franja muestra
+// SIEMPRE todos los buckets bajo el mismo contexto.
+export function useResumenCotizacionesQuery(filtros: FiltrosResumenCotizaciones = {}) {
+  return useConsulta(
+    () => obtenerResumenCotizaciones(filtros),
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_COTIZACIONES_RESUMEN }
   );
 }
 
@@ -108,6 +127,22 @@ export function useActualizarBorradorMutation(id: string) {
     Awaited<ReturnType<typeof actualizarBorrador>>
   >({
     fn: (payload) => actualizarBorrador(id, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+    },
+  });
+}
+
+export function useActualizarCondicionesVersionMutation(idCotizacion: string) {
+  return useMutar<
+    PayloadActualizarCondicionesVersion,
+    Awaited<ReturnType<typeof actualizarCondicionesVersion>>
+  >({
+    fn: (payload) => actualizarCondicionesVersion(idCotizacion, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+      toast.success("Condiciones guardadas correctamente.");
+    },
   });
 }
 
@@ -117,6 +152,11 @@ export function useEnviarCotizacionMutation(id: string) {
     Awaited<ReturnType<typeof enviarCotizacion>>
   >({
     fn: (payload) => enviarCotizacion(id, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_COTIZACIONES);
+      invalidarConsulta(CLAVE_COTIZACIONES_RESUMEN);
+      invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+    },
   });
 }
 
@@ -126,12 +166,21 @@ export function useNuevaVersionMutation(id: string) {
     Awaited<ReturnType<typeof nuevaVersion>>
   >({
     fn: (payload) => nuevaVersion(id, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_COTIZACIONES);
+      invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+    },
   });
 }
 
 export function useMarcarGanadaMutation(id: string) {
   return useMutar<undefined, Awaited<ReturnType<typeof marcarGanada>>>({
     fn: () => marcarGanada(id),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_COTIZACIONES);
+      invalidarConsulta(CLAVE_COTIZACIONES_RESUMEN);
+      invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+    },
   });
 }
 
@@ -141,13 +190,34 @@ export function useMarcarPerdidaMutation(id: string) {
     Awaited<ReturnType<typeof marcarPerdida>>
   >({
     fn: (payload) => marcarPerdida(id, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_COTIZACIONES);
+      invalidarConsulta(CLAVE_COTIZACIONES_RESUMEN);
+      invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+    },
   });
 }
 
 export function useCancelarCotizacionMutation(id: string) {
   return useMutar<undefined, Awaited<ReturnType<typeof cancelarCotizacion>>>({
     fn: () => cancelarCotizacion(id),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_COTIZACIONES);
+      invalidarConsulta(CLAVE_COTIZACIONES_RESUMEN);
+      invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+    },
   });
+}
+
+// Lista de ejecutivos que tienen cotizaciones (GET /cotizaciones/ejecutivos).
+// Se usa para poblar el selector de filtro en CotizacionesTabla.
+// No tiene deps variables — siempre trae todos los ejecutivos del BC.
+export function useEjecutivosCotizacionesQuery() {
+  return useConsulta(
+    () => obtenerEjecutivosCotizaciones(),
+    [],
+    { clave: CLAVE_COTIZACIONES_EJECUTIVOS }
+  );
 }
 
 // ---------------------------------------------------------------------------

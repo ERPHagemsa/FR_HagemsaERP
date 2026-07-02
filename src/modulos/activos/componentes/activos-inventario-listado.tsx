@@ -15,6 +15,10 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import { cn } from "@/compartido/utilidades";
+import {
+  useCatalogosActivos,
+  type CatalogosActivos,
+} from "../ganchos/use-catalogos-activos";
 import type { Activo } from "../tipos/activo.tipos";
 
 type Props = {
@@ -22,6 +26,7 @@ type Props = {
 };
 
 export function ActivosInventarioListado({ activos }: Props) {
+  const catalogos = useCatalogosActivos();
   const [query, setQuery] = React.useState("");
   const [tipoActivo, setTipoActivo] = React.useState("TODOS");
   const [estadoActivo, setEstadoActivo] = React.useState("TODOS");
@@ -55,7 +60,8 @@ export function ActivosInventarioListado({ activos }: Props) {
 
     return (
       textoBusqueda.includes(normalizedQuery) &&
-      (tipoActivo === "TODOS" || activo.tipoActivo === tipoActivo) &&
+      (tipoActivo === "TODOS" ||
+        activo.tipoActivoReferenciaId === Number(tipoActivo)) &&
       coincideEstadoActivo(activo.estadoActivo, estadoActivo) &&
       (estadoOperativo === "TODOS" ||
         vehiculo?.estadoOperativo === estadoOperativo)
@@ -112,7 +118,10 @@ export function ActivosInventarioListado({ activos }: Props) {
             label="Tipo"
             value={tipoActivo}
             onChange={setTipoActivo}
-            values={["TODOS", "VEHICULO", "EQUIPO", "HERRAMIENTA", "DISPOSITIVO", "OTRO"]}
+            values={["TODOS", ...catalogos.tiposActivo.map((opcion) => String(opcion.id))]}
+            etiquetas={Object.fromEntries(
+              catalogos.tiposActivo.map((opcion) => [String(opcion.id), opcion.nombre])
+            )}
           />
           <FiltroSelect
             label="Estado"
@@ -130,7 +139,7 @@ export function ActivosInventarioListado({ activos }: Props) {
 
         <div className="grid gap-3">
           {visibles.map((activo) => (
-            <InventarioItem key={activo.id} activo={activo} />
+            <InventarioItem key={activo.id} activo={activo} catalogos={catalogos} />
           ))}
           {!ordenados.length ? (
             <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
@@ -188,7 +197,13 @@ export function ActivosInventarioListado({ activos }: Props) {
   );
 }
 
-function InventarioItem({ activo }: { activo: Activo }) {
+function InventarioItem({
+  activo,
+  catalogos,
+}: {
+  activo: Activo;
+  catalogos: CatalogosActivos;
+}) {
   const vehiculo = activo.vehiculo;
 
   return (
@@ -224,13 +239,19 @@ function InventarioItem({ activo }: { activo: Activo }) {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Dato label="Placa" value={vehiculo?.placa} />
-        <Dato label="Tipo" value={formatear(activo.tipoActivo)} />
+        <Dato
+          label="Tipo"
+          value={catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId)}
+        />
         <Dato label="Ubicacion" value={activo.ubicacion} />
         <Dato label="Estado activo" value={formatearEstadoActivo(activo.estadoActivo)} />
         <Dato label="Condicion activo" value={formatear(vehiculo?.estadoOperativo)} />
         <Dato
           label="Calibracion"
-          value={formatear(vehiculo?.estadoCalibracion)}
+          value={catalogos.nombrePorId(
+            "ESTADO_CALIBRACION",
+            vehiculo?.estadoCalibracionReferenciaId
+          )}
         />
         <Dato label="Marca" value={vehiculo?.marca} />
         <Dato label="Modelo" value={vehiculo?.modelo} />
@@ -273,11 +294,13 @@ function FiltroSelect({
   label,
   value,
   values,
+  etiquetas,
   onChange,
 }: {
   label: string;
   value: string;
   values: string[];
+  etiquetas?: Record<string, string>;
   onChange: (value: string) => void;
 }) {
   return (
@@ -293,7 +316,7 @@ function FiltroSelect({
       >
         {values.map((item) => (
           <option key={item} value={item}>
-            {item === "TODOS" ? "Todos" : formatear(item)}
+            {item === "TODOS" ? "Todos" : etiquetas?.[item] ?? formatear(item)}
           </option>
         ))}
       </select>

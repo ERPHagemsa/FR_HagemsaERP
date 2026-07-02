@@ -3,6 +3,7 @@
 import { PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
+import { ConfirmarEliminar } from "@/compartido/componentes/ui/confirmar-eliminar";
 import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
@@ -25,8 +26,8 @@ type Props = {
   onChange: (leadTimes: DraftLeadTime[]) => void;
 };
 
-// Mismo patron de tabla (primitivo Table de shadcn) que EditorStandby y el grid
-// de lineas: mantiene la armonia visual de la zona informativa.
+// Mismo patron de tabla (primitivo Table de shadcn) que el grid de lineas:
+// mantiene la armonia visual de la zona informativa.
 export function EditorLeadtimes({ leadTimes, erroresCampo = {}, disabled, onChange }: Props) {
   function agregar() {
     const nuevo = leadTimeVacio();
@@ -133,17 +134,21 @@ export function EditorLeadtimes({ leadTimes, erroresCampo = {}, disabled, onChan
                       ) : null}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="size-8 text-destructive hover:text-destructive"
-                        disabled={disabled}
-                        onClick={() => eliminar(lt.claveCliente)}
-                        aria-label="Eliminar lead time"
+                      <ConfirmarEliminar
+                        onConfirmar={() => eliminar(lt.claveCliente)}
+                        descripcion="Se eliminara este lead time."
                       >
-                        <Trash2Icon />
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="size-8 text-destructive hover:text-destructive"
+                          disabled={disabled}
+                          aria-label="Eliminar lead time"
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      </ConfirmarEliminar>
                     </TableCell>
                   </TableRow>
                 );

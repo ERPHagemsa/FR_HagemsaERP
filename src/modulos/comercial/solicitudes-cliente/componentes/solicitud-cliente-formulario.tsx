@@ -417,7 +417,7 @@ export function CamposNuevaSolicitud({
         onChange={() => limpiarErrorCampo("descripcionServicio")}
       />
       <CampoFecha
-        label="Fecha requerida"
+        label="Fecha requerida del servicio"
         value={fechaRequeridaValue}
         onSelect={(fecha) => {
           setFechaRequeridaValue(fecha);

@@ -16,6 +16,15 @@ import {
   IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
+import {
+  AlertTriangle,
+  Boxes,
+  CheckCircle2,
+  CircleAlert,
+  CircleDashed,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 
 import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -51,6 +60,10 @@ import {
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
 import {
+  useCatalogosActivos,
+  type CatalogosActivos,
+} from "../ganchos/use-catalogos-activos";
+import {
   useCambiarEstadoRegistroMutation,
   useCrearActivoMutation,
 } from "../servicios/activos-queries";
@@ -58,7 +71,6 @@ import type {
   Activo,
   CrearActivoPayload,
   EstadoActivo,
-  EstadoCalibracion,
   EstadoOperativo,
 } from "../tipos/activo.tipos";
 
@@ -104,6 +116,7 @@ const FILTROS_INICIALES: FiltrosActivos = {
 
 export function ActivosTabla({ activos, paginacionExterna }: Props) {
   const router = useRouter();
+  const catalogos = useCatalogosActivos();
   const [filtrosFormulario, setFiltrosFormulario] =
     React.useState<FiltrosActivos>(FILTROS_INICIALES);
   const [filtrosAplicados, setFiltrosAplicados] =
@@ -147,19 +160,37 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
     return (
       coincideTexto &&
       (filtrosAplicados.tipoActivo === "TODOS" ||
-        activo.tipoActivo === filtrosAplicados.tipoActivo) &&
+        activo.tipoActivoReferenciaId === Number(filtrosAplicados.tipoActivo)) &&
       coincideEstadoActivo(activo.estadoActivo, filtrosAplicados.estadoActivo) &&
       (filtrosAplicados.estadoOperativo === "TODOS" ||
         activo.vehiculo?.estadoOperativo === filtrosAplicados.estadoOperativo) &&
       (filtrosAplicados.estadoCalibracion === "TODOS" ||
-        activo.vehiculo?.estadoCalibracion ===
-          filtrosAplicados.estadoCalibracion) &&
+        activo.vehiculo?.estadoCalibracionReferenciaId ===
+          Number(filtrosAplicados.estadoCalibracion)) &&
       (!filtrosAplicados.fechaDesde ||
         fechaModificacion >= filtrosAplicados.fechaDesde) &&
       (!filtrosAplicados.fechaHasta ||
         fechaModificacion <= filtrosAplicados.fechaHasta)
     );
   });
+
+  const resumen = {
+    total: activosPorRegistro.length,
+    operativos: activosPorRegistro.filter(
+      (activo) => activo.vehiculo?.estadoOperativo === "OPERATIVO"
+    ).length,
+    mantenimiento: activosPorRegistro.filter(
+      (activo) => activo.vehiculo?.estadoOperativo === "MANTENIMIENTO"
+    ).length,
+    noCalibrados: activosPorRegistro.filter((activo) => {
+      const id = activo.vehiculo?.estadoCalibracionReferenciaId;
+      return (
+        id != null &&
+        (id === catalogos.idPorNombre("ESTADO_CALIBRACION", "No calibrada") ||
+          id === catalogos.idPorNombre("ESTADO_CALIBRACION", "Observada"))
+      );
+    }).length,
+  };
 
   const hayFiltros =
     filtrosAplicados.query ||
@@ -182,25 +213,26 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
 
   // Paginación: externa (server-side) o interna (client-side)
   const usarPaginacionExterna = paginacionExterna !== undefined;
-  const totalPaginas = usarPaginacionExterna
+  const usarPaginacionRemota = usarPaginacionExterna && !hayFiltros;
+  const totalPaginas = usarPaginacionRemota
     ? paginacionExterna.totalPaginas
     : Math.max(1, Math.ceil(ordenados.length / registrosPorPagina));
   const inicioPagina = (pagina - 1) * registrosPorPagina;
   const finPagina = inicioPagina + registrosPorPagina;
   // Si es server-side los activos ya vienen paginados; no re-sliceamos
-  const visibles = usarPaginacionExterna
+  const visibles = usarPaginacionRemota
     ? ordenados
     : ordenados.slice(inicioPagina, finPagina);
-  const totalParaTexto = usarPaginacionExterna
+  const totalParaTexto = usarPaginacionRemota
     ? paginacionExterna.total
     : ordenados.length;
-  const paginaActual = usarPaginacionExterna ? paginacionExterna.pagina : pagina;
+  const paginaActual = usarPaginacionRemota ? paginacionExterna.pagina : pagina;
   const desdeVisible = totalParaTexto
-    ? usarPaginacionExterna
+    ? usarPaginacionRemota
       ? (paginaActual - 1) * registrosPorPagina + 1
       : inicioPagina + 1
     : 0;
-  const hastaVisible = usarPaginacionExterna
+  const hastaVisible = usarPaginacionRemota
     ? Math.min(paginaActual * registrosPorPagina, paginacionExterna.total)
     : Math.min(finPagina, ordenados.length);
 
@@ -246,11 +278,14 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
           .filter(Boolean)
           .join(" ") || activo.descripcion,
       Placa: activo.vehiculo?.placa ?? "",
-      Tipo: formatear(activo.tipoActivo),
+      Tipo: catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId),
       Ubicacion: activo.ubicacion,
       Estado: formatearEstadoActivo(activo.estadoActivo),
       Condicion: formatear(activo.vehiculo?.estadoOperativo),
-      Calibracion: formatear(activo.vehiculo?.estadoCalibracion),
+      Calibracion: catalogos.nombrePorId(
+        "ESTADO_CALIBRACION",
+        activo.vehiculo?.estadoCalibracionReferenciaId
+      ),
       Modificado: formatearFecha(activo.updatedAt),
     }));
     const csv = convertirCsv(filas);
@@ -269,7 +304,9 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                 .join(" ") || activo.descripcion
             )}</td>
             <td>${escaparHtml(activo.vehiculo?.placa ?? "")}</td>
-            <td>${escaparHtml(formatear(activo.tipoActivo))}</td>
+            <td>${escaparHtml(
+              catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId)
+            )}</td>
             <td>${escaparHtml(activo.ubicacion)}</td>
             <td>${escaparHtml(formatearEstadoActivo(activo.estadoActivo))}</td>
             <td>${escaparHtml(formatear(activo.vehiculo?.estadoOperativo))}</td>
@@ -378,11 +415,43 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Consulta de activos</h2>
-        <p className="text-sm text-muted-foreground">
-          {filtrados.length} de {activosPorRegistro.length} activos consultados
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{resumen.total} registros</Badge>
+            <h2 className="text-lg font-semibold">Consulta de activos</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Busca y filtra el maestro de unidades. Mostrando {filtrados.length} de{" "}
+            {activosPorRegistro.length}.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <ResumenMini
+            icon={Boxes}
+            label="Total"
+            value={resumen.total}
+            tono="text-foreground"
+          />
+          <ResumenMini
+            icon={CheckCircle2}
+            label="Operativos"
+            value={resumen.operativos}
+            tono="text-emerald-600 dark:text-emerald-400"
+          />
+          <ResumenMini
+            icon={Wrench}
+            label="Mantenimiento"
+            value={resumen.mantenimiento}
+            tono="text-amber-500 dark:text-amber-400"
+          />
+          <ResumenMini
+            icon={AlertTriangle}
+            label="No calibrados"
+            value={resumen.noCalibrados}
+            tono="text-destructive"
+          />
+        </div>
       </div>
 
       <Card className="overflow-hidden">
@@ -411,11 +480,10 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                 onChange={(value) => actualizarFiltro("tipoActivo", value)}
                 values={[
                   { value: "TODOS", label: "Tipo: todos" },
-                  { value: "VEHICULO", label: "Vehiculo" },
-                  { value: "EQUIPO", label: "Equipo" },
-                  { value: "HERRAMIENTA", label: "Herramienta" },
-                  { value: "DISPOSITIVO", label: "Dispositivo" },
-                  { value: "OTRO", label: "Otro" },
+                  ...catalogos.tiposActivo.map((opcion) => ({
+                    value: String(opcion.id),
+                    label: opcion.nombre,
+                  })),
                 ]}
               />
               <FiltroSelect
@@ -445,10 +513,10 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                 onChange={(value) => actualizarFiltro("estadoCalibracion", value)}
                 values={[
                   { value: "TODOS", label: "Calibracion: todos" },
-                  { value: "CALIBRADA", label: "Calibrada" },
-                  { value: "NO_CALIBRADA", label: "No calibrada" },
-                  { value: "PENDIENTE", label: "Pendiente" },
-                  { value: "OBSERVADA", label: "Observada" },
+                  ...catalogos.estadosCalibracion.map((opcion) => ({
+                    value: String(opcion.id),
+                    label: opcion.nombre,
+                  })),
                 ]}
               />
               <FiltroSelect
@@ -660,7 +728,9 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                     {activo.vehiculo?.placa ?? "Sin placa"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{formatear(activo.tipoActivo)}</Badge>
+                    <Badge variant="outline">
+                      {catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId)}
+                    </Badge>
                   </TableCell>
                   <TableCell className="truncate">
                     {activo.ubicacion}
@@ -685,9 +755,15 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                   </TableCell>
                   <TableCell>
                     <EstadoBadge
-                      value={activo.vehiculo?.estadoCalibracion ?? "SIN_DETALLE"}
+                      value={
+                        catalogos.nombrePorId(
+                          "ESTADO_CALIBRACION",
+                          activo.vehiculo?.estadoCalibracionReferenciaId
+                        ) || "SIN_DETALLE"
+                      }
                       variant={estadoCalibracionVariant(
-                        activo.vehiculo?.estadoCalibracion
+                        activo.vehiculo?.estadoCalibracionReferenciaId,
+                        catalogos
                       )}
                     />
                   </TableCell>
@@ -724,7 +800,7 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                 onChange={(event) => {
                   const nuevo = Number(event.target.value);
                   setRegistrosPorPagina(nuevo);
-                  if (usarPaginacionExterna) {
+                  if (usarPaginacionRemota) {
                     paginacionExterna.onCambiarLimite(nuevo);
                   }
                 }}
@@ -738,9 +814,9 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={usarPaginacionExterna ? !paginacionExterna.tieneAnterior : pagina === 1}
+              disabled={usarPaginacionRemota ? !paginacionExterna.tieneAnterior : pagina === 1}
               onClick={() => {
-                if (usarPaginacionExterna) {
+                if (usarPaginacionRemota) {
                   paginacionExterna.onCambiarPagina(paginaActual - 1);
                 } else {
                   setPagina((actual) => Math.max(1, actual - 1));
@@ -756,9 +832,9 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={usarPaginacionExterna ? !paginacionExterna.tieneSiguiente : pagina === totalPaginas}
+              disabled={usarPaginacionRemota ? !paginacionExterna.tieneSiguiente : pagina === totalPaginas}
               onClick={() => {
-                if (usarPaginacionExterna) {
+                if (usarPaginacionRemota) {
                   paginacionExterna.onCambiarPagina(paginaActual + 1);
                 } else {
                   setPagina((actual) => Math.min(totalPaginas, actual + 1));
@@ -838,7 +914,7 @@ type BadgeVariant = React.ComponentProps<typeof Badge>["variant"];
 function crearPayloadReintegro(activo: Activo): CrearActivoPayload {
   return {
     codigo: activo.codigo,
-    tipoActivo: activo.tipoActivo,
+    tipoActivoReferenciaId: activo.tipoActivoReferenciaId,
     descripcion: activo.descripcion,
     ubicacion: activo.ubicacion,
     estadoActivo: "ACTIVO",
@@ -851,7 +927,8 @@ function crearPayloadReintegro(activo: Activo): CrearActivoPayload {
     vehiculo: activo.vehiculo
       ? {
           ...activo.vehiculo,
-          plantillaInventario: activo.vehiculo.plantillaInventario,
+          estadoCalibracionReferenciaId:
+            activo.vehiculo.estadoCalibracionReferenciaId ?? 0,
         }
       : undefined,
   };
@@ -875,6 +952,32 @@ function coincideEstadoActivo(estadoActivo: EstadoActivo, filtro: string) {
   return estadoActivo === filtro;
 }
 
+function ResumenMini({
+  icon: Icon,
+  label,
+  value,
+  tono,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  tono: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+        <Icon className={cn("size-4", tono)} />
+      </span>
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate text-[11px] text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-lg font-semibold leading-none">{value}</span>
+      </div>
+    </div>
+  );
+}
+
 function EstadoBadge({
   value,
   variant,
@@ -882,11 +985,38 @@ function EstadoBadge({
   value: string;
   variant: BadgeVariant;
 }) {
+  const { Icono, iconClassName } = estiloEstado(variant);
   return (
-    <Badge className="max-w-44" variant={variant}>
+    <Badge
+      variant="outline"
+      className="h-6 max-w-44 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground"
+    >
+      <Icono className={cn("size-3.5 shrink-0", iconClassName)} />
       <span className="truncate">{formatearEstadoActivo(value)}</span>
     </Badge>
   );
+}
+
+/**
+ * Color e icono semanticos del estado: el variant ya clasifica el estado
+ * (default = bueno, destructive = alerta, secondary = neutral); aqui solo se
+ * pinta. Verde para lo bueno, rojo solo para lo malo, gris para lo neutral,
+ * para que se distingan de un vistazo (antes todo salia rojo).
+ */
+function estiloEstado(variant: BadgeVariant): {
+  Icono: LucideIcon;
+  iconClassName: string;
+} {
+  if (variant === "default") {
+    return {
+      Icono: CheckCircle2,
+      iconClassName: "text-emerald-600 dark:text-emerald-400",
+    };
+  }
+  if (variant === "destructive") {
+    return { Icono: CircleAlert, iconClassName: "text-destructive" };
+  }
+  return { Icono: CircleDashed, iconClassName: "text-muted-foreground" };
 }
 
 function estadoActivoVariant(value: EstadoActivo): BadgeVariant {
@@ -904,10 +1034,16 @@ function estadoOperativoVariant(
 }
 
 function estadoCalibracionVariant(
-  value: EstadoCalibracion | null | undefined
+  value: number | null | undefined,
+  catalogos: CatalogosActivos
 ): BadgeVariant {
-  if (value === "CALIBRADA") return "default";
-  if (value === "OBSERVADA" || value === "NO_CALIBRADA") return "destructive";
+  if (value == null) return "secondary";
+  if (value === catalogos.idPorNombre("ESTADO_CALIBRACION", "Calibrada")) return "default";
+  if (
+    value === catalogos.idPorNombre("ESTADO_CALIBRACION", "Observada") ||
+    value === catalogos.idPorNombre("ESTADO_CALIBRACION", "No calibrada")
+  )
+    return "destructive";
   return "secondary";
 }
 

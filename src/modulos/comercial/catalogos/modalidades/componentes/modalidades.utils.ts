@@ -36,3 +36,22 @@ export function etiquetaMoneda(valor: Moneda | null | undefined): string {
   if (!valor) return "—"
   return MONEDAS.find((m) => m.valor === valor)?.etiqueta ?? valor
 }
+
+// Formatea un importe a 2 decimales (es-PE). Sin moneda embebida: la columna
+// Moneda la muestra aparte. Devuelve "—" cuando no hay valor.
+export function formatearTarifa(valor: number | null): string {
+  if (valor == null) return "—"
+  return new Intl.NumberFormat("es-PE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(valor)
+}
+
+// Formatea un margen como porcentaje a 2 decimales. Devuelve "—" cuando no hay valor.
+export function formatearMargen(valor: number | null): string {
+  if (valor == null) return "—"
+  return `${new Intl.NumberFormat("es-PE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(valor)}%`
+}

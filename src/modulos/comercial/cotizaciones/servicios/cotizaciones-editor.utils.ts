@@ -17,7 +17,6 @@ import type {
   AlmacenajeHijo,
   PersonalHijo,
   Linea,
-  Standby,
   CargoAdicional,
   LeadTime,
   TipoLinea,
@@ -27,7 +26,6 @@ import type {
   PayloadBorrador,
   PayloadLinea,
   PayloadSeccion,
-  PayloadStandby,
   PayloadLeadTime,
   PayloadCargoAdicional,
   PayloadCargaHijo,
@@ -52,10 +50,12 @@ export type DraftLeadTime = {
 
 export type DraftCargoAdicional = {
   claveCliente: string; // clave efimera UI
-  descripcion: string;
+  nombre: string;       // qué cargo es (del catalogo, obligatorio)
+  descripcion: string;  // texto libre opcional ("" = sin descripcion)
   unidadCobro: UnidadCobro; // unidad de cobro del cargo
   cantidad: string;          // input numerico como string (> 0)
   precioUnitario: string;    // input numerico como string (>= 0)
+  standbyDia: string;        // stand-by por dia (input numerico como string; "" = sin stand-by)
   // monto derivado: cantidad × precioUnitario — NO almacenar; calcular en el componente via montoCargo()
   orden: number;
 };
@@ -103,7 +103,9 @@ export type DraftLinea = {
   tipoLinea: TipoLinea;
   descripcion: string; // nombre/identificacion de la linea
   cantidad: string; // entero >=1
-  precioUnitario: string; // requerido (>=0)
+  precioBase: string; // requerido (>=0) — precio base de la empresa por unidad
+  margenPct: string;  // requerido (0 <= x < 100) — margen sobre la venta en %; se precarga de la modalidad
+  standbyDia: string; // stand-by por dia (input numerico como string; "" = sin stand-by); solo TRANSPORTE
   // Hijos polimorficos (solo uno se usa segun tipoLinea; los demas ignorados en armarPayload)
   carga: DraftCargaHijo;
   equipo: DraftEquipoHijo;
@@ -112,19 +114,15 @@ export type DraftLinea = {
   cargosAdicionales: DraftCargoAdicional[]; // cargos a nivel de linea (arco exclusivo: linea XOR seccion)
 };
 
-// Contrato 2026-06-06: sin campo unidad. monto = tarifa diaria.
-export type DraftStandby = {
-  claveCliente: string;
-  descripcion: string;
-  monto: string;         // tarifa diaria (input numerico como string)
-  porLinea: boolean;
-  orden: number;
-};
-
 export type DraftSeccion = {
   claveCliente: string; // seeded desde seccion.id del backend durante esta sesion
   esDefecto: boolean;   // true para la seccion por defecto (nombre null en el backend)
   nombre: string;
+  // Ruta a nivel de SECCION (UX): se captura una sola vez en la seccion y todas sus
+  // lineas de transporte la heredan (el backend la sigue persistiendo en cada LineaCarga).
+  // Vacio = sin ruta (secciones de servicios no-transporte).
+  origen: string;
+  destino: string;
   orden: number;
   lineas: DraftLinea[];
   cargosAdicionales: DraftCargoAdicional[];
@@ -133,7 +131,6 @@ export type DraftSeccion = {
 export type DraftBorrador = {
   moneda: Moneda;            // nivel version
   secciones: DraftSeccion[]; // incluye la seccion por defecto (esDefecto:true) si existe
-  standbys: DraftStandby[];  // nivel version
   leadTimes: DraftLeadTime[]; // nivel version
 };
 
@@ -189,22 +186,14 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
     tipoLinea,
     descripcion: "",
     cantidad: "1",
-    precioUnitario: "0",
+    precioBase: "0",
+    margenPct: "0",
+    standbyDia: "",
     carga: cargaVacia(),
     equipo: equipoVacio(),
     almacenaje: almacenajeVacio(),
     personal: personalVacio(),
     cargosAdicionales: [],
-  };
-}
-
-export function standbyVacio(): DraftStandby {
-  return {
-    claveCliente: crypto.randomUUID(),
-    descripcion: "",
-    monto: "0",
-    porLinea: false,
-    orden: 0,
   };
 }
 
@@ -222,21 +211,42 @@ export function leadTimeVacio(): DraftLeadTime {
 export function cargoAdicionalVacio(): DraftCargoAdicional {
   return {
     claveCliente: crypto.randomUUID(),
+    nombre: "",
     descripcion: "",
     unidadCobro: "SERVICIO",
     cantidad: "1",
     precioUnitario: "0",
+    standbyDia: "",
     orden: 0,
   };
 }
 
 /**
  * montoCargo — calcula el monto de un DraftCargoAdicional (cantidad × precioUnitario).
- * Funcion pura; usada tanto en el componente EditorCargos como en los subtotales
- * de EditorContenido para evitar derivar la formula.
+ * Funcion pura; usada por CargoDetalleModal/ListaCargos y por los subtotales del
+ * editor para evitar derivar la formula.
  */
 export function montoCargo(c: DraftCargoAdicional): number {
   return (parseFloat(c.cantidad) || 0) * (parseFloat(c.precioUnitario) || 0);
+}
+
+/**
+ * precioVentaLinea — espejo del calculo del backend para mostrar el precio de venta
+ * por unidad en la UI: precioBase / (1 − margenPct/100), redondeado a 2 decimales.
+ * El margen se clampa a [0, 100): un margen >= 100 anularia el divisor (venta infinita),
+ * asi que devolvemos 0 en ese caso (la validacion ya lo rechaza antes de enviar).
+ */
+export function precioVentaLinea(l: Pick<DraftLinea, "precioBase" | "margenPct">): number {
+  const base = parseFloat(l.precioBase) || 0;
+  const margen = parseFloat(l.margenPct) || 0;
+  if (margen >= 100 || margen < 0) return 0;
+  const venta = base / (1 - margen / 100);
+  return Math.round(venta * 100) / 100;
+}
+
+/** totalVentaLinea — precioVenta × cantidad (espejo de precioVentaTotal del backend). */
+export function totalVentaLinea(l: Pick<DraftLinea, "precioBase" | "margenPct" | "cantidad">): number {
+  return precioVentaLinea(l) * (parseFloat(l.cantidad) || 0);
 }
 
 export function seccionVacia(esDefecto = false): DraftSeccion {
@@ -244,6 +254,8 @@ export function seccionVacia(esDefecto = false): DraftSeccion {
     claveCliente: crypto.randomUUID(),
     esDefecto,
     nombre: "",
+    origen: "",
+    destino: "",
     orden: 0,
     lineas: [],
     cargosAdicionales: [],
@@ -252,6 +264,23 @@ export function seccionVacia(esDefecto = false): DraftSeccion {
 
 export function seccionDefectoVacia(): DraftSeccion {
   return seccionVacia(true);
+}
+
+/**
+ * sincronizarRutaSeccion — propaga la ruta (origen/destino) de la seccion a la carga
+ * de TODAS sus lineas de transporte. La seccion es la unica fuente de verdad de la ruta;
+ * las lineas de transporte la heredan. Las lineas no-transporte quedan intactas.
+ * Devuelve una nueva seccion (inmutable) lista para reemplazar a la anterior.
+ */
+export function sincronizarRutaSeccion(seccion: DraftSeccion): DraftSeccion {
+  return {
+    ...seccion,
+    lineas: seccion.lineas.map((l) =>
+      l.tipoLinea === "TRANSPORTE"
+        ? { ...l, carga: { ...l.carga, origen: seccion.origen, destino: seccion.destino } }
+        : l
+    ),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -270,10 +299,14 @@ function cargoAdicionalReadADraft(c: CargoAdicionalCompat): DraftCargoAdicional 
     : String(c.monto ?? 0);
   return {
     claveCliente: c.id,
-    descripcion: c.descripcion,
+    // Compat: shapes viejos guardaban el nombre en `descripcion`. Si no hay
+    // `nombre`, cae al `descripcion` legado; `descripcion` queda como texto libre.
+    nombre: c.nombre ?? c.descripcion ?? "",
+    descripcion: c.nombre != null ? c.descripcion ?? "" : "",
     unidadCobro,
     cantidad,
     precioUnitario,
+    standbyDia: c.standbyDia != null ? String(c.standbyDia) : "",
     orden: c.orden,
   };
 }
@@ -371,7 +404,9 @@ function lineaReadADraft(l: Linea): DraftLinea {
     tipoLinea: l.tipoLinea,
     descripcion: l.descripcion ?? "", // read model ahora puede venir null (descripcion opcional)
     cantidad: String(l.cantidad),
-    precioUnitario: String(l.precioUnitario),
+    precioBase: String(l.precioBase),
+    margenPct: String(l.margenPct),
+    standbyDia: l.standbyDia != null ? String(l.standbyDia) : "",
     // Poblar el hijo correspondiente; el resto queda en valores por defecto
     carga: l.carga ? cargaReadADraft(l.carga) : cargaVacia(),
     equipo: l.equipo ? equipoReadADraft(l.equipo) : equipoVacio(),
@@ -384,38 +419,20 @@ function lineaReadADraft(l: Linea): DraftLinea {
 
 // Migracion graceful para CargoAdicional: shapes anteriores solo tenian {id, descripcion, monto, orden}.
 // Usamos un tipo interseccion con campos opcionales para la compat (patron StandbyCompat).
-type CargoAdicionalCompat = CargoAdicional & {
+type CargoAdicionalCompat = Omit<CargoAdicional, "nombre" | "descripcion"> & {
+  nombre?: string;             // ausente en shapes legacy (el nombre vivia en descripcion)
+  descripcion?: string | null; // texto libre opcional
   unidadCobro?: UnidadCobro;
   cantidad?: number;
   precioUnitario?: number;
 };
-
-// Migracion graceful: el shape viejo del standby tenia recurso/tarifaDia/moneda/idSeccion.
-// Usamos un tipo interseccion con campos opcionales del shape viejo para la compat.
-type StandbyCompat = Standby & {
-  recurso?: string;
-  tarifaDia?: number;
-};
-
-function standbyReadADraft(s: StandbyCompat): DraftStandby {
-  // Migracion: si llega con shape viejo (recurso/tarifaDia), mapear a nuevo
-  const descripcion = s.descripcion || s.recurso || "";
-  const monto = s.monto !== undefined ? s.monto : (s.tarifaDia ?? 0);
-  return {
-    claveCliente: s.id,
-    descripcion,
-    monto: String(monto),
-    porLinea: s.porLinea ?? false,
-    orden: s.orden,
-  };
-}
 
 /**
  * derivarDraft — convierte la version vigente (read model PLANO) al DraftBorrador client-side.
  *
  * ADR-D1: introduce seccion por defecto (esDefecto:true) cuando hay lineas sin seccion explícita.
  * ADR-D3: migracion graceful de shapes viejos (cargos-por-linea → cargosAdicionales de seccion,
- *         moneda-por-linea → version.moneda, standby viejo → nuevo shape).
+ *         moneda-por-linea → version.moneda). El stand-by viaja como standbyDia por linea/cargo.
  * ADR-D4: deteccion de seccion por defecto por nombre === null (NUNCA por idSeccion === null).
  */
 export function derivarDraft(version: Version): DraftBorrador {
@@ -450,10 +467,13 @@ export function derivarDraft(version: Version): DraftBorrador {
       seccionesMap.set(s.id, d);
     } else {
       // Seccion con nombre: conserva SUS lineas y SUS cargos (cargos por seccion).
+      // origen/destino se derivan de las lineas mas abajo (pase 3.5).
       const draftSeccion: DraftSeccion = {
         claveCliente: s.id,
         esDefecto: false,
         nombre: s.nombre,
+        origen: "",
+        destino: "",
         orden: s.orden,
         lineas: [],
         cargosAdicionales: cargos,
@@ -476,15 +496,25 @@ export function derivarDraft(version: Version): DraftBorrador {
     }
   }
 
-  // 4. Standbys: leer version.standbys (nuevo) con compat para shape viejo
-  // El tipo Version ya usa standbys; la compat cubre cotizaciones en memoria con shape antiguo.
-  const standbysRaw = version.standbys ?? [];
-  const standbys: DraftStandby[] = standbysRaw.map((s) => standbyReadADraft(s as StandbyCompat));
+  // 3.5 Ruta a nivel de seccion: se deriva de la primera linea de transporte con ruta.
+  // (El backend guarda la ruta por linea; en la cotizacion todas las lineas de una
+  // seccion comparten ruta, asi que tomar la primera con datos es suficiente.)
+  for (const s of secciones) {
+    const conRuta = s.lineas.find(
+      (l) =>
+        l.tipoLinea === "TRANSPORTE" &&
+        (l.carga.origen !== "" || l.carga.destino !== "")
+    );
+    if (conRuta) {
+      s.origen = conRuta.carga.origen;
+      s.destino = conRuta.carga.destino;
+    }
+  }
 
-  // 5. LeadTimes: nuevo campo; leadTimeDias escalar viejo se descarta (no hay mapeo sensato)
+  // 4. LeadTimes: nivel version; el stand-by ya no es array (vive en standbyDia por linea/cargo)
   const leadTimes: DraftLeadTime[] = (version.leadTimes ?? []).map(leadTimeReadADraft);
 
-  return { moneda, secciones, standbys, leadTimes };
+  return { moneda, secciones, leadTimes };
 }
 
 // ---------------------------------------------------------------------------
@@ -546,8 +576,9 @@ function personalAPayload(p: DraftPersonalHijo): PayloadPersonalHijo {
  * Emite el hijo polimorfico correcto segun tipoLinea.
  * TRANSPORTE → carga; ALQUILER_EQUIPO → equipo; ALMACENAJE → almacenaje; PERSONAL → personal.
  * AGENCIAMIENTO / SERVICIO_AUXILIAR → sin hijo.
- * Emite precioUnitario (requerido, >=0) y cantidad (entero >=1); NUNCA emitir
- * idSeccion, precioTotal, subtotal ni totales (los calcula el backend).
+ * Emite precioBase (requerido, >=0), margenPct (requerido, 0<=x<100) y cantidad
+ * (entero >=1); NUNCA emitir idSeccion, precioVenta, precioVentaTotal, subtotal ni
+ * totales (los calcula el backend).
  * NUNCA emitir moneda en linea (moneda es de version).
  * cargosAdicionales a nivel linea: incluir cuando existen (contrato bc03).
  */
@@ -555,13 +586,17 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
   const base: PayloadLinea = {
     idModalidad: l.idModalidad,
     tipoLinea: l.tipoLinea,
-    precioUnitario: parseNumero(l.precioUnitario),
+    precioBase: parseNumero(l.precioBase),
+    margenPct: parseNumero(l.margenPct),
     cantidad: l.cantidad !== "" ? parseNumero(l.cantidad) : 1,
   };
 
   // descripcion ahora es opcional: solo se emite si el usuario puso algo (trim).
   const descripcion = l.descripcion.trim();
   if (descripcion !== "") base.descripcion = descripcion;
+
+  // stand-by por dia: solo se emite si el usuario puso un valor (vacio = sin stand-by).
+  if (l.standbyDia.trim() !== "") base.standbyDia = parseNumero(l.standbyDia);
 
   switch (l.tipoLinea) {
     case "TRANSPORTE":
@@ -587,15 +622,6 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
   return base;
 }
 
-function standbyAPayload(s: DraftStandby): PayloadStandby {
-  return {
-    descripcion: s.descripcion,
-    monto: parseNumero(s.monto),
-    porLinea: s.porLinea,
-    orden: s.orden,
-  };
-}
-
 function leadTimeAPayload(l: DraftLeadTime): PayloadLeadTime {
   const payload: PayloadLeadTime = {
     descripcion: l.descripcion,
@@ -612,11 +638,15 @@ function leadTimeAPayload(l: DraftLeadTime): PayloadLeadTime {
 function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
   // NUNCA emitir monto — el tipo PayloadCargoAdicional lo excluye estructuralmente.
   const payload: PayloadCargoAdicional = {
-    descripcion: c.descripcion,
+    nombre: c.nombre,
     unidadCobro: c.unidadCobro,
     cantidad: parseNumero(c.cantidad),
     precioUnitario: parseNumero(c.precioUnitario),
   };
+  // descripcion es texto libre opcional: solo se envia si el usuario la lleno.
+  if (c.descripcion.trim() !== "") payload.descripcion = c.descripcion.trim();
+  // stand-by por dia: solo si el usuario puso un valor (vacio = sin stand-by).
+  if (c.standbyDia.trim() !== "") payload.standbyDia = parseNumero(c.standbyDia);
   if (c.orden > 0) payload.orden = c.orden;
   return payload;
 }
@@ -626,20 +656,29 @@ function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
  *
  * Contrato 2026-06 (API-Cotizaciones.md §5.4): NO existe canal de lineas raiz.
  * Toda linea va dentro de secciones[].lineas; el caso "plano" (bucket por defecto)
- * es una seccion SIN nombre (se omite `nombre`). Se descartan secciones vacias
- * (sin lineas ni cargos) para no enviar ruido.
+ * es una seccion SIN nombre (se omite `nombre`).
+ *
+ * Se descarta solo el RUIDO: la seccion por defecto vacia, o una seccion sin nombre
+ * y vacia. Una seccion CON nombre (creada a proposito por el usuario) se CONSERVA
+ * aunque aun no tenga lineas — se crea primero y luego se le agrega contenido; si se
+ * descartara, al reemplazar el borrador desapareceria tras el refetch.
  */
 function seccionAPayload(s: DraftSeccion): PayloadSeccion | null {
-  if (s.lineas.length === 0 && s.cargosAdicionales.length === 0) {
+  const vacia = s.lineas.length === 0 && s.cargosAdicionales.length === 0;
+  if (vacia && (s.esDefecto || s.nombre.trim() === "")) {
     return null;
   }
+  // La ruta vive en la seccion: la propagamos a la carga de cada linea de transporte
+  // antes de emitir (el backend la persiste por linea). Asi es autoritativo aunque la
+  // UI no haya sincronizado (ej. linea agregada sin pasar por el modal).
+  const sincronizada = s.origen !== "" || s.destino !== "" ? sincronizarRutaSeccion(s) : s;
   const payload: PayloadSeccion = {};
   // La seccion por defecto (esDefecto) viaja sin nombre = seccion "plana".
-  if (!s.esDefecto && s.nombre !== "") payload.nombre = s.nombre;
-  if (s.orden > 0) payload.orden = s.orden;
-  if (s.lineas.length > 0) payload.lineas = s.lineas.map(lineaAPayload);
-  if (s.cargosAdicionales.length > 0) {
-    payload.cargosAdicionales = s.cargosAdicionales.map(cargoAdicionalAPayload);
+  if (!sincronizada.esDefecto && sincronizada.nombre !== "") payload.nombre = sincronizada.nombre;
+  if (sincronizada.orden > 0) payload.orden = sincronizada.orden;
+  if (sincronizada.lineas.length > 0) payload.lineas = sincronizada.lineas.map(lineaAPayload);
+  if (sincronizada.cargosAdicionales.length > 0) {
+    payload.cargosAdicionales = sincronizada.cargosAdicionales.map(cargoAdicionalAPayload);
   }
   return payload;
 }
@@ -653,8 +692,8 @@ function validarCargo(
   c: DraftCargoAdicional,
   prefijo: string,
 ): void {
-  if (c.descripcion.trim() === "") {
-    errores[`${prefijo}.descripcion`] = "La descripcion del cargo es obligatoria.";
+  if (c.nombre.trim() === "") {
+    errores[`${prefijo}.nombre`] = "El nombre del cargo es obligatorio.";
   }
   if (!UNIDADES_COBRO_VALIDAS.has(c.unidadCobro)) {
     errores[`${prefijo}.unidadCobro`] = "La unidad de cobro es invalida.";
@@ -666,6 +705,12 @@ function validarCargo(
   const precioNum = parseFloat(c.precioUnitario);
   if (isNaN(precioNum) || precioNum < 0) {
     errores[`${prefijo}.precioUnitario`] = "El precio unitario debe ser >= 0.";
+  }
+  if (c.standbyDia.trim() !== "") {
+    const sbNum = parseFloat(c.standbyDia);
+    if (isNaN(sbNum) || sbNum < 0) {
+      errores[`${prefijo}.standbyDia`] = "El stand-by debe ser >= 0.";
+    }
   }
 }
 
@@ -703,8 +748,8 @@ function validarCargaItem(
  *
  * - Seccion con nombre obligatorio (EXCEPTO esDefecto — la seccion por defecto no exige nombre).
  * - LeadTime: descripcion no vacia; diasMax >= diasMin cuando esRango.
- * - CargoAdicional (seccion y linea): descripcion no vacia; unidadCobro valida; cantidad > 0; precioUnitario >= 0.
- * - Standby: descripcion no vacia; monto >= 0.
+ * - CargoAdicional (seccion y linea): descripcion no vacia; unidadCobro valida; cantidad > 0; precioUnitario >= 0; standbyDia >= 0 si viene.
+ * - Stand-by por linea/cargo: standbyDia >= 0 si viene.
  * - Moneda: requerida a nivel version.
  */
 export function validarBorrador(draft: DraftBorrador): Record<string, string> {
@@ -723,10 +768,33 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
     }
     // Lineas: cantidad debe ser un entero >= 1; cargos de la linea
     s.lineas.forEach((l, k) => {
+      // Modalidad: obligatoria. El backend la valida como UUID; si va vacia (linea
+      // nueva o tras cambiar el tipo de servicio, que resetea idModalidad) rechaza
+      // TODO el borrador (guardado por reemplazo). La atajamos aca con mensaje claro.
+      if (l.idModalidad.trim() === "") {
+        errores[`secciones.${i}.lineas.${k}.idModalidad`] = "La modalidad es obligatoria.";
+      }
       if (l.cantidad !== "") {
         const cantidadNum = parseFloat(l.cantidad);
         if (isNaN(cantidadNum) || cantidadNum < 1 || !Number.isInteger(cantidadNum)) {
           errores[`secciones.${i}.lineas.${k}.cantidad`] = "La cantidad debe ser un entero mayor o igual a 1.";
+        }
+      }
+      // Precio base: requerido, >= 0
+      const baseNum = parseFloat(l.precioBase);
+      if (isNaN(baseNum) || baseNum < 0) {
+        errores[`secciones.${i}.lineas.${k}.precioBase`] = "El precio base debe ser >= 0.";
+      }
+      // Margen: requerido, 0 <= x < 100 (el divisor 1 − margen/100 debe ser > 0)
+      const margenNum = parseFloat(l.margenPct);
+      if (isNaN(margenNum) || margenNum < 0 || margenNum >= 100) {
+        errores[`secciones.${i}.lineas.${k}.margenPct`] = "El margen debe ser >= 0 y menor a 100.";
+      }
+      // Stand-by por dia (opcional): si viene, debe ser >= 0
+      if (l.standbyDia.trim() !== "") {
+        const sbNum = parseFloat(l.standbyDia);
+        if (isNaN(sbNum) || sbNum < 0) {
+          errores[`secciones.${i}.lineas.${k}.standbyDia`] = "El stand-by debe ser >= 0.";
         }
       }
       // Items de carga (solo TRANSPORTE): nombre obligatorio, dimensiones/peso >= 0
@@ -763,17 +831,6 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
     }
   });
 
-  // Standbys
-  draft.standbys.forEach((s, i) => {
-    if (s.descripcion.trim() === "") {
-      errores[`standbys.${i}.descripcion`] = "La descripcion del standby es obligatoria.";
-    }
-    const montoNum = parseFloat(s.monto);
-    if (isNaN(montoNum) || montoNum < 0) {
-      errores[`standbys.${i}.monto`] = "El monto debe ser >= 0.";
-    }
-  });
-
   return errores;
 }
 
@@ -782,8 +839,9 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
  *
  * Contrato 2026-06: SOLO secciones[]; NO hay canal de lineas raiz. El bucket por
  * defecto se emite como seccion sin nombre (caso plano).
- * Nunca emite: claveCliente, idSeccion, precioTotal, subtotal ni totales.
- * Nunca emite: moneda en linea, cargosAdicionales en raiz, standbys en secciones.
+ * Nunca emite: claveCliente, idSeccion, precioVenta, precioVentaTotal, subtotal ni totales.
+ * Nunca emite: moneda en linea, cargosAdicionales en raiz. El stand-by va como
+ * standbyDia dentro de cada linea/cargo (no hay array de version).
  * El draft completo se re-envía siempre (replacement idempotente — ADR-10).
  */
 export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {
@@ -799,11 +857,6 @@ export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {
 
   if (seccionesPayload.length > 0) {
     payload.secciones = seccionesPayload;
-  }
-
-  // Standbys nivel version (NUNCA en secciones)
-  if (draft.standbys.length > 0) {
-    payload.standbys = draft.standbys.map(standbyAPayload);
   }
 
   // LeadTimes nivel version

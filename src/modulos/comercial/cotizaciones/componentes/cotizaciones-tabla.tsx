@@ -1,18 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { Eye, RefreshCw, Search } from "lucide-react";
 
+import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos";
+import type {
+  AccionTabla,
+  ColumnaTabla,
+} from "@/compartido/componentes/tabla-datos/tabla-datos.tipos";
+import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import {
   Select,
@@ -21,45 +19,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
 
+import { formatearMonto } from "../servicios/cotizaciones-formato";
+import { useEjecutivosCotizacionesQuery } from "../servicios/cotizaciones-queries";
 import type {
-  Cotizacion,
-  EstadoCotizacion,
+  BucketCotizacion,
+  CotizacionResumen,
+  FiltrosCotizaciones,
   OrigenTipo,
-  RespuestaPaginadaCotizaciones,
 } from "../tipos/cotizaciones.tipos";
+import { CotizacionesKpis } from "./cotizaciones-kpis";
 import { EstadoCotizacionBadge } from "./estado-cotizacion-badge";
 
 type Props = {
-  respuesta: RespuestaPaginadaCotizaciones;
-  filtrosActivos: {
-    estado?: string;
-    origenTipo?: string;
-    busqueda?: string;
-    pagina?: number;
-    porPagina?: number;
-  };
+  items: CotizacionResumen[];
+  filtros: FiltrosCotizaciones;
+  total: number;
 };
-
-const ESTADOS_COTIZACION: Array<{ valor: EstadoCotizacion | "TODOS"; etiqueta: string }> = [
-  { valor: "TODOS", etiqueta: "Todos" },
-  { valor: "BORRADOR", etiqueta: "Borrador" },
-  { valor: "ENVIADA", etiqueta: "Enviada" },
-  { valor: "EN_REVISION", etiqueta: "En revision" },
-  { valor: "GANADA", etiqueta: "Ganada" },
-  { valor: "PERDIDA", etiqueta: "Perdida" },
-  { valor: "CANCELADA", etiqueta: "Cancelada" },
-  { valor: "VENCIDA", etiqueta: "Vencida" },
-];
 
 const ORIGENES: Array<{ valor: OrigenTipo | "TODOS"; etiqueta: string }> = [
   { valor: "TODOS", etiqueta: "Todos" },
@@ -67,25 +44,110 @@ const ORIGENES: Array<{ valor: OrigenTipo | "TODOS"; etiqueta: string }> = [
   { valor: "CLIENTE", etiqueta: "Cliente" },
 ];
 
-export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
+const ETIQUETA_ORIGEN: Record<OrigenTipo, string> = {
+  PROSPECTO: "Prospecto",
+  CLIENTE: "Cliente",
+};
+
+const COLUMNAS: ColumnaTabla<CotizacionResumen>[] = [
+  {
+    id: "codigo",
+    encabezado: "Codigo",
+    ancho: "w-[12%]",
+    celda: (cotizacion) =>
+      cotizacion.codigoCotizacion ? (
+        <span className="text-sm tabular-nums">
+          {cotizacion.codigoCotizacion}
+        </span>
+      ) : null,
+  },
+  {
+    id: "empresa",
+    encabezado: "Empresa solicitante",
+    ancho: "w-[17%]",
+    principal: true,
+    className: "truncate",
+    celda: (cotizacion) => cotizacion.origenNombre,
+  },
+  {
+    id: "tipo",
+    encabezado: "Tipo",
+    ancho: "w-[8%]",
+    celda: (cotizacion) => ETIQUETA_ORIGEN[cotizacion.origenTipo],
+  },
+  {
+    id: "ejecutivo",
+    encabezado: "Cotizado por",
+    ancho: "w-[14%]",
+    className: "truncate",
+    celda: (cotizacion) => cotizacion.ejecutivoResponsable.nombre,
+  },
+  {
+    id: "vencimiento",
+    encabezado: "Vencimiento",
+    ancho: "w-[12%]",
+    className: "truncate",
+    celda: (cotizacion) =>
+      cotizacion.fechaVencimiento ? (
+        formatearFecha(cotizacion.fechaVencimiento)
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  },
+  {
+    id: "version",
+    encabezado: "Version",
+    ancho: "w-[8%]",
+    celda: (cotizacion) => (
+      <Badge variant="outline" className="tabular-nums">
+        v{cotizacion.versionVigente ?? "—"}
+        {cotizacion.totalVersiones > 1 ? `/${cotizacion.totalVersiones}` : ""}
+      </Badge>
+    ),
+  },
+  {
+    id: "monto",
+    encabezado: "Monto",
+    ancho: "w-[13%]",
+    alineacion: "derecha",
+    className: "tabular-nums text-foreground",
+    celda: (cotizacion) =>
+      formatearMonto(cotizacion.montoTotal, cotizacion.moneda),
+  },
+  {
+    id: "estado",
+    encabezado: "Estado",
+    ancho: "w-[11%]",
+    celda: (cotizacion) => <EstadoCotizacionBadge estado={cotizacion.estado} />,
+  },
+];
+
+function accionesCotizacion(
+  cotizacion: CotizacionResumen
+): AccionTabla<CotizacionResumen>[] {
+  return [
+    {
+      etiqueta: "Ver detalle",
+      icono: Eye,
+      href: () => `/comercial/cotizaciones/${cotizacion.id}`,
+    },
+  ];
+}
+
+export function CotizacionesTabla({ items, filtros, total }: Props) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { data: cotizaciones, total, pagina, porPagina } = respuesta;
+  const pagina = filtros.pagina ?? 1;
+  const porPagina = filtros.porPagina ?? 10;
 
-  const [busquedaLocal, setBusquedaLocal] = React.useState(
-    filtrosActivos.busqueda ?? ""
-  );
-  const [estadoLocal, setEstadoLocal] = React.useState(
-    filtrosActivos.estado ?? "TODOS"
-  );
-  const [origenLocal, setOrigenLocal] = React.useState(
-    filtrosActivos.origenTipo ?? "TODOS"
+  const [busquedaLocal, setBusquedaLocal] = React.useState(filtros.busqueda ?? "");
+  const [origenLocal, setOrigenLocal] = React.useState(filtros.origenTipo ?? "TODOS");
+  const [ejecutivoLocal, setEjecutivoLocal] = React.useState(
+    filtros.idEjecutivoResponsable ?? "TODOS"
   );
 
-  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
-  const desdeVisible = total ? (pagina - 1) * porPagina + 1 : 0;
-  const hastaVisible = Math.min(pagina * porPagina, total);
+  const { data: ejecutivos } = useEjecutivosCotizacionesQuery();
 
   function construirUrl(params: Record<string, string | number | undefined>) {
     const sp = new URLSearchParams();
@@ -98,212 +160,124 @@ export function CotizacionesTabla({ respuesta, filtrosActivos }: Props) {
     return qs ? `${pathname}?${qs}` : pathname;
   }
 
+  // KPI clicable → fija el bucket (o lo limpia) y vuelve a la pagina 1.
+  // Preserva los filtros de contexto YA aplicados (origen/busqueda/ejecutivo),
+  // no los inputs locales sin confirmar.
+  function seleccionarBucket(bucket: BucketCotizacion | null) {
+    router.push(
+      construirUrl({
+        bucket: bucket ?? undefined,
+        origenTipo: filtros.origenTipo,
+        busqueda: filtros.busqueda,
+        idEjecutivoResponsable: filtros.idEjecutivoResponsable,
+        pagina: 1,
+        porPagina: filtros.porPagina,
+      })
+    );
+  }
+
   function aplicarFiltros() {
     router.push(
       construirUrl({
-        estado: estadoLocal,
+        bucket: filtros.bucket,
         origenTipo: origenLocal,
         busqueda: busquedaLocal,
+        idEjecutivoResponsable: ejecutivoLocal,
         pagina: 1,
-        porPagina: filtrosActivos.porPagina,
+        porPagina: filtros.porPagina,
       })
     );
   }
 
   function limpiarFiltros() {
     setBusquedaLocal("");
-    setEstadoLocal("TODOS");
     setOrigenLocal("TODOS");
+    setEjecutivoLocal("TODOS");
     router.push(pathname);
   }
 
   function irAPagina(nuevaPagina: number) {
     router.push(
       construirUrl({
-        estado: filtrosActivos.estado,
-        origenTipo: filtrosActivos.origenTipo,
-        busqueda: filtrosActivos.busqueda,
+        bucket: filtros.bucket,
+        origenTipo: filtros.origenTipo,
+        busqueda: filtros.busqueda,
         pagina: nuevaPagina,
-        porPagina: filtrosActivos.porPagina,
+        porPagina: filtros.porPagina,
       })
     );
   }
 
   const hayFiltros =
-    !!filtrosActivos.estado ||
-    !!filtrosActivos.origenTipo ||
-    !!filtrosActivos.busqueda;
+    !!filtros.bucket ||
+    !!filtros.origenTipo ||
+    !!filtros.busqueda ||
+    !!filtros.idEjecutivoResponsable;
 
-  return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <div>
-          <CardTitle>Cotizaciones</CardTitle>
-          <CardDescription>
-            {total} {total === 1 ? "cotizacion" : "cotizaciones"} encontradas
-          </CardDescription>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4 pt-5">
-        {/* Filtros */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="grid min-w-64 flex-1 gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Busqueda
-            </span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Buscar cotizaciones..."
-                value={busquedaLocal}
-                onChange={(e) => setBusquedaLocal(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              />
-            </div>
-          </div>
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Estado"
-            value={estadoLocal}
-            valores={ESTADOS_COTIZACION.map((e) => e.valor)}
-            etiquetas={ESTADOS_COTIZACION.map((e) => e.etiqueta)}
-            onChange={setEstadoLocal}
+  const barraHerramientas = (
+    <div className="flex flex-wrap items-end gap-3">
+      <div className="grid min-w-64 flex-1 gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">
+          Busqueda
+        </span>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar cotizaciones..."
+            value={busquedaLocal}
+            onChange={(e) => setBusquedaLocal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
           />
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Origen"
-            value={origenLocal}
-            valores={ORIGENES.map((o) => o.valor)}
-            etiquetas={ORIGENES.map((o) => o.etiqueta)}
-            onChange={setOrigenLocal}
-          />
-          <Button type="button" onClick={aplicarFiltros}>
-            Buscar
-          </Button>
         </div>
-
-        {hayFiltros ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              className="h-8"
-              variant="outline"
-              onClick={limpiarFiltros}
-            >
-              <RefreshCw />
-              Limpiar filtros
-            </Button>
-          </div>
-        ) : null}
-
-        {/* Tabla */}
-        <div className="overflow-hidden rounded-xl border border-border">
-          <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[18%]">Origen</TableHead>
-                <TableHead className="w-[12%]">Estado</TableHead>
-                <TableHead className="w-[8%] text-right">Version</TableHead>
-                <TableHead className="w-[16%]">Ejecutivo</TableHead>
-                <TableHead className="w-[14%]">Creado</TableHead>
-                <TableHead className="w-[14%]">Actualizado</TableHead>
-                <TableHead className="w-[7%] text-center">Accion</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {cotizaciones.map((cotizacion) => (
-                <FilaCotizacion key={cotizacion.id} cotizacion={cotizacion} />
-              ))}
-              {!cotizaciones.length ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="h-28 text-center text-muted-foreground"
-                  >
-                    No se encontraron cotizaciones con los filtros aplicados.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Paginacion */}
-        <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div>
-            {total > 0
-              ? `Mostrando ${desdeVisible}-${hastaVisible} de ${total} cotizaciones`
-              : "Sin resultados"}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina <= 1}
-              onClick={() => irAPagina(pagina - 1)}
-            >
-              Anterior
-            </Button>
-            <span className="min-w-20 text-center">
-              {pagina} / {totalPaginas}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina >= totalPaginas}
-              onClick={() => irAPagina(pagina + 1)}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function FilaCotizacion({ cotizacion }: { cotizacion: Cotizacion }) {
-  return (
-    <TableRow>
-      <TableCell>
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-xs font-medium text-muted-foreground">
-            {cotizacion.origenTipo}
-          </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {cotizacion.origenId.slice(0, 8)}…
-          </span>
-        </div>
-      </TableCell>
-      <TableCell>
-        <EstadoCotizacionBadge estado={cotizacion.estado} />
-      </TableCell>
-      <TableCell className="text-right text-sm">
-        {cotizacion.versionVigente ?? "—"}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {cotizacion.idEjecutivoResponsable}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {formatearFecha(cotizacion.fechaCreacion)}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {cotizacion.fechaModificacion
-          ? formatearFecha(cotizacion.fechaModificacion)
-          : "—"}
-      </TableCell>
-      <TableCell className="text-center">
-        <Button asChild size="icon-sm" variant="outline">
-          <Link href={`/comercial/cotizaciones/${cotizacion.id}`}>
-            <Eye />
-            <span className="sr-only">Ver</span>
-          </Link>
+      </div>
+      <FiltroSelect
+        className="min-w-36"
+        label="Origen"
+        value={origenLocal}
+        valores={ORIGENES.map((o) => o.valor)}
+        etiquetas={ORIGENES.map((o) => o.etiqueta)}
+        onChange={setOrigenLocal}
+      />
+      <FiltroSelect
+        className="min-w-48"
+        label="Ejecutivo responsable"
+        value={ejecutivoLocal}
+        valores={["TODOS", ...(ejecutivos ?? []).map((e) => e.id)]}
+        etiquetas={["Todos", ...(ejecutivos ?? []).map((e) => e.nombre)]}
+        onChange={setEjecutivoLocal}
+      />
+      <Button type="button" onClick={aplicarFiltros}>
+        Buscar
+      </Button>
+      {hayFiltros ? (
+        <Button type="button" variant="outline" onClick={limpiarFiltros}>
+          <RefreshCw data-icon="inline-start" />
+          Limpiar
         </Button>
-      </TableCell>
-    </TableRow>
+      ) : null}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <CotizacionesKpis filtros={filtros} onSeleccionar={seleccionarBucket} />
+
+      <TablaDatos
+        columnas={COLUMNAS}
+        datos={items}
+        obtenerId={(cotizacion) => cotizacion.id}
+        acciones={accionesCotizacion}
+        barraHerramientas={barraHerramientas}
+        paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
+        vacioTitulo={hayFiltros ? "Sin coincidencias" : "Sin cotizaciones"}
+        vacioDescripcion={
+          hayFiltros
+            ? "No se encontraron cotizaciones con los filtros aplicados. Intenta ampliar la busqueda."
+            : "No hay cotizaciones registradas."
+        }
+      />
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   ClipboardCheck,
@@ -13,6 +14,16 @@ import {
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/compartido/componentes/ui/alert-dialog";
 import {
   Card,
   CardContent,
@@ -48,6 +59,11 @@ import {
 import { DocumentosActivo } from "./documentos-activo";
 import { ImagenesActivo } from "./imagenes-activo";
 import { TanquesActivo } from "./tanques-activo";
+import {
+  TIPO_ACTIVO_VEHICULO_ID,
+  useCatalogosActivos,
+  type CatalogosActivos,
+} from "../ganchos/use-catalogos-activos";
 import type {
   Activo,
   EstadoRevisionInventario,
@@ -82,13 +98,16 @@ export function InventarioFisicoDetallePanel({
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
   const [error, setError] = React.useState<string | null>(null);
   const [cerrando, setCerrando] = React.useState(false);
+  const [confirmarCierreAbierto, setConfirmarCierreAbierto] =
+    React.useState(false);
   const [detalleSeleccionadoKey, setDetalleSeleccionadoKey] = React.useState<
     string | null
   >(null);
+  const catalogos = useCatalogosActivos();
 
   const detallesBase = React.useMemo(
-    () => construirDetallesInventario(inventario, activosMaestro),
-    [inventario, activosMaestro]
+    () => construirDetallesInventario(inventario, activosMaestro, catalogos),
+    [inventario, activosMaestro, catalogos]
   );
 
   const detallesFiltrados = detallesBase.filter((detalle) => {
@@ -232,12 +251,19 @@ export function InventarioFisicoDetallePanel({
       }
 
       setInventario(actualizado);
+      setDetalleSeleccionadoKey(null);
+      toast.success("Revision guardada", {
+        description: "El resultado fisico fue registrado correctamente.",
+      });
     } catch (err) {
-      setError(
+      const mensaje =
         err instanceof Error
           ? err.message
-          : "No se pudo actualizar el detalle del inventario"
-      );
+          : "No se pudo actualizar el detalle del inventario";
+      setError(mensaje);
+      toast.error("No se pudo guardar la revision", {
+        description: mensaje,
+      });
     }
   }
 
@@ -246,15 +272,6 @@ export function InventarioFisicoDetallePanel({
       setError("El inventario ya esta cerrado o anulado.");
       return;
     }
-
-    const mensajePendientes = resumen.pendientes
-      ? `Hay ${resumen.pendientes} activos pendientes de revision.`
-      : "Todos los activos tienen revision registrada.";
-    const confirmado = window.confirm(
-      `${mensajePendientes}\n\nDeseas cerrar este inventario fisico? Al cerrarlo quedara en modo solo lectura.`
-    );
-
-    if (!confirmado) return;
 
     setError(null);
     setCerrando(true);
@@ -265,10 +282,17 @@ export function InventarioFisicoDetallePanel({
         observacion: `Cierre desde Inventario Fisico. Inventariados: ${resumen.inventariados}. Pendientes: ${resumen.pendientes}. Faltantes: ${resumen.faltantes}. Observados: ${resumen.observados}.`,
       });
       setInventario(actualizado);
+      setConfirmarCierreAbierto(false);
+      toast.success("Inventario cerrado", {
+        description: "El inventario quedo en modo solo lectura.",
+      });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "No se pudo cerrar el inventario"
-      );
+      const mensaje =
+        err instanceof Error ? err.message : "No se pudo cerrar el inventario";
+      setError(mensaje);
+      toast.error("No se pudo cerrar el inventario", {
+        description: mensaje,
+      });
     } finally {
       setCerrando(false);
     }
@@ -284,7 +308,12 @@ export function InventarioFisicoDetallePanel({
             {inventario.descripcion || "Revision fisica de activos vigentes."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Badge variant="outline">{formatear(inventario.estado)}</Badge>
+            <Badge
+              variant="outline"
+              className={estadoInventarioClassName(inventario.estado)}
+            >
+              {formatear(inventario.estado)}
+            </Badge>
             <Badge variant="outline">{resumen.inventariados} inventariados</Badge>
             <Badge variant="outline">{resumen.candidatos} candidatos</Badge>
             <Badge variant="outline">{resumen.pendientes} pendientes</Badge>
@@ -300,13 +329,40 @@ export function InventarioFisicoDetallePanel({
             </Link>
           </Button>
           {inventario.estado !== "CERRADO" && inventario.estado !== "ANULADO" ? (
-            <Button onClick={cerrarInventario} disabled={cerrando}>
+            <Button
+              onClick={() => setConfirmarCierreAbierto(true)}
+              disabled={cerrando}
+            >
               <ClipboardCheck className="size-4" />
               {cerrando ? "Cerrando..." : "Cerrar inventario"}
             </Button>
           ) : null}
         </div>
       </div>
+
+      <AlertDialog
+        open={confirmarCierreAbierto}
+        onOpenChange={setConfirmarCierreAbierto}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cerrar inventario fisico</AlertDialogTitle>
+            <AlertDialogDescription>
+              {resumen.pendientes
+                ? `Hay ${resumen.pendientes} activos pendientes de revision.`
+                : "Todos los activos tienen revision registrada."}{" "}
+              Al cerrar el inventario quedara en modo solo lectura y ya no se
+              podran editar resultados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={cerrando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={cerrarInventario} disabled={cerrando}>
+              {cerrando ? "Cerrando..." : "Cerrar inventario"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {error ? (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -606,6 +662,7 @@ function FichaRevisionInventario({
     detalle.observacion ?? ""
   );
   const [guardando, setGuardando] = React.useState(false);
+  const catalogos = useCatalogosActivos();
   const imagenesQuery = useImagenesActivoQuery(detalle.codigoActivo);
   const documentosQuery = useDocumentosActivoQuery(detalle.codigoActivo);
   const tanquesQuery = useTanquesActivoQuery(detalle.codigoActivo);
@@ -711,7 +768,14 @@ function FichaRevisionInventario({
         />
         <EstadoCard
           titulo="Calibracion"
-          valor={formatear(detalle.estadoCalibracion)}
+          valor={
+            vehiculo
+              ? catalogos.nombrePorId(
+                  "ESTADO_CALIBRACION",
+                  vehiculo.estadoCalibracionReferenciaId
+                )
+              : formatear(detalle.estadoCalibracion)
+          }
         />
       </div>
 
@@ -739,7 +803,14 @@ function FichaRevisionInventario({
                   <DatoInventario label="Codigo" value={detalle.codigoActivo} />
                   <DatoInventario
                     label="Tipo activo"
-                    value={formatear(activo?.tipoActivo ?? detalle.tipoActivo)}
+                    value={
+                      activo
+                        ? catalogos.nombrePorId(
+                            "TIPO_ACTIVO",
+                            activo.tipoActivoReferenciaId
+                          )
+                        : formatear(detalle.tipoActivo)
+                    }
                   />
                   <DatoInventario
                     label="Descripcion"
@@ -778,7 +849,13 @@ function FichaRevisionInventario({
 
               <TabsContent value="vehiculo" className="pt-5">
                 <FichaGrid>
-                  <DatoInventario label="Clase" value={vehiculo?.plantillaInventario} />
+                  <DatoInventario
+                    label="Clase"
+                    value={catalogos.nombrePorId(
+                      "CLASE_VEHICULO",
+                      vehiculo?.claseVehiculoReferenciaId
+                    )}
+                  />
                   <DatoInventario label="Placa" value={vehiculo?.placa ?? detalle.placa} />
                   <DatoInventario label="Marca" value={vehiculo?.marca ?? detalle.marca} />
                   <DatoInventario label="Modelo" value={vehiculo?.modelo ?? detalle.modelo} />
@@ -818,9 +895,21 @@ function FichaRevisionInventario({
                   <DatoInventario label="Alto" value={vehiculo?.alto} />
                   <DatoInventario label="Tipo suspension" value={vehiculo?.tipoSuspension} />
                   <DatoInventario label="Tipo tornamesa" value={vehiculo?.tipoTornamesa} />
-                  <DatoInventario label="Clase Euro / NEC" value={vehiculo?.claseEuro} />
+                  <DatoInventario
+                    label="Clase Euro / NEC"
+                    value={catalogos.nombrePorId(
+                      "CLASE_EURO",
+                      vehiculo?.claseEuroReferenciaId
+                    )}
+                  />
                   <DatoInventario label="Ratio corona" value={vehiculo?.ratioCorona} />
-                  <DatoInventario label="Tipo transmision" value={vehiculo?.tipoTransmision} />
+                  <DatoInventario
+                    label="Tipo transmision"
+                    value={catalogos.nombrePorId(
+                      "TIPO_TRANSMISION",
+                      vehiculo?.tipoTransmisionReferenciaId
+                    )}
+                  />
                 </FichaGrid>
               </TabsContent>
 
@@ -832,7 +921,14 @@ function FichaRevisionInventario({
                   />
                   <DatoInventario
                     label="Estado calibracion"
-                    value={formatear(vehiculo?.estadoCalibracion ?? detalle.estadoCalibracion)}
+                    value={
+                      vehiculo
+                        ? catalogos.nombrePorId(
+                            "ESTADO_CALIBRACION",
+                            vehiculo.estadoCalibracionReferenciaId
+                          )
+                        : formatear(detalle.estadoCalibracion)
+                    }
                   />
                   <DatoInventario label="Factor correccion" value={vehiculo?.factorCorreccion} />
                   <DatoInventario label="Capacidad tanque galones" value={vehiculo?.capacidadTanqueGalones} />
@@ -1303,7 +1399,8 @@ function DatoConciliado({
 
 function contarCambiosMaestro(
   snapshot: Record<string, unknown> | null,
-  activo: Activo | undefined
+  activo: Activo | undefined,
+  catalogos: CatalogosActivos
 ): number {
   if (!snapshot || !activo) return 0;
   const vehiculo = obtenerObjetoSnapshot(snapshot, "vehiculo");
@@ -1323,8 +1420,20 @@ function contarCambiosMaestro(
   cmp(leerSnapshot(vehiculo, "serieChasis"), activo.vehiculo?.serieChasis);
   cmp(leerSnapshot(vehiculo, "serieMotor"), activo.vehiculo?.serieMotor);
   cmp(leerSnapshot(vehiculo, "estadoOperativo"), activo.vehiculo?.estadoOperativo);
-  cmp(leerSnapshot(vehiculo, "estadoCalibracion"), activo.vehiculo?.estadoCalibracion);
-  cmp(leerSnapshot(vehiculo, "plantillaInventario"), activo.vehiculo?.plantillaInventario);
+  cmp(
+    leerSnapshot(vehiculo, "estadoCalibracion"),
+    catalogos.nombrePorId(
+      "ESTADO_CALIBRACION",
+      activo.vehiculo?.estadoCalibracionReferenciaId
+    )
+  );
+  cmp(
+    leerSnapshot(vehiculo, "plantillaInventario"),
+    catalogos.nombrePorId(
+      "CLASE_VEHICULO",
+      activo.vehiculo?.claseVehiculoReferenciaId
+    )
+  );
   return cambios;
 }
 
@@ -1335,13 +1444,14 @@ function SnapshotInventario({
   detalle: InventarioFisicoDetalle;
   activo?: Activo;
 }) {
+  const catalogos = useCatalogosActivos();
   const snapshot = detalle.snapshotActivo ?? null;
   const vehiculo = obtenerObjetoSnapshot(snapshot, "vehiculo");
   const documentos = obtenerListaSnapshot(snapshot, "documentos");
   const imagenes = obtenerListaSnapshot(snapshot, "imagenes");
   const tanques = obtenerListaSnapshot(snapshot, "tanques");
   const equipamiento = obtenerListaSnapshot(snapshot, "equipamiento");
-  const cambiosMaestro = contarCambiosMaestro(snapshot, activo);
+  const cambiosMaestro = contarCambiosMaestro(snapshot, activo, catalogos);
 
   if (!snapshot) {
     return (
@@ -1433,7 +1543,10 @@ function SnapshotInventario({
           <DatoConciliado
             label="Clase"
             snapshotRaw={leerSnapshot(vehiculo, "plantillaInventario")}
-            maestroRaw={activo?.vehiculo?.plantillaInventario}
+            maestroRaw={catalogos.nombrePorId(
+              "CLASE_VEHICULO",
+              activo?.vehiculo?.claseVehiculoReferenciaId
+            )}
             fmt={formatear}
           />
           <DatoConciliado
@@ -1480,7 +1593,10 @@ function SnapshotInventario({
           <DatoConciliado
             label="Calibracion"
             snapshotRaw={leerSnapshot(vehiculo, "estadoCalibracion") ?? detalle.estadoCalibracion}
-            maestroRaw={activo?.vehiculo?.estadoCalibracion}
+            maestroRaw={catalogos.nombrePorId(
+              "ESTADO_CALIBRACION",
+              activo?.vehiculo?.estadoCalibracionReferenciaId
+            )}
             fmt={formatear}
           />
         </FichaGrid>
@@ -2012,7 +2128,8 @@ function formatearEstadoActivo(value?: string | null) {
 
 function construirDetallesInventario(
   inventario: InventarioFisico,
-  activosMaestro: Activo[]
+  activosMaestro: Activo[],
+  catalogos: CatalogosActivos
 ): InventarioFisicoDetalle[] {
   const detallesPorActivo = new Map<number, InventarioFisicoDetalle>();
 
@@ -2021,7 +2138,9 @@ function construirDetallesInventario(
   }
 
   const vehiculosVigentes = activosMaestro.filter(
-    (activo) => activo.tipoActivo === "VEHICULO" && activo.estadoRegistro !== false
+    (activo) =>
+      activo.tipoActivoReferenciaId === TIPO_ACTIVO_VEHICULO_ID &&
+      activo.estadoRegistro !== false
   );
 
   const detallesDesdeMaestro = vehiculosVigentes.map((activo) => {
@@ -2032,6 +2151,14 @@ function construirDetallesInventario(
     }
 
     const vehiculo = activo.vehiculo;
+    const tipoActivoNombre = catalogos.nombrePorId(
+      "TIPO_ACTIVO",
+      activo.tipoActivoReferenciaId
+    );
+    const estadoCalibracionNombre = catalogos.nombrePorId(
+      "ESTADO_CALIBRACION",
+      vehiculo?.estadoCalibracionReferenciaId
+    );
 
     return {
       id: null,
@@ -2040,20 +2167,20 @@ function construirDetallesInventario(
       estadoRevision: "PENDIENTE",
       codigoActivo: activo.codigo,
       descripcionActivo: activo.descripcion,
-      tipoActivo: activo.tipoActivo,
+      tipoActivo: tipoActivoNombre,
       estadoActivo: activo.estadoActivo,
       marca: vehiculo?.marca ?? null,
       modelo: vehiculo?.modelo ?? null,
       carroceria: vehiculo?.carroceria ?? null,
       estadoOperativo: vehiculo?.estadoOperativo ?? null,
-      estadoCalibracion: vehiculo?.estadoCalibracion ?? null,
+      estadoCalibracion: estadoCalibracionNombre || null,
       placa: vehiculo?.placa ?? null,
       ubicacionEsperada: activo.ubicacion,
       ubicacionEncontrada: null,
       snapshotActivo: {
         id: activo.id,
         codigo: activo.codigo,
-        tipoActivo: activo.tipoActivo,
+        tipoActivo: tipoActivoNombre,
         descripcion: activo.descripcion,
         ubicacion: activo.ubicacion,
         estadoActivo: activo.estadoActivo,
@@ -2091,4 +2218,21 @@ function formatear(value?: unknown) {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function estadoInventarioClassName(estado: InventarioFisico["estado"]) {
+  switch (estado) {
+    case "CREADO":
+      return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300";
+    case "ABIERTO":
+      return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300";
+    case "EN_REVISION":
+      return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300";
+    case "CERRADO":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300";
+    case "ANULADO":
+      return "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300";
+    default:
+      return "";
+  }
 }

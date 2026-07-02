@@ -1,19 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { Eye, FilePlusCorner, FileText, Plus, RefreshCw, Search } from "lucide-react";
 
-import { Badge } from "@/compartido/componentes/ui/badge";
+import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos";
+import type {
+  AccionTabla,
+  ColumnaTabla,
+} from "@/compartido/componentes/tabla-datos/tabla-datos.tipos";
 import { Button } from "@/compartido/componentes/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card";
 import { toast } from "sonner";
 import { Input } from "@/compartido/componentes/ui/input";
 import {
@@ -23,28 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/compartido/componentes/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/compartido/componentes/ui/tooltip";
 import { cn } from "@/compartido/utilidades";
 
 import { accionesPermitidasSC } from "../tipos/solicitud-cliente.tipos";
 import type {
+  BucketSolicitudCliente,
   FiltrosSolicitudesCliente,
   SolicitudClienteResumen,
   TipoOrigen,
 } from "../tipos/solicitud-cliente.tipos";
 import { EstadoSolicitudBadge } from "./estado-solicitud-badge";
+import { SolicitudesClienteKpis } from "./solicitudes-cliente-kpis";
 import { SolicitudClienteNuevaSheet } from "./solicitud-cliente-nueva-sheet";
 
 type Props = {
@@ -53,21 +38,144 @@ type Props = {
   total: number;
 };
 
-// Opciones del control segmentado de estado (pool de trabajo).
-// "TODOS" es el valor interno para "sin filtro de estado".
-type OpcionSegmento = { valor: string; etiqueta: string };
-
-const SEGMENTOS_ESTADO: OpcionSegmento[] = [
-  { valor: "PENDIENTE", etiqueta: "Por cotizar" },
-  { valor: "EN_COTIZACION", etiqueta: "En cotizacion" },
-  { valor: "TODOS", etiqueta: "Todas" },
-];
-
 const ORIGENES: Array<{ valor: TipoOrigen | "TODOS"; etiqueta: string }> = [
   { valor: "TODOS", etiqueta: "Todos" },
   { valor: "PROSPECTO", etiqueta: "Prospecto" },
   { valor: "CLIENTE", etiqueta: "Cliente" },
 ];
+
+// Columnas propias de esta pantalla. La tabla genérica solo las renderiza;
+// el QUÉ mostrar y CÓMO se decide acá.
+const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
+  {
+    id: "codigo",
+    encabezado: "Codigo",
+    ancho: "w-[8%]",
+    celda: (item) => (
+      <span className="text-sm tabular-nums">
+        {item.codigoSolicitud ?? "—"}
+      </span>
+    ),
+  },
+  {
+    id: "solicitante",
+    encabezado: "Empresa solicitante",
+    ancho: "w-[16%]",
+    principal: true,
+    celda: (item) => (
+      <span className="block truncate">
+        {item.nombreSolicitante}
+      </span>
+    ),
+  },
+  {
+    id: "origen",
+    encabezado: "Origen",
+    ancho: "w-[7%]",
+    celda: (item) => (
+      <span className="text-sm">
+        {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
+      </span>
+    ),
+  },
+  {
+    id: "descripcion",
+    encabezado: "Descripcion del servicio",
+    ancho: "w-[15%]",
+    className: "truncate",
+    celda: (item) => item.descripcionServicio,
+  },
+  {
+    id: "registradoPor",
+    encabezado: "Registrada por",
+    ancho: "w-[13%]",
+    celda: (item) => (
+      <span className="block truncate text-sm">
+        {item.registradoPor?.nombre ?? "—"}
+      </span>
+    ),
+  },
+  {
+    id: "cotizaciones",
+    encabezado: "N° cotiz.",
+    ancho: "w-[8%]",
+    alineacion: "derecha",
+    className: "whitespace-nowrap",
+    celda: (item) => (
+      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
+        {item.totalCotizaciones}
+      </span>
+    ),
+  },
+  {
+    // "Cotizada por": ejecutivo de la cotizacion viva. Sin cotizacion viva la SC
+    // vuelve al pool; el matiz se alinea con los buckets de KPI:
+    //   PENDIENTE      → "Disponible"   (ingreso fresco, ambar)
+    //   EN_COTIZACION  → "Sin respuesta" (se cotizó y cayó, rosa — necesita rescate)
+    id: "cotizadaPor",
+    encabezado: "Cotizada por",
+    ancho: "w-[13%]",
+    celda: (item) => {
+      if (item.cotizacionVigente != null) {
+        return (
+          <span className="block truncate text-sm">
+            {item.cotizacionVigente.ejecutivo.nombre}
+          </span>
+        );
+      }
+      const sinRespuesta = item.estado === "EN_COTIZACION";
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+          <span
+            className={cn(
+              "size-2 rounded-full",
+              sinRespuesta ? "bg-rose-500" : "bg-amber-500"
+            )}
+            aria-hidden
+          />
+          {sinRespuesta ? "Sin respuesta" : "Disponible"}
+        </span>
+      );
+    },
+  },
+  {
+    id: "estado",
+    encabezado: "Estado",
+    ancho: "w-[10%]",
+    celda: (item) => <EstadoSolicitudBadge estado={item.estado} />,
+  },
+];
+
+// Acciones del menú `⋯`. Adaptativas según el estado de la solicitud:
+//  - hay cotizacion viva  → "Ver cotizacion" (deep-link directo)
+//  - no hay viva y se puede cotizar → "Cotizar"
+//  - "Ver detalle" (el expediente) queda SIEMPRE disponible.
+function accionesSolicitud(
+  item: SolicitudClienteResumen
+): AccionTabla<SolicitudClienteResumen>[] {
+  const vigente = item.cotizacionVigente;
+  const puedeCotizar = accionesPermitidasSC(item.estado).agregarCotizacion;
+
+  return [
+    {
+      etiqueta: "Ver cotizacion",
+      icono: FileText,
+      href: () => `/comercial/cotizaciones/${vigente?.id}`,
+      oculta: () => vigente == null,
+    },
+    {
+      etiqueta: "Cotizar",
+      icono: FilePlusCorner,
+      href: () => `/comercial/solicitudes-cliente/${item.id}/cotizar`,
+      oculta: () => !(vigente == null && puedeCotizar),
+    },
+    {
+      etiqueta: "Ver detalle",
+      icono: Eye,
+      href: () => `/comercial/solicitudes-cliente/${item.id}`,
+    },
+  ];
+}
 
 export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   const router = useRouter();
@@ -81,13 +189,6 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   const [busquedaLocal, setBusquedaLocal] = React.useState(filtros.busqueda ?? "");
   const [origenLocal, setOrigenLocal] = React.useState(filtros.origenTipo ?? "TODOS");
 
-  // El estado activo del segmento se deriva directamente del filtro recibido por props.
-  const estadoSegmento = filtros.estado ?? "TODOS";
-
-  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
-  const desdeVisible = total ? (pagina - 1) * porPagina + 1 : 0;
-  const hastaVisible = Math.min(pagina * porPagina, total);
-
   function construirUrl(params: Record<string, string | number | undefined>) {
     const sp = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -99,24 +200,27 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
     return qs ? `${pathname}?${qs}` : pathname;
   }
 
-  function aplicarFiltros() {
+  // KPI clicable → fija el bucket (o lo limpia) y vuelve a la pagina 1.
+  // Preserva los filtros de contexto YA aplicados (origen/busqueda), no el
+  // input local sin confirmar.
+  function seleccionarBucket(bucket: BucketSolicitudCliente | null) {
     router.push(
       construirUrl({
-        estado: estadoSegmento,
-        origenTipo: origenLocal,
-        busqueda: busquedaLocal,
+        bucket: bucket ?? undefined,
+        origenTipo: filtros.origenTipo,
+        busqueda: filtros.busqueda,
         pagina: 1,
         porPagina: filtros.porPagina,
       })
     );
   }
 
-  function cambiarSegmento(valor: string) {
+  function aplicarFiltros() {
     router.push(
       construirUrl({
-        estado: valor,
-        origenTipo: filtros.origenTipo,
-        busqueda: filtros.busqueda,
+        bucket: filtros.bucket,
+        origenTipo: origenLocal,
+        busqueda: busquedaLocal,
         pagina: 1,
         porPagina: filtros.porPagina,
       })
@@ -132,7 +236,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   function irAPagina(nuevaPagina: number) {
     router.push(
       construirUrl({
-        estado: filtros.estado,
+        bucket: filtros.bucket,
         origenTipo: filtros.origenTipo,
         busqueda: filtros.busqueda,
         pagina: nuevaPagina,
@@ -142,157 +246,67 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   }
 
   const hayFiltros =
-    !!filtros.estado || !!filtros.origenTipo || !!filtros.busqueda;
+    !!filtros.bucket || !!filtros.origenTipo || !!filtros.busqueda;
+
+  const barraHerramientas = (
+    <div className="flex flex-wrap items-end gap-3">
+      <div className="grid min-w-64 flex-1 gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">
+          Busqueda
+        </span>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar por solicitante o descripcion..."
+            value={busquedaLocal}
+            onChange={(e) => setBusquedaLocal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
+          />
+        </div>
+      </div>
+      <FiltroSelect
+        className="min-w-36"
+        label="Origen"
+        value={origenLocal}
+        valores={ORIGENES.map((o) => o.valor)}
+        etiquetas={ORIGENES.map((o) => o.etiqueta)}
+        onChange={setOrigenLocal}
+      />
+      <Button type="button" onClick={aplicarFiltros}>
+        Buscar
+      </Button>
+      {hayFiltros ? (
+        <Button type="button" variant="outline" onClick={limpiarFiltros}>
+          <RefreshCw data-icon="inline-start" />
+          Limpiar
+        </Button>
+      ) : null}
+      <Button className="ml-auto" onClick={() => setCrearAbierto(true)}>
+        <Plus data-icon="inline-start" />
+        Nueva solicitud
+      </Button>
+    </div>
+  );
 
   return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <CardTitle>Solicitudes de cliente</CardTitle>
-            <CardDescription>
-              {total} {total === 1 ? "solicitud" : "solicitudes"} encontradas
-            </CardDescription>
-          </div>
-          <Button onClick={() => setCrearAbierto(true)}>
-            <Plus data-icon="inline-start" />
-            Nueva solicitud
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4 pt-5">
-        {/* Control segmentado de estado — pool de trabajo */}
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-muted p-1 self-start">
-          {SEGMENTOS_ESTADO.map((seg) => {
-            const activo = estadoSegmento === seg.valor;
-            return (
-              <button
-                key={seg.valor}
-                type="button"
-                onClick={() => cambiarSegmento(seg.valor)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  activo
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {seg.etiqueta}
-              </button>
-            );
-          })}
-        </div>
+    <div className="flex flex-col gap-4">
+      <SolicitudesClienteKpis filtros={filtros} onSeleccionar={seleccionarBucket} />
 
-        {/* Filtros secundarios */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="grid min-w-64 flex-1 gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Busqueda
-            </span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Buscar por solicitante o descripcion..."
-                value={busquedaLocal}
-                onChange={(e) => setBusquedaLocal(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              />
-            </div>
-          </div>
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Origen"
-            value={origenLocal}
-            valores={ORIGENES.map((o) => o.valor)}
-            etiquetas={ORIGENES.map((o) => o.etiqueta)}
-            onChange={setOrigenLocal}
-          />
-          <Button type="button" onClick={aplicarFiltros}>
-            Buscar
-          </Button>
-        </div>
-
-        {hayFiltros ? (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              className="h-8"
-              variant="outline"
-              onClick={limpiarFiltros}
-            >
-              <RefreshCw />
-              Limpiar filtros
-            </Button>
-          </div>
-        ) : null}
-
-        {/* Tabla */}
-        <div className="overflow-hidden rounded-xl border border-border">
-          <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[20%]">Solicitante</TableHead>
-                <TableHead className="w-[20%]">Descripcion del servicio</TableHead>
-                <TableHead className="w-[9%]">Origen</TableHead>
-                <TableHead className="w-[12%]">Estado</TableHead>
-                <TableHead className="w-[11%]">Tomado por</TableHead>
-                <TableHead className="w-[8%] text-center">Cotizaciones</TableHead>
-                <TableHead className="w-[20%] text-right">Accion</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <FilaSolicitud key={item.id} item={item} />
-              ))}
-              {!items.length ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="h-28 text-center text-muted-foreground"
-                  >
-                    {hayFiltros
-                      ? "No se encontraron solicitudes con los filtros aplicados. Intenta ampliar la busqueda."
-                      : "No hay solicitudes de cliente registradas."}
-                  </TableCell>
-                </TableRow>
-              ) : null}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Paginacion */}
-        <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
-          <div>
-            {total > 0
-              ? `Mostrando ${desdeVisible}-${hastaVisible} de ${total} solicitudes`
-              : "Sin resultados"}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina <= 1}
-              onClick={() => irAPagina(pagina - 1)}
-            >
-              Anterior
-            </Button>
-            <span className="min-w-20 text-center">
-              {pagina} / {totalPaginas}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagina >= totalPaginas}
-              onClick={() => irAPagina(pagina + 1)}
-            >
-              Siguiente
-            </Button>
-          </div>
-        </div>
-      </CardContent>
+      <TablaDatos
+        columnas={COLUMNAS}
+        datos={items}
+        obtenerId={(item) => item.id}
+        acciones={accionesSolicitud}
+        barraHerramientas={barraHerramientas}
+        paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
+        vacioTitulo={hayFiltros ? "Sin coincidencias" : "Sin solicitudes"}
+        vacioDescripcion={
+          hayFiltros
+            ? "No se encontraron solicitudes con los filtros aplicados. Intenta ampliar la busqueda."
+            : "No hay solicitudes de cliente registradas."
+        }
+      />
 
       <SolicitudClienteNuevaSheet
         abierto={crearAbierto}
@@ -302,97 +316,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
           toast.success("Solicitud registrada");
         }}
       />
-    </Card>
-  );
-}
-
-function FilaSolicitud({ item }: { item: SolicitudClienteResumen }) {
-  // La cotizacion viva mas reciente (o null). Es la fuente para el deep-link y
-  // para "Tomado por" — NO usar totalCotizaciones (cuenta tambien las terminales).
-  const vigente = item.cotizacionVigente;
-  const puedeCotizar = accionesPermitidasSC(item.estado).agregarCotizacion;
-
-  return (
-    <TableRow>
-      <TableCell className="text-sm">
-        <span className="block truncate font-medium">{item.nombreSolicitante}</span>
-        {item.contactoSolicitante ? (
-          <span className="block truncate text-xs text-muted-foreground">
-            {item.contactoSolicitante.nombre}
-          </span>
-        ) : null}
-      </TableCell>
-      <TableCell className="truncate text-sm text-muted-foreground">
-        {item.descripcionServicio}
-      </TableCell>
-      <TableCell className="text-sm">
-        {item.origenTipo === "PROSPECTO" ? "Prospecto" : "Cliente"}
-      </TableCell>
-      <TableCell>
-        <EstadoSolicitudBadge estado={item.estado} />
-      </TableCell>
-      {/* Columna "Tomado por": derivada de cotizacionVigente (presencia de una
-          cotizacion viva), NO de totalCotizaciones. Si todas murieron, la SC
-          vuelve al pool → "Disponible". Cuando el backend exponga el ejecutivo,
-          acá se mostrará el nombre real. */}
-      <TableCell>
-        {vigente == null ? (
-          <Badge variant="outline">Disponible</Badge>
-        ) : (
-          <Badge variant="secondary">Tomada</Badge>
-        )}
-      </TableCell>
-      <TableCell className="text-center">
-        <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums">
-          {item.totalCotizaciones}
-        </span>
-      </TableCell>
-      {/* Accion primaria adaptativa (solo-icono con tooltip):
-          - hay cotizacion viva  -> "Ver cotizacion" (deep-link directo, evita el detalle)
-          - no hay viva y se puede cotizar -> "Cotizar"
-          - no hay viva y la SC es terminal -> sin accion primaria
-          "Ver detalle" (el expediente) queda SIEMPRE como accion secundaria. */}
-      <TableCell className="text-right">
-        <div className="flex items-center justify-end gap-1.5">
-          {vigente != null ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild size="icon-sm" variant="default">
-                  <Link href={`/comercial/cotizaciones/${vigente.id}`}>
-                    <FileText />
-                    <span className="sr-only">Ver cotización</span>
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Ver cotización</TooltipContent>
-            </Tooltip>
-          ) : puedeCotizar ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild size="icon-sm" variant="default">
-                  <Link href={`/comercial/solicitudes-cliente/${item.id}/cotizar`}>
-                    <FilePlusCorner />
-                    <span className="sr-only">Cotizar</span>
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Cotizar</TooltipContent>
-            </Tooltip>
-          ) : null}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button asChild size="icon-sm" variant="outline">
-                <Link href={`/comercial/solicitudes-cliente/${item.id}`}>
-                  <Eye />
-                  <span className="sr-only">Ver detalle</span>
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Ver detalle</TooltipContent>
-          </Tooltip>
-        </div>
-      </TableCell>
-    </TableRow>
+    </div>
   );
 }
 

@@ -1,4 +1,20 @@
-import type { TipoActivo } from "../tipos/activo.tipos";
+import {
+  TIPO_ACTIVO_DISPOSITIVO_ID,
+  TIPO_ACTIVO_EQUIPO_ID,
+  TIPO_ACTIVO_HERRAMIENTA_ID,
+  TIPO_ACTIVO_OTRO_ID,
+  TIPO_ACTIVO_VEHICULO_ID,
+  type CatalogosActivos,
+} from "../ganchos/use-catalogos-activos";
+import type { TipoCatalogoMaestro } from "../tipos/maestros.tipos";
+
+export {
+  TIPO_ACTIVO_DISPOSITIVO_ID,
+  TIPO_ACTIVO_EQUIPO_ID,
+  TIPO_ACTIVO_HERRAMIENTA_ID,
+  TIPO_ACTIVO_OTRO_ID,
+  TIPO_ACTIVO_VEHICULO_ID,
+};
 
 /**
  * Configuracion de columnas de la plantilla de carga masiva.
@@ -7,6 +23,9 @@ import type { TipoActivo } from "../tipos/activo.tipos";
  * plantilla solo trae las columnas que aplican a ese tipo. `destino` indica si
  * el valor va al payload base del activo o al sub-objeto `vehiculo` (que agrupa
  * datos vehiculares, dimensiones, equipamiento, control y combustible).
+ *
+ * Las columnas con `catalogo` resuelven su valor contra un catalogo dinamico
+ * de maestros (id <-> nombre) en vez de una lista fija de `opciones`.
  */
 export type TipoColumna =
   | "texto"
@@ -22,6 +41,7 @@ export type ColumnaCarga = {
   tipo: TipoColumna;
   destino: "base" | "vehiculo";
   opciones?: string[];
+  catalogo?: TipoCatalogoMaestro;
   ejemplo?: string;
   ayuda?: string;
 };
@@ -187,7 +207,12 @@ const COLUMNAS_VEHICULO_TECNICO: ColumnaCarga[] = [
     obligatorio: false,
     tipo: "texto",
     destino: "vehiculo",
-    ejemplo: "PICK UP",
+    // Si el texto coincide EXACTO con un nombre del Maestro de Catalogos
+    // (Activos > Administrador de maestros > Carroceria) se resuelve tambien
+    // el id de catalogo, no solo el texto libre. "Pick Up" generico no existe
+    // como tal en el catalogo: usar "Pickup cabina simple" o "Pickup doble
+    // cabina".
+    ejemplo: "Pickup cabina simple",
   },
   {
     clave: "ejes",
@@ -206,28 +231,22 @@ const COLUMNAS_VEHICULO_TECNICO: ColumnaCarga[] = [
     ejemplo: "N1",
   },
   {
-    clave: "claseEuro",
+    clave: "claseEuroReferenciaId",
     encabezado: "Clase Euro",
     obligatorio: false,
     tipo: "opciones",
     destino: "vehiculo",
-    opciones: ["EURO_1", "EURO_2", "EURO_3", "EURO_4", "EURO_5"],
-    ejemplo: "EURO_5",
+    catalogo: "CLASE_EURO",
+    ejemplo: "Euro 5",
   },
   {
-    clave: "tipoTransmision",
+    clave: "tipoTransmisionReferenciaId",
     encabezado: "Transmision",
     obligatorio: false,
     tipo: "opciones",
     destino: "vehiculo",
-    opciones: [
-      "AUTOMATICA",
-      "AUTOMATIZADA",
-      "MECANICA_10_VELOCIDADES",
-      "MECANICA_13_VELOCIDADES",
-      "MECANICA_18_VELOCIDADES",
-    ],
-    ejemplo: "MECANICA_18_VELOCIDADES",
+    catalogo: "TIPO_TRANSMISION",
+    ejemplo: "Mecanica 18 velocidades",
   },
   {
     clave: "ratioCorona",
@@ -280,13 +299,13 @@ const COLUMNAS_CONTROL: ColumnaCarga[] = [
     ejemplo: "OPERATIVO",
   },
   {
-    clave: "estadoCalibracion",
+    clave: "estadoCalibracionReferenciaId",
     encabezado: "Estado calibracion",
     obligatorio: false,
     tipo: "opciones",
     destino: "vehiculo",
-    opciones: ["CALIBRADA", "NO_CALIBRADA", "PENDIENTE", "OBSERVADA"],
-    ejemplo: "NO_CALIBRADA",
+    catalogo: "ESTADO_CALIBRACION",
+    ejemplo: "No calibrada",
   },
   {
     clave: "factorCorreccion",
@@ -314,8 +333,8 @@ const COLUMNAS_COMBUSTIBLE: ColumnaCarga[] = [
  * Columnas finales por tipo de activo. Refleja las pestanas que abre cada tipo
  * en el formulario (ver TABS_POR_TIPO_ACTIVO en activo-formulario.tsx).
  */
-export const COLUMNAS_POR_TIPO: Record<TipoActivo, ColumnaCarga[]> = {
-  VEHICULO: [
+export const COLUMNAS_POR_TIPO: Record<number, ColumnaCarga[]> = {
+  [TIPO_ACTIVO_VEHICULO_ID]: [
     ...COLUMNAS_BASE,
     ...COLUMNAS_VEHICULO_IDENTIDAD,
     ...COLUMNAS_VEHICULO_TECNICO,
@@ -323,13 +342,13 @@ export const COLUMNAS_POR_TIPO: Record<TipoActivo, ColumnaCarga[]> = {
     ...COLUMNAS_CONTROL,
     ...COLUMNAS_COMBUSTIBLE,
   ],
-  EQUIPO: [
+  [TIPO_ACTIVO_EQUIPO_ID]: [
     ...COLUMNAS_BASE,
     ...COLUMNAS_VEHICULO_IDENTIDAD,
     ...COLUMNAS_DIMENSIONES,
     ...COLUMNAS_CONTROL,
   ],
-  DISPOSITIVO: [
+  [TIPO_ACTIVO_DISPOSITIVO_ID]: [
     ...COLUMNAS_BASE,
     {
       clave: "marca",
@@ -356,29 +375,53 @@ export const COLUMNAS_POR_TIPO: Record<TipoActivo, ColumnaCarga[]> = {
     },
     ...COLUMNAS_CONTROL.filter((columna) => columna.clave === "estadoOperativo"),
   ],
-  HERRAMIENTA: [
+  [TIPO_ACTIVO_HERRAMIENTA_ID]: [
     ...COLUMNAS_BASE,
     ...COLUMNAS_CONTROL.filter((columna) => columna.clave === "estadoOperativo"),
   ],
-  OTRO: [...COLUMNAS_BASE],
+  [TIPO_ACTIVO_OTRO_ID]: [...COLUMNAS_BASE],
 };
 
 /**
- * Plantilla de inventario por defecto cuando el tipo tiene datos vehiculares
- * pero el Excel no la especifica. VEHICULO usa CAMION como base generica.
+ * Valores por defecto para el sub-objeto `vehiculo` cuando el tipo tiene datos
+ * vehiculares pero el Excel no especifica clase de vehiculo / calibracion.
+ * VEHICULO usa "Camion" como base generica; el resto usa "Equipo liviano".
+ * Calibracion por defecto: "Pendiente" (a la espera de revision).
  */
-export const PLANTILLA_INVENTARIO_DEFECTO: Record<TipoActivo, string> = {
-  VEHICULO: "CAMION",
-  EQUIPO: "EQUIPO_LIVIANO",
-  DISPOSITIVO: "EQUIPO_LIVIANO",
-  HERRAMIENTA: "EQUIPO_LIVIANO",
-  OTRO: "EQUIPO_LIVIANO",
+export const VEHICULO_DEFECTO_POR_TIPO: Record<
+  number,
+  { claseVehiculo: string; estadoCalibracion: string }
+> = {
+  [TIPO_ACTIVO_VEHICULO_ID]: { claseVehiculo: "Camion", estadoCalibracion: "Pendiente" },
+  [TIPO_ACTIVO_EQUIPO_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
+  [TIPO_ACTIVO_DISPOSITIVO_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
+  [TIPO_ACTIVO_HERRAMIENTA_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
+  [TIPO_ACTIVO_OTRO_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
 };
 
-export const ETIQUETA_TIPO_ACTIVO: Record<TipoActivo, string> = {
-  VEHICULO: "Vehiculo",
-  EQUIPO: "Equipo",
-  HERRAMIENTA: "Herramienta",
-  DISPOSITIVO: "Dispositivo",
-  OTRO: "Otro",
+export const ETIQUETA_TIPO_ACTIVO: Record<number, string> = {
+  [TIPO_ACTIVO_VEHICULO_ID]: "Vehiculo",
+  [TIPO_ACTIVO_EQUIPO_ID]: "Equipo",
+  [TIPO_ACTIVO_HERRAMIENTA_ID]: "Herramienta",
+  [TIPO_ACTIVO_DISPOSITIVO_ID]: "Dispositivo",
+  [TIPO_ACTIVO_OTRO_ID]: "Otro",
 };
+
+/** Lista de nombres validos para una columna con catalogo dinamico (hoja de instrucciones). */
+export function opcionesCatalogo(
+  columna: ColumnaCarga,
+  catalogos: CatalogosActivos,
+): string[] {
+  if (columna.opciones) return columna.opciones;
+  if (!columna.catalogo) return [];
+  switch (columna.catalogo) {
+    case "CLASE_EURO":
+      return catalogos.clasesEuro.map((opcion) => opcion.nombre);
+    case "TIPO_TRANSMISION":
+      return catalogos.tiposTransmision.map((opcion) => opcion.nombre);
+    case "ESTADO_CALIBRACION":
+      return catalogos.estadosCalibracion.map((opcion) => opcion.nombre);
+    default:
+      return [];
+  }
+}

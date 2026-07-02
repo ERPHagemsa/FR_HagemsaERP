@@ -34,6 +34,33 @@ export type EstadoModalidad = "ACTIVA" | "INACTIVA";
 
 export type TipoModalidad = "SPOT" | "PROYECTO" | "OTRO";
 
+// Buckets del pipeline de cotizaciones (filtran el listado y son la
+// contraparte 1:1 de los KPIs de /resumen). Comparten predicado con el backend
+// (fuente unica de verdad), por eso el numero del KPI === filas del bucket.
+//   enPreparacion → BORRADOR + EN_REVISION
+//   enviadas      → ENVIADA
+//   ganadas       → GANADA
+//   perdidas      → PERDIDA + VENCIDA + CANCELADA
+export type BucketCotizacion =
+  | "enPreparacion"
+  | "enviadas"
+  | "ganadas"
+  | "perdidas";
+
+// Ref del ejecutivo (snapshot { id, nombre }). id = AuthContext.accountId
+// (no es un correo); sin token MVP = { id: "mvp-sin-auth", nombre: "Usuario MVP" }.
+export type EjecutivoRef = {
+  id: string;
+  nombre: string;
+};
+
+// Item de la lista GET /cotizaciones/ejecutivos — ejecutivos que tienen cotizaciones.
+// Respuesta en array pelado (sin envelope de paginacion).
+export type EjecutivoResponsableOpcion = {
+  id: string;
+  nombre: string;
+};
+
 export type UnidadCobro =
   | "VIAJE"
   | "DIA"
@@ -99,7 +126,8 @@ export type ParamsPrecioSugerido = {
 export type ComparablePrecioSugerido = {
   cotizacionId: string;
   tipoVehiculo: string | null;
-  precioUnitario: number;
+  precioVenta: number;      // precio de venta cotizado historicamente (lo que se cobro)
+  margenPct: number;        // margen sobre venta con el que se cotizo ese comparable
   fecha: string;            // ISO
   estado: EstadoCotizacion; // nunca BORRADOR ni CANCELADA (solo las que salieron al cliente)
   ejecutivo: string;
@@ -108,7 +136,7 @@ export type ComparablePrecioSugerido = {
 export type AlcancePrecioSugerido = "cliente" | "mercado";
 
 export type PrecioSugerido = {
-  monto: number | null;    // mediana del precio unitario historico; null sin comparables
+  monto: number | null;    // mediana del precio de venta historico; null sin comparables
   montoMin: number | null; // percentil 25 (piso del rango tipico)
   montoMax: number | null; // percentil 75 (techo del rango tipico)
   muestras: number;        // cantidad de lineas historicas que respaldan la estadistica; 0 = sin sugerencia
@@ -162,21 +190,13 @@ export type LeadTime = {
 // monto: calculado por el backend (cantidad × precioUnitario); SOLO LECTURA — nunca se envia.
 export type CargoAdicional = {
   id: string;
-  descripcion: string;
+  nombre: string;              // qué cargo es (del catalogo)
+  descripcion: string | null;  // texto libre opcional
   unidadCobro: UnidadCobro;
   cantidad: number;   // > 0
   precioUnitario: number; // >= 0
   monto: number;     // backend-calculated; READ-ONLY
-  orden: number;
-};
-
-// --- Standby (reshape, SOLO nivel version) ---
-// Contrato 2026-06-06: sin campo unidad. monto = tarifa diaria (el standby siempre es por dia).
-export type Standby = {
-  id: string;
-  descripcion: string;   // antes recurso
-  monto: number;         // tarifa diaria
-  porLinea: boolean;     // true = tarifa por linea por dia
+  standbyDia: number | null; // stand-by (espera por dia) del cargo; null = sin stand-by
   orden: number;
 };
 
@@ -195,8 +215,11 @@ export type Linea = {
   orden: number;
   descripcion: string | null; // nombre/identificacion de la linea (opcional; en TRANSPORTE suele venir null)
   cantidad: number;
-  precioUnitario: number;
-  precioTotal: number; // calculado por el backend: precioUnitario × cantidad (solo lectura)
+  precioBase: number;       // precio base de la empresa por unidad (input, >= 0)
+  margenPct: number;        // margen sobre la venta en % (input, 0 <= x < 100)
+  precioVenta: number;      // calculado por el backend: precioBase / (1 − margenPct/100), 2 decimales (solo lectura)
+  precioVentaTotal: number; // calculado por el backend: precioVenta × cantidad (solo lectura)
+  standbyDia: number | null; // stand-by (espera por dia) de la linea; solo TRANSPORTE; null = sin stand-by
   idSeccion: string | null;
   carga?: CargaHijo;
   equipo?: EquipoHijo;
@@ -210,27 +233,32 @@ export type Version = {
   moneda: Moneda;        // unica moneda de la version (antes era por linea)
   congelada: boolean;
   motivo: string | null;
-  montoTotal: number | null; // suma de precioTotal de las lineas activas; calculado por el backend
+  montoBase: number | null;  // Σ (precioBase × cantidad) de las lineas activas (total sin margen); calculado por el backend
+  montoTotal: number | null; // Σ subtotal de las secciones activas (total de venta, con margen); calculado por el backend. Ganancia = montoTotal − montoBase
   validezDias: number | null;
   fechaVencimiento: string | null;
   fechaEnvio: string | null;
-  condiciones: string | null;
+  condiciones: string | null; // legacy free-text (a eliminar en WU-7); aun presente en el backend
   notas: string | null;
   secciones: Seccion[];
   lineas: Linea[];
-  standbys: Standby[];   // antes standbyTarifas; SOLO nivel version
-  leadTimes: LeadTime[]; // nuevo; SOLO nivel version
+  leadTimes: LeadTime[]; // nivel version
+  condicionesVersion?: CondicionVersion[]; // snapshots de condiciones resueltas (WU-4+)
 };
 
 export type Cotizacion = {
   id: string;
   origenTipo: OrigenTipo;
   origenId: string;
+  origenNombre: string;
   contactoOrigenId: string;
   estado: EstadoCotizacion;
   motivoPerdida: string | null;
-  idEjecutivoResponsable: string;
+  ejecutivoResponsable: EjecutivoRef;
   solicitudClienteId: string | null;
+  numeroCotizacion: number | null;
+  anioCotizacion: number | null;
+  codigoCotizacion: string | null;
   versionVigente: number | null;
   versiones: Version[];
   fechaCreacion: string;
@@ -248,6 +276,7 @@ export type Modalidad = {
   unidadCobro: UnidadCobro;
   estado: EstadoModalidad;
   tarifaBaseReferencial: number | null;
+  margenPct: number | null;
   moneda: Moneda | null;
   requiereAprobacion: boolean;
   documentacionRequerida: string[];
@@ -256,12 +285,50 @@ export type Modalidad = {
   fechaModificacion: string | null;
 };
 
+// CotizacionResumen — listado (GET /cotizaciones, API §5.2). Plano, sin versiones[].
+
+export type CotizacionResumen = {
+  id: string;
+  codigoCotizacion: string | null;
+  numeroCotizacion: number | null;
+  anioCotizacion: number | null;
+  estado: EstadoCotizacion;
+  motivoPerdida: string | null;
+  origenTipo: OrigenTipo;
+  origenId: string;
+  origenNombre: string;
+  ejecutivoResponsable: EjecutivoRef;
+  solicitudClienteId: string | null;
+  moneda: Moneda | null;
+  montoTotal: number | null;
+  versionVigente: number | null;
+  totalVersiones: number;
+  fechaEnvio: string | null;
+  fechaVencimiento: string | null;
+  fechaCreacion: string;
+  fechaModificacion: string | null;
+};
+
+// ---------------------------------------------------------------------------
+// KPIs del pipeline (GET /cotizaciones/resumen)
+// ---------------------------------------------------------------------------
+
+// Contadores agregados del pipeline. Invariante backend:
+//   enPreparacion + enviadas + ganadas + perdidas === total
+export type ResumenCotizaciones = {
+  total: number;
+  enPreparacion: number;
+  enviadas: number;
+  ganadas: number;
+  perdidas: number;
+};
+
 // ---------------------------------------------------------------------------
 // Paginacion propia (NO reutiliza RespuestaPaginada de compartido — forma distinta)
 // ---------------------------------------------------------------------------
 
 export type RespuestaPaginadaCotizaciones = {
-  data: Cotizacion[];
+  data: CotizacionResumen[];
   total: number;
   pagina: number;
   porPagina: number;
@@ -280,12 +347,22 @@ export type RespuestaPaginadaModalidades = {
 
 export type FiltrosCotizaciones = {
   estado?: EstadoCotizacion;
+  // `bucket` y `estado` son mutuamente excluyentes en el backend (400 si van
+  // juntos). La UI usa `bucket` (KPIs clicables); `estado` queda por compat.
+  bucket?: BucketCotizacion;
   origenTipo?: OrigenTipo;
   idEjecutivoResponsable?: string;
   busqueda?: string;
   pagina?: number;
   porPagina?: number;
 };
+
+// Filtros de contexto que acepta /resumen (no pagina ni filtra por estado/bucket:
+// los KPIs siempre cuentan todo el pipeline bajo el mismo contexto de busqueda).
+export type FiltrosResumenCotizaciones = Pick<
+  FiltrosCotizaciones,
+  "origenTipo" | "idEjecutivoResponsable" | "busqueda"
+>;
 
 export type FiltrosModalidades = {
   estado?: EstadoModalidad;
@@ -329,6 +406,7 @@ export type PayloadCrearModalidad = {
   descripcion?: string;
   tipo?: TipoModalidad;
   tarifaBaseReferencial?: number;
+  margenPct?: number;
   moneda?: Moneda;
   requiereAprobacion?: boolean;
   documentacionRequerida?: string[];
@@ -344,10 +422,60 @@ export type FiltrosCatalogosCargoAdicional = {
 };
 
 // ---------------------------------------------------------------------------
+// Catalogo de condiciones de cotizacion
+// ---------------------------------------------------------------------------
+
+export type EstadoCatalogoCondicion = "ACTIVO" | "INACTIVO";
+
+export type CategoriaCondicion = "CONSIDERACIONES_SERVICIO" | "TARIFAS_INCLUYEN";
+
+export type ParametroCondicion = string;
+
+export type CatalogoCondicion = {
+  id: string;
+  titulo: string;
+  texto: string;
+  categoria: CategoriaCondicion;
+  parametros: ParametroCondicion[];
+  porDefecto: boolean;
+  ordenSugerido: number;
+  estado: EstadoCatalogoCondicion;
+};
+
+export type RespuestaPaginadaCatalogosCondicion = {
+  data: CatalogoCondicion[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+};
+
+export type FiltrosCatalogosCondicion = {
+  estado?: EstadoCatalogoCondicion;
+  categoria?: CategoriaCondicion;
+  busqueda?: string;
+  pagina?: number;
+  porPagina?: number;
+};
+
+// Snapshot de una condicion resuelta en la version (read model — shape que
+// devuelve el backend en version.condicionesVersion[]). idCatalogoCondicion
+// es nullable por diseno de desacoplamiento (el snapshot sobrevive al borrado
+// del maestro), pero en v1 siempre viene poblado.
+export type CondicionVersion = {
+  id: string;
+  idCatalogoCondicion: string | null;
+  categoria: CategoriaCondicion;
+  textoResuelto: string;
+  valores: Record<string, string>;
+  orden: number;
+};
+
+// ---------------------------------------------------------------------------
 // DTOs de escritura (write model — anidado, lo que acepta el backend)
-// CRITICO: NUNCA enviar idSeccion, precioTotal ni totales (los calcula el backend).
-// `precioUnitario` (requerido) y `cantidad` (opcional, default 1) SI se envian a nivel
-// de linea; el backend calcula `precioTotal = precioUnitario × cantidad`.
+// CRITICO: NUNCA enviar idSeccion, precioVenta, precioVentaTotal ni totales (los calcula el backend).
+// `precioBase` y `margenPct` (ambos requeridos) y `cantidad` (opcional, default 1) SI se envian a
+// nivel de linea; el backend calcula `precioVenta = precioBase / (1 − margenPct/100)` y
+// `precioVentaTotal = precioVenta × cantidad`.
 // ---------------------------------------------------------------------------
 
 // --- PayloadLeadTime (nivel version) ---
@@ -362,20 +490,26 @@ export type PayloadLeadTime = {
 // NUNCA incluir monto — el backend lo calcula (cantidad × precioUnitario).
 // El tipo estructuralmente excluye monto para que el compilador rechace cualquier asignacion accidental.
 export type PayloadCargoAdicional = {
-  descripcion: string;
+  nombre: string;              // qué cargo es (del catalogo, obligatorio)
+  descripcion?: string | null; // texto libre opcional
   unidadCobro: UnidadCobro;
   cantidad: number;
   precioUnitario: number;
+  standbyDia?: number | null; // stand-by del cargo (>= 0) o null
   orden?: number;
 };
 
-// --- PayloadStandby (nivel version; NUNCA en seccion) ---
-// Contrato 2026-06-06: sin campo unidad (backend usa forbidNonWhitelisted).
-export type PayloadStandby = {
-  descripcion: string;
-  monto: number;         // tarifa diaria
-  porLinea?: boolean;    // default false; true = por linea por dia
-  orden?: number;
+// --- PayloadCondicionVersion (endpoint dedicado de condiciones por version) ---
+// El backend espera el conjunto completo de condiciones seleccionadas (replacement
+// idempotente). Cada condicion viaja con los valores crudos de sus placeholders.
+export type PayloadCondicionVersion = {
+  idCatalogoCondicion: string;
+  valores?: Record<string, string>;
+  orden: number;
+};
+
+export type PayloadActualizarCondicionesVersion = {
+  condiciones: PayloadCondicionVersion[];
 };
 
 // Hijos polimorficos del write model (sin id — el backend los re-crea)
@@ -415,16 +549,19 @@ export type PayloadPersonalHijo = {
   rol: string; // requerido si se envia el objeto
 };
 
-// Linea sin idSeccion ni totales. `precioUnitario` (requerido, >=0) y `cantidad`
-// (entero >=1, default 1) SI se envian — el backend calcula precioTotal = precioUnitario × cantidad.
+// Linea sin idSeccion ni totales. `precioBase` (requerido, >=0), `margenPct` (requerido,
+// 0 <= x < 100) y `cantidad` (entero >=1, default 1) SI se envian — el backend calcula
+// precioVenta = precioBase / (1 − margenPct/100) y precioVentaTotal = precioVenta × cantidad.
 // NUNCA enviar moneda en linea — moneda es de version.
 // cargosAdicionales a nivel linea: ahora permitidos (contrato bc03).
 export type PayloadLinea = {
   idModalidad: string;
   tipoLinea: TipoLinea;
   descripcion?: string; // opcional; el backend convierte vacio/espacios a null
-  precioUnitario: number;
+  precioBase: number;
+  margenPct: number;
   cantidad?: number;
+  standbyDia?: number | null; // stand-by de la linea (>= 0) o null; solo TRANSPORTE
   carga?: PayloadCargaHijo;
   equipo?: PayloadEquipoHijo;
   almacenaje?: PayloadAlmacenajeHijo;
@@ -433,7 +570,6 @@ export type PayloadLinea = {
 };
 
 // Seccion con lineas y cargosAdicionales anidados
-// NUNCA incluir standbys en una seccion
 export type PayloadSeccion = {
   nombre?: string;
   orden?: number;
@@ -441,15 +577,14 @@ export type PayloadSeccion = {
   cargosAdicionales?: PayloadCargoAdicional[];
 };
 
-// Borrador: moneda + secciones + standbys raiz + leadTimes raiz.
+// Borrador: moneda + secciones + leadTimes raiz.
 // Contrato 2026-06-08 (§5.4): NO existe canal de lineas raiz — toda linea va
 // dentro de secciones[].lineas; el caso "plano" es una seccion sin nombre.
-// standbys[] raiz = standbys de la version (informativo, no suman al total)
+// El stand-by viaja como standbyDia en cada linea/cargo (no hay array de version).
 // leadTimes[] raiz = plazos de entrega de la version
 export type PayloadBorrador = {
   moneda?: Moneda;       // default PEN en el backend
   secciones?: PayloadSeccion[];
-  standbys?: PayloadStandby[];   // SOLO root (antes standbyTarifas)
   leadTimes?: PayloadLeadTime[]; // SOLO root
 };
 
@@ -525,4 +660,11 @@ export function accionesPermitidas(estado: EstadoCotizacion): AccionesPermitidas
     case "VENCIDA":
       return { editar: false, enviar: false, nuevaVersion: false, ganar: false, perder: false, cancelar: false };
   }
+}
+
+export function etiquetaCodigoCotizacion(
+  cotizacion: { codigoCotizacion: string | null; estado: EstadoCotizacion }
+): string {
+  if (cotizacion.codigoCotizacion) return cotizacion.codigoCotizacion;
+  return cotizacion.estado === "BORRADOR" ? "Borrador" : "—";
 }

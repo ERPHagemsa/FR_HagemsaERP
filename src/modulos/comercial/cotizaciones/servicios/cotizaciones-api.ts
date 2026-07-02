@@ -2,20 +2,37 @@ import { clienteComercial } from "@/compartido/api/clientes-backend";
 
 import type {
   Cotizacion,
+  EjecutivoResponsableOpcion,
   FiltrosCotizaciones,
+  FiltrosResumenCotizaciones,
   ParamsPrecioSugerido,
+  PayloadActualizarCondicionesVersion,
   PayloadBorrador,
   PayloadEnviar,
   PayloadNuevaVersion,
   PayloadPerdida,
   PrecioSugerido,
+  ResumenCotizaciones,
   RespuestaPaginadaCotizaciones,
   SugerenciaCarga,
 } from "../tipos/cotizaciones.tipos";
 
 // ---------------------------------------------------------------------------
-// Listado y consulta
+// Listado, resumen y consulta
 // ---------------------------------------------------------------------------
+
+// GET /cotizaciones/resumen — KPIs del pipeline (contadores agregados).
+// Acepta solo filtros de contexto (origenTipo, idEjecutivoResponsable, busqueda);
+// NO estado/bucket ni paginacion. Comparte predicado con el filtro `bucket` del listado.
+export async function obtenerResumenCotizaciones(
+  filtros: FiltrosResumenCotizaciones = {}
+): Promise<ResumenCotizaciones> {
+  const { data } = await clienteComercial.get<ResumenCotizaciones>(
+    "/cotizaciones/resumen",
+    { params: filtros }
+  );
+  return data;
+}
 
 // GET /cotizaciones
 export async function listarCotizaciones(
@@ -50,6 +67,15 @@ export async function obtenerSugerenciasCarga(
   return data;
 }
 
+// GET /cotizaciones/ejecutivos — ejecutivos distintos que tienen cotizaciones.
+// Respuesta en array pelado (sin envelope de paginacion ni { data, total }).
+export async function obtenerEjecutivosCotizaciones(): Promise<EjecutivoResponsableOpcion[]> {
+  const { data } = await clienteComercial.get<EjecutivoResponsableOpcion[]>(
+    "/cotizaciones/ejecutivos"
+  );
+  return data;
+}
+
 // GET /cotizaciones/precio-sugerido (API §5.3.2)
 // Sugiere un precio de referencia para una linea de TRANSPORTE a partir del historico
 // (modalidad + ruta + carga). Solo lectura: no crea ni modifica nada. Es SOLO una
@@ -75,13 +101,21 @@ export async function obtenerPrecioSugerido(
 
 // PATCH /cotizaciones/:id/borrador → 204
 // El body es el shape ANIDADO por seccion (ver PayloadBorrador).
-// CRITICO: nunca enviar idSeccion, precioTotal ni totales (los calcula el backend).
-// precioUnitario (requerido) y cantidad (opcional) SI viajan a nivel de linea.
+// CRITICO: nunca enviar idSeccion, precioVenta, precioVentaTotal ni totales (los calcula el backend).
+// precioBase y margenPct (requeridos) y cantidad (opcional) SI viajan a nivel de linea.
 export async function actualizarBorrador(
   id: string,
   payload: PayloadBorrador
 ): Promise<void> {
   await clienteComercial.patch(`/cotizaciones/${id}/borrador`, payload);
+}
+
+// PATCH /cotizaciones/:id/condiciones → 204
+export async function actualizarCondicionesVersion(
+  idCotizacion: string,
+  payload: PayloadActualizarCondicionesVersion
+): Promise<void> {
+  await clienteComercial.patch(`/cotizaciones/${idCotizacion}/condiciones`, payload);
 }
 
 // ---------------------------------------------------------------------------

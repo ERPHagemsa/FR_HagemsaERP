@@ -6,6 +6,7 @@ export type TipoDatoMaestro =
   | "ALMACEN"
   | "CUENTA"
   | "CONTRATO"
+  | "REGIMEN"
 
 export type EstadoDatoMaestro = "ACTIVO" | "INACTIVO"
 
@@ -13,27 +14,23 @@ export type EstadoRegistro = "ACTIVO" | "ANULADO"
 
 export type NivelArea = "GERENCIA" | "AREA"
 
+// tipoUbicacion clasifica SOLO que es el lugar. No incluye operaciones ni
+// temporalidad: PUNTO_CARGA/DESCARGA/ACOPIO se eliminaron (la operacion/actividad
+// del punto pertenece a la parte operativa y se modelara a futuro, fuera de esta
+// configuracion) y ALMACEN_TEMPORAL tambien (la temporalidad vive en
+// Almacen.esTemporal). No reintroducir esos valores.
 export type TipoUbicacion =
   | "SEDE"
   | "CLIENTE"
   | "PLANTA"
   | "MINA"
   | "PUERTO"
+  | "PEAJE"
+  | "ESTACIONAMIENTO"
   | "ALMACEN"
-  | "ALMACEN_TEMPORAL"
   | "PATIO"
   | "TERMINAL"
-  | "PUNTO_CARGA"
-  | "PUNTO_DESCARGA"
-  | "PUNTO_ACOPIO"
   | "OTRO"
-
-export type AccionHistorial =
-  | "REGISTRO"
-  | "MODIFICACION"
-  | "INHABILITACION"
-  | "REACTIVACION"
-  | "ANULACION"
 
 export interface PaginationMeta {
   pagina: number
@@ -79,32 +76,43 @@ export interface ResumenConfiguracionGeneralResponse {
 }
 
 export interface ConfiguracionGeneralResponse {
-  id: string
-  count: number
+  // Los IDs son numericos incrementales POR TABLA (no UUID). Por eso el ciclo de
+  // vida y el PUT generico exigen tipoDatoMaestro: un id se repite entre tablas.
+  id: number
   tipoDatoMaestro: TipoDatoMaestro
   codigo: string
   nombre: string
   descripcion?: string | null
-  cargoSuperiorId?: string | null
-  ubicacionId?: string | null
+  cargoSuperiorId?: number | null
+  cargoSuperiorNombre?: string | null
+  ubicacionId?: number | null
+  ubicacionNombre?: string | null
   tipoUbicacion?: TipoUbicacion | null
   direccion?: string | null
   pais?: string | null
   departamento?: string | null
   provincia?: string | null
-  ciudad?: string | null
   distrito?: string | null
   referenciaUbicacion?: string | null
   latitud?: number | null
   longitud?: number | null
-  sedeId?: string | null
+  sedeId?: number | null
+  sedeNombre?: string | null
   nivelArea?: NivelArea | null
-  gerenciaId?: string | null
+  gerenciaId?: number | null
+  gerenciaNombre?: string | null
   esTemporal?: boolean | null
   fechaInicio?: string | null
   fechaFin?: string | null
+  // Asignado por el backend (profundidad en la jerarquia). Solo lectura.
   nivelCuentaContrato?: number | null
-  contratoPadreId?: string | null
+  contratoPadreId?: number | null
+  contratoPadreNombre?: string | null
+  // Campos propios del REGIMEN laboral.
+  regimenCodigo?: string | null
+  diasTrabajo?: number | null
+  diasDescanso?: number | null
+  horasPorDia?: number | null
   estado: EstadoDatoMaestro
   estadoRegistro: EstadoRegistro
   motivoInhabilitacion?: string | null
@@ -117,69 +125,6 @@ export interface ConfiguracionGeneralResponse {
   usuarioCreacion: string
   fechaModificacion?: string | null
   usuarioModificacion?: string | null
-}
-
-export interface HistorialConfiguracionGeneralResponse {
-  id: string
-  configuracionGeneralId?: string
-  idRegistro?: string
-  tipoDatoMaestro: TipoDatoMaestro
-  codigo: string
-  accion: AccionHistorial
-  fechaAccion: string
-  usuarioAccion: string
-  datosAnteriores?: string | Record<string, unknown> | null
-  datosNuevos?: string | Record<string, unknown> | null
-}
-
-export interface RegistrarConfiguracionGeneralRequest {
-  tipoDatoMaestro: TipoDatoMaestro
-  nombre: string
-  descripcion?: string | null
-  cargoSuperiorId?: string | null
-  ubicacionId?: string | null
-  tipoUbicacion?: TipoUbicacion | null
-  direccion?: string | null
-  pais?: string | null
-  departamento?: string | null
-  provincia?: string | null
-  ciudad?: string | null
-  distrito?: string | null
-  referenciaUbicacion?: string | null
-  latitud?: number | null
-  longitud?: number | null
-  sedeId?: string | null
-  nivelArea?: NivelArea | null
-  gerenciaId?: string | null
-  esTemporal?: boolean | null
-  fechaInicio?: string | null
-  fechaFin?: string | null
-  contratoPadreId?: string | null
-  usuarioCreacion: string
-}
-
-export interface ModificarConfiguracionGeneralRequest {
-  nombre?: string
-  descripcion?: string | null
-  cargoSuperiorId?: string | null
-  ubicacionId?: string | null
-  tipoUbicacion?: TipoUbicacion | null
-  direccion?: string | null
-  pais?: string | null
-  departamento?: string | null
-  provincia?: string | null
-  ciudad?: string | null
-  distrito?: string | null
-  referenciaUbicacion?: string | null
-  latitud?: number | null
-  longitud?: number | null
-  sedeId?: string | null
-  nivelArea?: NivelArea | null
-  gerenciaId?: string | null
-  esTemporal?: boolean | null
-  fechaInicio?: string | null
-  fechaFin?: string | null
-  usuarioModificacion: string
 }
 
 export interface InhabilitarConfiguracionGeneralRequest {
@@ -200,16 +145,27 @@ export interface ConsultarConfiguracionGeneralQuery {
   tipoDatoMaestro?: TipoDatoMaestro
   estado?: EstadoDatoMaestro
   estadoRegistro?: EstadoRegistro
-  count?: number
   codigo?: string
   nombre?: string
+  // Filtros geograficos de UBICACION.
+  tipoUbicacion?: TipoUbicacion
+  pais?: string
   departamento?: string
   provincia?: string
   distrito?: string
+  // Filtros especificos por tipo (cada recurso dedicado los reconoce).
+  cargoSuperiorId?: number
+  ubicacionId?: number
+  sedeId?: number
+  nivelArea?: NivelArea
+  gerenciaId?: number
+  esTemporal?: boolean
+  contratoPadreId?: number
+  nivelCuentaContrato?: number
   page?: number
   pageSize?: number
   sortBy?:
-    | "count"
+    | "id"
     | "tipoDatoMaestro"
     | "codigo"
     | "nombre"
@@ -219,8 +175,182 @@ export interface ConsultarConfiguracionGeneralQuery {
   sortOrder?: "asc" | "desc"
 }
 
+// ---------------------------------------------------------------------------
+// Jerarquia de ubicaciones
+//
+// Respuesta de GET /configuracion-general/ubicaciones/jerarquia: ubicaciones
+// con sus sedes (y, dentro de cada sede, sus areas y almacenes) y los almacenes
+// colgados directamente de la ubicacion. Una sola llamada paginada por ubicacion
+// en lugar de un request por nivel (evita el patron N+1 y el truncado a 100 al
+// armar el arbol en el navegador).
+// ---------------------------------------------------------------------------
+
+export interface SedeJerarquiaResponse extends ConfiguracionGeneralResponse {
+  areas?: ConfiguracionGeneralResponse[]
+  almacenes?: ConfiguracionGeneralResponse[]
+}
+
+export interface UbicacionJerarquiaResponse extends ConfiguracionGeneralResponse {
+  sedes?: SedeJerarquiaResponse[]
+  almacenes?: ConfiguracionGeneralResponse[]
+}
+
 export type FormatoExportacionConfiguracionGeneral = "EXCEL" | "PDF"
 
 export type ExportarConfiguracionGeneralQuery = ConsultarConfiguracionGeneralQuery & {
   formato?: FormatoExportacionConfiguracionGeneral
+}
+
+// ---------------------------------------------------------------------------
+// Contrato por tipo de dato maestro
+//
+// El backend expone endpoints dedicados por tipo (/configuracion-general/cargos,
+// /ubicaciones, /sedes, ...). Cada uno recibe SOLO los campos propios del tipo,
+// sin el "mar de null" del payload generico. Estas interfaces modelan ese
+// contrato: una base comun + los campos especificos de cada maestro.
+// ---------------------------------------------------------------------------
+
+/** Rutas (en plural) de cada tipo bajo el prefijo /configuracion-general. */
+export const RUTA_POR_TIPO: Record<TipoDatoMaestro, string> = {
+  CARGO: "cargos",
+  UBICACION: "ubicaciones",
+  SEDE: "sedes",
+  AREA: "areas",
+  ALMACEN: "almacenes",
+  CUENTA: "cuentas",
+  CONTRATO: "contratos",
+  REGIMEN: "regimenes",
+}
+
+interface RegistrarBaseRequest {
+  nombre: string
+  descripcion?: string | null
+  usuarioCreacion: string
+}
+
+interface ModificarBaseRequest {
+  nombre?: string
+  descripcion?: string | null
+  usuarioModificacion: string
+}
+
+export interface RegistrarCargoRequest extends RegistrarBaseRequest {
+  cargoSuperiorId?: number | null
+}
+export interface ModificarCargoRequest extends ModificarBaseRequest {
+  cargoSuperiorId?: number | null
+}
+
+export interface RegistrarUbicacionRequest extends RegistrarBaseRequest {
+  tipoUbicacion?: TipoUbicacion
+  pais?: string | null
+  departamento?: string | null
+  provincia?: string | null
+  distrito?: string | null
+  direccion?: string | null
+  referenciaUbicacion?: string | null
+  // Coordenada en formato "latitud, longitud" (Google). El backend la separa y
+  // redondea. Alternativa a enviar latitud/longitud por separado.
+  coordenadasGoogle?: string
+  coordenadas?: string
+  latitud?: number | null
+  longitud?: number | null
+}
+export interface ModificarUbicacionRequest extends ModificarBaseRequest {
+  tipoUbicacion?: TipoUbicacion
+  pais?: string | null
+  departamento?: string | null
+  provincia?: string | null
+  distrito?: string | null
+  direccion?: string | null
+  referenciaUbicacion?: string | null
+  coordenadasGoogle?: string
+  coordenadas?: string
+  latitud?: number | null
+  longitud?: number | null
+}
+
+export interface RegistrarSedeRequest extends RegistrarBaseRequest {
+  ubicacionId: number
+}
+export interface ModificarSedeRequest extends ModificarBaseRequest {
+  ubicacionId?: number
+}
+
+export interface RegistrarAreaRequest extends RegistrarBaseRequest {
+  sedeId: number
+  nivelArea?: NivelArea
+  gerenciaId?: number | null
+}
+export interface ModificarAreaRequest extends ModificarBaseRequest {
+  sedeId?: number
+  nivelArea?: NivelArea
+  gerenciaId?: number | null
+}
+
+export interface RegistrarAlmacenRequest extends RegistrarBaseRequest {
+  ubicacionId: number
+  sedeId?: number | null
+  esTemporal?: boolean
+  fechaInicio?: string | null
+  fechaFin?: string | null
+}
+export interface ModificarAlmacenRequest extends ModificarBaseRequest {
+  ubicacionId?: number
+  sedeId?: number | null
+  esTemporal?: boolean
+  fechaInicio?: string | null
+  fechaFin?: string | null
+}
+
+// Cuenta no tiene campos propios al crear/editar: nombre + descripcion. El
+// backend asigna nivelCuentaContrato.
+export type RegistrarCuentaRequest = RegistrarBaseRequest
+export type ModificarCuentaRequest = ModificarBaseRequest
+
+export interface RegistrarContratoRequest extends RegistrarBaseRequest {
+  // El padre (cuenta o contrato) solo se fija al crear; el backend deriva el nivel.
+  contratoPadreId: number
+}
+// El PUT de contrato solo cambia nombre/descripcion; el padre es inmutable.
+export type ModificarContratoRequest = ModificarBaseRequest
+
+// El regimen laboral define el ciclo de trabajo/descanso y la jornada diaria.
+// `regimenCodigo` es un codigo de negocio que viaja en el body (distinto del
+// `codigo` autogenerado por el backend).
+export interface RegistrarRegimenRequest extends RegistrarBaseRequest {
+  regimenCodigo: string
+  diasTrabajo: number
+  diasDescanso: number
+  horasPorDia: number
+}
+export interface ModificarRegimenRequest extends ModificarBaseRequest {
+  regimenCodigo?: string
+  diasTrabajo?: number
+  diasDescanso?: number
+  horasPorDia?: number
+}
+
+/** Mapa tipo -> request de registro, para tipar helpers genericos. */
+export interface RegistrarRequestPorTipo {
+  CARGO: RegistrarCargoRequest
+  UBICACION: RegistrarUbicacionRequest
+  SEDE: RegistrarSedeRequest
+  AREA: RegistrarAreaRequest
+  ALMACEN: RegistrarAlmacenRequest
+  CUENTA: RegistrarCuentaRequest
+  CONTRATO: RegistrarContratoRequest
+  REGIMEN: RegistrarRegimenRequest
+}
+
+/** Mapa tipo -> request de modificacion. */
+export interface ModificarRequestPorTipo {
+  CARGO: ModificarCargoRequest
+  UBICACION: ModificarUbicacionRequest
+  SEDE: ModificarSedeRequest
+  AREA: ModificarAreaRequest
+  ALMACEN: ModificarAlmacenRequest
+  CUENTA: ModificarCuentaRequest
+  CONTRATO: ModificarContratoRequest
+  REGIMEN: ModificarRegimenRequest
 }

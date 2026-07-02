@@ -4,6 +4,7 @@ import { useState } from "react"
 
 import type { FiltrosCatalogosCargoAdicional } from "@/modulos/comercial/cotizaciones/tipos/cotizaciones.tipos"
 
+import { PaginaListado } from "../../../componentes/pagina-listado"
 import { CatalogoCargosAdicionalesListado } from "../componentes/catalogos-cargo-adicionales-listado"
 
 interface PropsCatalogoCargosAdicionalesVista {
@@ -27,11 +28,11 @@ export function CatalogoCargosAdicionalesVista({
   }
 
   return (
-    <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
+    <PaginaListado>
       <CatalogoCargosAdicionalesListado
         filtros={filtros}
         onFiltrosChange={handleFiltrosChange}
       />
-    </main>
+    </PaginaListado>
   )
 }

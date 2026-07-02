@@ -8,7 +8,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 
-import type { TipoLinea } from "../tipos/cotizaciones.tipos";
+import type { Modalidad, TipoLinea } from "../tipos/cotizaciones.tipos";
 import { useListarModalidades } from "../servicios/cotizaciones-queries";
 
 type Props = {
@@ -16,7 +16,9 @@ type Props = {
   value: string;
   tipoLinea?: TipoLinea;
   disabled?: boolean;
-  onValueChange: (id: string) => void;
+  // Segundo argumento: la modalidad elegida (para precargar margen/tarifa). undefined si
+  // no se encuentra en la pagina cargada. Los callers que solo quieren el id lo ignoran.
+  onValueChange: (id: string, modalidad?: Modalidad) => void;
 };
 
 export function ModalidadSelector({
@@ -38,7 +40,7 @@ export function ModalidadSelector({
     <Select
       name={name}
       value={value}
-      onValueChange={onValueChange}
+      onValueChange={(id) => onValueChange(id, modalidades.find((m) => m.id === id))}
       disabled={disabled ?? isLoading}
     >
       <SelectTrigger className="w-full" aria-label="Modalidad">

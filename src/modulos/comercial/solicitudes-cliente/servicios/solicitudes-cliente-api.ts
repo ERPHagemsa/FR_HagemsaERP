@@ -5,9 +5,11 @@ import type {
   PayloadRegistrarSC,
 } from "../../cotizaciones/tipos/cotizaciones.tipos";
 import type {
+  FiltrosResumenSolicitudes,
   FiltrosSolicitudesCliente,
   PayloadDescartarSC,
   RespuestaPaginadaSolicitudes,
+  ResumenSolicitudesCliente,
   SolicitudCliente,
 } from "../tipos/solicitud-cliente.tipos";
 
@@ -38,6 +40,19 @@ export async function listarSolicitudesCliente(
 ): Promise<RespuestaPaginadaSolicitudes> {
   const { data } = await clienteComercial.get<RespuestaPaginadaSolicitudes>(
     "/solicitudes-cliente",
+    { params: filtros }
+  );
+  return data;
+}
+
+// GET /solicitudes-cliente/resumen — KPIs del pipeline (contadores agregados).
+// Acepta solo filtros de contexto (origenTipo, origenId, busqueda); NO estado/bucket
+// ni paginacion. Comparte predicado con el filtro `bucket` del listado.
+export async function obtenerResumenSolicitudes(
+  filtros: FiltrosResumenSolicitudes = {}
+): Promise<ResumenSolicitudesCliente> {
+  const { data } = await clienteComercial.get<ResumenSolicitudesCliente>(
+    "/solicitudes-cliente/resumen",
     { params: filtros }
   );
   return data;

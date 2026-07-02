@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import * as React from "react";
-import { Edit, Send, GitBranch, Trophy, XCircle, X, Printer } from "lucide-react";
+import Link from "next/link";
+import { Send, GitBranch, Trophy, XCircle, X, Printer, ScrollText } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -28,14 +28,8 @@ import {
 import { Label } from "@/compartido/componentes/ui/label";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/compartido/componentes/ui/tooltip";
 
-import type { Cotizacion, EstadoCotizacion } from "../tipos/cotizaciones.tipos";
+import type { Cotizacion } from "../tipos/cotizaciones.tipos";
 import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
 import {
   schemaEnviar,
@@ -50,6 +44,7 @@ import {
   useCancelarCotizacionMutation,
 } from "../servicios/cotizaciones-queries";
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
+import { useTarifariosQuery } from "@/modulos/comercial/tarifarios/servicios/tarifarios-queries";
 import { normalizarErrorAccion } from "../servicios/cotizaciones-error-handler";
 import { invalidarConsulta } from "@/compartido/api";
 import {
@@ -66,16 +61,12 @@ export function CotizacionAcciones({ cotizacion }: Props) {
   const { id, estado, versionVigente, versiones } = cotizacion;
   const acciones = accionesPermitidas(estado);
 
-  // editar/enviar exigen version vigente NO congelada (es la editable).
-  // nuevaVersion exige lo contrario: solo se ramifica una version ya enviada
-  // (congelada). En EN_REVISION la vigente es un borrador sin enviar -> no se
-  // habilita (ya hay una version editable; se edita esa, no se crea otra).
+  // La edicion del contenido ya no es una accion aparte: se hace INLINE en el detalle
+  // (la version vigente no congelada). Aqui solo queda nuevaVersion, que exige lo
+  // contrario: solo se ramifica una version ya enviada (congelada).
   const versionActual = versiones.find((v) => v.numeroVersion === versionVigente);
-  const puedeEditar = acciones.editar && versionActual !== undefined && !versionActual.congelada;
   const puedeNuevaVersion =
     acciones.nuevaVersion && versionActual !== undefined && versionActual.congelada;
-
-  const motivoTerminal = obtenerMotivoTerminal(estado);
 
   // Callback compartido tras cualquier 204 exitoso: invalida las consultas
   // montadas para que se refetcheen con datos frescos del backend.
@@ -86,111 +77,74 @@ export function CotizacionAcciones({ cotizacion }: Props) {
   }
 
   return (
-    <TooltipProvider>
-      <div className="flex flex-wrap gap-2">
-        {/* Imprimir PDF (disponible en cualquier estado; imprime la version vigente) */}
-        <BotonImprimirPdf idCotizacion={id} version={versionVigente} />
+    <div className="flex flex-wrap gap-2">
+      <BotonImprimirPdf idCotizacion={id} version={versionVigente} />
 
-        {/* Editar borrador */}
-        <AccionBoton
-          label="Editar"
-          icono={<Edit data-icon="inline-start" />}
-          habilitado={puedeEditar}
-          tooltip={
-            !acciones.editar
-              ? motivoTerminal ?? "No se puede editar en este estado"
-              : !puedeEditar
-                ? "La version vigente ya esta congelada"
-                : undefined
-          }
-          href={puedeEditar ? `/comercial/cotizaciones/${id}/editar` : undefined}
-          variant="outline"
+      {estado === "GANADA" ? <BotonTarifario idCotizacion={id} /> : null}
+
+      {acciones.enviar ? (
+        <DialogEnviar
+          idCotizacion={id}
+          onExito={() => alExito("Cotizacion enviada correctamente")}
         />
+      ) : null}
 
-        {/* Enviar */}
-        {acciones.enviar ? (
-          <DialogEnviar
-            idCotizacion={id}
-            onExito={() => alExito("Cotizacion enviada correctamente")}
-          />
-        ) : (
-          <AccionBotonDeshabilitado
-            label="Enviar"
-            icono={<Send data-icon="inline-start" />}
-            tooltip={motivoTerminal ?? "No se puede enviar en este estado"}
-            variant="default"
-          />
-        )}
+      {puedeNuevaVersion ? (
+        <DialogNuevaVersion
+          idCotizacion={id}
+          onExito={() => alExito("Nueva version creada correctamente")}
+        />
+      ) : null}
 
-        {/* Nueva version: solo desde una version ya enviada (congelada) */}
-        {puedeNuevaVersion ? (
-          <DialogNuevaVersion
-            idCotizacion={id}
-            onExito={() => alExito("Nueva version creada correctamente")}
-          />
-        ) : (
-          <AccionBotonDeshabilitado
-            label="Nueva version"
-            icono={<GitBranch data-icon="inline-start" />}
-            tooltip={
-              motivoTerminal ??
-              (versionActual !== undefined && !versionActual.congelada
-                ? "La version vigente aun no se ha enviado. Enviala antes de crear una nueva version."
-                : "No se puede crear una nueva version en este estado")
-            }
-            variant="outline"
-          />
-        )}
+      {acciones.ganar ? (
+        <DialogGanada
+          idCotizacion={id}
+          onExito={() => {
+            alExito("Cotizacion marcada como ganada");
+            invalidarConsulta(CLAVE_PROSPECTOS);
+          }}
+        />
+      ) : null}
 
-        {/* Marcar ganada */}
-        {acciones.ganar ? (
-          <DialogGanada
-            idCotizacion={id}
-            onExito={() => {
-              alExito("Cotizacion marcada como ganada");
-              invalidarConsulta(CLAVE_PROSPECTOS);
-            }}
-          />
-        ) : (
-          <AccionBotonDeshabilitado
-            label="Marcar ganada"
-            icono={<Trophy data-icon="inline-start" />}
-            tooltip={motivoTerminal ?? "No se puede marcar como ganada en este estado"}
-            variant="outline"
-          />
-        )}
+      {acciones.perder ? (
+        <DialogPerdida
+          idCotizacion={id}
+          onExito={() => alExito("Cotizacion marcada como perdida")}
+        />
+      ) : null}
 
-        {/* Marcar perdida */}
-        {acciones.perder ? (
-          <DialogPerdida
-            idCotizacion={id}
-            onExito={() => alExito("Cotizacion marcada como perdida")}
-          />
-        ) : (
-          <AccionBotonDeshabilitado
-            label="Marcar perdida"
-            icono={<XCircle data-icon="inline-start" />}
-            tooltip={motivoTerminal ?? "No se puede marcar como perdida en este estado"}
-            variant="destructive"
-          />
-        )}
+      {acciones.cancelar ? (
+        <DialogCancelar
+          idCotizacion={id}
+          onExito={() => alExito("Cotizacion cancelada")}
+        />
+      ) : null}
+    </div>
+  );
+}
 
-        {/* Cancelar */}
-        {acciones.cancelar ? (
-          <DialogCancelar
-            idCotizacion={id}
-            onExito={() => alExito("Cotizacion cancelada")}
-          />
-        ) : (
-          <AccionBotonDeshabilitado
-            label="Cancelar"
-            icono={<X data-icon="inline-start" />}
-            tooltip={motivoTerminal ?? "Solo se puede cancelar desde BORRADOR"}
-            variant="outline"
-          />
-        )}
-      </div>
-    </TooltipProvider>
+// ---------------------------------------------------------------------------
+// Boton: Tarifario (solo cuando la cotizacion esta GANADA y ya tiene tarifario)
+// El tarifario nace al ganar; lo ubicamos por su idCotizacionOrigen y enlazamos
+// a su pagina de detalle. Si aun no existe (o falla), no se muestra el boton.
+// ---------------------------------------------------------------------------
+
+function BotonTarifario({ idCotizacion }: { idCotizacion: string }) {
+  const { data } = useTarifariosQuery({
+    idCotizacionOrigen: idCotizacion,
+    porPagina: 1,
+  });
+  const tarifario = data?.data?.[0];
+
+  if (!tarifario) return null;
+
+  return (
+    <Button asChild variant="outline">
+      <Link href={`/comercial/tarifarios/${tarifario.id}`}>
+        <ScrollText data-icon="inline-start" />
+        Tarifario
+      </Link>
+    </Button>
   );
 }
 
@@ -740,111 +694,3 @@ function DialogCancelar({ idCotizacion, onExito }: DialogCancelarProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-componente: boton habilitado (con href o sin)
-// ---------------------------------------------------------------------------
-
-type AccionBotonProps = {
-  label: string;
-  icono: React.ReactNode;
-  habilitado: boolean;
-  tooltip?: string;
-  href?: string;
-  variant?: React.ComponentProps<typeof Button>["variant"];
-  onClick?: () => void;
-};
-
-function AccionBoton({
-  label,
-  icono,
-  habilitado,
-  tooltip,
-  href,
-  variant = "outline",
-  onClick,
-}: AccionBotonProps) {
-  if (habilitado) {
-    if (href) {
-      return (
-        <Button asChild variant={variant}>
-          <Link href={href}>
-            {icono}
-            {label}
-          </Link>
-        </Button>
-      );
-    }
-    return (
-      <Button variant={variant} onClick={onClick}>
-        {icono}
-        {label}
-      </Button>
-    );
-  }
-
-  // Deshabilitado con tooltip explicativo
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span>
-          <Button variant={variant} disabled>
-            {icono}
-            {label}
-          </Button>
-        </span>
-      </TooltipTrigger>
-      {tooltip ? <TooltipContent>{tooltip}</TooltipContent> : null}
-    </Tooltip>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sub-componente: boton deshabilitado con tooltip
-// ---------------------------------------------------------------------------
-
-type AccionBotonDeshabilitadoProps = {
-  label: string;
-  icono: React.ReactNode;
-  tooltip?: string;
-  variant?: React.ComponentProps<typeof Button>["variant"];
-};
-
-function AccionBotonDeshabilitado({
-  label,
-  icono,
-  tooltip,
-  variant = "outline",
-}: AccionBotonDeshabilitadoProps) {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span>
-          <Button variant={variant} disabled>
-            {icono}
-            {label}
-          </Button>
-        </span>
-      </TooltipTrigger>
-      {tooltip ? <TooltipContent>{tooltip}</TooltipContent> : null}
-    </Tooltip>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Helper: texto explicativo para estados terminales
-// ---------------------------------------------------------------------------
-
-function obtenerMotivoTerminal(estado: EstadoCotizacion): string | null {
-  switch (estado) {
-    case "GANADA":
-      return "La cotizacion fue marcada como ganada y no admite mas cambios";
-    case "PERDIDA":
-      return "La cotizacion fue marcada como perdida y no admite mas cambios";
-    case "CANCELADA":
-      return "La cotizacion fue cancelada y no admite mas cambios";
-    case "VENCIDA":
-      return "La cotizacion vencio y no admite mas cambios";
-    default:
-      return null;
-  }
-}

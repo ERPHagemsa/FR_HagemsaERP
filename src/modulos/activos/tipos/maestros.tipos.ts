@@ -11,10 +11,11 @@ export type AccionHistorialCatalogo = "REGISTRO" | "MODIFICACION" | "ELIMINACION
 export interface ValorCatalogo {
   id: number;
   tipoCatalogo: TipoCatalogoMaestro;
-  codigo: string;
   nombre: string;
   descripcion: string | null;
   estadoRegistro: boolean;
+  claseVehiculoReferenciaId?: number | null;
+  claseVehiculoReferenciaNombre?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,11 +36,13 @@ export interface ValorCatalogoHistorial {
 export interface CrearValorCatalogoPayload {
   nombre: string;
   descripcion?: string;
+  claseVehiculoReferenciaId?: number;
 }
 
 export interface ActualizarValorCatalogoPayload {
   nombre?: string;
   descripcion?: string;
+  claseVehiculoReferenciaId?: number;
 }
 
 export interface CambiarEstadoRegistroValorCatalogoPayload {

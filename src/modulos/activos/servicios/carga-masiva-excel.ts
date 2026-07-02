@@ -1,15 +1,13 @@
 import * as XLSX from "xlsx";
 
-import type {
-  CrearActivoPayload,
-  PlantillaInventario,
-  TipoActivo,
-} from "../tipos/activo.tipos";
+import type { CatalogosActivos } from "../ganchos/use-catalogos-activos";
+import type { CrearActivoPayload } from "../tipos/activo.tipos";
 import type { FilaPrevisualizada } from "../tipos/carga-masiva.tipos";
 import {
   COLUMNAS_POR_TIPO,
   ETIQUETA_TIPO_ACTIVO,
-  PLANTILLA_INVENTARIO_DEFECTO,
+  VEHICULO_DEFECTO_POR_TIPO,
+  opcionesCatalogo,
   type ColumnaCarga,
 } from "./carga-masiva-columnas";
 
@@ -18,8 +16,11 @@ import {
  * Hoja 1 (Activos): encabezados + una fila de ejemplo.
  * Hoja 2 (Instrucciones): guia de cada columna.
  */
-export function descargarPlantilla(tipo: TipoActivo): void {
-  const columnas = COLUMNAS_POR_TIPO[tipo];
+export function descargarPlantilla(
+  tipoActivoReferenciaId: number,
+  catalogos: CatalogosActivos,
+): void {
+  const columnas = COLUMNAS_POR_TIPO[tipoActivoReferenciaId];
   const libro = XLSX.utils.book_new();
 
   const encabezados = columnas.map((columna) => columna.encabezado);
@@ -36,7 +37,7 @@ export function descargarPlantilla(tipo: TipoActivo): void {
       columna.encabezado,
       columna.obligatorio ? "SI" : "No",
       etiquetaTipo(columna),
-      columna.opciones?.join(" | ") ?? "",
+      opcionesCatalogo(columna, catalogos).join(" | "),
       columna.ayuda ?? "",
     ]),
   ];
@@ -52,7 +53,7 @@ export function descargarPlantilla(tipo: TipoActivo): void {
 
   XLSX.writeFile(
     libro,
-    `plantilla-carga-${ETIQUETA_TIPO_ACTIVO[tipo].toLowerCase()}.xlsx`,
+    `plantilla-carga-${ETIQUETA_TIPO_ACTIVO[tipoActivoReferenciaId].toLowerCase()}.xlsx`,
   );
 }
 
@@ -77,7 +78,8 @@ function etiquetaTipo(columna: ColumnaCarga): string {
  */
 export async function parsearArchivo(
   archivo: File,
-  tipo: TipoActivo,
+  tipoActivoReferenciaId: number,
+  catalogos: CatalogosActivos,
 ): Promise<FilaPrevisualizada[]> {
   const buffer = await archivo.arrayBuffer();
   const libro = XLSX.read(buffer, { type: "array", cellDates: true });
@@ -92,7 +94,7 @@ export async function parsearArchivo(
     return [];
   }
 
-  const columnas = COLUMNAS_POR_TIPO[tipo];
+  const columnas = COLUMNAS_POR_TIPO[tipoActivoReferenciaId];
   const encabezados = (matriz[0] as unknown[]).map((celda) =>
     normalizarEncabezado(String(celda ?? "")),
   );
@@ -116,9 +118,10 @@ export async function parsearArchivo(
     const previsualizada = mapearFila(
       fila,
       i + 1,
-      tipo,
+      tipoActivoReferenciaId,
       columnas,
       indicePorClave,
+      catalogos,
     );
     filas.push(previsualizada);
   }
@@ -129,9 +132,10 @@ export async function parsearArchivo(
 function mapearFila(
   fila: unknown[],
   numeroFila: number,
-  tipo: TipoActivo,
+  tipoActivoReferenciaId: number,
   columnas: ColumnaCarga[],
   indicePorClave: Map<string, number>,
+  catalogos: CatalogosActivos,
 ): FilaPrevisualizada {
   const errores: Record<string, string> = {};
   const valoresCrudos: Record<string, string> = {};
@@ -152,7 +156,7 @@ function mapearFila(
       continue;
     }
 
-    const { valor, error } = convertirValor(valorCrudo, columna);
+    const { valor, error } = convertirValor(valorCrudo, columna, catalogos);
     if (error) {
       errores[columna.clave] = error;
       continue;
@@ -168,7 +172,7 @@ function mapearFila(
 
   const activo: CrearActivoPayload = {
     codigo: String(base.codigo ?? ""),
-    tipoActivo: tipo,
+    tipoActivoReferenciaId,
     descripcion: String(base.descripcion ?? ""),
     ubicacion: String(base.ubicacion ?? ""),
     estadoActivo:
@@ -185,11 +189,25 @@ function mapearFila(
   };
 
   if (tieneDatosVehiculo) {
+    const defecto = VEHICULO_DEFECTO_POR_TIPO[tipoActivoReferenciaId];
+    const claseVehiculoReferenciaId =
+      catalogos.idPorNombre("CLASE_VEHICULO", defecto.claseVehiculo) ?? 0;
+    const estadoCalibracionReferenciaId =
+      catalogos.idPorNombre("ESTADO_CALIBRACION", defecto.estadoCalibracion) ?? 0;
+    // La columna "Carroceria" del Excel sigue siendo texto libre (para no
+    // obligar al usuario a escribir un id), pero si el texto coincide con un
+    // nombre del Maestro de Catalogos, resolvemos tambien el id real. Si no
+    // hay match, queda sin id (igual que antes) y se completa luego a mano
+    // desde Editar activo.
+    const carroceriaReferenciaId = catalogos.idPorNombre(
+      "CARROCERIA",
+      vehiculo.carroceria as string | undefined,
+    );
     activo.vehiculo = {
+      claseVehiculoReferenciaId,
+      estadoCalibracionReferenciaId,
+      ...(carroceriaReferenciaId ? { carroceriaReferenciaId } : {}),
       ...vehiculo,
-      plantillaInventario: PLANTILLA_INVENTARIO_DEFECTO[
-        tipo
-      ] as PlantillaInventario,
     };
   }
 
@@ -205,6 +223,7 @@ function mapearFila(
 function convertirValor(
   valorCrudo: string,
   columna: ColumnaCarga,
+  catalogos: CatalogosActivos,
 ): { valor?: unknown; error?: string } {
   switch (columna.tipo) {
     case "numero": {
@@ -219,10 +238,21 @@ function convertirValor(
     }
     case "fecha": {
       const fecha = normalizarFecha(valorCrudo);
-      if (!fecha) return { error: "Fecha invalida (use AAAA-MM-DD)" };
+      if (!fecha) {
+        return { error: "Fecha invalida (use AAAA-MM-DD o DD/MM/AAAA)" };
+      }
       return { valor: fecha };
     }
     case "opciones": {
+      if (columna.catalogo) {
+        const id = catalogos.idPorNombre(columna.catalogo, valorCrudo);
+        if (id === null) {
+          return {
+            error: `Use: ${opcionesCatalogo(columna, catalogos).join(", ")}`,
+          };
+        }
+        return { valor: id };
+      }
       const normalizado = valorCrudo.trim().toUpperCase();
       if (columna.opciones && !columna.opciones.includes(normalizado)) {
         return {
@@ -236,17 +266,52 @@ function convertirValor(
   }
 }
 
+/**
+ * Devuelve la fecha como "AAAA-MM-DD" o null si no es valida.
+ * Acepta ISO ("2026-05-29", "2026/05/29"), formato peruano ("29/05/2026",
+ * "29-05-2026") y fechas reales de Excel (que llegan ya como "AAAA-MM-DD"
+ * desde `limpiar`). Rechaza fechas imposibles (ej. 31/02) para que salgan
+ * marcadas en la previsualizacion y nunca lleguen al backend.
+ */
 function normalizarFecha(valor: string): string | null {
-  // Acepta "2026-05-29", "2026/05/29" o una fecha ya formateada por SheetJS.
   const limpio = valor.trim();
-  const iso = limpio.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-  if (iso) {
-    const [, anio, mes, dia] = iso;
-    return `${anio}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+  if (!limpio) return null;
+
+  // ISO: AAAA-MM-DD o AAAA/MM/DD
+  const iso = limpio.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (iso) return construirFecha(iso[1], iso[2], iso[3]);
+
+  // Peruano: DD/MM/AAAA o DD-MM-AAAA
+  const peruano = limpio.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (peruano) return construirFecha(peruano[3], peruano[2], peruano[1]);
+
+  return null;
+}
+
+/** Valida que (anio, mes, dia) sea una fecha real y la formatea AAAA-MM-DD. */
+function construirFecha(
+  anioStr: string,
+  mesStr: string,
+  diaStr: string,
+): string | null {
+  const anio = Number(anioStr);
+  const mes = Number(mesStr);
+  const dia = Number(diaStr);
+  if (mes < 1 || mes > 12 || dia < 1 || dia > 31) return null;
+
+  // El round-trip detecta dias inexistentes (31/02 se corre a marzo y falla).
+  const fecha = new Date(Date.UTC(anio, mes - 1, dia));
+  if (
+    fecha.getUTCFullYear() !== anio ||
+    fecha.getUTCMonth() !== mes - 1 ||
+    fecha.getUTCDate() !== dia
+  ) {
+    return null;
   }
-  const fecha = new Date(limpio);
-  if (Number.isNaN(fecha.getTime())) return null;
-  return fecha.toISOString().slice(0, 10);
+
+  const mm = String(mes).padStart(2, "0");
+  const dd = String(dia).padStart(2, "0");
+  return `${anio}-${mm}-${dd}`;
 }
 
 function limpiar(valor: unknown): string {

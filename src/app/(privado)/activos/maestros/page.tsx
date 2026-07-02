@@ -1,5 +1,5 @@
 import { SiteHeader } from "@/compartido/componentes/site-header";
-import { MaestrosVista } from "@/modulos/activos/maestros/vistas/maestros-vista";
+import { MaestrosVista } from "@/modulos/activos/vistas/maestros-vista";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

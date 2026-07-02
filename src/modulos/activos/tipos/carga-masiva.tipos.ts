@@ -1,4 +1,4 @@
-import type { CrearActivoPayload, TipoActivo } from "./activo.tipos";
+import type { CrearActivoPayload } from "./activo.tipos";
 
 export type EstadoCargaMasiva =
   | "BORRADOR"
@@ -20,7 +20,7 @@ export type FilaCargaMasiva = {
 };
 
 export type CargaMasivaPayload = {
-  tipoActivo: TipoActivo;
+  tipoActivoReferenciaId: number;
   nombreArchivo?: string;
   observacion?: string;
   filas: FilaCargaMasiva[];
@@ -38,7 +38,7 @@ export type CargaMasivaDetalle = {
 export type CargaMasiva = {
   id: number;
   codigo: string;
-  tipoActivo: TipoActivo;
+  tipoActivoReferenciaId: number;
   nombreArchivo: string | null;
   estado: EstadoCargaMasiva;
   totalLeidos: number;
@@ -76,10 +76,25 @@ export type TipoDocumentoCarga =
 
 export type EstadoArchivoMasivo = "ASOCIADO" | "SIN_ACTIVO" | "ERROR";
 
+export type AlcanceDocumento = "INDIVIDUAL" | "COMPARTIDO";
+
+/** Una fila del Maestro Documentario (catalogo de tipos de documento). */
+export type TipoDocumentoMaestro = {
+  id: number;
+  codigo: string;
+  nombre: string;
+  alcance: AlcanceDocumento;
+  requiereVencimiento: boolean;
+  orden: number;
+  activo: boolean;
+};
+
 /** Un archivo listo para enviar, ya emparejado por placa/codigo. */
 export type ArchivoDocumentoMasivo = {
   nombreArchivo: string;
   identificador: string;
+  /** Para tipos COMPARTIDO: las placas/codigos que cubre el documento. */
+  identificadores?: string[];
   tipoDocumento: TipoDocumentoCarga;
   numero?: string;
   fechaEmision?: string;

@@ -24,12 +24,15 @@ function claveCatalogo(tipoCatalogo: TipoCatalogoMaestro) {
 
 export function useValoresCatalogoQuery(
   tipoCatalogo: TipoCatalogoMaestro,
-  estadoRegistro?: boolean
+  estadoRegistro?: boolean,
+  claseVehiculoReferenciaId?: number,
+  opciones: { enabled?: boolean } = {}
 ) {
   return useConsulta(
-    () => obtenerValoresCatalogo(tipoCatalogo, estadoRegistro),
-    [tipoCatalogo, estadoRegistro],
-    { clave: claveCatalogo(tipoCatalogo) }
+    () =>
+      obtenerValoresCatalogo(tipoCatalogo, estadoRegistro, claseVehiculoReferenciaId),
+    [tipoCatalogo, estadoRegistro, claseVehiculoReferenciaId],
+    { clave: claveCatalogo(tipoCatalogo), enabled: opciones.enabled }
   );
 }
 

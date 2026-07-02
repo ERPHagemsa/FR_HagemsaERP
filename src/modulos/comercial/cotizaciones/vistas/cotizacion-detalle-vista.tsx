@@ -2,16 +2,26 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText, GitBranch, CalendarClock, CalendarX } from "lucide-react";
+import { ArrowLeft, GitBranch, CalendarClock, CalendarDays, CalendarX, Info } from "lucide-react";
 
 import { useConsulta } from "@/compartido/api/use-consulta";
+import { Badge } from "@/compartido/componentes/ui/badge";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { Button } from "@/compartido/componentes/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/compartido/componentes/ui/dialog";
 
 import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
+import { CLAVE_COTIZACION_DETALLE } from "@/modulos/comercial/claves-consulta";
+import { accionesPermitidas, etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
 import type { Cotizacion, EstadoCotizacion } from "../tipos/cotizaciones.tipos";
 
 type Props = {
@@ -21,9 +31,14 @@ type Props = {
 // Layout denso estilo Odoo: statusbar + pipeline + smart buttons + grupos
 // inline + notebook de versiones (una sola version visible a la vez).
 export function CotizacionDetalleVista({ id }: Props) {
-  const { data: cotizacion, isLoading } = useConsulta(
+  // `clave` suscribe esta consulta al registro de invalidacion: tras enviar /
+  // ganar / perder / cancelar (que llaman invalidarConsulta(CLAVE_COTIZACION_DETALLE))
+  // la pagina refetchea sola, sin necesidad de refrescar a mano. `refetch` se usa
+  // ademas para refrescar tras actualizar las condiciones de la version.
+  const { data: cotizacion, isLoading, refetch } = useConsulta(
     () => consultarCotizacion(id).catch(() => null),
     [id],
+    { clave: CLAVE_COTIZACION_DETALLE },
   );
 
   if (isLoading) {
@@ -38,12 +53,17 @@ export function CotizacionDetalleVista({ id }: Props) {
     cotizacion.versiones.find((v) => v.numeroVersion === cotizacion.versionVigente) ??
     null;
 
+  // La cotizacion es editable inline si el estado lo permite y la version vigente
+  // no esta congelada (misma regla que el antiguo editor de pagina completa).
+  const editable =
+    accionesPermitidas(cotizacion.estado).editar && vigente !== null && !vigente.congelada;
+
   return (
     <main className="min-h-screen bg-background text-foreground">
-      {/* === Statusbar sticky: volver + identidad + pipeline + acciones === */}
-      <div className="sticky top-0 z-10 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-3 px-5 py-3 lg:px-8 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-3">
+      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-5 py-5 lg:px-8">
+        {/* === Cabecera: volver + identidad + pipeline + acciones === */}
+        <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-center">
+          <div className="flex min-w-0 items-center gap-3">
             {cotizacion.solicitudClienteId ? (
               <Button asChild variant="outline" size="sm" className="shrink-0 text-xs">
                 <Link href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}>
@@ -54,34 +74,34 @@ export function CotizacionDetalleVista({ id }: Props) {
             ) : null}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-semibold">
-                  Cotizacion {cotizacion.origenTipo === "PROSPECTO" ? "· Prospecto" : "· Cliente"}
+                <h1 className="truncate text-base font-semibold">
+                  {cotizacion.origenNombre}
                 </h1>
-                <EstadoCotizacionBadge estado={cotizacion.estado} />
+                <Badge variant="outline">
+                  {formatearOrigenTipo(cotizacion.origenTipo)}
+                </Badge>
               </div>
-              <p className="truncate font-mono text-xs text-muted-foreground">{cotizacion.id}</p>
+              <p
+                className="truncate font-mono text-xs text-muted-foreground"
+                title={cotizacion.id}
+              >
+                {etiquetaCodigoCotizacion(cotizacion)}
+              </p>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:gap-5">
+          <div className="xl:justify-self-center">
             <Pipeline estado={cotizacion.estado} />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 xl:justify-self-end">
             <CotizacionAcciones cotizacion={cotizacion} />
+            <DialogDetalles cotizacion={cotizacion} />
           </div>
         </div>
-      </div>
 
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5 px-5 py-5 lg:px-8">
         {/* === Smart buttons: cifras clave de la version vigente === */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <SmartButton
-            icono={<FileText className="size-4" />}
-            label="Monto total"
-            valor={
-              vigente?.montoTotal != null
-                ? `${formatearMonto(vigente.montoTotal)} ${vigente.moneda}`
-                : "—"
-            }
-          />
           <SmartButton
             icono={<GitBranch className="size-4" />}
             label="Versiones"
@@ -93,22 +113,59 @@ export function CotizacionDetalleVista({ id }: Props) {
             valor={vigente?.validezDias != null ? String(vigente.validezDias) : "—"}
           />
           <SmartButton
+            icono={<CalendarDays className="size-4" />}
+            label="Fecha envio"
+            valor={vigente?.fechaEnvio ? formatearFecha(vigente.fechaEnvio) : "—"}
+          />
+          <SmartButton
             icono={<CalendarX className="size-4" />}
-            label="Vence"
+            label="Fecha vencimiento"
             valor={vigente?.fechaVencimiento ? formatearFecha(vigente.fechaVencimiento) : "—"}
           />
         </div>
 
-        {/* === Grupos: datos en label:valor inline, dos columnas densas === */}
-        <div className="grid gap-x-10 gap-y-6 rounded-xl border border-border bg-card p-5 md:grid-cols-2">
+        {/* === Notebook de versiones === */}
+        <CotizacionVersionesNotebook
+          idCotizacion={cotizacion.id}
+          versiones={cotizacion.versiones}
+          versionVigente={cotizacion.versionVigente}
+          editable={editable}
+          clienteTipo={cotizacion.origenTipo}
+          clienteId={cotizacion.origenId}
+          onCondicionesActualizadas={refetch}
+        />
+      </div>
+    </main>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Dialog: detalles (origen + trazabilidad) en label:valor inline
+// ---------------------------------------------------------------------------
+
+function DialogDetalles({ cotizacion }: { cotizacion: Cotizacion }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" variant="outline">
+          <Info data-icon="inline-start" />
+          Detalles
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>Detalles de la cotizacion</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-x-10 gap-y-6 md:grid-cols-2">
           <Grupo titulo="Origen">
             <Campo label="Tipo de origen" value={formatearOrigenTipo(cotizacion.origenTipo)} />
-            <Campo label="ID origen" value={cotizacion.origenId} mono />
+            <Campo label="Razon social" value={cotizacion.origenNombre} />
             <CampoSC cotizacion={cotizacion} />
           </Grupo>
 
           <Grupo titulo="Trazabilidad">
-            <Campo label="Ejecutivo responsable" value={cotizacion.idEjecutivoResponsable} />
+            <Campo label="Ejecutivo responsable" value={cotizacion.ejecutivoResponsable.nombre} />
             <Campo label="Fecha de creacion" value={formatearFechaHora(cotizacion.fechaCreacion)} />
             <Campo
               label="Ultima modificacion"
@@ -126,15 +183,8 @@ export function CotizacionDetalleVista({ id }: Props) {
             </div>
           ) : null}
         </div>
-
-        {/* === Notebook de versiones === */}
-        <CotizacionVersionesNotebook
-          idCotizacion={cotizacion.id}
-          versiones={cotizacion.versiones}
-          versionVigente={cotizacion.versionVigente}
-        />
-      </div>
-    </main>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -143,11 +193,9 @@ export function CotizacionDetalleVista({ id }: Props) {
 // ---------------------------------------------------------------------------
 
 function Pipeline({ estado }: { estado: EstadoCotizacion }) {
-  // Estados fuera del happy path (EN_REVISION/CANCELADA/VENCIDA): el pipeline no
-  // puede mostrar progresion y solo repetiria lo que ya dice EstadoCotizacionBadge.
-  // Se omite para no duplicar el estado en pantalla.
+  // Fuera del happy path no hay progresion que mostrar: cae al badge de estado.
   if (estado === "CANCELADA" || estado === "VENCIDA" || estado === "EN_REVISION") {
-    return null;
+    return <EstadoCotizacionBadge estado={estado} />;
   }
 
   const pasos: { clave: EstadoCotizacion; texto: string }[] = [
@@ -197,6 +245,25 @@ function Pipeline({ estado }: { estado: EstadoCotizacion }) {
 // Atomos de layout
 // ---------------------------------------------------------------------------
 
+// Shell comun de las tarjetas: contenedor + caja de icono. El cuerpo lo pone
+// cada tarjeta (un solo valor en SmartButton, dos fechas en TarjetaFechas).
+function TarjetaShell({
+  icono,
+  children,
+}: {
+  icono: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        {icono}
+      </div>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
 function SmartButton({
   icono,
   label,
@@ -207,15 +274,10 @@ function SmartButton({
   valor: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-        {icono}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs uppercase text-muted-foreground">{label}</p>
-        <p className="truncate text-base font-semibold tabular-nums">{valor}</p>
-      </div>
-    </div>
+    <TarjetaShell icono={icono}>
+      <p className="text-xs uppercase text-muted-foreground">{label}</p>
+      <p className="truncate text-base font-semibold tabular-nums">{valor}</p>
+    </TarjetaShell>
   );
 }
 
@@ -288,11 +350,4 @@ function formatearFechaHora(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
-}
-
-function formatearMonto(valor: number) {
-  return new Intl.NumberFormat("es-PE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(valor);
 }

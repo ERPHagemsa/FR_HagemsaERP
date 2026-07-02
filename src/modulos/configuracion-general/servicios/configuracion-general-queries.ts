@@ -9,15 +9,20 @@ import {
   consultarConfiguracionGeneral,
   exportarConfiguracionGeneral,
   inhabilitarConfiguracionGeneral,
-  modificarConfiguracionGeneral,
+  listarPorTipo,
+  modificarPorTipo,
+  obtenerJerarquiaUbicaciones,
   obtenerEstadoBcConfiguracionGeneral,
   obtenerResumenDashboardConfiguracionGeneral,
   reactivarConfiguracionGeneral,
-  registrarConfiguracionGeneral,
+  registrarPorTipo,
 } from "./configuracion-general-api"
 import type {
   ConsultarConfiguracionGeneralQuery,
   ExportarConfiguracionGeneralQuery,
+  ModificarRequestPorTipo,
+  RegistrarRequestPorTipo,
+  TipoDatoMaestro,
 } from "../tipos/configuracion-general"
 
 export function useEstadoBcConfiguracionGeneralQuery() {
@@ -28,10 +33,39 @@ export function useResumenDashboardConfiguracionGeneralQuery() {
   return useConsulta(obtenerResumenDashboardConfiguracionGeneral, [])
 }
 
-export function useConfiguracionGeneralQuery(query?: ConsultarConfiguracionGeneralQuery) {
+export function useConfiguracionGeneralQuery(
+  query?: ConsultarConfiguracionGeneralQuery,
+  enabled = true,
+) {
   return useConsulta(
     () => consultarConfiguracionGeneral(query),
     [JSON.stringify(query ?? {})],
+    { enabled },
+  )
+}
+
+/** Lista un tipo concreto desde su recurso dedicado (/cargos, /sedes, ...). */
+export function useListarPorTipoQuery(
+  tipo: TipoDatoMaestro,
+  query?: ConsultarConfiguracionGeneralQuery,
+  enabled = true,
+) {
+  return useConsulta(
+    () => listarPorTipo(tipo, query),
+    [tipo, JSON.stringify(query ?? {})],
+    { enabled },
+  )
+}
+
+/** Jerarquia de ubicaciones (ubicacion -> sedes -> areas/almacenes) en una llamada. */
+export function useJerarquiaUbicacionesQuery(
+  query?: ConsultarConfiguracionGeneralQuery,
+  enabled = true,
+) {
+  return useConsulta(
+    () => obtenerJerarquiaUbicaciones(query),
+    [JSON.stringify(query ?? {})],
+    { enabled },
   )
 }
 
@@ -61,66 +95,67 @@ export interface OpcionesMutacionConfiguracionGeneral {
   readonly onSuccess?: () => unknown
 }
 
-export function useRegistrarConfiguracionGeneralMutation(
-  opciones: OpcionesMutacionConfiguracionGeneral = {},
-) {
-  return useMutar<
-    Parameters<typeof registrarConfiguracionGeneral>[0],
-    Awaited<ReturnType<typeof registrarConfiguracionGeneral>>
-  >({
-    fn: (payload) => registrarConfiguracionGeneral(payload),
-    onSuccess: () => opciones.onSuccess?.(),
-  })
-}
-
-export function useModificarConfiguracionGeneralMutation(
-  id: string,
-  opciones: OpcionesMutacionConfiguracionGeneral = {},
-) {
-  return useMutar<
-    Parameters<typeof modificarConfiguracionGeneral>[1],
-    Awaited<ReturnType<typeof modificarConfiguracionGeneral>>
-  >({
-    fn: (payload) => modificarConfiguracionGeneral(id, payload),
-    onSuccess: () => opciones.onSuccess?.(),
-  })
-}
-
 export function useInhabilitarConfiguracionGeneralMutation(
-  id: string,
+  id: number,
+  tipo: TipoDatoMaestro,
   opciones: OpcionesMutacionConfiguracionGeneral = {},
 ) {
   return useMutar<
-    Parameters<typeof inhabilitarConfiguracionGeneral>[1],
+    Parameters<typeof inhabilitarConfiguracionGeneral>[2],
     Awaited<ReturnType<typeof inhabilitarConfiguracionGeneral>>
   >({
-    fn: (payload) => inhabilitarConfiguracionGeneral(id, payload),
+    fn: (payload) => inhabilitarConfiguracionGeneral(id, tipo, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }
 
 export function useReactivarConfiguracionGeneralMutation(
-  id: string,
+  id: number,
+  tipo: TipoDatoMaestro,
   opciones: OpcionesMutacionConfiguracionGeneral = {},
 ) {
   return useMutar<
-    Parameters<typeof reactivarConfiguracionGeneral>[1],
+    Parameters<typeof reactivarConfiguracionGeneral>[2],
     Awaited<ReturnType<typeof reactivarConfiguracionGeneral>>
   >({
-    fn: (payload) => reactivarConfiguracionGeneral(id, payload),
+    fn: (payload) => reactivarConfiguracionGeneral(id, tipo, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }
 
 export function useAnularConfiguracionGeneralMutation(
-  id: string,
+  id: number,
+  tipo: TipoDatoMaestro,
   opciones: OpcionesMutacionConfiguracionGeneral = {},
 ) {
   return useMutar<
-    Parameters<typeof anularConfiguracionGeneral>[1],
+    Parameters<typeof anularConfiguracionGeneral>[2],
     Awaited<ReturnType<typeof anularConfiguracionGeneral>>
   >({
-    fn: (payload) => anularConfiguracionGeneral(id, payload),
+    fn: (payload) => anularConfiguracionGeneral(id, tipo, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+/** Registra un maestro en el recurso dedicado de su tipo. */
+export function useRegistrarPorTipoMutation<T extends TipoDatoMaestro>(
+  tipo: T,
+  opciones: OpcionesMutacionConfiguracionGeneral = {},
+) {
+  return useMutar<RegistrarRequestPorTipo[T], Awaited<ReturnType<typeof registrarPorTipo>>>({
+    fn: (payload) => registrarPorTipo(tipo, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+/** Modifica un maestro en el recurso dedicado de su tipo. */
+export function useModificarPorTipoMutation<T extends TipoDatoMaestro>(
+  tipo: T,
+  id: number,
+  opciones: OpcionesMutacionConfiguracionGeneral = {},
+) {
+  return useMutar<ModificarRequestPorTipo[T], Awaited<ReturnType<typeof modificarPorTipo>>>({
+    fn: (payload) => modificarPorTipo(tipo, id, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }
