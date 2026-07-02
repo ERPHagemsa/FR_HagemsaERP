@@ -2,7 +2,7 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Search, Truck } from "lucide-react";
+import { Search, Truck, UserRound } from "lucide-react";
 
 import { useConsulta } from "@/compartido/api/use-consulta";
 import { extraerMensajeError } from "@/compartido/api/formato-error";
@@ -30,10 +30,14 @@ import {
 import { Textarea } from "@/compartido/componentes/ui/textarea";
 import { obtenerUnidades } from "@/modulos/flota/asignaciones/servicios/asignaciones-api";
 import type { VehiculoFlota } from "@/modulos/flota/asignaciones/tipos/asignaciones.tipos";
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { useTiposChecklistQuery } from "../servicios/tipos-checklist-queries";
 import { useColoresRotulacionQuery } from "../servicios/colores-rotulacion-queries";
 import { useIniciarInspeccionMutation } from "../servicios/inspecciones-queries";
+import { obtenerTodoPersonal } from "../servicios/personal-api";
 import type { Inspeccion } from "../tipos/inspeccion.tipos";
+import type { Persona } from "../tipos/personal.tipos";
+import { BuscadorPersona } from "./buscador-persona";
 
 function aNumeroONull(valor: FormDataEntryValue | null): number | null {
   const s = String(valor ?? "").trim();
@@ -66,11 +70,22 @@ export function IniciarInspeccionSheet({
   onCerrar: () => void;
   onIniciada: (inspeccion: Inspeccion) => void;
 }) {
+  const { usuario } = useSesion();
   const [errorForm, setErrorForm] = useState<string | null>(null);
   const [tipoId, setTipoId] = useState<string>("");
   const [colorId, setColorId] = useState<string>("");
   const [acopleId, setAcopleId] = useState<string>("");
   const [busquedaAcople, setBusquedaAcople] = useState("");
+  const [operadoresSel, setOperadoresSel] = useState<(Persona | null)[]>([null]);
+
+  // Operadores: personal OPERATIVO de BC01_SocioDeNegocio. Se trae TODO una
+  // sola vez al abrir el sheet (el API no filtra por tipoRegimen server-side)
+  // y se filtra en cliente, igual que los combobox de contrato/cuenta.
+  const personalConsulta = useConsulta(obtenerTodoPersonal, []);
+  const personalOperativo = useMemo(
+    () => (personalConsulta.data ?? []).filter((p) => p.tipoRegimen === "OPERATIVO"),
+    [personalConsulta.data],
+  );
 
   const placa = unidad.placa ?? unidad.placaRodaje ?? unidad.codigo ?? unidad.id;
   const clase = unidad.clase ?? null;
@@ -116,6 +131,20 @@ export function IniciarInspeccionSheet({
   const tipoSel = useMemo(() => tipos.find((t) => t.id === tipoId) ?? null, [tipos, tipoId]);
   const operadoresRequeridos = tipoSel?.operadoresRequeridos ?? 1;
 
+  // El tipo elegido decide cuántos operadores se piden (1 normal, 2 relevo);
+  // se ajusta el array (conservando selecciones ya hechas) en el propio
+  // handler de selección, no en un efecto separado.
+  function seleccionarTipo(id: string) {
+    setTipoId(id);
+    const requeridos = tipos.find((t) => t.id === id)?.operadoresRequeridos ?? 1;
+    setOperadoresSel((actual) => {
+      if (actual.length === requeridos) return actual;
+      const nuevo = actual.slice(0, requeridos);
+      while (nuevo.length < requeridos) nuevo.push(null);
+      return nuevo;
+    });
+  }
+
   const iniciar = useIniciarInspeccionMutation({
     onSuccess: (inspeccion) => {
       setErrorForm(null);
@@ -148,10 +177,16 @@ export function IniciarInspeccionSheet({
       return;
     }
 
-    const operadoresDocumentos: string[] = [];
-    for (let i = 0; i < operadoresRequeridos; i++) {
-      const doc = aTextoONull(formData.get(`operador-${i}`));
-      if (doc) operadoresDocumentos.push(doc);
+    const operadoresDocumentos = operadoresSel
+      .filter((p): p is Persona => p !== null)
+      .map((p) => p.numeroDocumento);
+    if (operadoresDocumentos.length !== operadoresRequeridos) {
+      setErrorForm(
+        `Este tipo exige ${operadoresRequeridos} ${
+          operadoresRequeridos === 1 ? "operador" : "operadores"
+        }; falta seleccionar.`,
+      );
+      return;
     }
 
     setErrorForm(null);
@@ -164,8 +199,11 @@ export function IniciarInspeccionSheet({
       kilometraje: aNumeroONull(formData.get("kilometraje")),
       destino: aTextoONull(formData.get("destino")),
       colorRotulacionId: colorId || null,
-      inspectorDocumento: aTextoONull(formData.get("inspectorDocumento")),
-      operadoresDocumentos: operadoresDocumentos.length > 0 ? operadoresDocumentos : null,
+      // El inspector es el usuario logueado; la asociación usuario->empleado
+      // (que dará el documento real) todavía no existe, así que por ahora no
+      // se envía documento — el backend lo deja sin snapshot de inspector.
+      inspectorDocumento: null,
+      operadoresDocumentos,
       observaciones: aTextoONull(formData.get("observaciones")),
     });
   }
@@ -286,7 +324,7 @@ export function IniciarInspeccionSheet({
                 <Label htmlFor="ins-tipo">
                   Tipo de checklist <span className="text-destructive">*</span>
                 </Label>
-                <Select value={tipoId} onValueChange={setTipoId}>
+                <Select value={tipoId} onValueChange={seleccionarTipo}>
                   <SelectTrigger id="ins-tipo" className="w-full">
                     <SelectValue
                       placeholder={
@@ -350,26 +388,44 @@ export function IniciarInspeccionSheet({
 
               <Separator />
 
-              {/* Inspector y operadores */}
+              {/* Inspector: el usuario logueado (solo lectura). La asociación
+                  usuario->empleado real la implementan después. */}
               <div className="grid gap-1.5">
-                <Label htmlFor="ins-inspector">Documento del inspector</Label>
-                <Input id="ins-inspector" name="inspectorDocumento" placeholder="DNI / documento" />
+                <Label>Inspector</Label>
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                  <UserRound className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="text-sm font-medium">
+                    {usuario?.nombre ?? "Usuario en sesión"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Es quien inició sesión.
+                </p>
               </div>
 
               <div className="grid gap-2">
                 <Label>
-                  {operadoresRequeridos === 2 ? "Documentos de operadores (relevo)" : "Documento del operador"}
+                  {operadoresRequeridos === 2 ? "Operadores (relevo)" : "Operador"}
                 </Label>
-                {Array.from({ length: operadoresRequeridos }).map((_, i) => (
-                  <Input
-                    key={i}
-                    name={`operador-${i}`}
-                    placeholder={
-                      operadoresRequeridos === 2
-                        ? `Operador ${i === 0 ? "A (recepción)" : "B (asignación)"}`
-                        : "DNI / documento"
-                    }
-                  />
+                {operadoresSel.map((sel, i) => (
+                  <div key={i} className="grid gap-1">
+                    {operadoresRequeridos === 2 ? (
+                      <span className="text-xs text-muted-foreground">
+                        Operador {i === 0 ? "A (recepción)" : "B (asignación)"}
+                      </span>
+                    ) : null}
+                    <BuscadorPersona
+                      items={personalOperativo}
+                      cargando={personalConsulta.isLoading}
+                      seleccionada={sel}
+                      onSeleccionar={(p) =>
+                        setOperadoresSel((actual) =>
+                          actual.map((o, idx) => (idx === i ? p : o)),
+                        )
+                      }
+                      placeholder="Buscar por nombre o documento..."
+                    />
+                  </div>
                 ))}
                 {tipoSel ? (
                   <p className="text-xs text-muted-foreground">
