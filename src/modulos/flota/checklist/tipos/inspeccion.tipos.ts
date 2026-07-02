@@ -66,6 +66,8 @@ export type InspeccionResumen = {
   plantillaVersionId: string;
   unidadId: string;
   vehiculoPlaca: string | null;
+  unidadAcopleId: string | null;
+  vehiculoAcoplePlaca: string | null;
   estadoRegistro: EstadoRegistroChecklist;
   iniciadaEn: string | null;
   completadaEn: string | null;
@@ -78,6 +80,7 @@ export type InspeccionResumen = {
 export type Inspeccion = InspeccionResumen & {
   tipoChecklist: { id?: string; nombre?: string } | null;
   vehiculo: Record<string, unknown> | null;
+  vehiculoAcople: Record<string, unknown> | null;
   contrato: Record<string, unknown> | null;
   cuenta: Record<string, unknown> | null;
   horometro: number | null;
@@ -114,6 +117,9 @@ export type RespuestaPaginadaInspecciones = {
 export type IniciarInspeccionPayload = {
   tipoChecklistId: string;
   unidadId: string;
+  // Unidad complementaria (remolcador <-> semirremolque). Obligatoria cuando
+  // la unidad principal es de clase Remolcador o Semirremolque.
+  unidadAcopleId?: string | null;
   asignacionId?: number | null;
   horometro?: number | null;
   hubodometro?: number | null;
