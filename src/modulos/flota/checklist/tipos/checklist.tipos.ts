@@ -20,6 +20,9 @@ export type TipoChecklist = {
   id: string;
   nombre: string;
   operadoresRequeridos: number;
+  // Clases de vehículo a las que aplica (p.ej. ["Camión","Remolcador"]).
+  // null/vacío = comodín, se ofrece para cualquier clase.
+  clases: string[] | null;
   estadoRegistro: EstadoRegistroChecklist;
 };
 
@@ -27,16 +30,21 @@ export type FiltrosTiposChecklist = {
   estadoRegistro?: EstadoRegistroChecklist;
   pagina?: number;
   limite?: number;
+  // Filtra a los tipos con al menos una plantilla publicada aplicable a esta
+  // clase de vehículo (Camión, Equipo liviano, Remolcador, Semirremolque...).
+  clase?: string;
 };
 
 export type CrearTipoChecklistPayload = {
   nombre: string;
   operadoresRequeridos?: number;
+  clases?: string[] | null;
 };
 
 export type EditarTipoChecklistPayload = {
   nombre: string;
   operadoresRequeridos?: number;
+  clases?: string[] | null;
 };
 
 // ── Tipos de kit (HU-04-006) ──────────────────────────────────────────────────

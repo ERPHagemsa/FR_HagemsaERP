@@ -58,7 +58,16 @@ export function IniciarInspeccionSheet({
   const [tipoId, setTipoId] = useState<string>("");
   const [colorId, setColorId] = useState<string>("");
 
-  const tiposConsulta = useTiposChecklistQuery({ estadoRegistro: "ACTIVO", limite: 100 });
+  const placa = unidad.placa ?? unidad.placaRodaje ?? unidad.codigo ?? unidad.id;
+  const clase = unidad.clase ?? null;
+
+  // Solo se ofrecen los tipos con una plantilla publicada aplicable a la
+  // clase de esta unidad — evita elegir uno que luego falle al iniciar.
+  const tiposConsulta = useTiposChecklistQuery({
+    estadoRegistro: "ACTIVO",
+    limite: 100,
+    clase: clase ?? undefined,
+  });
   const tipos = useMemo(() => tiposConsulta.data?.datos ?? [], [tiposConsulta.data?.datos]);
 
   const coloresConsulta = useColoresRotulacionQuery({ estadoRegistro: "ACTIVO", limite: 100 });
@@ -67,14 +76,11 @@ export function IniciarInspeccionSheet({
   const tipoSel = useMemo(() => tipos.find((t) => t.id === tipoId) ?? null, [tipos, tipoId]);
   const operadoresRequeridos = tipoSel?.operadoresRequeridos ?? 1;
 
-  const placa = unidad.placa ?? unidad.placaRodaje ?? unidad.codigo ?? unidad.id;
-  const carroceria = unidad.carroceria ?? unidad.vehiculo?.carroceria ?? null;
-
   const iniciar = useIniciarInspeccionMutation({
     onSuccess: (inspeccion) => {
       setErrorForm(null);
       toast.success("Inspección iniciada", {
-        description: "Se resolvió la plantilla según la carrocería de la unidad.",
+        description: "Se resolvió la plantilla según la clase de la unidad.",
       });
       onIniciada(inspeccion);
     },
@@ -132,7 +138,7 @@ export function IniciarInspeccionSheet({
             <SheetTitle>Iniciar checklist</SheetTitle>
             <SheetDescription>
               Elija el tipo de checklist. El sistema resuelve automáticamente la
-              plantilla según la carrocería de la unidad.
+              plantilla según la clase de la unidad.
             </SheetDescription>
           </SheetHeader>
 
@@ -153,8 +159,8 @@ export function IniciarInspeccionSheet({
                 <div className="flex flex-col">
                   <span className="text-sm font-semibold">{placa}</span>
                   <span className="text-xs text-muted-foreground">
-                    {carroceria ? `Carrocería: ${carroceria}` : "Carrocería no definida"}
-                    {" — resuelve la plantilla aplicable."}
+                    {clase ? `Clase: ${clase}` : "Clase no definida"}
+                    {" — resuelve la plantilla y los tipos ofrecidos."}
                   </span>
                 </div>
               </div>
