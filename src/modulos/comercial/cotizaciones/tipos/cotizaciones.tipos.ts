@@ -188,6 +188,10 @@ export type CargoAdicional = {
   precioUnitario: number; // >= 0
   monto: number;     // backend-calculated; READ-ONLY
   standbyDia: number | null; // stand-by (espera por dia) del cargo; null = sin stand-by
+  // Lead time del cargo (transito en dias enteros); null = sin lead time.
+  // diasMax null con diasMin presente = plazo exacto; ambos = rango.
+  leadTimeDiasMin: number | null;
+  leadTimeDiasMax: number | null;
   orden: number;
 };
 
@@ -482,6 +486,10 @@ export type PayloadCargoAdicional = {
   cantidad: number;
   precioUnitario: number;
   standbyDia?: number | null; // stand-by del cargo (>= 0) o null
+  // Lead time del cargo (dias enteros); min omitido/null = sin lead time; max
+  // opcional (plazo exacto vs rango, max >= min).
+  leadTimeDiasMin?: number | null;
+  leadTimeDiasMax?: number | null;
   orden?: number;
 };
 

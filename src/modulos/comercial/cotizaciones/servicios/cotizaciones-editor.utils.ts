@@ -45,6 +45,11 @@ export type DraftCargoAdicional = {
   cantidad: string;          // input numerico como string (> 0)
   precioUnitario: string;    // input numerico como string (>= 0)
   standbyDia: string;        // stand-by por dia (input numerico como string; "" = sin stand-by)
+  // Lead time del cargo (dias enteros). "" en diasMin = sin lead time; esRango
+  // false => plazo exacto (no se emite max).
+  leadTimeDiasMin: string;
+  leadTimeDiasMax: string;
+  leadTimeEsRango: boolean;
   // monto derivado: cantidad × precioUnitario — NO almacenar; calcular en el componente via montoCargo()
   orden: number;
 };
@@ -202,6 +207,9 @@ export function cargoAdicionalVacio(): DraftCargoAdicional {
     cantidad: "1",
     precioUnitario: "0",
     standbyDia: "",
+    leadTimeDiasMin: "",
+    leadTimeDiasMax: "",
+    leadTimeEsRango: false,
     orden: 0,
   };
 }
@@ -292,6 +300,9 @@ function cargoAdicionalReadADraft(c: CargoAdicionalCompat): DraftCargoAdicional 
     cantidad,
     precioUnitario,
     standbyDia: c.standbyDia != null ? String(c.standbyDia) : "",
+    leadTimeDiasMin: c.leadTimeDiasMin != null ? String(c.leadTimeDiasMin) : "",
+    leadTimeDiasMax: c.leadTimeDiasMax != null ? String(c.leadTimeDiasMax) : "",
+    leadTimeEsRango: c.leadTimeDiasMax != null,
     orden: c.orden,
   };
 }
@@ -618,6 +629,13 @@ function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
   if (c.descripcion.trim() !== "") payload.descripcion = c.descripcion.trim();
   // stand-by por dia: solo si el usuario puso un valor (vacio = sin stand-by).
   if (c.standbyDia.trim() !== "") payload.standbyDia = parseNumero(c.standbyDia);
+  // lead time: solo si hay dias minimos; el maximo solo si es rango y no esta vacio.
+  if (c.leadTimeDiasMin.trim() !== "") {
+    payload.leadTimeDiasMin = parseNumero(c.leadTimeDiasMin);
+    if (c.leadTimeEsRango && c.leadTimeDiasMax.trim() !== "") {
+      payload.leadTimeDiasMax = parseNumero(c.leadTimeDiasMax);
+    }
+  }
   if (c.orden > 0) payload.orden = c.orden;
   return payload;
 }
@@ -681,6 +699,26 @@ function validarCargo(
     const sbNum = parseFloat(c.standbyDia);
     if (isNaN(sbNum) || sbNum < 0) {
       errores[`${prefijo}.standbyDia`] = "El stand-by debe ser >= 0.";
+    }
+  }
+  // Lead time del cargo (opcional): si hay minimo, entero > 0; si es rango, el
+  // maximo es obligatorio y entero >= minimo.
+  if (c.leadTimeDiasMin.trim() !== "") {
+    const ltMin = parseFloat(c.leadTimeDiasMin);
+    if (isNaN(ltMin) || ltMin <= 0 || !Number.isInteger(ltMin)) {
+      errores[`${prefijo}.leadTimeDiasMin`] =
+        "El lead time minimo debe ser un entero de dias mayor a 0.";
+    }
+    if (c.leadTimeEsRango) {
+      if (c.leadTimeDiasMax.trim() === "") {
+        errores[`${prefijo}.leadTimeDiasMax`] = "Si es un rango, ingrese los dias maximos.";
+      } else {
+        const ltMax = parseFloat(c.leadTimeDiasMax);
+        if (isNaN(ltMax) || !Number.isInteger(ltMax) || ltMax < ltMin) {
+          errores[`${prefijo}.leadTimeDiasMax`] =
+            "El lead time maximo debe ser un entero de dias >= al minimo.";
+        }
+      }
     }
   }
 }

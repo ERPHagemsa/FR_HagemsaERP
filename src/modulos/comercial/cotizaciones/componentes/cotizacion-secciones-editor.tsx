@@ -642,17 +642,41 @@ function entradasStandby(seccion: DraftSeccion): EntradaStandby[] {
 // seccion), con fallback a la descripcion. Informativo, va debajo del stand-by.
 function entradasLeadTime(seccion: DraftSeccion): EntradaLeadTime[] {
   const entradas: EntradaLeadTime[] = [];
+  // Plazo formateado desde los campos string del draft ("" = sin lead time).
+  const plazoDe = (min: string, max: string): string =>
+    max !== "" ? `${min}–${max} dias` : `${min} dia${min !== "1" ? "s" : ""}`;
+  const maxDe = (c: { leadTimeEsRango: boolean; leadTimeDiasMax: string }) =>
+    c.leadTimeEsRango ? c.leadTimeDiasMax.trim() : "";
+
   for (const l of seccion.lineas) {
-    if (l.tipoLinea !== "TRANSPORTE" || l.leadTimeDiasMin.trim() === "") continue;
-    const origen = l.carga.origen || seccion.origen;
-    const destino = l.carga.destino || seccion.destino;
-    const ruta = [origen, destino].filter((p) => p && p.trim() !== "").join(" - ");
-    const concepto = ruta || l.descripcion || "Lead time";
-    const min = l.leadTimeDiasMin.trim();
-    const max = l.leadTimeEsRango ? l.leadTimeDiasMax.trim() : "";
-    const plazo =
-      max !== "" ? `${min}–${max} dias` : `${min} dia${min !== "1" ? "s" : ""}`;
-    entradas.push({ concepto, plazo });
+    // Lead time de la linea de transporte (rotulo = ruta de la linea/seccion).
+    if (l.tipoLinea === "TRANSPORTE" && l.leadTimeDiasMin.trim() !== "") {
+      const origen = l.carga.origen || seccion.origen;
+      const destino = l.carga.destino || seccion.destino;
+      const ruta = [origen, destino].filter((p) => p && p.trim() !== "").join(" - ");
+      const concepto = ruta || l.descripcion || "Lead time";
+      entradas.push({ concepto, tipo: "Linea", plazo: plazoDe(l.leadTimeDiasMin.trim(), maxDe(l)) });
+    }
+    // Lead time de los cargos de la linea (rotulo = nombre del cargo).
+    for (const c of l.cargosAdicionales) {
+      if (c.leadTimeDiasMin.trim() !== "") {
+        entradas.push({
+          concepto: c.nombre || "Cargo",
+          tipo: "Cargo de linea",
+          plazo: plazoDe(c.leadTimeDiasMin.trim(), maxDe(c)),
+        });
+      }
+    }
+  }
+  // Lead time de los cargos de nivel seccion (rotulo = nombre del cargo).
+  for (const c of seccion.cargosAdicionales) {
+    if (c.leadTimeDiasMin.trim() !== "") {
+      entradas.push({
+        concepto: c.nombre || "Cargo",
+        tipo: "Cargo de seccion",
+        plazo: plazoDe(c.leadTimeDiasMin.trim(), maxDe(c)),
+      });
+    }
   }
   return entradas;
 }

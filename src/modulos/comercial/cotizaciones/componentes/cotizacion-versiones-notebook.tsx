@@ -263,7 +263,7 @@ export function CotizacionVersionesNotebook({
                     entradas={entradasStandbyLectura(lineasSinSeccion, [])}
                     moneda={version.moneda}
                   />
-                  <TablaLeadTime entradas={entradasLeadTimeLectura(lineasSinSeccion)} />
+                  <TablaLeadTime entradas={entradasLeadTimeLectura(lineasSinSeccion, [])} />
                 </div>
               ) : null}
             </div>
@@ -309,7 +309,7 @@ function SeccionBloque({
       {/* Stand by — su propia tabla, separada del costo (informativo, no suma). */}
       <TablaStandby entradas={entradasStandbyLectura(lineas, cargos)} moneda={moneda} />
       {/* Lead time — debajo del stand-by, mismo estilo (informativo, no suma). */}
-      <TablaLeadTime entradas={entradasLeadTimeLectura(lineas)} />
+      <TablaLeadTime entradas={entradasLeadTimeLectura(lineas, cargos)} />
     </div>
   );
 }
@@ -395,22 +395,43 @@ function entradasStandbyLectura(lineas: Linea[], cargosSeccion: CargoAdicional[]
   return entradas;
 }
 
-// Lead time recolectado de las lineas de transporte (lectura): una entrada por
-// cada linea con lead time. El rotulo (concepto) se deriva de la ruta origen→destino
-// (fallback a la descripcion). La dedup por concepto+plazo la hace TablaLeadTime.
-function entradasLeadTimeLectura(lineas: Linea[]): EntradaLeadTime[] {
+// Lead time recolectado en lectura (mismo patron que el stand-by): lineas de
+// transporte (rotulo = ruta) + cargos de linea y de seccion (rotulo = nombre).
+// La dedup por concepto+plazo la hace TablaLeadTime.
+function entradasLeadTimeLectura(
+  lineas: Linea[],
+  cargosSeccion: CargoAdicional[],
+): EntradaLeadTime[] {
   const entradas: EntradaLeadTime[] = [];
+  const plazoDe = (min: number, max: number | null): string =>
+    max != null ? `${min}–${max} dias` : `${min} dia${min !== 1 ? "s" : ""}`;
+
   for (const l of lineas) {
-    if (l.leadTimeDiasMin == null) continue;
-    const ruta = [l.carga?.origen, l.carga?.destino]
-      .filter((p): p is string => Boolean(p && p.trim() !== ""))
-      .join(" - ");
-    const concepto = ruta || l.descripcion || "Lead time";
-    const plazo =
-      l.leadTimeDiasMax != null
-        ? `${l.leadTimeDiasMin}–${l.leadTimeDiasMax} dias`
-        : `${l.leadTimeDiasMin} dia${l.leadTimeDiasMin !== 1 ? "s" : ""}`;
-    entradas.push({ concepto, plazo });
+    if (l.leadTimeDiasMin != null) {
+      const ruta = [l.carga?.origen, l.carga?.destino]
+        .filter((p): p is string => Boolean(p && p.trim() !== ""))
+        .join(" - ");
+      const concepto = ruta || l.descripcion || "Lead time";
+      entradas.push({ concepto, tipo: "Linea", plazo: plazoDe(l.leadTimeDiasMin, l.leadTimeDiasMax) });
+    }
+    for (const c of l.cargosAdicionales ?? []) {
+      if (c.leadTimeDiasMin != null) {
+        entradas.push({
+          concepto: c.nombre,
+          tipo: "Cargo de linea",
+          plazo: plazoDe(c.leadTimeDiasMin, c.leadTimeDiasMax),
+        });
+      }
+    }
+  }
+  for (const c of cargosSeccion) {
+    if (c.leadTimeDiasMin != null) {
+      entradas.push({
+        concepto: c.nombre,
+        tipo: "Cargo de seccion",
+        plazo: plazoDe(c.leadTimeDiasMin, c.leadTimeDiasMax),
+      });
+    }
   }
   return entradas;
 }

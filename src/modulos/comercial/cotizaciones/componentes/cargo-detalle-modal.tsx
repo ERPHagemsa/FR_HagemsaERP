@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Button } from "@/compartido/componentes/ui/button";
+import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -189,6 +190,45 @@ export function CargoDetalleModal({
               />
             </Campo>
           </div>
+
+          {/* Lead time del cargo (transito en dias); informativo, no suma al total. */}
+          <Campo label="Lead time (dias)">
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                step="1"
+                placeholder="— (sin lead time)"
+                className="w-28"
+                value={borrador.leadTimeDiasMin}
+                disabled={disabled}
+                onChange={(e) => set({ leadTimeDiasMin: e.target.value })}
+              />
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Checkbox
+                  checked={borrador.leadTimeEsRango}
+                  disabled={disabled}
+                  onCheckedChange={(checked) =>
+                    set({
+                      leadTimeEsRango: Boolean(checked),
+                      leadTimeDiasMax: checked ? borrador.leadTimeDiasMax : "",
+                    })
+                  }
+                />
+                Rango
+              </label>
+              <Input
+                type="number"
+                min={1}
+                step="1"
+                placeholder={borrador.leadTimeEsRango ? "max" : "—"}
+                className="w-24"
+                value={borrador.leadTimeDiasMax}
+                disabled={disabled || !borrador.leadTimeEsRango}
+                onChange={(e) => set({ leadTimeDiasMax: e.target.value })}
+              />
+            </div>
+          </Campo>
 
           <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
             <span className="text-xs text-muted-foreground">Monto (calculado)</span>
