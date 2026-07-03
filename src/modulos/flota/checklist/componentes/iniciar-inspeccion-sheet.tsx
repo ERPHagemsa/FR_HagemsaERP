@@ -51,14 +51,20 @@ function aTextoONull(valor: FormDataEntryValue | null): string | null {
   return s.length > 0 ? s : null;
 }
 
-// Un semirremolque no anda solo: si la unidad principal es de esta clase,
-// exige elegir la unidad complementaria de la clase opuesta. Mismo criterio
-// que IniciarInspeccionUseCase (backend).
-function claseAcopleRequerida(clase: string | null): string | null {
+// Clase complementaria del acople remolcador<->semirremolque (aplica a ambas
+// direcciones). Mismo criterio que IniciarInspeccionUseCase (backend).
+function claseAcopleAplicable(clase: string | null): string | null {
   const normal = clase?.trim().toLowerCase();
   if (normal === "remolcador") return "Semirremolque";
   if (normal === "semirremolque") return "Remolcador";
   return null;
+}
+
+// El remolcador tiene motor y puede circular solo (el semirremolque es
+// opcional para él); el semirremolque NO tiene motor y no anda solo, así que
+// si la unidad principal es el semirremolque, el remolcador es obligatorio.
+function acopleEsObligatorio(clase: string | null): boolean {
+  return clase?.trim().toLowerCase() === "semirremolque";
 }
 
 export function IniciarInspeccionSheet({
@@ -89,7 +95,8 @@ export function IniciarInspeccionSheet({
 
   const placa = unidad.placa ?? unidad.placaRodaje ?? unidad.codigo ?? unidad.id;
   const clase = unidad.clase ?? null;
-  const claseAcople = claseAcopleRequerida(clase);
+  const claseAcople = claseAcopleAplicable(clase);
+  const acopleObligatorio = acopleEsObligatorio(clase);
 
   // Solo se pide cuando la unidad es Remolcador o Semirremolque: un
   // semirremolque no anda solo, hay que emparejarlo con su complementaria.
@@ -170,7 +177,7 @@ export function IniciarInspeccionSheet({
       );
       return;
     }
-    if (claseAcople && !acopleId) {
+    if (claseAcople && acopleObligatorio && !acopleId) {
       setErrorForm(
         `Esta unidad es de clase "${clase}"; seleccione la unidad ${claseAcople} complementaria.`,
       );
@@ -250,11 +257,17 @@ export function IniciarInspeccionSheet({
                 </div>
               </div>
 
-              {/* Acople (remolcador <-> semirremolque): obligatorio solo si aplica */}
+              {/* Acople (remolcador <-> semirremolque): obligatorio solo desde el
+                  semirremolque (no anda solo); desde el remolcador es opcional. */}
               {claseAcople ? (
                 <div className="grid gap-1.5">
                   <Label htmlFor="ins-acople">
-                    Unidad {claseAcople} complementaria <span className="text-destructive">*</span>
+                    Unidad {claseAcople} complementaria{" "}
+                    {acopleObligatorio ? (
+                      <span className="text-destructive">*</span>
+                    ) : (
+                      <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+                    )}
                   </Label>
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

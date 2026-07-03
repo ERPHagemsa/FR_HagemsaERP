@@ -587,9 +587,20 @@ function ControlRespuesta({
             disabled={deshabilitado}
             min={item.rangoMin ?? undefined}
             max={item.rangoMax ?? undefined}
-            onChange={(e) =>
-              onCambio({ valorNumerico: e.target.value === "" ? null : Number(e.target.value) })
-            }
+            onChange={(e) => {
+              if (e.target.value === "") {
+                onCambio({ valorNumerico: null });
+                return;
+              }
+              // El navegador no clampa min/max en un <input type="number"> fuera
+              // de un <form> con validación nativa; se ajusta acá para no
+              // enviar un valor fuera de rango (el backend lo rechazaría y el
+              // autoguardado quedaría reintentando indefinidamente).
+              let valor = Number(e.target.value);
+              if (item.rangoMin != null) valor = Math.max(item.rangoMin, valor);
+              if (item.rangoMax != null) valor = Math.min(item.rangoMax, valor);
+              onCambio({ valorNumerico: valor });
+            }}
           />
           {item.unidad ? (
             <span className="text-xs text-muted-foreground">{item.unidad}</span>
