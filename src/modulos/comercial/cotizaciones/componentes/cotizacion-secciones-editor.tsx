@@ -649,12 +649,10 @@ function entradasLeadTime(seccion: DraftSeccion): EntradaLeadTime[] {
     c.leadTimeEsRango ? c.leadTimeDiasMax.trim() : "";
 
   for (const l of seccion.lineas) {
-    // Lead time de la linea de transporte (rotulo = ruta de la linea/seccion).
+    // Lead time de la linea de transporte. Concepto = TIPO DE UNIDAD (tipoVehiculo),
+    // igual que el stand-by; fallback a la descripcion o la etiqueta del tipo.
     if (l.tipoLinea === "TRANSPORTE" && l.leadTimeDiasMin.trim() !== "") {
-      const origen = l.carga.origen || seccion.origen;
-      const destino = l.carga.destino || seccion.destino;
-      const ruta = [origen, destino].filter((p) => p && p.trim() !== "").join(" - ");
-      const concepto = ruta || l.descripcion || "Lead time";
+      const concepto = l.carga.tipoVehiculo || l.descripcion || etiquetaTipo(l.tipoLinea);
       entradas.push({ concepto, tipo: "Linea", plazo: plazoDe(l.leadTimeDiasMin.trim(), maxDe(l)) });
     }
     // Lead time de los cargos de la linea (rotulo = nombre del cargo).

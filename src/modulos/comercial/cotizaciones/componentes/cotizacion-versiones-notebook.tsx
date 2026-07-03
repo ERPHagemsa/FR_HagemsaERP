@@ -408,10 +408,10 @@ function entradasLeadTimeLectura(
 
   for (const l of lineas) {
     if (l.leadTimeDiasMin != null) {
-      const ruta = [l.carga?.origen, l.carga?.destino]
-        .filter((p): p is string => Boolean(p && p.trim() !== ""))
-        .join(" - ");
-      const concepto = ruta || l.descripcion || "Lead time";
+      // Concepto de la linea = TIPO DE UNIDAD (tipoVehiculo), igual que el stand-by;
+      // fallback a la descripcion o la etiqueta del tipo de linea.
+      const concepto =
+        l.carga?.tipoVehiculo || l.descripcion || formatearTipoLinea(l.tipoLinea);
       entradas.push({ concepto, tipo: "Linea", plazo: plazoDe(l.leadTimeDiasMin, l.leadTimeDiasMax) });
     }
     for (const c of l.cargosAdicionales ?? []) {
