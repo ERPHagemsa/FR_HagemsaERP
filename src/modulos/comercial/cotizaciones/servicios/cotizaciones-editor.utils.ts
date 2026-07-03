@@ -18,7 +18,6 @@ import type {
   PersonalHijo,
   Linea,
   CargoAdicional,
-  LeadTime,
   TipoLinea,
   Moneda,
   UnidadCobro,
@@ -26,7 +25,6 @@ import type {
   PayloadBorrador,
   PayloadLinea,
   PayloadSeccion,
-  PayloadLeadTime,
   PayloadCargoAdicional,
   PayloadCargaHijo,
   PayloadCargaItem,
@@ -38,15 +36,6 @@ import type {
 // ---------------------------------------------------------------------------
 // Tipos del draft client-side
 // ---------------------------------------------------------------------------
-
-export type DraftLeadTime = {
-  claveCliente: string; // clave efimera UI
-  descripcion: string;
-  diasMin: string;      // input numerico como string
-  diasMax: string;      // "" = plazo exacto (no se emite diasMax)
-  esRango: boolean;     // UI toggle: false => plazo exacto; true => rango
-  orden: number;
-};
 
 export type DraftCargoAdicional = {
   claveCliente: string; // clave efimera UI
@@ -106,6 +95,11 @@ export type DraftLinea = {
   precioBase: string; // requerido (>=0) — precio base de la empresa por unidad
   margenPct: string;  // requerido (0 <= x < 100) — margen sobre la venta en %; se precarga de la modalidad
   standbyDia: string; // stand-by por dia (input numerico como string; "" = sin stand-by); solo TRANSPORTE
+  // Lead time (tiempo de transito de la ruta, en dias enteros); solo TRANSPORTE.
+  // "" en diasMin = sin lead time; esRango false => plazo exacto (no se emite max).
+  leadTimeDiasMin: string;
+  leadTimeDiasMax: string; // "" = plazo exacto (no se emite)
+  leadTimeEsRango: boolean; // UI toggle: false => plazo exacto; true => rango
   // Hijos polimorficos (solo uno se usa segun tipoLinea; los demas ignorados en armarPayload)
   carga: DraftCargaHijo;
   equipo: DraftEquipoHijo;
@@ -131,7 +125,6 @@ export type DraftSeccion = {
 export type DraftBorrador = {
   moneda: Moneda;            // nivel version
   secciones: DraftSeccion[]; // incluye la seccion por defecto (esDefecto:true) si existe
-  leadTimes: DraftLeadTime[]; // nivel version
 };
 
 // ---------------------------------------------------------------------------
@@ -189,22 +182,14 @@ export function lineaVacia(tipoLinea: TipoLinea = "TRANSPORTE"): DraftLinea {
     precioBase: "0",
     margenPct: "0",
     standbyDia: "",
+    leadTimeDiasMin: "",
+    leadTimeDiasMax: "",
+    leadTimeEsRango: false,
     carga: cargaVacia(),
     equipo: equipoVacio(),
     almacenaje: almacenajeVacio(),
     personal: personalVacio(),
     cargosAdicionales: [],
-  };
-}
-
-export function leadTimeVacio(): DraftLeadTime {
-  return {
-    claveCliente: crypto.randomUUID(),
-    descripcion: "",
-    diasMin: "0",
-    diasMax: "",
-    esRango: false,
-    orden: 0,
   };
 }
 
@@ -311,17 +296,6 @@ function cargoAdicionalReadADraft(c: CargoAdicionalCompat): DraftCargoAdicional 
   };
 }
 
-function leadTimeReadADraft(l: LeadTime): DraftLeadTime {
-  return {
-    claveCliente: l.id,
-    descripcion: l.descripcion,
-    diasMin: String(l.diasMin),
-    diasMax: l.diasMax !== null ? String(l.diasMax) : "",
-    esRango: l.diasMax !== null,
-    orden: l.orden,
-  };
-}
-
 // Migracion graceful (ADR-D3): el shape viejo de carga tenia las dimensiones y el peso
 // aplastados en la raiz (largoM/anchoM/altoM/pesoTn) y no existia cargas[]. Si llega ese
 // shape, lo envolvemos en un unico CargaItem para no perder datos de cotizaciones previas.
@@ -407,6 +381,9 @@ function lineaReadADraft(l: Linea): DraftLinea {
     precioBase: String(l.precioBase),
     margenPct: String(l.margenPct),
     standbyDia: l.standbyDia != null ? String(l.standbyDia) : "",
+    leadTimeDiasMin: l.leadTimeDiasMin != null ? String(l.leadTimeDiasMin) : "",
+    leadTimeDiasMax: l.leadTimeDiasMax != null ? String(l.leadTimeDiasMax) : "",
+    leadTimeEsRango: l.leadTimeDiasMax != null,
     // Poblar el hijo correspondiente; el resto queda en valores por defecto
     carga: l.carga ? cargaReadADraft(l.carga) : cargaVacia(),
     equipo: l.equipo ? equipoReadADraft(l.equipo) : equipoVacio(),
@@ -511,10 +488,9 @@ export function derivarDraft(version: Version): DraftBorrador {
     }
   }
 
-  // 4. LeadTimes: nivel version; el stand-by ya no es array (vive en standbyDia por linea/cargo)
-  const leadTimes: DraftLeadTime[] = (version.leadTimes ?? []).map(leadTimeReadADraft);
-
-  return { moneda, secciones, leadTimes };
+  // El stand-by y el lead time ya no son arrays de version: viven como atributos
+  // de cada linea (standbyDia y leadTimeDiasMin/leadTimeDiasMax).
+  return { moneda, secciones };
 }
 
 // ---------------------------------------------------------------------------
@@ -598,6 +574,14 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
   // stand-by por dia: solo se emite si el usuario puso un valor (vacio = sin stand-by).
   if (l.standbyDia.trim() !== "") base.standbyDia = parseNumero(l.standbyDia);
 
+  // lead time: solo se emite si hay dias minimos; el maximo solo si es rango y no esta vacio.
+  if (l.leadTimeDiasMin.trim() !== "") {
+    base.leadTimeDiasMin = parseNumero(l.leadTimeDiasMin);
+    if (l.leadTimeEsRango && l.leadTimeDiasMax.trim() !== "") {
+      base.leadTimeDiasMax = parseNumero(l.leadTimeDiasMax);
+    }
+  }
+
   switch (l.tipoLinea) {
     case "TRANSPORTE":
       base.carga = cargaAPayload(l.carga);
@@ -620,19 +604,6 @@ function lineaAPayload(l: DraftLinea): PayloadLinea {
   }
 
   return base;
-}
-
-function leadTimeAPayload(l: DraftLeadTime): PayloadLeadTime {
-  const payload: PayloadLeadTime = {
-    descripcion: l.descripcion,
-    diasMin: parseNumero(l.diasMin),
-  };
-  // diasMax solo si esRango y el campo no esta vacio
-  if (l.esRango && l.diasMax !== "") {
-    payload.diasMax = parseNumero(l.diasMax);
-  }
-  if (l.orden > 0) payload.orden = l.orden;
-  return payload;
 }
 
 function cargoAdicionalAPayload(c: DraftCargoAdicional): PayloadCargoAdicional {
@@ -747,9 +718,9 @@ function validarCargaItem(
  * validarBorrador — validaciones client-side previas al envío.
  *
  * - Seccion con nombre obligatorio (EXCEPTO esDefecto — la seccion por defecto no exige nombre).
- * - LeadTime: descripcion no vacia; diasMax >= diasMin cuando esRango.
  * - CargoAdicional (seccion y linea): descripcion no vacia; unidadCobro valida; cantidad > 0; precioUnitario >= 0; standbyDia >= 0 si viene.
  * - Stand-by por linea/cargo: standbyDia >= 0 si viene.
+ * - Lead time por linea: si hay diasMin, entero > 0; si es rango, diasMax entero >= diasMin.
  * - Moneda: requerida a nivel version.
  */
 export function validarBorrador(draft: DraftBorrador): Record<string, string> {
@@ -797,6 +768,27 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
           errores[`secciones.${i}.lineas.${k}.standbyDia`] = "El stand-by debe ser >= 0.";
         }
       }
+      // Lead time por linea (opcional): si hay dias minimos, entero > 0 (el backend
+      // no acepta 0); si es rango, el maximo es obligatorio y entero >= minimo.
+      if (l.leadTimeDiasMin.trim() !== "") {
+        const ltMin = parseFloat(l.leadTimeDiasMin);
+        if (isNaN(ltMin) || ltMin <= 0 || !Number.isInteger(ltMin)) {
+          errores[`secciones.${i}.lineas.${k}.leadTimeDiasMin`] =
+            "El lead time minimo debe ser un entero de dias mayor a 0.";
+        }
+        if (l.leadTimeEsRango) {
+          if (l.leadTimeDiasMax.trim() === "") {
+            errores[`secciones.${i}.lineas.${k}.leadTimeDiasMax`] =
+              "Si es un rango, ingrese los dias maximos.";
+          } else {
+            const ltMax = parseFloat(l.leadTimeDiasMax);
+            if (isNaN(ltMax) || !Number.isInteger(ltMax) || ltMax < ltMin) {
+              errores[`secciones.${i}.lineas.${k}.leadTimeDiasMax`] =
+                "El lead time maximo debe ser un entero de dias >= al minimo.";
+            }
+          }
+        }
+      }
       // Items de carga (solo TRANSPORTE): nombre obligatorio, dimensiones/peso >= 0
       if (l.tipoLinea === "TRANSPORTE") {
         l.carga.cargas.forEach((it, j) => {
@@ -812,23 +804,6 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
     s.cargosAdicionales.forEach((c, j) => {
       validarCargo(errores, c, `secciones.${i}.cargosAdicionales.${j}`);
     });
-  });
-
-  // Lead times
-  draft.leadTimes.forEach((l, i) => {
-    if (l.descripcion.trim() === "") {
-      errores[`leadTimes.${i}.descripcion`] = "La descripcion del lead time es obligatoria.";
-    }
-    const minNum = parseFloat(l.diasMin);
-    if (isNaN(minNum) || minNum < 0) {
-      errores[`leadTimes.${i}.diasMin`] = "Los dias minimos deben ser >= 0.";
-    }
-    if (l.esRango && l.diasMax !== "") {
-      const maxNum = parseFloat(l.diasMax);
-      if (isNaN(maxNum) || maxNum < minNum) {
-        errores[`leadTimes.${i}.diasMax`] = "Los dias maximos deben ser >= dias minimos.";
-      }
-    }
   });
 
   return errores;
@@ -857,11 +832,6 @@ export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {
 
   if (seccionesPayload.length > 0) {
     payload.secciones = seccionesPayload;
-  }
-
-  // LeadTimes nivel version
-  if (draft.leadTimes.length > 0) {
-    payload.leadTimes = draft.leadTimes.map(leadTimeAPayload);
   }
 
   return payload;

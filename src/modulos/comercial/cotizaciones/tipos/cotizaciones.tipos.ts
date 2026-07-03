@@ -177,15 +177,6 @@ export type PersonalHijo = {
   rol: string;
 };
 
-// --- LeadTime (nivel version) ---
-export type LeadTime = {
-  id: string;
-  descripcion: string;
-  diasMin: number;
-  diasMax: number | null; // null = plazo exacto; presente = rango (diasMax >= diasMin)
-  orden: number;
-};
-
 // --- CargoAdicional (nivel SECCION o LINEA) ---
 // monto: calculado por el backend (cantidad × precioUnitario); SOLO LECTURA — nunca se envia.
 export type CargoAdicional = {
@@ -220,6 +211,10 @@ export type Linea = {
   precioVenta: number;      // calculado por el backend: precioBase / (1 − margenPct/100), 2 decimales (solo lectura)
   precioVentaTotal: number; // calculado por el backend: precioVenta × cantidad (solo lectura)
   standbyDia: number | null; // stand-by (espera por dia) de la linea; solo TRANSPORTE; null = sin stand-by
+  // Lead time (tiempo de transito de la ruta, en dias); solo TRANSPORTE; null = sin lead time.
+  // diasMax null con diasMin presente = plazo exacto; ambos presentes = rango.
+  leadTimeDiasMin: number | null;
+  leadTimeDiasMax: number | null;
   idSeccion: string | null;
   carga?: CargaHijo;
   equipo?: EquipoHijo;
@@ -242,7 +237,6 @@ export type Version = {
   notas: string | null;
   secciones: Seccion[];
   lineas: Linea[];
-  leadTimes: LeadTime[]; // nivel version
   condicionesVersion?: CondicionVersion[]; // snapshots de condiciones resueltas (WU-4+)
 };
 
@@ -478,14 +472,6 @@ export type CondicionVersion = {
 // `precioVentaTotal = precioVenta × cantidad`.
 // ---------------------------------------------------------------------------
 
-// --- PayloadLeadTime (nivel version) ---
-export type PayloadLeadTime = {
-  descripcion: string;
-  diasMin: number;
-  diasMax?: number; // omitido = plazo exacto
-  orden?: number;
-};
-
 // --- PayloadCargoAdicional (nivel seccion o linea) ---
 // NUNCA incluir monto — el backend lo calcula (cantidad × precioUnitario).
 // El tipo estructuralmente excluye monto para que el compilador rechace cualquier asignacion accidental.
@@ -562,6 +548,10 @@ export type PayloadLinea = {
   margenPct: number;
   cantidad?: number;
   standbyDia?: number | null; // stand-by de la linea (>= 0) o null; solo TRANSPORTE
+  // Lead time de la linea (dias enteros); solo TRANSPORTE. leadTimeDiasMin null u omitido
+  // = sin lead time; leadTimeDiasMax opcional (plazo exacto vs rango, max >= min).
+  leadTimeDiasMin?: number | null;
+  leadTimeDiasMax?: number | null;
   carga?: PayloadCargaHijo;
   equipo?: PayloadEquipoHijo;
   almacenaje?: PayloadAlmacenajeHijo;
@@ -577,15 +567,14 @@ export type PayloadSeccion = {
   cargosAdicionales?: PayloadCargoAdicional[];
 };
 
-// Borrador: moneda + secciones + leadTimes raiz.
+// Borrador: moneda + secciones.
 // Contrato 2026-06-08 (§5.4): NO existe canal de lineas raiz — toda linea va
 // dentro de secciones[].lineas; el caso "plano" es una seccion sin nombre.
-// El stand-by viaja como standbyDia en cada linea/cargo (no hay array de version).
-// leadTimes[] raiz = plazos de entrega de la version
+// El stand-by y el lead time viajan como atributos de cada linea (no hay arrays
+// de version): standbyDia y leadTimeDiasMin/leadTimeDiasMax.
 export type PayloadBorrador = {
   moneda?: Moneda;       // default PEN en el backend
   secciones?: PayloadSeccion[];
-  leadTimes?: PayloadLeadTime[]; // SOLO root
 };
 
 // SC y transiciones — union discriminada por origenTipo

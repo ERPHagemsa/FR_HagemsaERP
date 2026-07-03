@@ -98,7 +98,9 @@ export function CotizacionVersionesNotebook({
     lineasPorSeccion.get(linea.idSeccion)!.push(linea);
   }
 
-  const leadTimes = version.leadTimes ?? [];
+  // Lead time recolectado de las lineas de transporte (mismo patron que stand-by):
+  // ya no es una coleccion de version. El rotulo es la ruta de la linea.
+  const leadTimes = entradasLeadTimeLectura(version.lineas);
   const totalLineas = version.lineas.length;
   // La version seleccionada se edita inline solo si: la cotizacion es editable, es la
   // vigente y no esta congelada.
@@ -283,13 +285,11 @@ export function CotizacionVersionesNotebook({
                   </tr>
                 </thead>
                 <tbody>
-                  {leadTimes.map((lt) => (
-                    <tr key={lt.id} className="border-b border-border last:border-0">
+                  {leadTimes.map((lt, i) => (
+                    <tr key={`${lt.descripcion}-${i}`} className="border-b border-border last:border-0">
                       <td className="px-3 py-2">{lt.descripcion}</td>
                       <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
-                        {lt.diasMax !== null
-                          ? `${lt.diasMin}–${lt.diasMax} dias`
-                          : `${lt.diasMin} dia${lt.diasMin !== 1 ? "s" : ""}`}
+                        {lt.plazo}
                       </td>
                     </tr>
                   ))}
@@ -420,6 +420,34 @@ function entradasStandbyLectura(lineas: Linea[], cargosSeccion: CargoAdicional[]
     }
   }
   return entradas;
+}
+
+type EntradaLeadTime = { descripcion: string; plazo: string };
+
+// Lead time recolectado de las lineas de transporte (lectura): una entrada por
+// cada linea con lead time. El rotulo se deriva de la ruta origen→destino
+// (fallback a la descripcion). Se deduplica por rotulo+plazo, como el stand-by.
+function entradasLeadTimeLectura(lineas: Linea[]): EntradaLeadTime[] {
+  const entradas: EntradaLeadTime[] = [];
+  for (const l of lineas) {
+    if (l.leadTimeDiasMin == null) continue;
+    const ruta = [l.carga?.origen, l.carga?.destino]
+      .filter((p): p is string => Boolean(p && p.trim() !== ""))
+      .join(" - ");
+    const descripcion = ruta || l.descripcion || "Lead time";
+    const plazo =
+      l.leadTimeDiasMax != null
+        ? `${l.leadTimeDiasMin}–${l.leadTimeDiasMax} dias`
+        : `${l.leadTimeDiasMin} dia${l.leadTimeDiasMin !== 1 ? "s" : ""}`;
+    entradas.push({ descripcion, plazo });
+  }
+  const vistos = new Set<string>();
+  return entradas.filter((e) => {
+    const clave = `${e.descripcion} ${e.plazo}`;
+    if (vistos.has(clave)) return false;
+    vistos.add(clave);
+    return true;
+  });
 }
 
 // Ruta de una linea de transporte (origen → destino); null si no aplica.
