@@ -148,6 +148,12 @@ export type CrearActivoPayload = {
   descripcion: string;
   ubicacion: string;
   estadoActivo: EstadoActivo;
+  /**
+   * Id de la unidad de baja que origina el replaqueo. Con esto el backend
+   * enlaza origen->nuevo (excluye al origen de futuros replaqueos) y omite
+   * la validacion de chasis/motor duplicados (la unidad conserva los mismos).
+   */
+  activoOrigenId?: number;
   observacion?: string;
   valorUnidad?: number | null;
   moneda?: string | null;
