@@ -60,6 +60,13 @@ export const URLS_SERVIDOR = {
     process.env.CONFIGURACION_GENERAL_API_URL ??
     API_GATEWAY_URL ??
     "http://localhost:4002/api",
+
+  // geo-peru-api: reverse-geocoding por limites distritales del INEI + cascada.
+  // Servicio publico (no requiere auth). Lo consume el Route Handler /api/geo/*.
+  geo:
+    process.env.GEO_API_URL ??
+    API_GATEWAY_URL ??
+    "http://localhost:4100",
 } as const
 
 export type ServicioBackendServidor = keyof typeof URLS_SERVIDOR

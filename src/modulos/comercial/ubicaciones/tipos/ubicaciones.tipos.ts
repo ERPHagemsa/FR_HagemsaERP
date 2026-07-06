@@ -63,6 +63,20 @@ export interface Ubicacion extends UbicacionBc14 {
   fechaCreacion: string;
 }
 
+// Datos geográficos que emite el selector de mapa (Google Places / Geocoding)
+// al elegir un lugar o mover el pin. Se vuelca sobre el formulario de completar.
+export interface DatosUbicacionGeo {
+  // Nombre sugerido del lugar (solo al elegir en el autocomplete; en drag no aplica).
+  nombre?: string;
+  pais: string;
+  departamento: string;
+  provincia: string;
+  distrito: string;
+  direccion: string;
+  latitud: number;
+  longitud: number;
+}
+
 // Filtros del proxy de búsqueda/dedup contra BC-14.
 export interface FiltroUbicacionesBc14 {
   nombre?: string;

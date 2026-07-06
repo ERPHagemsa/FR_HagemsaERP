@@ -18,6 +18,7 @@ required_vars=(
   COMERCIAL_API_URL
   SOCIO_NEGOCIOS_API_URL
   CONFIGURACION_GENERAL_API_URL
+  GEO_API_URL
   NODE_ENV
 )
 
@@ -37,6 +38,7 @@ VARS="${VARS},COMBUSTIBLE_API_URL=${COMBUSTIBLE_API_URL}"
 VARS="${VARS},COMERCIAL_API_URL=${COMERCIAL_API_URL}"
 VARS="${VARS},SOCIO_NEGOCIOS_API_URL=${SOCIO_NEGOCIOS_API_URL}"
 VARS="${VARS},CONFIGURACION_GENERAL_API_URL=${CONFIGURACION_GENERAL_API_URL}"
+VARS="${VARS},GEO_API_URL=${GEO_API_URL}"
 
 # Opcionales: solo se agregan si estan definidas en .env.cloud.
 if [ -n "${FLOTA_API_URL}" ]; then
@@ -48,11 +50,22 @@ if [ -n "${API_GATEWAY_URL}" ]; then
   VARS="${VARS},API_GATEWAY_URL=${API_GATEWAY_URL}"
 fi
 
-# Ya no hay variables NEXT_PUBLIC_ de backend: nada que hornear en build salvo
-# NODE_ENV. Por eso desaparece la generacion de .env.production.
+# Env vars de BUILD: las NEXT_PUBLIC_* se "inlinean" en `next build`, NO en
+# runtime, asi que van aca (no en --set-env-vars). No hay NEXT_PUBLIC_ de
+# backend (esas son server-only). La unica es la clave de Google Maps del
+# selector de ubicaciones: config PUBLICA del cliente, protegida por
+# restriccion de referrer/API en Google Cloud, no por secreto. Es OPCIONAL: si
+# falta, el mapa se deshabilita y los campos se completan a mano.
+BUILD_VARS="NODE_ENV=${NODE_ENV}"
+if [ -n "${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}" ]; then
+  BUILD_VARS="${BUILD_VARS},NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}"
+else
+  echo "Aviso: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY no esta definida; el mapa del selector de ubicaciones quedara deshabilitado (los campos se completan a mano)."
+fi
+
 gcloud run deploy front-ddd \
   --source . \
   --region=us-central1 \
   --clear-base-image \
-  --set-build-env-vars="NODE_ENV=${NODE_ENV}" \
+  --set-build-env-vars="${BUILD_VARS}" \
   --set-env-vars="${VARS}"

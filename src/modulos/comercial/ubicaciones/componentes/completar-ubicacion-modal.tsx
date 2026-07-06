@@ -27,7 +27,9 @@ import {
 import { buscarUbicacionesBc14 } from "../servicios/ubicaciones-api";
 import { useCompletarUbicacionMutation } from "../servicios/ubicaciones-queries";
 import { normalizarErrorAccion } from "../../cotizaciones/servicios/cotizaciones-error-handler";
+import { SelectorUbicacionMapa } from "./selector-ubicacion-mapa";
 import type {
+  DatosUbicacionGeo,
   PayloadCompletarUbicacion,
   TipoUbicacion,
   UbicacionBc14,
@@ -111,6 +113,20 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
     setCandidatas(null);
   }
 
+  // Vuelca los datos del mapa (Places / Geocoding) al formulario. Los campos
+  // siguen editables: solo se pisan los que el lugar/pin devolvió con valor.
+  function alSeleccionarMapa(d: DatosUbicacionGeo) {
+    const parcial: Partial<FormState> = {
+      direccion: d.direccion,
+      coordenadasGoogle: `${d.latitud}, ${d.longitud}`,
+    };
+    if (d.pais) parcial.pais = d.pais;
+    if (d.departamento) parcial.departamento = d.departamento;
+    if (d.provincia) parcial.provincia = d.provincia;
+    if (d.distrito) parcial.distrito = d.distrito;
+    set(parcial);
+  }
+
   const camposCompletos =
     form.tipoUbicacion !== "" &&
     form.pais.trim() !== "" &&
@@ -183,7 +199,7 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
 
   return (
     <Dialog open={abierto} onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="size-4" />
@@ -200,7 +216,9 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2">
+        <div className="grid gap-4 py-2 md:grid-cols-2">
+          {/* Columna izquierda: formulario */}
+          <div className="grid content-start gap-4">
           <div className="grid gap-2">
             <Label>Tipo de ubicación</Label>
             <Select
@@ -344,6 +362,19 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
               </p>
             </div>
           )}
+          </div>
+
+          {/* Columna derecha: mapa */}
+          <div className="md:order-last md:self-start">
+            <SelectorUbicacionMapa
+              valorInicial={
+                temporal
+                  ? { latitud: temporal.latitud, longitud: temporal.longitud }
+                  : undefined
+              }
+              onSeleccion={alSeleccionarMapa}
+            />
+          </div>
         </div>
 
         <DialogFooter>
