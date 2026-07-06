@@ -11,6 +11,7 @@ import {
   CircleDot,
   Cloud,
   CloudOff,
+  Download,
   Loader2,
   Lock,
 } from "lucide-react";
@@ -43,6 +44,7 @@ import {
   useCerrarInspeccionMutation,
   useInspeccionQuery,
 } from "../servicios/inspecciones-queries";
+import { descargarPdfInspeccion } from "../servicios/inspeccion-api";
 import type {
   EstadoItem,
   Inspeccion,
@@ -154,6 +156,25 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
     },
     onError: (err) => toast.error(extraerMensajeError(err)),
   });
+
+  const [descargandoPdf, setDescargandoPdf] = useState(false);
+
+  async function handleDescargarPdf() {
+    setDescargandoPdf(true);
+    try {
+      const blob = await descargarPdfInspeccion(inspeccionId);
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = `checklist-${inspeccion?.codigo ?? inspeccionId}.pdf`;
+      enlace.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(extraerMensajeError(err));
+    } finally {
+      setDescargandoPdf(false);
+    }
+  }
 
   // Seed inicial: una sola vez por inspección cargada.
   useEffect(() => {
@@ -304,6 +325,19 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
           <Badge variant={esInmutable ? "default" : (estadoActual ?? inspeccion.estado) === "COMPLETA" ? "secondary" : "outline"}>
             {estadoActual ?? inspeccion.estado}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDescargarPdf}
+            disabled={descargandoPdf}
+          >
+            {descargandoPdf ? (
+              <Loader2 data-icon="inline-start" className="animate-spin" />
+            ) : (
+              <Download data-icon="inline-start" />
+            )}
+            PDF
+          </Button>
         </div>
       </div>
 
