@@ -190,7 +190,7 @@ function construirGruposAuditoria(
   const gruposPorLlave = new Map<string, ValorCatalogoHistorial[]>();
 
   for (const item of historial) {
-    const llave = [item.accion, item.createdAt, item.usuario ?? "", item.motivo ?? ""].join("|");
+    const llave = [item.accion, item.fechaCreacion, item.usuario ?? "", item.motivo ?? ""].join("|");
     gruposPorLlave.set(llave, [...(gruposPorLlave.get(llave) ?? []), item]);
   }
 
@@ -199,7 +199,7 @@ function construirGruposAuditoria(
 
     return {
       id: llave,
-      fecha: primero.createdAt,
+      fecha: primero.fechaCreacion,
       accion: formatearAccion(primero.accion),
       variante: varianteAccion(primero.accion),
       resumen: construirResumen(items, primero.accion, clasesVehiculoPorId),

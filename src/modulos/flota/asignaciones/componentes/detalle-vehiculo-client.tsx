@@ -41,15 +41,15 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades/utils";
-import { FlotaPageHeader } from "./flota-page-header";
+import { FlotaPageHeader } from "../../compartido/componentes/flota-page-header";
 import {
   asignarContrato,
   obtenerUnidadPorId,
   retirarAsignacion,
   retirarContrato,
-} from "../servicios/flota-api";
-import type { VehiculoFlota } from "../tipos/flota.tipos";
-import type { ContratoDisponibleFlota, ReferenciaFlota } from "../tipos/flota.tipos";
+} from "../servicios/asignaciones-api";
+import type { VehiculoFlota } from "../tipos/asignaciones.tipos";
+import type { ContratoDisponibleFlota, ReferenciaFlota } from "../tipos/asignaciones.tipos";
 import { parseRef } from "./flota-normalizadores";
 
 type MensajeOperacion = { descripcion: string; tipo: "success" | "error" } | null;

@@ -88,9 +88,21 @@ type Props = {
   activos: Activo[];
   /** Cuando se pasa, la tabla usa paginación del servidor en lugar de la interna */
   paginacionExterna?: PaginacionExterna;
+  /**
+   * Avisa al padre cuando cambia el filtro de registro APLICADO, para que
+   * refetchee del servidor (los anulados no vienen en la data por defecto;
+   * filtrarlos solo localmente siempre daria 0 filas).
+   */
+  onCambiarFiltroRegistro?: (filtro: FiltroRegistro) => void;
+  /**
+   * Valor inicial del filtro de registro. Necesario porque el padre desmonta
+   * la tabla mientras refetchea (skeleton) y sin esto el filtro elegido se
+   * perderia en cada remontaje.
+   */
+  filtroRegistroInicial?: FiltroRegistro;
 };
 
-type FiltroRegistro = "ACTIVO" | "ANULADO" | "TODOS";
+export type FiltroRegistro = "ACTIVO" | "ANULADO" | "TODOS";
 
 type FiltrosActivos = {
   query: string;
@@ -114,13 +126,22 @@ const FILTROS_INICIALES: FiltrosActivos = {
   fechaHasta: "",
 };
 
-export function ActivosTabla({ activos, paginacionExterna }: Props) {
+export function ActivosTabla({
+  activos,
+  paginacionExterna,
+  onCambiarFiltroRegistro,
+  filtroRegistroInicial,
+}: Props) {
   const router = useRouter();
   const catalogos = useCatalogosActivos();
+  const filtrosBase: FiltrosActivos = {
+    ...FILTROS_INICIALES,
+    estadoRegistro: filtroRegistroInicial ?? FILTROS_INICIALES.estadoRegistro,
+  };
   const [filtrosFormulario, setFiltrosFormulario] =
-    React.useState<FiltrosActivos>(FILTROS_INICIALES);
+    React.useState<FiltrosActivos>(filtrosBase);
   const [filtrosAplicados, setFiltrosAplicados] =
-    React.useState<FiltrosActivos>(FILTROS_INICIALES);
+    React.useState<FiltrosActivos>(filtrosBase);
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
   const [ordenModificacion, setOrdenModificacion] = React.useState<
@@ -151,7 +172,7 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
     const placa = activo.vehiculo?.placa ?? "";
     const marca = activo.vehiculo?.marca ?? "";
     const modelo = activo.vehiculo?.modelo ?? "";
-    const fechaModificacion = normalizarFecha(activo.updatedAt);
+    const fechaModificacion = normalizarFecha(activo.fechaModificacion);
     const coincideTexto = [activo.codigo, activo.descripcion, placa, marca, modelo]
       .join(" ")
       .toUpperCase()
@@ -203,8 +224,8 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
     filtrosAplicados.fechaHasta;
 
   const ordenados = [...filtrados].sort((a, b) => {
-    const fechaA = new Date(a.updatedAt).getTime();
-    const fechaB = new Date(b.updatedAt).getTime();
+    const fechaA = new Date(a.fechaModificacion).getTime();
+    const fechaB = new Date(b.fechaModificacion).getTime();
 
     return ordenModificacion === "reciente"
       ? fechaB - fechaA
@@ -262,12 +283,18 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
   function aplicarFiltros() {
     setPagina(1);
     setFiltrosAplicados(filtrosFormulario);
+    if (filtrosFormulario.estadoRegistro !== filtrosAplicados.estadoRegistro) {
+      onCambiarFiltroRegistro?.(filtrosFormulario.estadoRegistro);
+    }
   }
 
   function limpiarFiltros() {
     setPagina(1);
     setFiltrosFormulario(FILTROS_INICIALES);
     setFiltrosAplicados(FILTROS_INICIALES);
+    if (filtrosAplicados.estadoRegistro !== FILTROS_INICIALES.estadoRegistro) {
+      onCambiarFiltroRegistro?.(FILTROS_INICIALES.estadoRegistro);
+    }
   }
 
   function exportarExcel() {
@@ -286,7 +313,7 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
         "ESTADO_CALIBRACION",
         activo.vehiculo?.estadoCalibracionReferenciaId
       ),
-      Modificado: formatearFecha(activo.updatedAt),
+      Modificado: formatearFecha(activo.fechaModificacion),
     }));
     const csv = convertirCsv(filas);
     descargarArchivo(csv, `activos-${fechaArchivo()}.csv`, "text/csv;charset=utf-8");
@@ -310,7 +337,7 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
             <td>${escaparHtml(activo.ubicacion)}</td>
             <td>${escaparHtml(formatearEstadoActivo(activo.estadoActivo))}</td>
             <td>${escaparHtml(formatear(activo.vehiculo?.estadoOperativo))}</td>
-            <td>${escaparHtml(formatearFecha(activo.updatedAt))}</td>
+            <td>${escaparHtml(formatearFecha(activo.fechaModificacion))}</td>
           </tr>`
       )
       .join("");
@@ -402,6 +429,7 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
         ...actual,
         estadoRegistro: "ACTIVO",
       }));
+      onCambiarFiltroRegistro?.("ACTIVO");
       toast.success("Activo reintegrado", {
         description: `${activoParaReintegrar.codigo} vuelve a estar disponible en el listado de activos.`,
       });
@@ -768,7 +796,7 @@ export function ActivosTabla({ activos, paginacionExterna }: Props) {
                     />
                   </TableCell>
                   <TableCell className="truncate text-sm text-muted-foreground">
-                    {formatearFecha(activo.updatedAt)}
+                    {formatearFecha(activo.fechaModificacion)}
                   </TableCell>
                 </TableRow>
                 );

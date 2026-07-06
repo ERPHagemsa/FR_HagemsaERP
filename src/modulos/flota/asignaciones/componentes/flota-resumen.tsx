@@ -22,7 +22,7 @@ import {
   CardTitle,
 } from "@/compartido/componentes/ui/card";
 import { cn } from "@/compartido/utilidades/utils";
-import type { ResumenFlota, VehiculoFlota } from "../tipos/flota.tipos";
+import type { ResumenFlota, VehiculoFlota } from "../tipos/asignaciones.tipos";
 import { asignacionesVehiculo, esVisibleEnFlota, estadoOperativoVehiculo } from "./flota-normalizadores";
 
 type Props = {

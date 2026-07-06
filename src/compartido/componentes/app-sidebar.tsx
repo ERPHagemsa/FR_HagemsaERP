@@ -125,6 +125,7 @@ const data = {
         { title: "Conductores", url: "#" },
         { title: "Disponibilidad", url: "#" },
         { title: "Prestamos", url: "#" },
+        { title: "Inspecciones", url: "/flota/checklist/inspecciones" },
       ],
     },
     {
@@ -196,6 +197,7 @@ const data = {
         { title: "Regímenes", url: "/configuracion/regimenes" },
         { title: "Peajes", url: "/configuracion/peajes" },
         { title: "Rutas", url: "/configuracion/rutas" },
+        { title: "Costos operativos", url: "/configuracion/costos-operativos" },
         { title: "Reportes", url: "/configuracion/reportes" },
       ],
     },

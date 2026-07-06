@@ -823,7 +823,13 @@ function PasoResultado({
               {mostrarSubidaSeleccionados ? (
                 <SubidaDocumentoSeleccionadosContenido
                   codigos={codigosParaDocumentos}
-                  onSubido={() => setMostrarSubidaSeleccionados(false)}
+                  onSubido={() => {
+                    setMostrarSubidaSeleccionados(false);
+                    // Limpia los checkboxes: el toast ya dice a que activos
+                    // se subio; dejarlos marcados invita a re-subir el mismo
+                    // documento (crearia OTRO documento_compartido duplicado).
+                    setCodigosSeleccionados(new Set());
+                  }}
                 />
               ) : null}
             </div>
@@ -857,6 +863,9 @@ function DocumentosDrawerContenido({ codigo }: { codigo: string }) {
     />
   );
 }
+
+/* Radix Select no acepta value="" en un item; sentinel para "sin seleccion". */
+const SIN_TIPO_DOCUMENTO = "__ninguno__";
 
 /**
  * Sube UN solo archivo (ej. poliza de flota) y lo asocia a todos los
@@ -938,9 +947,18 @@ function SubidaDocumentoSeleccionadosContenido({
           },
         ],
       });
-      toast.success(
-        `${datos.totalAsociados} de ${codigos.length} activo(s) actualizados.`
-      );
+      const nombreTipo = tipoMeta?.nombre ?? "documento";
+      if (datos.totalAsociados === codigos.length) {
+        toast.success(
+          `Se subio 1 ${nombreTipo} a ${codigos.length} activo${codigos.length === 1 ? "" : "s"}.`,
+          { description: codigos.join(", ") },
+        );
+      } else {
+        toast.warning(
+          `Se subio el documento a ${datos.totalAsociados} de ${codigos.length} activos.`,
+          { description: codigos.join(", ") },
+        );
+      }
       onSubido();
     } catch (error) {
       console.error(error);
@@ -966,13 +984,23 @@ function SubidaDocumentoSeleccionadosContenido({
         <Label>Tipo de documento</Label>
         <Select
           value={tipoDocumento}
-          onValueChange={(v) => setTipoDocumento(v as TipoDocumentoCarga)}
+          onValueChange={(v) =>
+            setTipoDocumento(
+              v === SIN_TIPO_DOCUMENTO ? "" : (v as TipoDocumentoCarga),
+            )
+          }
           disabled={tiposCompartidos.length === 0}
         >
           <SelectTrigger>
             <SelectValue placeholder="Selecciona el tipo" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem
+              value={SIN_TIPO_DOCUMENTO}
+              className="text-muted-foreground"
+            >
+              Ninguno
+            </SelectItem>
             {tiposCompartidos.map((tipo) => (
               <SelectItem key={tipo.codigo} value={tipo.codigo}>
                 {tipo.nombre}

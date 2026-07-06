@@ -1,4 +1,4 @@
-import type { VehiculoFlota } from "../tipos/flota.tipos";
+import type { VehiculoFlota } from "../tipos/asignaciones.tipos";
 
 export type ContratoRef = { id: string; codigo: string; nombre: string } | null;
 
@@ -29,6 +29,7 @@ export function parseRef(raw: unknown): ContratoRef {
 }
 
 export type AsignacionVehiculo = {
+  id?: number;
   contrato: ContratoRef;
   cuenta: ContratoRef;
   fechaInicio?: string | null;
@@ -37,6 +38,7 @@ export type AsignacionVehiculo = {
 
 export function asignacionesVehiculo(vehiculo: VehiculoFlota): AsignacionVehiculo[] {
   return (vehiculo.asignaciones ?? []).map((a) => ({
+    id: a.id,
     contrato: parseRef(a.contrato),
     cuenta: parseRef(a.cuenta),
     fechaInicio: a.fechaInicio ?? null,
