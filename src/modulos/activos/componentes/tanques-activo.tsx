@@ -208,7 +208,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
                 <TableCell>{formatearNumero(tanque.capacidad)}</TableCell>
                 <TableCell>{formatear(tanque.unidadMedida)}</TableCell>
                 <TableCell>{tanque.observacion ?? "-"}</TableCell>
-                <TableCell>{formatearFecha(tanque.createdAt)}</TableCell>
+                <TableCell>{formatearFecha(tanque.fechaCreacion)}</TableCell>
                 {editable ? (
                   <TableCell>
                     <Button

@@ -78,7 +78,7 @@ export function ActivosVista() {
   const ultimosActivos = [...activosVisibles]
     .sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime(),
     )
     .slice(0, 8);
   const bajasRecientes = activosVisibles
@@ -87,7 +87,7 @@ export function ActivosVista() {
     )
     .sort(
       (a, b) =>
-        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        new Date(b.fechaModificacion).getTime() - new Date(a.fechaModificacion).getTime(),
     )
     .slice(0, 4);
   const dataAltas = agruparAltasRecientes(activosVisibles);
@@ -277,7 +277,7 @@ export function ActivosVista() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                {formatearFecha(activo.updatedAt)}
+                                {formatearFecha(activo.fechaModificacion)}
                               </TableCell>
                             </TableRow>
                           ))}
@@ -359,7 +359,7 @@ export function ActivosVista() {
                         <p className="font-medium">{activo.codigo}</p>
                         <p className="text-sm text-muted-foreground">
                           {formatear(activo.estadoActivo)} desde{" "}
-                          {formatearFecha(activo.updatedAt)}
+                          {formatearFecha(activo.fechaModificacion)}
                         </p>
                       </div>
                     ))}
@@ -428,7 +428,7 @@ function AlertaMini({
 
 function agruparAltasRecientes(activos: Activo[]) {
   const conteo = activos.reduce<Record<string, number>>((acc, activo) => {
-    const fecha = activo.createdAt?.slice(0, 10);
+    const fecha = activo.fechaCreacion?.slice(0, 10);
     if (!fecha) return acc;
     acc[fecha] = (acc[fecha] ?? 0) + 1;
     return acc;

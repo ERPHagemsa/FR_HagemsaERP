@@ -46,7 +46,7 @@ export type CargaMasiva = {
   totalRechazados: number;
   observacion: string | null;
   usuario: string | null;
-  createdAt: string;
+  fechaCreacion: string;
   detalles?: CargaMasivaDetalle[];
 };
 

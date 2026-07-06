@@ -105,7 +105,7 @@ export function ValorCatalogoHistorialVista({
                     Ultima modificacion
                   </dt>
                   <dd className="text-sm font-medium">
-                    {new Date(item.updatedAt).toLocaleString("es-PE")}
+                    {new Date(item.fechaModificacion).toLocaleString("es-PE")}
                   </dd>
                 </div>
               </dl>
