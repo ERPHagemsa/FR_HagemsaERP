@@ -220,7 +220,7 @@ function construirGruposAuditoria(
 ): GrupoAuditoria[] {
   const gruposConfiguracion = configuraciones.map((item) => ({
     id: `configuracion-${item.id}`,
-    fecha: item.fechaCambio || item.createdAt,
+    fecha: item.fechaCambio || item.fechaCreacion,
     accion: formatearTipoConfiguracion(item.tipoCambio),
     modulo: "Configuracion historica",
     resumen: construirResumenConfiguracion(item),
@@ -240,7 +240,7 @@ function construirGruposAuditoria(
   for (const item of historialVisible) {
     const llave = [
       item.tipoCambio,
-      item.createdAt,
+      item.fechaCreacion,
       item.usuario ?? "",
       item.motivo ?? "",
       item.origenCambio ?? "",
@@ -257,7 +257,7 @@ function construirGruposAuditoria(
 
       return {
         id: `historial-${llave}`,
-        fecha: primero.createdAt,
+        fecha: primero.fechaCreacion,
         accion: formatearTexto(primero.tipoCambio),
         modulo: obtenerModuloHistorial(items),
         resumen: construirResumenHistorial(items),

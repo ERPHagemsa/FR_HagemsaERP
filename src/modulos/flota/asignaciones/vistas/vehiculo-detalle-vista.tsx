@@ -8,7 +8,7 @@ import {
   obtenerUnidadPorId,
   obtenerContratosDisponibles,
   obtenerCuentasDisponibles,
-} from "../servicios/flota-api";
+} from "../servicios/asignaciones-api";
 
 type Props = {
   id: string;

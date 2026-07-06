@@ -4,7 +4,7 @@ import type {
   ContratoDisponibleFlota,
   ReferenciaFlota,
   VehiculoFlota,
-} from "../tipos/flota.tipos";
+} from "../tipos/asignaciones.tipos";
 
 // Capa de datos de Flota para el NAVEGADOR (Client Components).
 //

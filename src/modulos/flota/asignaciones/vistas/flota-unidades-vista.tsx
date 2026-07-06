@@ -7,8 +7,8 @@ import { useConsulta } from "@/compartido/api/use-consulta";
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import { Button } from "@/compartido/componentes/ui/button";
 import { FlotaTabla } from "../componentes/flota-tabla";
-import { FlotaPageHeader } from "../componentes/flota-page-header";
-import { obtenerUnidades } from "../servicios/flota-api";
+import { FlotaPageHeader } from "../../compartido/componentes/flota-page-header";
+import { obtenerUnidades } from "../servicios/asignaciones-api";
 
 export function FlotaUnidadesVista() {
   const { data, isLoading } = useConsulta(() => obtenerUnidades(), []);

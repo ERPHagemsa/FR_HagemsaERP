@@ -69,7 +69,7 @@ export function ActivosInventarioListado({ activos }: Props) {
   });
 
   const ordenados = [...filtrados].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    (a, b) => new Date(b.fechaModificacion).getTime() - new Date(a.fechaModificacion).getTime()
   );
   const totalPaginas = Math.max(
     1,
@@ -259,8 +259,8 @@ function InventarioItem({
         <Dato label="Categoria" value={vehiculo?.categoria} />
         <Dato label="Serie chasis" value={vehiculo?.serieChasis} />
         <Dato label="Serie motor" value={vehiculo?.serieMotor} />
-        <Dato label="Creacion" value={formatearFecha(activo.createdAt)} />
-        <Dato label="Ultima modificacion" value={formatearFecha(activo.updatedAt)} />
+        <Dato label="Creacion" value={formatearFecha(activo.fechaCreacion)} />
+        <Dato label="Ultima modificacion" value={formatearFecha(activo.fechaModificacion)} />
       </div>
     </article>
   );

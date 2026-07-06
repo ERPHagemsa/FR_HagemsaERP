@@ -7,8 +7,8 @@ import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import {
   obtenerHistorialPorId,
   obtenerUnidadPorId,
-} from "@/modulos/flota/servicios/flota-api";
-import { FlotaHistorialVista } from "@/modulos/flota/vistas/flota-historial-vista";
+} from "@/modulos/flota/asignaciones/servicios/asignaciones-api";
+import { FlotaHistorialVista } from "@/modulos/flota/asignaciones/vistas/flota-historial-vista";
 
 export default function FlotaHistorialPage() {
   const params = useParams<{ id: string }>();

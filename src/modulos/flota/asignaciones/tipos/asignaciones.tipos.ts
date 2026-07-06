@@ -1,5 +1,7 @@
 export type VehiculoFlota = {
   id: string;
+  // Id externo en BC-Activos, mantenido solo como referencia del maestro origen.
+  activoId?: string | null;
   codigo?: string | null;
   descripcion?: string | null;
   tipoActivo?: string | null;
@@ -11,6 +13,9 @@ export type VehiculoFlota = {
   marca?: string | null;
   modelo?: string | null;
   carroceria?: string | null;
+  // Clase del vehículo (Camión, Equipo liviano, Remolcador, Semirremolque...);
+  // resuelve la plantilla de checklist y los tipos ofrecidos al iniciar uno.
+  clase?: string | null;
   serieChasis?: string | null;
   serieMotor?: string | null;
   anioFabricacion?: number | null;

@@ -1000,7 +1000,7 @@ function FichaRevisionInventario({
                 />
                 <DatoInventario
                   label="Ultima actualizacion"
-                  value={formatearFecha(detalle.updatedAt)}
+                  value={formatearFecha(detalle.fechaModificacion)}
                 />
               </FichaGrid>
             </CardContent>
@@ -1180,7 +1180,7 @@ function HistorialInventario({
                     </p>
                   </div>
                   <div className="text-sm text-muted-foreground md:text-right">
-                    <p>{formatearFecha(evento.createdAt)}</p>
+                    <p>{formatearFecha(evento.fechaCreacion)}</p>
                     <p>Usuario: {evento.usuario || "-"}</p>
                   </div>
                 </div>
@@ -2192,8 +2192,8 @@ function construirDetallesInventario(
       observacion: null,
       usuarioRevision: null,
       fechaRevision: null,
-      createdAt: inventario.createdAt,
-      updatedAt: inventario.updatedAt,
+      fechaCreacion: inventario.fechaCreacion,
+      fechaModificacion: inventario.fechaModificacion,
     } satisfies InventarioFisicoDetalle;
   });
 

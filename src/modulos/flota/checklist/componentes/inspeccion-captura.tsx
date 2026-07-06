@@ -1,0 +1,645 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Check,
+  CheckCircle2,
+  CircleDot,
+  Cloud,
+  CloudOff,
+  Loader2,
+  Lock,
+} from "lucide-react";
+
+import { extraerMensajeError } from "@/compartido/api/formato-error";
+import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
+import { Badge } from "@/compartido/componentes/ui/badge";
+import { Button } from "@/compartido/componentes/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/compartido/componentes/ui/card";
+import { Input } from "@/compartido/componentes/ui/input";
+import { Separator } from "@/compartido/componentes/ui/separator";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/compartido/componentes/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/compartido/componentes/ui/toggle-group";
+import {
+  useAutoguardarRespuestasMutation,
+  useCerrarInspeccionMutation,
+  useInspeccionQuery,
+} from "../servicios/inspecciones-queries";
+import type {
+  EstadoItem,
+  Inspeccion,
+  InspeccionItem,
+  InspeccionNeumatico,
+  LecturaNeumaticoPayload,
+  RespuestaItemPayload,
+} from "../tipos/inspeccion.tipos";
+
+const RETRASO_AUTOGUARDADO_MS = 900;
+
+type RespuestaLocal = {
+  estadoItem: EstadoItem;
+  cantidad: number | null;
+  valorNumerico: number | null;
+  valorTexto: string | null;
+  valorBooleano: boolean | null;
+  observacion: string | null;
+};
+
+type NeumaticoLocal = {
+  cocadaMm: number | null;
+  otro: string | null;
+};
+
+function respuestaDesdeItem(item: InspeccionItem): RespuestaLocal {
+  return {
+    estadoItem: item.estadoItem,
+    cantidad: item.cantidad,
+    valorNumerico: item.valorNumerico,
+    valorTexto: item.valorTexto,
+    valorBooleano: item.valorBooleano,
+    observacion: item.observacion,
+  };
+}
+
+function neumaticoDesdeLectura(n: InspeccionNeumatico): NeumaticoLocal {
+  return { cocadaMm: n.cocadaMm, otro: n.otro };
+}
+
+type EstadoAutoguardado = "idle" | "pendiente" | "guardando" | "guardado" | "error";
+
+function IndicadorGuardado({ estado }: { estado: EstadoAutoguardado }) {
+  switch (estado) {
+    case "pendiente":
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <CloudOff className="size-3.5" /> Cambios sin guardar...
+        </span>
+      );
+    case "guardando":
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" /> Guardando...
+        </span>
+      );
+    case "guardado":
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+          <Cloud className="size-3.5" /> Guardado
+        </span>
+      );
+    case "error":
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-destructive">
+          <AlertTriangle className="size-3.5" /> Error al guardar, reintentando...
+        </span>
+      );
+    default:
+      return null;
+  }
+}
+
+function DatoOperacion({ etiqueta, valor }: { etiqueta: string; valor: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs text-muted-foreground">{etiqueta}</span>
+      <span className="text-sm font-medium">{valor ?? "—"}</span>
+    </div>
+  );
+}
+
+export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
+  const router = useRouter();
+  const consulta = useInspeccionQuery(inspeccionId);
+  const inspeccion = consulta.data;
+
+  // Estado local editable (server es la fuente al cargar; luego el usuario edita
+  // localmente y el autoguardado sincroniza en segundo plano).
+  const [respuestas, setRespuestas] = useState<Record<string, RespuestaLocal>>({});
+  const [neumaticosLocal, setNeumaticosLocal] = useState<Record<string, NeumaticoLocal>>({});
+  const [estadoActual, setEstadoActual] = useState<Inspeccion["estado"] | null>(null);
+  const seededRef = useRef<string | null>(null);
+
+  // Mapas "sucios": id -> valor vigente en el momento de la edición. Se pueblan
+  // directamente en los handlers (no en updaters de setState, que deben ser
+  // puros) y `flush` los lee sin depender de refs-espejo del estado React.
+  const dirtyItemsRef = useRef<Record<string, RespuestaLocal>>({});
+  const dirtyNeumaticosRef = useRef<Record<string, NeumaticoLocal>>({});
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [autoguardadoEstado, setAutoguardadoEstado] = useState<EstadoAutoguardado>("idle");
+
+  const autoguardar = useAutoguardarRespuestasMutation(inspeccionId);
+
+  const cerrar = useCerrarInspeccionMutation(inspeccionId, {
+    onSuccess: () => {
+      toast.success("Inspección confirmada y firmada");
+      void consulta.refetch();
+    },
+    onError: (err) => toast.error(extraerMensajeError(err)),
+  });
+
+  // Seed inicial: una sola vez por inspección cargada.
+  useEffect(() => {
+    if (!inspeccion || seededRef.current === inspeccion.id) return;
+    seededRef.current = inspeccion.id;
+
+    const respuestasIniciales: Record<string, RespuestaLocal> = {};
+    for (const seccion of inspeccion.secciones) {
+      for (const item of seccion.items) {
+        respuestasIniciales[item.id] = respuestaDesdeItem(item);
+      }
+    }
+    const neumaticosIniciales: Record<string, NeumaticoLocal> = {};
+    for (const n of inspeccion.neumaticos) {
+      neumaticosIniciales[n.id] = neumaticoDesdeLectura(n);
+    }
+
+    setRespuestas(respuestasIniciales);
+    setNeumaticosLocal(neumaticosIniciales);
+    setEstadoActual(inspeccion.estado);
+    dirtyItemsRef.current = {};
+    dirtyNeumaticosRef.current = {};
+    setAutoguardadoEstado("idle");
+  }, [inspeccion]);
+
+  function programarGuardado() {
+    setAutoguardadoEstado("pendiente");
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(flush, RETRASO_AUTOGUARDADO_MS);
+  }
+
+  function flush() {
+    const entradasItems = Object.entries(dirtyItemsRef.current);
+    const entradasNeumaticos = Object.entries(dirtyNeumaticosRef.current);
+    if (entradasItems.length === 0 && entradasNeumaticos.length === 0) return;
+
+    dirtyItemsRef.current = {};
+    dirtyNeumaticosRef.current = {};
+    setAutoguardadoEstado("guardando");
+
+    const respuestasPayload: RespuestaItemPayload[] = entradasItems.map(([itemId, r]) => ({
+      itemId,
+      estadoItem: r.estadoItem !== "SIN_RESPONDER" ? r.estadoItem : undefined,
+      cantidad: r.cantidad,
+      valorNumerico: r.valorNumerico,
+      valorTexto: r.valorTexto,
+      valorBooleano: r.valorBooleano,
+      observacion: r.observacion,
+    }));
+
+    const neumaticosPayload: LecturaNeumaticoPayload[] = entradasNeumaticos.map(
+      ([neumaticoId, n]) => ({ neumaticoId, cocadaMm: n.cocadaMm, otro: n.otro }),
+    );
+
+    autoguardar
+      .mutateAsync({ respuestas: respuestasPayload, neumaticos: neumaticosPayload })
+      .then((actualizada) => {
+        setEstadoActual(actualizada.estado);
+        setAutoguardadoEstado("guardado");
+        setTimeout(() => {
+          setAutoguardadoEstado((actual) => (actual === "guardado" ? "idle" : actual));
+        }, 2000);
+      })
+      .catch(() => {
+        // Reintento: re-marcamos como sucios (sin pisar una edición más nueva
+        // que ya haya vuelto a ensuciar el mismo id) y reprogramamos el envío.
+        for (const [id, v] of entradasItems) {
+          if (!(id in dirtyItemsRef.current)) dirtyItemsRef.current[id] = v;
+        }
+        for (const [id, v] of entradasNeumaticos) {
+          if (!(id in dirtyNeumaticosRef.current)) dirtyNeumaticosRef.current[id] = v;
+        }
+        setAutoguardadoEstado("error");
+        programarGuardado();
+      });
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  function actualizarRespuesta(itemId: string, patch: Partial<RespuestaLocal>) {
+    const nuevo: RespuestaLocal = { ...respuestas[itemId], ...patch };
+    dirtyItemsRef.current[itemId] = nuevo;
+    setRespuestas((actual) => ({ ...actual, [itemId]: nuevo }));
+    programarGuardado();
+  }
+
+  function actualizarNeumatico(neumaticoId: string, patch: Partial<NeumaticoLocal>) {
+    const nuevo: NeumaticoLocal = { ...neumaticosLocal[neumaticoId], ...patch };
+    dirtyNeumaticosRef.current[neumaticoId] = nuevo;
+    setNeumaticosLocal((actual) => ({ ...actual, [neumaticoId]: nuevo }));
+    programarGuardado();
+  }
+
+  const neumaticosPorGrupo = useMemo(() => {
+    const grupos = new Map<string, InspeccionNeumatico[]>();
+    for (const n of inspeccion?.neumaticos ?? []) {
+      const arr = grupos.get(n.grupo) ?? [];
+      arr.push(n);
+      grupos.set(n.grupo, arr);
+    }
+    for (const arr of grupos.values()) arr.sort((a, b) => a.orden - b.orden);
+    return [...grupos.entries()];
+  }, [inspeccion]);
+
+  if (consulta.isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (consulta.error || !inspeccion) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>No se pudo cargar la inspección</AlertTitle>
+        <AlertDescription>
+          {consulta.error ? extraerMensajeError(consulta.error) : "No encontrada."}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  const secciones = [...inspeccion.secciones].sort((a, b) => a.orden - b.orden);
+  const esInmutable = (estadoActual ?? inspeccion.estado) === "CONFIRMADA";
+  // `autoguardadoEstado` cubre todo el ciclo (se pone "pendiente" en cada
+  // edición y solo vuelve a "idle"/"guardado" tras un flush exitoso), por lo
+  // que basta como señal de "hay cambios sin confirmar guardado" sin leer refs.
+  const hayPendientes = autoguardadoEstado === "pendiente" || autoguardadoEstado === "guardando";
+  const puedeConfirmar =
+    !esInmutable && (estadoActual ?? inspeccion.estado) === "COMPLETA" && !hayPendientes;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="outline" size="sm" onClick={() => router.push("/flota/checklist/inspecciones")}>
+          <ArrowLeft data-icon="inline-start" />
+          Volver
+        </Button>
+        <div className="flex items-center gap-3">
+          {!esInmutable ? <IndicadorGuardado estado={autoguardadoEstado} /> : null}
+          <Badge variant={esInmutable ? "default" : (estadoActual ?? inspeccion.estado) === "COMPLETA" ? "secondary" : "outline"}>
+            {estadoActual ?? inspeccion.estado}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Cabecera */}
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle>
+            Inspección {inspeccion.codigo ? `#${inspeccion.codigo}` : ""}
+            {inspeccion.vehiculoPlaca ? ` — ${inspeccion.vehiculoPlaca}` : ""}
+          </CardTitle>
+          <CardDescription>
+            {inspeccion.tipoChecklist?.nombre ?? "Tipo de checklist"} · estructura resuelta
+            automáticamente por la carrocería de la unidad.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4 pt-5 sm:grid-cols-4">
+          <DatoOperacion etiqueta="Horómetro" valor={inspeccion.horometro} />
+          <DatoOperacion etiqueta="Hubodómetro" valor={inspeccion.hubodometro} />
+          <DatoOperacion etiqueta="Kilometraje" valor={inspeccion.kilometraje} />
+          <DatoOperacion etiqueta="Destino" valor={inspeccion.destino} />
+          <DatoOperacion
+            etiqueta="Color de rotulación"
+            valor={
+              inspeccion.colorRotulacion?.nombre ? (
+                <span className="inline-flex items-center gap-1.5">
+                  {inspeccion.colorRotulacion.valorHex ? (
+                    <span
+                      className="inline-block size-3 rounded-sm border border-border/50"
+                      style={{ backgroundColor: inspeccion.colorRotulacion.valorHex }}
+                    />
+                  ) : null}
+                  {inspeccion.colorRotulacion.nombre}
+                </span>
+              ) : null
+            }
+          />
+        </CardContent>
+      </Card>
+
+      {esInmutable ? (
+        <Alert>
+          <Lock className="size-4" />
+          <AlertTitle>Inspección confirmada</AlertTitle>
+          <AlertDescription>
+            Esta inspección quedó firmada e inmutable; no se puede editar.
+          </AlertDescription>
+        </Alert>
+      ) : (estadoActual ?? inspeccion.estado) === "COMPLETA" ? (
+        <Alert>
+          <CheckCircle2 className="size-4" />
+          <AlertTitle>Todos los ítems requeridos están respondidos</AlertTitle>
+          <AlertDescription>Ya puede confirmar y firmar la inspección.</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {/* Secciones e ítems */}
+      {secciones.map((seccion) => (
+        <Card key={seccion.id}>
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-base">{seccion.nombre}</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="overflow-hidden rounded-lg border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[32%]">Ítem</TableHead>
+                    <TableHead className="w-[26%]">Respuesta</TableHead>
+                    <TableHead className="w-[12%]">Cantidad</TableHead>
+                    <TableHead className="w-[30%]">Observación</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...seccion.items]
+                    .sort((a, b) => a.orden - b.orden)
+                    .map((item) => {
+                      const r = respuestas[item.id];
+                      if (!r) return null;
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="text-sm align-top pt-3">
+                            {item.etiqueta}
+                            {item.requerido ? (
+                              <span className="ml-1 text-destructive">*</span>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="align-top pt-2">
+                            <ControlRespuesta
+                              item={item}
+                              respuesta={r}
+                              deshabilitado={esInmutable}
+                              onCambio={(patch) => actualizarRespuesta(item.id, patch)}
+                            />
+                          </TableCell>
+                          <TableCell className="align-top pt-2">
+                            {item.capturaCantidad ? (
+                              <Input
+                                type="number"
+                                min={0}
+                                step={1}
+                                className="h-8 w-20"
+                                value={r.cantidad ?? ""}
+                                disabled={esInmutable}
+                                onChange={(e) =>
+                                  actualizarRespuesta(item.id, {
+                                    cantidad: e.target.value === "" ? null : Number(e.target.value),
+                                  })
+                                }
+                              />
+                            ) : (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="align-top pt-2">
+                            <Input
+                              className="h-8"
+                              placeholder="Observación"
+                              value={r.observacion ?? ""}
+                              disabled={esInmutable}
+                              maxLength={300}
+                              onChange={(e) =>
+                                actualizarRespuesta(item.id, {
+                                  observacion: e.target.value === "" ? null : e.target.value,
+                                })
+                              }
+                            />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+
+      {/* Neumáticos */}
+      {neumaticosPorGrupo.length > 0 ? (
+        <Card>
+          <CardHeader className="border-b border-border">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CircleDot className="size-4" />
+              Neumáticos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5 pt-4">
+            {neumaticosPorGrupo.map(([grupo, neumaticos]) => (
+              <div key={grupo} className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-muted-foreground">{grupo}</span>
+                <div className="overflow-hidden rounded-lg border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Posición</TableHead>
+                        <TableHead className="w-40">Cocada (mm)</TableHead>
+                        <TableHead>Otro</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {neumaticos.map((n) => {
+                        const local = neumaticosLocal[n.id];
+                        if (!local) return null;
+                        return (
+                          <TableRow key={n.id}>
+                            <TableCell className="text-sm font-medium">{n.posicion}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min={0}
+                                step="0.1"
+                                className="h-8 w-28"
+                                value={local.cocadaMm ?? ""}
+                                disabled={esInmutable}
+                                onChange={(e) =>
+                                  actualizarNeumatico(n.id, {
+                                    cocadaMm: e.target.value === "" ? null : Number(e.target.value),
+                                  })
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                className="h-8"
+                                placeholder="Otro"
+                                value={local.otro ?? ""}
+                                disabled={esInmutable}
+                                onChange={(e) =>
+                                  actualizarNeumatico(n.id, {
+                                    otro: e.target.value === "" ? null : e.target.value,
+                                  })
+                                }
+                              />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {!esInmutable ? (
+        <>
+          <Separator />
+          <div className="flex items-center justify-end gap-3">
+            {!puedeConfirmar && (estadoActual ?? inspeccion.estado) !== "COMPLETA" ? (
+              <span className="text-sm text-muted-foreground">
+                Responda todos los ítems requeridos para poder confirmar.
+              </span>
+            ) : null}
+            <Button
+              onClick={() => cerrar.mutate()}
+              disabled={!puedeConfirmar || cerrar.isPending}
+            >
+              {cerrar.isPending ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <Check data-icon="inline-start" />
+              )}
+              {cerrar.isPending ? "Confirmando..." : "Confirmar y firmar"}
+            </Button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Control de respuesta por tipoRespuesta
+// ---------------------------------------------------------------------------
+
+function ControlRespuesta({
+  item,
+  respuesta,
+  deshabilitado,
+  onCambio,
+}: {
+  item: InspeccionItem;
+  respuesta: RespuestaLocal;
+  deshabilitado: boolean;
+  onCambio: (patch: Partial<RespuestaLocal>) => void;
+}) {
+  switch (item.tipoRespuesta) {
+    case "CONFORMIDAD":
+      return (
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={respuesta.estadoItem !== "SIN_RESPONDER" ? respuesta.estadoItem : ""}
+          onValueChange={(valor) => {
+            if (!valor || deshabilitado) return;
+            onCambio({ estadoItem: valor as EstadoItem });
+          }}
+        >
+          <ToggleGroupItem value="CONFORME" disabled={deshabilitado} aria-label="Conforme">
+            C
+          </ToggleGroupItem>
+          <ToggleGroupItem value="NO_CONFORME" disabled={deshabilitado} aria-label="No conforme">
+            NC
+          </ToggleGroupItem>
+          <ToggleGroupItem value="NO_APLICA" disabled={deshabilitado} aria-label="No aplica">
+            NA
+          </ToggleGroupItem>
+        </ToggleGroup>
+      );
+    case "MEDICION":
+      return (
+        <div className="flex items-center gap-1.5">
+          <Input
+            type="number"
+            step="any"
+            className="h-8 w-24"
+            value={respuesta.valorNumerico ?? ""}
+            disabled={deshabilitado}
+            min={item.rangoMin ?? undefined}
+            max={item.rangoMax ?? undefined}
+            onChange={(e) => {
+              if (e.target.value === "") {
+                onCambio({ valorNumerico: null });
+                return;
+              }
+              // El navegador no clampa min/max en un <input type="number"> fuera
+              // de un <form> con validación nativa; se ajusta acá para no
+              // enviar un valor fuera de rango (el backend lo rechazaría y el
+              // autoguardado quedaría reintentando indefinidamente).
+              let valor = Number(e.target.value);
+              if (item.rangoMin != null) valor = Math.max(item.rangoMin, valor);
+              if (item.rangoMax != null) valor = Math.min(item.rangoMax, valor);
+              onCambio({ valorNumerico: valor });
+            }}
+          />
+          {item.unidad ? (
+            <span className="text-xs text-muted-foreground">{item.unidad}</span>
+          ) : null}
+        </div>
+      );
+    case "BOOLEANO":
+      return (
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={
+            respuesta.valorBooleano === null ? "" : respuesta.valorBooleano ? "true" : "false"
+          }
+          onValueChange={(valor) => {
+            if (!valor || deshabilitado) return;
+            onCambio({ valorBooleano: valor === "true" });
+          }}
+        >
+          <ToggleGroupItem value="true" disabled={deshabilitado}>
+            Sí
+          </ToggleGroupItem>
+          <ToggleGroupItem value="false" disabled={deshabilitado}>
+            No
+          </ToggleGroupItem>
+        </ToggleGroup>
+      );
+    case "SELECCION":
+    case "TEXTO":
+      return (
+        <Input
+          className="h-8"
+          value={respuesta.valorTexto ?? ""}
+          disabled={deshabilitado}
+          onChange={(e) => onCambio({ valorTexto: e.target.value === "" ? null : e.target.value })}
+        />
+      );
+    default:
+      return null;
+  }
+}

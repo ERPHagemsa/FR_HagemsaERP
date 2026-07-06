@@ -111,7 +111,7 @@ export function ActivoHistorialVista({ codigo }: Props) {
               <Dato label="Codigo" value={activo.codigo} />
               <Dato label="Unidad" value={activo.descripcion} />
               <Dato label="Ubicacion" value={activo.ubicacion} />
-              <Dato label="Ultima modificacion" value={formatearFechaHora(activo.updatedAt)} />
+              <Dato label="Ultima modificacion" value={formatearFechaHora(activo.fechaModificacion)} />
             </div>
           </CardContent>
         </Card>

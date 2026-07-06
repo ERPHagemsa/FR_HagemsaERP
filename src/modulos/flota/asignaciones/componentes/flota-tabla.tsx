@@ -1,19 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 import {
   CheckCircle2,
   CircleDashed,
   CircleX,
+  ClipboardCheck,
   Clock,
   Eye,
   Loader2,
   MoreVertical,
   Search,
   TrendingUp,
-  Truck,
-  type LucideIcon,
 } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -63,7 +63,8 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades/utils";
-import type { VehiculoFlota } from "../tipos/flota.tipos";
+import { IniciarInspeccionSheet } from "../../checklist/componentes/iniciar-inspeccion-sheet";
+import type { VehiculoFlota } from "../tipos/asignaciones.tipos";
 import {
   asignacionesVehiculo,
   carroceriaVehiculo,
@@ -97,6 +98,8 @@ const filtrosIniciales: FiltrosFlota = {
 };
 
 export function FlotaTabla({ loading, vehiculos }: Props) {
+  const router = useRouter();
+  const [unidadChecklist, setUnidadChecklist] = React.useState<VehiculoFlota | null>(null);
   const [filtrosFormulario, setFiltrosFormulario] =
     React.useState<FiltrosFlota>(filtrosIniciales);
   const [filtrosAplicados, setFiltrosAplicados] =
@@ -306,7 +309,10 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
                 {visibles.map((vehiculo, index) => (
                   <TableRow key={vehiculo.id} className={obtenerClaseFila(vehiculo)}>
                     <TableCell>
-                      <AccionesFlota vehiculo={vehiculo} />
+                      <AccionesFlota
+                        vehiculo={vehiculo}
+                        onIniciarChecklist={() => setUnidadChecklist(vehiculo)}
+                      />
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
                       {inicioPagina + index + 1}
@@ -413,11 +419,28 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
           </div>
         ) : null}
       </div>
+
+      {unidadChecklist ? (
+        <IniciarInspeccionSheet
+          unidad={unidadChecklist}
+          onCerrar={() => setUnidadChecklist(null)}
+          onIniciada={(inspeccion) => {
+            setUnidadChecklist(null);
+            router.push(`/flota/checklist/inspecciones/${inspeccion.id}`);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
 
-function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
+function AccionesFlota({
+  vehiculo,
+  onIniciarChecklist,
+}: {
+  vehiculo: VehiculoFlota;
+  onIniciarChecklist: () => void;
+}) {
   const id = encodeURIComponent(vehiculo.id ?? "");
 
   return (
@@ -429,6 +452,10 @@ function AccionesFlota({ vehiculo }: { vehiculo: VehiculoFlota }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
+          <DropdownMenuItem onSelect={onIniciarChecklist}>
+            <ClipboardCheck data-icon="inline-start" />
+            Iniciar checklist
+          </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link href={`/flota/unidades/${id}`}>
               <Eye data-icon="inline-start" />

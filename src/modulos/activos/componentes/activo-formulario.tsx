@@ -707,6 +707,11 @@ export function ActivoFormulario({
           })
         : await crearActivoMutation.mutateAsync({
             codigo,
+            // Replaqueo: enlaza la unidad de baja de origen; el backend omite
+            // la validacion de chasis/motor duplicados con este campo.
+            ...(activo?.activoOrigenId
+              ? { activoOrigenId: activo.activoOrigenId }
+              : {}),
             ...payload,
           });
 

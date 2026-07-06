@@ -675,7 +675,7 @@ export function CatalogoValoresListado({
                         </Badge>
                       </TableCell>
                       <TableCell className="truncate text-sm text-muted-foreground">
-                        {new Date(item.updatedAt).toLocaleString("es-PE")}
+                        {new Date(item.fechaModificacion).toLocaleString("es-PE")}
                       </TableCell>
                     </TableRow>
                   ))

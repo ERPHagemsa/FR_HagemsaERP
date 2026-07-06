@@ -172,7 +172,7 @@ export function ActivosTabla({
     const placa = activo.vehiculo?.placa ?? "";
     const marca = activo.vehiculo?.marca ?? "";
     const modelo = activo.vehiculo?.modelo ?? "";
-    const fechaModificacion = normalizarFecha(activo.updatedAt);
+    const fechaModificacion = normalizarFecha(activo.fechaModificacion);
     const coincideTexto = [activo.codigo, activo.descripcion, placa, marca, modelo]
       .join(" ")
       .toUpperCase()
@@ -224,8 +224,8 @@ export function ActivosTabla({
     filtrosAplicados.fechaHasta;
 
   const ordenados = [...filtrados].sort((a, b) => {
-    const fechaA = new Date(a.updatedAt).getTime();
-    const fechaB = new Date(b.updatedAt).getTime();
+    const fechaA = new Date(a.fechaModificacion).getTime();
+    const fechaB = new Date(b.fechaModificacion).getTime();
 
     return ordenModificacion === "reciente"
       ? fechaB - fechaA
@@ -313,7 +313,7 @@ export function ActivosTabla({
         "ESTADO_CALIBRACION",
         activo.vehiculo?.estadoCalibracionReferenciaId
       ),
-      Modificado: formatearFecha(activo.updatedAt),
+      Modificado: formatearFecha(activo.fechaModificacion),
     }));
     const csv = convertirCsv(filas);
     descargarArchivo(csv, `activos-${fechaArchivo()}.csv`, "text/csv;charset=utf-8");
@@ -337,7 +337,7 @@ export function ActivosTabla({
             <td>${escaparHtml(activo.ubicacion)}</td>
             <td>${escaparHtml(formatearEstadoActivo(activo.estadoActivo))}</td>
             <td>${escaparHtml(formatear(activo.vehiculo?.estadoOperativo))}</td>
-            <td>${escaparHtml(formatearFecha(activo.updatedAt))}</td>
+            <td>${escaparHtml(formatearFecha(activo.fechaModificacion))}</td>
           </tr>`
       )
       .join("");
@@ -796,7 +796,7 @@ export function ActivosTabla({
                     />
                   </TableCell>
                   <TableCell className="truncate text-sm text-muted-foreground">
-                    {formatearFecha(activo.updatedAt)}
+                    {formatearFecha(activo.fechaModificacion)}
                   </TableCell>
                 </TableRow>
                 );

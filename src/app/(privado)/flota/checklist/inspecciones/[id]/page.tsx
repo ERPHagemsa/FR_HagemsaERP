@@ -1,4 +1,4 @@
-import { VehiculoDetalleVista } from "@/modulos/flota/asignaciones/vistas/vehiculo-detalle-vista";
+import { InspeccionDetalleVista } from "@/modulos/flota/checklist/vistas/inspeccion-detalle-vista";
 
 type Params = {
   params: Promise<{ id: string }> | { id: string };
@@ -7,5 +7,5 @@ type Params = {
 export default async function Page({ params }: Params) {
   const { id } = (await params) as { id: string };
 
-  return <VehiculoDetalleVista id={id} />;
+  return <InspeccionDetalleVista inspeccionId={id} />;
 }
