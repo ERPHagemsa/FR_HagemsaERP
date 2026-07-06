@@ -35,12 +35,16 @@ import type {
 } from "../tipos/ubicaciones.tipos";
 
 const TIPOS_UBICACION: { valor: TipoUbicacion; etiqueta: string }[] = [
+  { valor: "SEDE", etiqueta: "Sede" },
+  { valor: "CLIENTE", etiqueta: "Cliente" },
+  { valor: "PLANTA", etiqueta: "Planta" },
   { valor: "MINA", etiqueta: "Mina" },
   { valor: "PUERTO", etiqueta: "Puerto" },
-  { valor: "ALMACEN", etiqueta: "Almacén" },
-  { valor: "PLANTA", etiqueta: "Planta" },
-  { valor: "SEDE", etiqueta: "Sede" },
   { valor: "PEAJE", etiqueta: "Peaje" },
+  { valor: "ESTACIONAMIENTO", etiqueta: "Estacionamiento" },
+  { valor: "ALMACEN", etiqueta: "Almacén" },
+  { valor: "PATIO", etiqueta: "Patio" },
+  { valor: "TERMINAL", etiqueta: "Terminal" },
   { valor: "OTRO", etiqueta: "Otro" },
 ];
 

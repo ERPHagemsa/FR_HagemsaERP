@@ -5,11 +5,15 @@
 
 export type TipoUbicacion =
   | "SEDE"
+  | "CLIENTE"
+  | "PLANTA"
   | "MINA"
   | "PUERTO"
-  | "ALMACEN"
   | "PEAJE"
-  | "PLANTA"
+  | "ESTACIONAMIENTO"
+  | "ALMACEN"
+  | "PATIO"
+  | "TERMINAL"
   | "OTRO";
 
 // Ciclo de vida de la ubicación temporal (el estado vive en la temporal):
