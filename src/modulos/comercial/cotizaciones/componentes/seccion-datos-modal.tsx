@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/compartido/componentes/ui/dialog";
+import { AutocompleteUbicacion } from "../../ubicaciones/componentes/autocomplete-ubicacion";
 import type { DraftSeccion } from "../servicios/cotizaciones-editor.utils";
 import { sincronizarRutaSeccion } from "../servicios/cotizaciones-editor.utils";
 
@@ -88,19 +89,19 @@ export function SeccionDatosModal({
           </Campo>
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo label="Origen">
-              <Input
+              <AutocompleteUbicacion
                 value={borrador.origen}
                 disabled={disabled}
-                placeholder="Ej: Lima"
-                onChange={(e) => set({ origen: e.target.value })}
+                placeholder="Buscá o escribí (ej: Lima)"
+                onChange={(v) => set({ origen: v })}
               />
             </Campo>
             <Campo label="Destino">
-              <Input
+              <AutocompleteUbicacion
                 value={borrador.destino}
                 disabled={disabled}
-                placeholder="Ej: Mina"
-                onChange={(e) => set({ destino: e.target.value })}
+                placeholder="Buscá o escribí (ej: Mina)"
+                onChange={(v) => set({ destino: v })}
               />
             </Campo>
           </div>

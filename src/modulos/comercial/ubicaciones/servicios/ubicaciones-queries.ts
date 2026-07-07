@@ -9,6 +9,7 @@ import type {
 } from "../tipos/ubicaciones.tipos";
 import {
   completarUbicacionTemporal,
+  listarUbicaciones,
   listarUbicacionesTemporales,
 } from "./ubicaciones-api";
 import {
@@ -30,6 +31,17 @@ export function useUbicacionesTemporalesQuery(
     [idCotizacion, estado ?? ""],
     { clave: CLAVE_UBICACIONES_TEMPORALES, enabled: Boolean(idCotizacion) }
   );
+}
+
+// Búsqueda en la MAESTRA local (réplica confirmada de BC-14) para el selector de
+// origen/destino de secciones. Con <2 chars no dispara (igual que sugerencias de
+// carga). useConsulta NO limpia `data` al deshabilitarse → el consumidor gatea el
+// render del dropdown por `length >= 2`.
+export function useBuscarUbicacionesMaestra(q: string) {
+  const termino = q.trim();
+  return useConsulta(() => listarUbicaciones(termino), [termino], {
+    enabled: termino.length >= 2,
+  });
 }
 
 // ---------------------------------------------------------------------------
