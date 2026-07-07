@@ -35,3 +35,65 @@ export async function resolverDistritoPorPunto(
     throw error;
   }
 }
+
+// --- Cascada departamento → provincia → distrito (nombres en Título) ---
+// Los endpoints envuelven la lista en `{ data: [...] }`.
+
+export interface OpcionDepartamentoGeo {
+  codigo: string;
+  nombre: string;
+}
+
+export interface OpcionProvinciaGeo {
+  codigo: string;
+  nombre: string;
+  codigoDepartamento: string;
+  departamento: string;
+}
+
+export interface OpcionDistritoGeo {
+  ubigeo: string;
+  nombre: string;
+  codigoProvincia: string;
+  provincia: string;
+  codigoDepartamento: string;
+  departamento: string;
+}
+
+interface RespuestaLista<T> {
+  data: T[];
+}
+
+/** Departamentos del Perú, ordenados por nombre. */
+export async function listarDepartamentos(): Promise<OpcionDepartamentoGeo[]> {
+  const { data } = await clienteGeo.get<RespuestaLista<OpcionDepartamentoGeo>>(
+    "/departamentos"
+  );
+  return data.data;
+}
+
+/** Provincias del departamento (nombre o código). Sin filtro → todas. */
+export async function listarProvincias(
+  departamento?: string
+): Promise<OpcionProvinciaGeo[]> {
+  const { data } = await clienteGeo.get<RespuestaLista<OpcionProvinciaGeo>>(
+    "/provincias",
+    { params: departamento ? { departamento } : undefined }
+  );
+  return data.data;
+}
+
+/** Distritos filtrando por departamento y/o provincia (acumulativos). */
+export async function listarDistritos(
+  departamento?: string,
+  provincia?: string
+): Promise<OpcionDistritoGeo[]> {
+  const params: Record<string, string> = {};
+  if (departamento) params.departamento = departamento;
+  if (provincia) params.provincia = provincia;
+  const { data } = await clienteGeo.get<RespuestaLista<OpcionDistritoGeo>>(
+    "/distritos",
+    { params }
+  );
+  return data.data;
+}

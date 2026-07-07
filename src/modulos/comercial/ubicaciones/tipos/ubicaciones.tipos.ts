@@ -77,16 +77,9 @@ export interface DatosUbicacionGeo {
   longitud: number;
 }
 
-// Filtros del proxy de búsqueda/dedup contra BC-14.
-export interface FiltroUbicacionesBc14 {
-  nombre?: string;
-  departamento?: string;
-  provincia?: string;
-  distrito?: string;
-}
-
-// Payload para completar una ubicación temporal. La decisión de dedup es
-// mutuamente excluyente: vincular una existente de BC-14 O confirmar que es nueva.
+// Payload para completar una ubicación temporal. La dedup contra BC-14 la
+// resuelve la fase final (PUB/SUB): al completar, la temporal queda COMPLETA y
+// BC-14 valida y devuelve los datos para replicar en la maestra local.
 export interface PayloadCompletarUbicacion {
   tipoUbicacion: TipoUbicacion;
   pais: string;
@@ -98,8 +91,4 @@ export interface PayloadCompletarUbicacion {
   latitud?: number | null;
   longitud?: number | null;
   coordenadasGoogle?: string | null;
-  // Vincular a una ubicación existente de BC-14 (se copia a la maestra local).
-  vincularUbicacionBc14Id?: string;
-  // Confirmar que es una ubicación nueva (queda COMPLETA a la espera del PUB/SUB).
-  confirmarCreacion?: boolean;
 }

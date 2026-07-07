@@ -1,10 +1,8 @@
 import { clienteComercial } from "@/compartido/api/clientes-backend";
 
 import type {
-  FiltroUbicacionesBc14,
   PayloadCompletarUbicacion,
   Ubicacion,
-  UbicacionBc14,
   UbicacionTemporal,
   EstadoUbicacionTemporal,
 } from "../tipos/ubicaciones.tipos";
@@ -27,19 +25,9 @@ export async function listarUbicacionesTemporales(
   return data.data;
 }
 
-// GET /ubicaciones/bc14 — buscar-antes-de-crear (dedup contra el maestro de BC-14).
-export async function buscarUbicacionesBc14(
-  filtro: FiltroUbicacionesBc14
-): Promise<UbicacionBc14[]> {
-  const { data } = await clienteComercial.get<RespuestaLista<UbicacionBc14>>(
-    "/ubicaciones/bc14",
-    { params: filtro }
-  );
-  return data.data;
-}
-
-// PATCH /ubicaciones/temporales/:id/completar — completa datos (solo cotización GANADA)
-// con dedup contra BC-14. Devuelve la temporal actualizada.
+// PATCH /ubicaciones/temporales/:id/completar — completa datos (solo cotización
+// GANADA). La dedup contra BC-14 la resuelve la fase final (PUB/SUB), no acá.
+// Devuelve la temporal actualizada.
 export async function completarUbicacionTemporal(
   id: string,
   payload: PayloadCompletarUbicacion
