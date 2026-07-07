@@ -273,7 +273,7 @@ export function ContratoDetalle({ idContrato }: Props) {
                         <TableCell className="text-sm">{t.origen ?? "—"}</TableCell>
                         <TableCell className="text-sm">{t.destino ?? "—"}</TableCell>
                         <TableCell className="text-sm">
-                          {t.tipoVehiculo ?? "—"}
+                          {t.tipoUnidadNombre || "—"}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {t.condicion ?? "—"}

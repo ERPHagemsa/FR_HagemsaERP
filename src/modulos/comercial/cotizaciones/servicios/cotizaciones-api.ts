@@ -9,9 +9,11 @@ import type {
   PayloadActualizarCondicionesVersion,
   PayloadBorrador,
   PayloadEnviar,
+  PayloadFijarNumeracion,
   PayloadNuevaVersion,
   PayloadPerdida,
   PrecioSugerido,
+  RespuestaNumeracion,
   ResumenCotizaciones,
   RespuestaPaginadaCotizaciones,
   SugerenciaCarga,
@@ -155,6 +157,24 @@ export async function marcarPerdida(
 // PATCH /cotizaciones/:id/cancelar → 204 (sin body)
 export async function cancelarCotizacion(id: string): Promise<void> {
   await clienteComercial.patch(`/cotizaciones/${id}/cancelar`);
+}
+
+// ---------------------------------------------------------------------------
+// Numeracion
+// ---------------------------------------------------------------------------
+
+// PUT /cotizaciones/numeracion → 200 { anio, proximoNumero } (API §5.5.1)
+// Fija desde que numero continua la numeracion del año en curso (el backend
+// resuelve el año; no se envia). NO emite ni crea cotizaciones: solo mueve el
+// contador anual. Regla forward-only: proximoNumero <= al ultimo ya emitido → 409.
+export async function fijarNumeracionCotizaciones(
+  payload: PayloadFijarNumeracion
+): Promise<RespuestaNumeracion> {
+  const { data } = await clienteComercial.put<RespuestaNumeracion>(
+    "/cotizaciones/numeracion",
+    payload
+  );
+  return data;
 }
 
 // ---------------------------------------------------------------------------
