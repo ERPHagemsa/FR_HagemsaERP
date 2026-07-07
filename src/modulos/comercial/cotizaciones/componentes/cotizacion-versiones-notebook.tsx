@@ -350,7 +350,7 @@ function vistaLectura(
 
 // Unidad/recurso de la linea para la columna Unidad (igual que el PDF).
 function unidadLectura(l: Linea): string {
-  if (l.carga) return l.carga.tipoVehiculo ?? "";
+  if (l.carga) return l.carga.tipoUnidadNombre ?? "";
   if (l.equipo) return l.equipo.equipoTipo ?? "";
   if (l.personal) return l.personal.rol;
   return "";
@@ -376,9 +376,9 @@ function entradasStandbyLectura(lineas: Linea[], cargosSeccion: CargoAdicional[]
   const entradas: EntradaStandby[] = [];
   for (const l of lineas) {
     if (l.standbyDia != null) {
-      // Concepto del stand-by = TIPO DE UNIDAD (tipoVehiculo); fallback a descripcion/tipo.
+      // Concepto del stand-by = TIPO DE UNIDAD (tipoUnidadNombre); fallback a descripcion/tipo.
       const concepto =
-        l.carga?.tipoVehiculo || l.descripcion || formatearTipoLinea(l.tipoLinea);
+        l.carga?.tipoUnidadNombre || l.descripcion || formatearTipoLinea(l.tipoLinea);
       entradas.push({ concepto, tipo: "Linea", precio: l.standbyDia });
     }
     for (const c of l.cargosAdicionales ?? []) {
@@ -408,10 +408,10 @@ function entradasLeadTimeLectura(
 
   for (const l of lineas) {
     if (l.leadTimeDiasMin != null) {
-      // Concepto de la linea = TIPO DE UNIDAD (tipoVehiculo), igual que el stand-by;
+      // Concepto de la linea = TIPO DE UNIDAD (tipoUnidadNombre), igual que el stand-by;
       // fallback a la descripcion o la etiqueta del tipo de linea.
       const concepto =
-        l.carga?.tipoVehiculo || l.descripcion || formatearTipoLinea(l.tipoLinea);
+        l.carga?.tipoUnidadNombre || l.descripcion || formatearTipoLinea(l.tipoLinea);
       entradas.push({ concepto, tipo: "Linea", plazo: plazoDe(l.leadTimeDiasMin, l.leadTimeDiasMax) });
     }
     for (const c of l.cargosAdicionales ?? []) {

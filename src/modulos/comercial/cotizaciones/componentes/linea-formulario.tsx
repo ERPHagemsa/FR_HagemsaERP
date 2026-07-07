@@ -23,6 +23,7 @@ import { usePrecioSugerido } from "../servicios/cotizaciones-queries";
 import { ListaCargos } from "./lista-cargos";
 import { EditorCargasFisicas } from "./editor-cargas-fisicas";
 import { ModalidadSelector } from "./modalidad-selector";
+import { TipoUnidadCombobox } from "./tipo-unidad-combobox";
 import { TIPOS_LINEA, formatearMoneda } from "./lineas-grid.utils";
 
 type Props = {
@@ -341,13 +342,24 @@ export function LineaFormulario({
           <Seccion titulo={esTransporte ? "Detalle de la carga" : "Detalle"}>
             {esTransporte ? (
               <>
-                <Campo label="Tipo de unidad">
-                  <Input
-                    value={linea.carga.tipoVehiculo}
+                <Campo
+                  label="Tipo de unidad"
+                  obligatorio
+                  error={erroresCampo["carga.idTipoUnidad"]}
+                >
+                  <TipoUnidadCombobox
+                    value={linea.carga.idTipoUnidad}
                     disabled={disabled}
-                    placeholder="Ej: Cama baja"
-                    onChange={(e) =>
-                      set({ carga: { ...linea.carga, tipoVehiculo: e.target.value } })
+                    invalid={Boolean(erroresCampo["carga.idTipoUnidad"])}
+                    onValueChange={(id, opcion) =>
+                      set({
+                        carga: {
+                          ...linea.carga,
+                          idTipoUnidad: id,
+                          fuenteTipoUnidad: opcion?.fuente ?? "",
+                          tipoUnidadNombre: opcion?.nombre ?? "",
+                        },
+                      })
                     }
                   />
                 </Campo>
@@ -515,7 +527,7 @@ function SugerenciaPrecio({
                 className="flex items-center justify-between gap-3 border-t border-border/60 pt-1"
               >
                 <span className="truncate text-muted-foreground">
-                  {c.tipoVehiculo || "Sin unidad"} · {c.estado} · {c.ejecutivo}
+                  {c.tipoUnidadNombre || "Sin unidad"} · {c.estado} · {c.ejecutivo}
                 </span>
                 <span className="shrink-0 font-mono tabular-nums text-foreground">
                   {formatearMoneda(c.precioVenta, moneda)}

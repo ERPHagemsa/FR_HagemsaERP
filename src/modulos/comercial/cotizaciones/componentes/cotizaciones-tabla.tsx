@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
-import { Eye, RefreshCw, Search } from "lucide-react";
+import { Eye, Hash, RefreshCw, Search } from "lucide-react";
 
 import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos";
 import type {
@@ -30,6 +30,7 @@ import type {
   OrigenTipo,
 } from "../tipos/cotizaciones.tipos";
 import { CotizacionesKpis } from "./cotizaciones-kpis";
+import { DialogoFijarNumeracion } from "./dialogo-fijar-numeracion";
 import { EstadoCotizacionBadge } from "./estado-cotizacion-badge";
 
 type Props = {
@@ -247,6 +248,12 @@ export function CotizacionesTabla({ items, filtros, total }: Props) {
         etiquetas={["Todos", ...(ejecutivos ?? []).map((e) => e.nombre)]}
         onChange={setEjecutivoLocal}
       />
+      <DialogoFijarNumeracion>
+        <Button type="button" variant="outline">
+          <Hash data-icon="inline-start" />
+          Numeracion
+        </Button>
+      </DialogoFijarNumeracion>
       <Button type="button" onClick={aplicarFiltros}>
         Buscar
       </Button>

@@ -82,12 +82,19 @@ import {
   type Tarifa,
   type TarifaCargo,
 } from "../tipos/tarifarios.tipos"
+// Acoplamiento conocido tarifarios -> cotizaciones: reutiliza el combobox y el tipo del
+// maestro de tipos de unidad (unica fuente de verdad, ya usada en el editor de cotizaciones).
+import { TipoUnidadCombobox } from "../../cotizaciones/componentes/tipo-unidad-combobox"
+import type { FuenteTipoUnidad } from "../../cotizaciones/tipos/cotizaciones.tipos"
 
 type FormTarifa = {
   idModalidad: string
   origen: string
   destino: string
-  tipoVehiculo: string
+  // Snapshot del tipo de unidad elegido del maestro (combobox). "" = sin seleccion.
+  idTipoUnidad: string
+  fuenteTipoUnidad: FuenteTipoUnidad | ""
+  tipoUnidadNombre: string
   condicion: string
   precio: string
   tarifaStandbyDia: string
@@ -97,7 +104,9 @@ const FORM_VACIO: FormTarifa = {
   idModalidad: "",
   origen: "",
   destino: "",
-  tipoVehiculo: "",
+  idTipoUnidad: "",
+  fuenteTipoUnidad: "",
+  tipoUnidadNombre: "",
   condicion: "",
   precio: "",
   tarifaStandbyDia: "",
@@ -108,7 +117,9 @@ function formDesdeTarifa(t: Tarifa): FormTarifa {
     idModalidad: t.idModalidad,
     origen: t.origen ?? "",
     destino: t.destino ?? "",
-    tipoVehiculo: t.tipoVehiculo ?? "",
+    idTipoUnidad: t.idTipoUnidad ?? "",
+    fuenteTipoUnidad: t.fuenteTipoUnidad ?? "",
+    tipoUnidadNombre: t.tipoUnidadNombre ?? "",
     condicion: t.condicion ?? "",
     precio: String(t.precio),
     tarifaStandbyDia: t.tarifaStandbyDia != null ? String(t.tarifaStandbyDia) : "",
@@ -117,13 +128,26 @@ function formDesdeTarifa(t: Tarifa): FormTarifa {
 
 function payloadDesdeForm(form: FormTarifa): PayloadTarifa | null {
   const precio = Number(form.precio)
-  if (!form.idModalidad || form.precio.trim() === "" || isNaN(precio) || precio < 0) {
+  // El tipo de unidad es obligatorio para la tarifa manual (el backend exige fuente + id);
+  // sin seleccion no se puede armar un payload valido.
+  if (
+    !form.idModalidad ||
+    !form.idTipoUnidad ||
+    form.fuenteTipoUnidad === "" ||
+    form.precio.trim() === "" ||
+    isNaN(precio) ||
+    precio < 0
+  ) {
     return null
   }
-  const payload: PayloadTarifa = { idModalidad: form.idModalidad, precio }
+  const payload: PayloadTarifa = {
+    idModalidad: form.idModalidad,
+    precio,
+    fuenteTipoUnidad: form.fuenteTipoUnidad,
+    idTipoUnidad: form.idTipoUnidad,
+  }
   if (form.origen.trim()) payload.origen = form.origen.trim()
   if (form.destino.trim()) payload.destino = form.destino.trim()
-  if (form.tipoVehiculo.trim()) payload.tipoVehiculo = form.tipoVehiculo.trim()
   if (form.condicion.trim()) payload.condicion = form.condicion.trim()
   if (form.tarifaStandbyDia.trim()) {
     const sb = Number(form.tarifaStandbyDia)
@@ -180,11 +204,16 @@ function CamposTarifa({
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="t-vehiculo">Tipo de vehiculo</Label>
-        <Input
-          id="t-vehiculo"
-          value={form.tipoVehiculo}
-          onChange={(e) => onChange({ tipoVehiculo: e.target.value })}
+        <Label htmlFor="t-tipo-unidad">Tipo de unidad</Label>
+        <TipoUnidadCombobox
+          value={form.idTipoUnidad}
+          onValueChange={(id, opcion) =>
+            onChange({
+              idTipoUnidad: id,
+              fuenteTipoUnidad: opcion?.fuente ?? "",
+              tipoUnidadNombre: opcion?.nombre ?? "",
+            })
+          }
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -613,7 +642,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
                       <TableCell className="text-sm">{nombreModalidad(t.idModalidad)}</TableCell>
                       <TableCell className="text-sm">{t.origen ?? "—"}</TableCell>
                       <TableCell className="text-sm">{t.destino ?? "—"}</TableCell>
-                      <TableCell className="text-sm">{t.tipoVehiculo ?? "—"}</TableCell>
+                      <TableCell className="text-sm">{t.tipoUnidadNombre || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {t.condicion ?? "—"}
                       </TableCell>
