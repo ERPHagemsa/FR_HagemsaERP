@@ -29,6 +29,8 @@ import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import { CotizacionVersionEditable } from "./cotizacion-version-editable";
 import { TablaStandby } from "./tabla-standby";
 import type { EntradaStandby } from "./tabla-standby";
+import { TablaLeadTime } from "./tabla-leadtime";
+import type { EntradaLeadTime } from "./tabla-leadtime";
 import { GrillaDimensionesCargas, TablaCotizacion } from "./tabla-cotizacion";
 import type { SeccionVista } from "./tabla-cotizacion";
 import { DialogoCondicionesVersion } from "./dialogo-condiciones-version";
@@ -98,7 +100,6 @@ export function CotizacionVersionesNotebook({
     lineasPorSeccion.get(linea.idSeccion)!.push(linea);
   }
 
-  const leadTimes = version.leadTimes ?? [];
   const totalLineas = version.lineas.length;
   // La version seleccionada se edita inline solo si: la cotizacion es editable, es la
   // vigente y no esta congelada.
@@ -210,7 +211,6 @@ export function CotizacionVersionesNotebook({
       <Tabs defaultValue="lineas" className="mt-1">
         <TabsList variant="line">
           <TabsTrigger value="lineas">Lineas ({totalLineas})</TabsTrigger>
-          <TabsTrigger value="leadtimes">Lead times ({leadTimes.length})</TabsTrigger>
         </TabsList>
 
         {/* --- Lineas --- */}
@@ -263,38 +263,9 @@ export function CotizacionVersionesNotebook({
                     entradas={entradasStandbyLectura(lineasSinSeccion, [])}
                     moneda={version.moneda}
                   />
+                  <TablaLeadTime entradas={entradasLeadTimeLectura(lineasSinSeccion, [])} />
                 </div>
               ) : null}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* --- Lead times --- */}
-        <TabsContent value="leadtimes" className="pt-4">
-          {leadTimes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sin lead times registrados.</p>
-          ) : (
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="px-3 py-2 text-left font-medium text-muted-foreground">Descripcion</th>
-                    <th className="px-3 py-2 text-right font-medium text-muted-foreground">Plazo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {leadTimes.map((lt) => (
-                    <tr key={lt.id} className="border-b border-border last:border-0">
-                      <td className="px-3 py-2">{lt.descripcion}</td>
-                      <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
-                        {lt.diasMax !== null
-                          ? `${lt.diasMin}–${lt.diasMax} dias`
-                          : `${lt.diasMin} dia${lt.diasMin !== 1 ? "s" : ""}`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           )}
         </TabsContent>
@@ -337,6 +308,8 @@ function SeccionBloque({
 
       {/* Stand by — su propia tabla, separada del costo (informativo, no suma). */}
       <TablaStandby entradas={entradasStandbyLectura(lineas, cargos)} moneda={moneda} />
+      {/* Lead time — debajo del stand-by, mismo estilo (informativo, no suma). */}
+      <TablaLeadTime entradas={entradasLeadTimeLectura(lineas, cargos)} />
     </div>
   );
 }
@@ -417,6 +390,47 @@ function entradasStandbyLectura(lineas: Linea[], cargosSeccion: CargoAdicional[]
   for (const c of cargosSeccion) {
     if (c.standbyDia != null) {
       entradas.push({ concepto: c.nombre, tipo: "Cargo de seccion", precio: c.standbyDia });
+    }
+  }
+  return entradas;
+}
+
+// Lead time recolectado en lectura (mismo patron que el stand-by): lineas de
+// transporte (rotulo = ruta) + cargos de linea y de seccion (rotulo = nombre).
+// La dedup por concepto+plazo la hace TablaLeadTime.
+function entradasLeadTimeLectura(
+  lineas: Linea[],
+  cargosSeccion: CargoAdicional[],
+): EntradaLeadTime[] {
+  const entradas: EntradaLeadTime[] = [];
+  const plazoDe = (min: number, max: number | null): string =>
+    max != null ? `${min}–${max} dias` : `${min} dia${min !== 1 ? "s" : ""}`;
+
+  for (const l of lineas) {
+    if (l.leadTimeDiasMin != null) {
+      // Concepto de la linea = TIPO DE UNIDAD (tipoVehiculo), igual que el stand-by;
+      // fallback a la descripcion o la etiqueta del tipo de linea.
+      const concepto =
+        l.carga?.tipoVehiculo || l.descripcion || formatearTipoLinea(l.tipoLinea);
+      entradas.push({ concepto, tipo: "Linea", plazo: plazoDe(l.leadTimeDiasMin, l.leadTimeDiasMax) });
+    }
+    for (const c of l.cargosAdicionales ?? []) {
+      if (c.leadTimeDiasMin != null) {
+        entradas.push({
+          concepto: c.nombre,
+          tipo: "Cargo de linea",
+          plazo: plazoDe(c.leadTimeDiasMin, c.leadTimeDiasMax),
+        });
+      }
+    }
+  }
+  for (const c of cargosSeccion) {
+    if (c.leadTimeDiasMin != null) {
+      entradas.push({
+        concepto: c.nombre,
+        tipo: "Cargo de seccion",
+        plazo: plazoDe(c.leadTimeDiasMin, c.leadTimeDiasMax),
+      });
     }
   }
   return entradas;

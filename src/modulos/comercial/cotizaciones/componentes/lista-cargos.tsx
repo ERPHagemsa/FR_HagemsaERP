@@ -84,6 +84,14 @@ export function ListaCargos({
                     {cargo.standbyDia.trim() !== "" ? (
                       <span> · stand-by {formatearMoneda(parseFloat(cargo.standbyDia) || 0, moneda)}/dia</span>
                     ) : null}
+                    {cargo.leadTimeDiasMin.trim() !== "" ? (
+                      <span>
+                        {" · lead time "}
+                        {cargo.leadTimeEsRango && cargo.leadTimeDiasMax.trim() !== ""
+                          ? `${cargo.leadTimeDiasMin}–${cargo.leadTimeDiasMax} dias`
+                          : `${cargo.leadTimeDiasMin} dias`}
+                      </span>
+                    ) : null}
                   </p>
                 </div>
                 <span className="shrink-0 font-mono text-sm font-medium tabular-nums">

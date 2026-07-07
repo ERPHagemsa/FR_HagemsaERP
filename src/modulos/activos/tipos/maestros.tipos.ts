@@ -16,8 +16,8 @@ export interface ValorCatalogo {
   estadoRegistro: boolean;
   claseVehiculoReferenciaId?: number | null;
   claseVehiculoReferenciaNombre?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  fechaCreacion: string;
+  fechaModificacion: string;
 }
 
 export interface ValorCatalogoHistorial {
@@ -30,7 +30,7 @@ export interface ValorCatalogoHistorial {
   valorNuevo: string | null;
   motivo: string | null;
   usuario: string | null;
-  createdAt: string;
+  fechaCreacion: string;
 }
 
 export interface CrearValorCatalogoPayload {

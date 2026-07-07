@@ -308,8 +308,8 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                       />
                     </>
                   ) : null}
-                  <Dato label="Fecha de creacion" value={formatearFechaHora(activo.createdAt)} />
-                  <Dato label="Ultima modificacion" value={formatearFechaHora(activo.updatedAt)} />
+                  <Dato label="Fecha de creacion" value={formatearFechaHora(activo.fechaCreacion)} />
+                  <Dato label="Ultima modificacion" value={formatearFechaHora(activo.fechaModificacion)} />
                 </FichaGrid>
               </CardContent>
             </Card>

@@ -5,12 +5,6 @@ import { toast } from "sonner";
 import { CheckIcon, LoaderIcon, TriangleAlertIcon } from "lucide-react";
 
 import { esErrorValidacion, extraerMensajeError, obtenerErroresPorCampo } from "@/compartido/api";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/compartido/componentes/ui/accordion";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
   Select,
@@ -29,7 +23,6 @@ import {
 } from "../servicios/cotizaciones-editor.utils";
 import { useActualizarBorradorMutation } from "../servicios/cotizaciones-queries";
 import { CotizacionSeccionesEditor } from "./cotizacion-secciones-editor";
-import { EditorLeadtimes } from "./editor-leadtimes";
 
 type Props = {
   idCotizacion: string;
@@ -124,29 +117,6 @@ export function CotizacionVersionEditable({ idCotizacion, version, clienteTipo, 
         clienteId={clienteId}
         onChange={(secciones) => aplicar({ ...draft, secciones })}
       />
-
-      {/* Lead times (informativo, no suma al total) */}
-      <div className="overflow-hidden rounded-xl border border-border">
-        <Accordion type="multiple" className="rounded-none border-0">
-          <AccordionItem value="leadtimes" className="border-0">
-            <AccordionTrigger className="px-4">
-              <div className="flex flex-col items-start gap-0.5 text-left">
-                <span className="text-sm font-medium">Lead time ({draft.leadTimes.length})</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  Plazos de entrega de la version. No suman al total.
-                </span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="h-auto px-4">
-              <EditorLeadtimes
-                leadTimes={draft.leadTimes}
-                disabled={estado === "guardando"}
-                onChange={(leadTimes) => aplicar({ ...draft, leadTimes })}
-              />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </div>
     </div>
   );
 }

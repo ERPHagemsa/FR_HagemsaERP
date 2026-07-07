@@ -36,6 +36,8 @@ import { CargoDetalleModal } from "./cargo-detalle-modal";
 import { SeccionDatosModal } from "./seccion-datos-modal";
 import { TablaStandby } from "./tabla-standby";
 import type { EntradaStandby } from "./tabla-standby";
+import { TablaLeadTime } from "./tabla-leadtime";
+import type { EntradaLeadTime } from "./tabla-leadtime";
 import {
   CeldaDescripcionLinea,
   TablaCotizacion,
@@ -542,6 +544,8 @@ function BloqueSeccion({
 
       {/* Stand by — su propia tabla, separada del costo (informativo, no suma). */}
       <TablaStandby entradas={entradasStandby(seccion)} moneda={moneda} />
+      {/* Lead time — debajo del stand-by, mismo estilo (informativo, no suma). */}
+      <TablaLeadTime entradas={entradasLeadTime(seccion)} />
 
       {/* Modal para editar un cargo adicional de seccion desde su fila en la tabla */}
       <CargoDetalleModal
@@ -627,6 +631,48 @@ function entradasStandby(seccion: DraftSeccion): EntradaStandby[] {
         concepto: c.nombre || "Cargo",
         tipo: "Cargo de seccion",
         precio: parseFloat(c.standbyDia) || 0,
+      });
+    }
+  }
+  return entradas;
+}
+
+// Reune las entradas de lead time de una seccion: una por cada linea de TRANSPORTE
+// con lead time. El concepto (rotulo) es la ruta origen→destino de la linea (o de la
+// seccion), con fallback a la descripcion. Informativo, va debajo del stand-by.
+function entradasLeadTime(seccion: DraftSeccion): EntradaLeadTime[] {
+  const entradas: EntradaLeadTime[] = [];
+  // Plazo formateado desde los campos string del draft ("" = sin lead time).
+  const plazoDe = (min: string, max: string): string =>
+    max !== "" ? `${min}–${max} dias` : `${min} dia${min !== "1" ? "s" : ""}`;
+  const maxDe = (c: { leadTimeEsRango: boolean; leadTimeDiasMax: string }) =>
+    c.leadTimeEsRango ? c.leadTimeDiasMax.trim() : "";
+
+  for (const l of seccion.lineas) {
+    // Lead time de la linea de transporte. Concepto = TIPO DE UNIDAD (tipoVehiculo),
+    // igual que el stand-by; fallback a la descripcion o la etiqueta del tipo.
+    if (l.tipoLinea === "TRANSPORTE" && l.leadTimeDiasMin.trim() !== "") {
+      const concepto = l.carga.tipoVehiculo || l.descripcion || etiquetaTipo(l.tipoLinea);
+      entradas.push({ concepto, tipo: "Linea", plazo: plazoDe(l.leadTimeDiasMin.trim(), maxDe(l)) });
+    }
+    // Lead time de los cargos de la linea (rotulo = nombre del cargo).
+    for (const c of l.cargosAdicionales) {
+      if (c.leadTimeDiasMin.trim() !== "") {
+        entradas.push({
+          concepto: c.nombre || "Cargo",
+          tipo: "Cargo de linea",
+          plazo: plazoDe(c.leadTimeDiasMin.trim(), maxDe(c)),
+        });
+      }
+    }
+  }
+  // Lead time de los cargos de nivel seccion (rotulo = nombre del cargo).
+  for (const c of seccion.cargosAdicionales) {
+    if (c.leadTimeDiasMin.trim() !== "") {
+      entradas.push({
+        concepto: c.nombre || "Cargo",
+        tipo: "Cargo de seccion",
+        plazo: plazoDe(c.leadTimeDiasMin.trim(), maxDe(c)),
       });
     }
   }

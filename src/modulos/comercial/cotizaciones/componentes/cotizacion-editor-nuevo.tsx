@@ -43,7 +43,6 @@ export function CotizacionEditorNuevo({ solicitudClienteId, clienteTipo, cliente
   const [draft, setDraft] = React.useState<DraftBorrador>({
     moneda: "PEN",
     secciones: [],
-    leadTimes: [],
   });
   const [erroresCampo, setErroresCampo] = React.useState<Record<string, string>>({});
   const [guardando, setGuardando] = React.useState(false);

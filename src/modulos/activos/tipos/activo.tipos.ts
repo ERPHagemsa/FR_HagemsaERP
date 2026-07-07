@@ -80,8 +80,8 @@ export type Activo = {
   numeroFactura: string | null;
   fechaFactura: string | null;
   vehiculo: VehiculoDetalle | null;
-  createdAt: string;
-  updatedAt: string;
+  fechaCreacion: string;
+  fechaModificacion: string;
 };
 
 export type ActivoHistorial = {
@@ -97,7 +97,7 @@ export type ActivoHistorial = {
   referenciaTipo: string | null;
   referenciaId: number | null;
   referenciaCodigo: string | null;
-  createdAt: string;
+  fechaCreacion: string;
 };
 
 export type TipoCambioConfiguracionHistorica =
@@ -124,8 +124,8 @@ export type ActivoConfiguracionHistorica = {
   fechaCambio: string;
   documentoSustentoUrl: string | null;
   usuarioRegistro: string | null;
-  createdAt: string;
-  updatedAt: string;
+  fechaCreacion: string;
+  fechaModificacion: string;
 };
 
 export type CrearConfiguracionHistoricaPayload = {
@@ -198,8 +198,8 @@ export type ImagenActivo = {
   url: string;
   descripcion: string | null;
   orden: number;
-  createdAt: string;
-  updatedAt: string;
+  fechaCreacion: string;
+  fechaModificacion: string;
 };
 
 export type CrearImagenActivoPayload = {
@@ -252,8 +252,8 @@ export type DocumentoActivo = {
   observacion: string | null;
   usuarioCarga: string | null;
   usuarioActualizacion: string | null;
-  createdAt: string;
-  updatedAt: string;
+  fechaCreacion: string;
+  fechaModificacion: string;
 };
 
 export type CrearDocumentoActivoPayload = {
@@ -277,8 +277,8 @@ export type TanqueActivo = {
   unidadMedida: UnidadMedidaTanque;
   orden: number;
   observacion: string | null;
-  createdAt: string;
-  updatedAt: string;
+  fechaCreacion: string;
+  fechaModificacion: string;
 };
 
 export type CrearTanqueActivoPayload = {
@@ -324,8 +324,8 @@ export type InventarioFisicoDetalle = {
   observacion: string | null;
   usuarioRevision: string | null;
   fechaRevision: string | null;
-  createdAt: string;
-  updatedAt: string;
+  fechaCreacion: string;
+  fechaModificacion: string;
 };
 
 export type InventarioFisicoHistorial = {
@@ -343,7 +343,7 @@ export type InventarioFisicoHistorial = {
   referenciaId: number | null;
   referenciaCodigo: string | null;
   metadata: Record<string, unknown> | null;
-  createdAt: string;
+  fechaCreacion: string;
 };
 
 export type SnapshotHistoricoActivoInventario = {
@@ -405,8 +405,8 @@ export type InventarioFisico = {
   usuarioApertura: string | null;
   usuarioCierre: string | null;
   observacion: string | null;
-  createdAt: string;
-  updatedAt: string;
+  fechaCreacion: string;
+  fechaModificacion: string;
   detalles: InventarioFisicoDetalle[];
   historial: InventarioFisicoHistorial[];
 };

@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { Button } from "@/compartido/componentes/ui/button";
+import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -283,6 +284,53 @@ export function LineaFormulario({
                   aria-invalid={Boolean(erroresCampo.standbyDia)}
                   onChange={(e) => set({ standbyDia: e.target.value })}
                 />
+              </Campo>
+            ) : null}
+
+            {/* Lead time por linea: tiempo de transito de la ruta (dias). El rotulo
+                en el PDF/detalle se deriva de la ruta origen→destino de la seccion. */}
+            {esTransporte ? (
+              <Campo
+                label="Lead time (dias)"
+                error={erroresCampo.leadTimeDiasMin ?? erroresCampo.leadTimeDiasMax}
+              >
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    step="1"
+                    placeholder="— (sin lead time)"
+                    className="w-28"
+                    value={linea.leadTimeDiasMin}
+                    disabled={disabled}
+                    aria-invalid={Boolean(erroresCampo.leadTimeDiasMin)}
+                    onChange={(e) => set({ leadTimeDiasMin: e.target.value })}
+                  />
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Checkbox
+                      checked={linea.leadTimeEsRango}
+                      disabled={disabled}
+                      onCheckedChange={(checked) =>
+                        set({
+                          leadTimeEsRango: Boolean(checked),
+                          leadTimeDiasMax: checked ? linea.leadTimeDiasMax : "",
+                        })
+                      }
+                    />
+                    Rango
+                  </label>
+                  <Input
+                    type="number"
+                    min={1}
+                    step="1"
+                    placeholder={linea.leadTimeEsRango ? "max" : "—"}
+                    className="w-24"
+                    value={linea.leadTimeDiasMax}
+                    disabled={disabled || !linea.leadTimeEsRango}
+                    aria-invalid={Boolean(erroresCampo.leadTimeDiasMax)}
+                    onChange={(e) => set({ leadTimeDiasMax: e.target.value })}
+                  />
+                </div>
               </Campo>
             ) : null}
           </Seccion>

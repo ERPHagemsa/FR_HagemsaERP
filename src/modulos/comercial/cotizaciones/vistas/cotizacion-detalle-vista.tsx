@@ -19,6 +19,7 @@ import {
 import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
+import { PanelUbicacionesPorCompletar } from "@/modulos/comercial/ubicaciones/componentes/panel-ubicaciones-por-completar";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
 import { CLAVE_COTIZACION_DETALLE } from "@/modulos/comercial/claves-consulta";
 import { accionesPermitidas, etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
@@ -134,6 +135,11 @@ export function CotizacionDetalleVista({ id }: Props) {
           clienteId={cotizacion.origenId}
           onCondicionesActualizadas={refetch}
         />
+
+        {/* === Ubicaciones por completar (solo tras ganar) === */}
+        {cotizacion.estado === "GANADA" ? (
+          <PanelUbicacionesPorCompletar idCotizacion={cotizacion.id} />
+        ) : null}
       </div>
     </main>
   );

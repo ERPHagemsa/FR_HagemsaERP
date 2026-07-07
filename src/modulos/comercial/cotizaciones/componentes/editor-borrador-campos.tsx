@@ -2,12 +2,6 @@
 
 import * as React from "react";
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/compartido/componentes/ui/accordion";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
@@ -27,7 +21,6 @@ import {
 import type { Moneda, OrigenTipo } from "../tipos/cotizaciones.tipos";
 import type { DraftBorrador, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
 import { CotizacionSeccionesEditor } from "./cotizacion-secciones-editor";
-import { EditorLeadtimes } from "./editor-leadtimes";
 
 // Presentacional puro del cuerpo del editor de borrador en MODO CREACION
 // (CotizacionEditorNuevo). No tiene logica de API: el contenedor provee el estado
@@ -119,47 +112,6 @@ export function EditorBorradorCampos({
             clienteId={clienteId}
             onChange={actualizarSecciones}
           />
-        </CardContent>
-      </Card>
-
-      {/* Zona informativa secundaria: standby + lead times (colapsables).
-          AccordionContent recibe h-auto para anular la altura fija del primitivo
-          (h-(--radix-accordion-content-height)), que recorta el contenido que
-          crece despues de abrir (ej.: agregar filas). twMerge deja ganar h-auto.
-          Al Accordion se le quita su borde/redondeo propio (border-0 rounded-none)
-          para que no dibuje un marco dentro de la Card; los triggers usan px-6 para
-          alinearse con el header. */}
-      <Card>
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-base">Informacion adicional</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Datos informativos de la version. No suman al total de la cotizacion.
-          </p>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Accordion type="multiple" className="rounded-none border-0">
-            <AccordionItem value="leadtimes">
-              <AccordionTrigger className="px-6">
-                <div className="flex flex-col items-start gap-0.5 text-left">
-                  <span className="text-sm font-medium">
-                    Lead time ({draft.leadTimes.length})
-                  </span>
-                  <span className="text-xs font-normal text-muted-foreground">
-                    Tiempo total que transcurre desde que un cliente solicita un servicio o
-                    pedido hasta que la mercancía se entrega en su destino final.
-                  </span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="h-auto px-6">
-                <EditorLeadtimes
-                  leadTimes={draft.leadTimes}
-                  erroresCampo={erroresCampo}
-                  disabled={guardando}
-                  onChange={(leadTimes) => setDraft((d) => ({ ...d, leadTimes }))}
-                />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
         </CardContent>
       </Card>
 

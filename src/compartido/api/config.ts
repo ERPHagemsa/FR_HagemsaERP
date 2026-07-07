@@ -12,6 +12,7 @@ export type ServicioApi =
   | "flota"
   | "configuracionGeneral"
   | "comercial"
+  | "geo"
 
 type ConfiguracionServicioApi = {
   nombre: string
@@ -30,6 +31,7 @@ export const serviciosApi = {
   },
   comercial: { nombre: "comercial", timeoutMs: REQUEST_TIMEOUT_MS },
   flota: { nombre: "flota", timeoutMs: 8000 },
+  geo: { nombre: "geografía de Perú", timeoutMs: 8000 },
 } satisfies Record<ServicioApi, ConfiguracionServicioApi>
 
 export function obtenerConfiguracionApi(
