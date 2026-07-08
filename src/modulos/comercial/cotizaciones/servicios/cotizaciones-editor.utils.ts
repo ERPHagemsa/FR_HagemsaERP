@@ -12,6 +12,7 @@
 import type {
   CargaHijo,
   CargaItem,
+  FuenteTipoUnidad,
   UnidadPeso,
   EquipoHijo,
   AlmacenajeHijo,
@@ -69,7 +70,12 @@ export type DraftCargaItem = {
 export type DraftCargaHijo = {
   origen: string;
   destino: string;
-  tipoVehiculo: string;
+  // Snapshot del tipo de unidad elegido del maestro (select). fuenteTipoUnidad "" e
+  // idTipoUnidad "" = sin seleccion (bloqueado por validarBorrador en TRANSPORTE). El
+  // nombre se conserva para display; el backend lo recongela al guardar.
+  fuenteTipoUnidad: FuenteTipoUnidad | "";
+  idTipoUnidad: string;
+  tipoUnidadNombre: string;
   cargas: DraftCargaItem[]; // 0..N items fisicos transportados
 };
 
@@ -140,7 +146,9 @@ function cargaVacia(): DraftCargaHijo {
   return {
     origen: "",
     destino: "",
-    tipoVehiculo: "",
+    fuenteTipoUnidad: "",
+    idTipoUnidad: "",
+    tipoUnidadNombre: "",
     cargas: [],
   };
 }
@@ -355,7 +363,9 @@ function cargaReadADraft(c: CargaHijoCompat): DraftCargaHijo {
   return {
     origen: c.origen ?? "",
     destino: c.destino ?? "",
-    tipoVehiculo: c.tipoVehiculo ?? "",
+    fuenteTipoUnidad: c.fuenteTipoUnidad ?? "",
+    idTipoUnidad: c.idTipoUnidad ?? "",
+    tipoUnidadNombre: c.tipoUnidadNombre ?? "",
     cargas,
   };
 }
@@ -530,7 +540,12 @@ function cargaAPayload(c: DraftCargaHijo): PayloadCargaHijo {
   const payload: PayloadCargaHijo = {};
   if (c.origen !== "") payload.origen = c.origen;
   if (c.destino !== "") payload.destino = c.destino;
-  if (c.tipoVehiculo !== "") payload.tipoVehiculo = c.tipoVehiculo;
+  // Snapshot del tipo de unidad: fuente + id opaco viajan juntos. El nombre NO se envia
+  // (lo congela el backend). validarBorrador ya bloquea guardar sin seleccion en TRANSPORTE.
+  if (c.fuenteTipoUnidad !== "" && c.idTipoUnidad !== "") {
+    payload.fuenteTipoUnidad = c.fuenteTipoUnidad;
+    payload.idTipoUnidad = c.idTipoUnidad;
+  }
   // Descartar items totalmente vacios (sin nombre): el usuario agrego una fila y no la lleno.
   const cargas = c.cargas.filter((it) => it.nombre.trim() !== "");
   if (cargas.length > 0) payload.cargas = cargas.map(cargaItemAPayload);
@@ -829,6 +844,13 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
       }
       // Items de carga (solo TRANSPORTE): nombre obligatorio, dimensiones/peso >= 0
       if (l.tipoLinea === "TRANSPORTE") {
+        // Tipo de unidad: obligatorio. El backend exige fuenteTipoUnidad + idTipoUnidad en la
+        // carga (@IsEnum + @IsString/@IsNotEmpty); sin seleccion rechaza TODO el borrador con
+        // 400. La atajamos aca con mensaje claro.
+        if (l.carga.idTipoUnidad.trim() === "" || l.carga.fuenteTipoUnidad === "") {
+          errores[`secciones.${i}.lineas.${k}.carga.idTipoUnidad`] =
+            "El tipo de unidad es obligatorio.";
+        }
         l.carga.cargas.forEach((it, j) => {
           validarCargaItem(errores, it, `secciones.${i}.lineas.${k}.carga.cargas.${j}`);
         });

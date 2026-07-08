@@ -5,7 +5,7 @@
 // Va en su propia tabla, debajo del stand-by, con el mismo estilo.
 
 export type EntradaLeadTime = {
-  // Rotulo del lead time: el tipo de unidad (tipoVehiculo) de la linea o el nombre del cargo.
+  // Rotulo del lead time: el tipo de unidad (tipoUnidadNombre) de la linea o el nombre del cargo.
   concepto: string;
   // Etiqueta de origen del item (ej. "Linea", "Cargo de seccion"); opcional.
   tipo?: string;

@@ -608,9 +608,9 @@ function entradasStandby(seccion: DraftSeccion): EntradaStandby[] {
   for (const l of seccion.lineas) {
     if (l.tipoLinea === "TRANSPORTE" && l.standbyDia.trim() !== "") {
       entradas.push({
-        // El concepto del stand-by de la linea es el TIPO DE UNIDAD (tipoVehiculo),
+        // El concepto del stand-by de la linea es el TIPO DE UNIDAD (tipoUnidadNombre),
         // no la descripcion; con fallback a la descripcion o la etiqueta del tipo.
-        concepto: l.carga.tipoVehiculo || l.descripcion || etiquetaTipo(l.tipoLinea),
+        concepto: l.carga.tipoUnidadNombre || l.descripcion || etiquetaTipo(l.tipoLinea),
         tipo: "Linea",
         precio: parseFloat(l.standbyDia) || 0,
       });
@@ -649,10 +649,10 @@ function entradasLeadTime(seccion: DraftSeccion): EntradaLeadTime[] {
     c.leadTimeEsRango ? c.leadTimeDiasMax.trim() : "";
 
   for (const l of seccion.lineas) {
-    // Lead time de la linea de transporte. Concepto = TIPO DE UNIDAD (tipoVehiculo),
+    // Lead time de la linea de transporte. Concepto = TIPO DE UNIDAD (tipoUnidadNombre),
     // igual que el stand-by; fallback a la descripcion o la etiqueta del tipo.
     if (l.tipoLinea === "TRANSPORTE" && l.leadTimeDiasMin.trim() !== "") {
-      const concepto = l.carga.tipoVehiculo || l.descripcion || etiquetaTipo(l.tipoLinea);
+      const concepto = l.carga.tipoUnidadNombre || l.descripcion || etiquetaTipo(l.tipoLinea);
       entradas.push({ concepto, tipo: "Linea", plazo: plazoDe(l.leadTimeDiasMin.trim(), maxDe(l)) });
     }
     // Lead time de los cargos de la linea (rotulo = nombre del cargo).

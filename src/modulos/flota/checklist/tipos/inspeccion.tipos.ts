@@ -120,6 +120,10 @@ export type IniciarInspeccionPayload = {
   // Unidad complementaria (remolcador <-> semirremolque). Obligatoria cuando
   // la unidad principal es de clase Remolcador o Semirremolque.
   unidadAcopleId?: string | null;
+  // Modificador que el inspector marca explícitamente ("¿Transporta ácido/
+  // material peligroso?"). Resuelve una PlantillaVersion distinta para la
+  // misma clase. Default false (checklist normal).
+  acido?: boolean;
   asignacionId?: number | null;
   horometro?: number | null;
   hubodometro?: number | null;

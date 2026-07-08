@@ -125,7 +125,7 @@ export type ParamsPrecioSugerido = {
 // (ordenadas por fecha desc), pero la estadistica usa TODAS las `muestras`, no solo estas.
 export type ComparablePrecioSugerido = {
   cotizacionId: string;
-  tipoVehiculo: string | null;
+  tipoUnidadNombre: string | null; // nombre congelado del tipo de unidad (solo display)
   precioVenta: number;      // precio de venta cotizado historicamente (lo que se cobro)
   margenPct: number;        // margen sobre venta con el que se cotizo ese comparable
   fecha: string;            // ISO
@@ -146,13 +146,30 @@ export type PrecioSugerido = {
   comparables: ComparablePrecioSugerido[]; // evidencia (capeada a 10); [] sin comparables
 };
 
-// El transporte de la linea: ruta + vehiculo + los items fisicos que mueve.
-// Antes era un objeto plano con dimensiones unicas; ahora las dimensiones bajan a cargas[].
+// Fuente del maestro de tipos de unidad (API §5.13). ACTIVOS = clase de carroceria
+// de BC-02; TERCERO = tipo propio de Comercial.
+export type FuenteTipoUnidad = "ACTIVOS" | "TERCERO";
+
+// Opcion del select de tipo de unidad (GET /tipos-unidad — array pelado, sin paginar).
+// El `id` es una referencia OPAQUE: idActivos numerico (serializado) o UUID de tercero.
+// No validar como UUID. Es lo que se manda como idTipoUnidad en la carga.
+export type TipoUnidadOpcion = {
+  id: string;
+  nombre: string;                 // etiqueta a mostrar en el select
+  clase: string | null;           // clase de carroceria (solo ACTIVOS; null en terceros)
+  fuente: FuenteTipoUnidad;        // es lo que se manda como fuenteTipoUnidad en la carga
+};
+
+// El transporte de la linea: ruta + tipo de unidad (snapshot) + los items fisicos que mueve.
+// El tipo de unidad es un snapshot del maestro: fuente + id opaco + nombre congelado por el
+// backend al guardar (reemplaza al viejo tipoVehiculo de texto libre — contrato bc03 Fase 2).
 export type CargaHijo = {
   id: string;
   origen: string | null;
   destino: string | null;
-  tipoVehiculo: string | null;
+  fuenteTipoUnidad: FuenteTipoUnidad;
+  idTipoUnidad: string;      // referencia opaca al maestro (idActivos numerico o UUID de tercero)
+  tipoUnidadNombre: string;  // nombre congelado al elegir (lo devuelve el backend, solo lectura)
   cargas: CargaItem[];
 };
 
@@ -521,7 +538,10 @@ export type PayloadCargaItem = {
 export type PayloadCargaHijo = {
   origen?: string;
   destino?: string;
-  tipoVehiculo?: string;
+  // Snapshot del tipo de unidad: fuente + id opaco. Ambos obligatorios cuando se envia la
+  // carga (el backend exige @IsEnum + @IsString/@IsNotEmpty); el nombre lo congela el backend.
+  fuenteTipoUnidad?: FuenteTipoUnidad;
+  idTipoUnidad?: string;
   cargas?: PayloadCargaItem[];
 };
 
@@ -623,6 +643,21 @@ export type PayloadNuevaVersion = {
 
 export type PayloadPerdida = {
   motivoPerdida: string;
+};
+
+// PUT /cotizaciones/numeracion (API §5.5.1) — fija desde que numero correlativo
+// continua la numeracion del año en curso. El backend resuelve el año; el cliente
+// solo envia proximoNumero (entero >= 1). Regla forward-only: no se puede fijar un
+// numero <= al ultimo ya emitido este año (el backend responde 409).
+export type PayloadFijarNumeracion = {
+  proximoNumero: number;
+};
+
+// Respuesta 200 de PUT /cotizaciones/numeracion: el año al que aplico y el
+// proximo numero que tomara la siguiente cotizacion emitida.
+export type RespuestaNumeracion = {
+  anio: number;
+  proximoNumero: number;
 };
 
 // ---------------------------------------------------------------------------

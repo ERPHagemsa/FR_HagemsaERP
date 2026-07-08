@@ -8,9 +8,11 @@ import {
   ArrowLeft,
   Check,
   CheckCircle2,
+  ChevronDown,
   CircleDot,
   Cloud,
   CloudOff,
+  Download,
   Loader2,
   Lock,
 } from "lucide-react";
@@ -43,6 +45,7 @@ import {
   useCerrarInspeccionMutation,
   useInspeccionQuery,
 } from "../servicios/inspecciones-queries";
+import { descargarPdfInspeccion } from "../servicios/inspeccion-api";
 import type {
   EstadoItem,
   Inspeccion,
@@ -67,6 +70,54 @@ type NeumaticoLocal = {
   cocadaMm: number | null;
   otro: string | null;
 };
+
+// Mismo criterio que Inspeccion.estaRespondido() en el backend (dominio) —
+// por tipo de respuesta, ¿ya tiene un valor capturado?
+function estaRespondido(item: InspeccionItem, r: RespuestaLocal): boolean {
+  switch (item.tipoRespuesta) {
+    case "CONFORMIDAD":
+      return r.estadoItem !== "SIN_RESPONDER";
+    case "MEDICION":
+      return r.valorNumerico != null;
+    case "SELECCION":
+    case "TEXTO":
+      return !!r.valorTexto;
+    case "BOOLEANO":
+      return r.valorBooleano != null;
+    default:
+      return false;
+  }
+}
+
+// Badge de progreso por sección: solo cuenta OBLIGATORIOS pendientes (son los
+// que de verdad bloquean pasar a COMPLETA); mezclar con opcionales confundiría
+// más de lo que ayuda. Sin obligatorios en la sección, no muestra nada.
+function BadgeSeccion({
+  items,
+  respuestas,
+}: {
+  items: InspeccionItem[];
+  respuestas: Record<string, RespuestaLocal>;
+}) {
+  const requeridos = items.filter((i) => i.requerido);
+  if (requeridos.length === 0) return null;
+  const pendientes = requeridos.filter((i) => {
+    const r = respuestas[i.id];
+    return !r || !estaRespondido(i, r);
+  }).length;
+  if (pendientes === 0) {
+    return (
+      <Badge variant="secondary" className="gap-1 text-emerald-600 dark:text-emerald-400">
+        <Check className="size-3" /> Completa
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
+      {pendientes} {pendientes === 1 ? "pendiente" : "pendientes"}
+    </Badge>
+  );
+}
 
 function respuestaDesdeItem(item: InspeccionItem): RespuestaLocal {
   return {
@@ -136,6 +187,20 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
   const [neumaticosLocal, setNeumaticosLocal] = useState<Record<string, NeumaticoLocal>>({});
   const [estadoActual, setEstadoActual] = useState<Inspeccion["estado"] | null>(null);
   const seededRef = useRef<string | null>(null);
+  // Secciones CERRADAS por el usuario (set vacío = todo abierto por defecto).
+  // Plegable simple (mostrar/ocultar), sin animación de altura: el Accordion
+  // compartido (Radix, h-(--radix-accordion-content-height)) mide mal el alto
+  // con una tabla grande de inputs interactivos y deja el contenido recortado.
+  const [seccionesCerradas, setSeccionesCerradas] = useState<Set<string>>(new Set());
+
+  function alternarSeccion(id: string) {
+    setSeccionesCerradas((actual) => {
+      const siguiente = new Set(actual);
+      if (siguiente.has(id)) siguiente.delete(id);
+      else siguiente.add(id);
+      return siguiente;
+    });
+  }
 
   // Mapas "sucios": id -> valor vigente en el momento de la edición. Se pueblan
   // directamente en los handlers (no en updaters de setState, que deben ser
@@ -154,6 +219,25 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
     },
     onError: (err) => toast.error(extraerMensajeError(err)),
   });
+
+  const [descargandoPdf, setDescargandoPdf] = useState(false);
+
+  async function handleDescargarPdf() {
+    setDescargandoPdf(true);
+    try {
+      const blob = await descargarPdfInspeccion(inspeccionId);
+      const url = URL.createObjectURL(blob);
+      const enlace = document.createElement("a");
+      enlace.href = url;
+      enlace.download = `checklist-${inspeccion?.codigo ?? inspeccionId}.pdf`;
+      enlace.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(extraerMensajeError(err));
+    } finally {
+      setDescargandoPdf(false);
+    }
+  }
 
   // Seed inicial: una sola vez por inspección cargada.
   useEffect(() => {
@@ -304,6 +388,19 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
           <Badge variant={esInmutable ? "default" : (estadoActual ?? inspeccion.estado) === "COMPLETA" ? "secondary" : "outline"}>
             {estadoActual ?? inspeccion.estado}
           </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDescargarPdf}
+            disabled={descargandoPdf}
+          >
+            {descargandoPdf ? (
+              <Loader2 data-icon="inline-start" className="animate-spin" />
+            ) : (
+              <Download data-icon="inline-start" />
+            )}
+            PDF
+          </Button>
         </div>
       </div>
 
@@ -359,87 +456,109 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
         </Alert>
       ) : null}
 
-      {/* Secciones e ítems */}
-      {secciones.map((seccion) => (
-        <Card key={seccion.id}>
-          <CardHeader className="border-b border-border">
-            <CardTitle className="text-base">{seccion.nombre}</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="overflow-hidden rounded-lg border border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[32%]">Ítem</TableHead>
-                    <TableHead className="w-[26%]">Respuesta</TableHead>
-                    <TableHead className="w-[12%]">Cantidad</TableHead>
-                    <TableHead className="w-[30%]">Observación</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[...seccion.items]
-                    .sort((a, b) => a.orden - b.orden)
-                    .map((item) => {
-                      const r = respuestas[item.id];
-                      if (!r) return null;
-                      return (
-                        <TableRow key={item.id}>
-                          <TableCell className="text-sm align-top pt-3">
-                            {item.etiqueta}
-                            {item.requerido ? (
-                              <span className="ml-1 text-destructive">*</span>
-                            ) : null}
-                          </TableCell>
-                          <TableCell className="align-top pt-2">
-                            <ControlRespuesta
-                              item={item}
-                              respuesta={r}
-                              deshabilitado={esInmutable}
-                              onCambio={(patch) => actualizarRespuesta(item.id, patch)}
-                            />
-                          </TableCell>
-                          <TableCell className="align-top pt-2">
-                            {item.capturaCantidad ? (
-                              <Input
-                                type="number"
-                                min={0}
-                                step={1}
-                                className="h-8 w-20"
-                                value={r.cantidad ?? ""}
-                                disabled={esInmutable}
-                                onChange={(e) =>
-                                  actualizarRespuesta(item.id, {
-                                    cantidad: e.target.value === "" ? null : Number(e.target.value),
-                                  })
-                                }
-                              />
-                            ) : (
-                              <span className="text-sm text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="align-top pt-2">
-                            <Input
-                              className="h-8"
-                              placeholder="Observación"
-                              value={r.observacion ?? ""}
-                              disabled={esInmutable}
-                              maxLength={300}
-                              onChange={(e) =>
-                                actualizarRespuesta(item.id, {
-                                  observacion: e.target.value === "" ? null : e.target.value,
-                                })
-                              }
-                            />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+      {/* Secciones e ítems: plegable por sección (plantillas grandes llegan a
+          15+ secciones / 160+ ítems) — arranca todo desplegado para que nada
+          quede oculto de entrada; el badge solo cuenta OBLIGATORIOS pendientes.
+          Mostrar/ocultar simple (sin animación de altura): con una tabla de
+          inputs interactivos, el Accordion compartido (Radix,
+          h-(--radix-accordion-content-height)) medía mal el alto y recortaba
+          el contenido. */}
+      {secciones.map((seccion) => {
+        const abierta = !seccionesCerradas.has(seccion.id);
+        return (
+          <Card key={seccion.id}>
+            <CardHeader
+              className="cursor-pointer select-none border-b border-border"
+              onClick={() => alternarSeccion(seccion.id)}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-base">{seccion.nombre}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <BadgeSeccion items={seccion.items} respuestas={respuestas} />
+                  <ChevronDown
+                    className={`size-4 text-muted-foreground transition-transform ${abierta ? "" : "-rotate-90"}`}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            {abierta ? (
+              <CardContent className="pt-4">
+                <div className="overflow-hidden rounded-lg border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[32%]">Ítem</TableHead>
+                        <TableHead className="w-[26%]">Respuesta</TableHead>
+                        <TableHead className="w-[12%]">Cantidad</TableHead>
+                        <TableHead className="w-[30%]">Observación</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {[...seccion.items]
+                        .sort((a, b) => a.orden - b.orden)
+                        .map((item) => {
+                          const r = respuestas[item.id];
+                          if (!r) return null;
+                          return (
+                            <TableRow key={item.id}>
+                              <TableCell className="text-sm align-top pt-3">
+                                {item.etiqueta}
+                                {item.requerido ? (
+                                  <span className="ml-1 text-destructive">*</span>
+                                ) : null}
+                              </TableCell>
+                              <TableCell className="align-top pt-2">
+                                <ControlRespuesta
+                                  item={item}
+                                  respuesta={r}
+                                  deshabilitado={esInmutable}
+                                  onCambio={(patch) => actualizarRespuesta(item.id, patch)}
+                                />
+                              </TableCell>
+                              <TableCell className="align-top pt-2">
+                                {item.capturaCantidad ? (
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    className="h-8 w-20"
+                                    value={r.cantidad ?? ""}
+                                    disabled={esInmutable}
+                                    onChange={(e) =>
+                                      actualizarRespuesta(item.id, {
+                                        cantidad: e.target.value === "" ? null : Number(e.target.value),
+                                      })
+                                    }
+                                  />
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="align-top pt-2">
+                                <Input
+                                  className="h-8"
+                                  placeholder="Observación"
+                                  value={r.observacion ?? ""}
+                                  disabled={esInmutable}
+                                  maxLength={300}
+                                  onChange={(e) =>
+                                    actualizarRespuesta(item.id, {
+                                      observacion: e.target.value === "" ? null : e.target.value,
+                                    })
+                                  }
+                                />
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            ) : null}
+          </Card>
+        );
+      })}
 
       {/* Neumáticos */}
       {neumaticosPorGrupo.length > 0 ? (
@@ -565,13 +684,28 @@ function ControlRespuesta({
             onCambio({ estadoItem: valor as EstadoItem });
           }}
         >
-          <ToggleGroupItem value="CONFORME" disabled={deshabilitado} aria-label="Conforme">
+          <ToggleGroupItem
+            value="CONFORME"
+            disabled={deshabilitado}
+            aria-label="Conforme"
+            className="data-[state=on]:bg-green-600 data-[state=on]:text-white data-[state=on]:border-green-600 dark:data-[state=on]:bg-green-600"
+          >
             C
           </ToggleGroupItem>
-          <ToggleGroupItem value="NO_CONFORME" disabled={deshabilitado} aria-label="No conforme">
+          <ToggleGroupItem
+            value="NO_CONFORME"
+            disabled={deshabilitado}
+            aria-label="No conforme"
+            className="data-[state=on]:bg-red-600 data-[state=on]:text-white data-[state=on]:border-red-600 dark:data-[state=on]:bg-red-600"
+          >
             NC
           </ToggleGroupItem>
-          <ToggleGroupItem value="NO_APLICA" disabled={deshabilitado} aria-label="No aplica">
+          <ToggleGroupItem
+            value="NO_APLICA"
+            disabled={deshabilitado}
+            aria-label="No aplica"
+            className="data-[state=on]:bg-slate-500 data-[state=on]:text-white data-[state=on]:border-slate-500 dark:data-[state=on]:bg-slate-500"
+          >
             NA
           </ToggleGroupItem>
         </ToggleGroup>

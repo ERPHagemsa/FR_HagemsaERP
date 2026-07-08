@@ -8,6 +8,7 @@ import { useConsulta } from "@/compartido/api/use-consulta";
 import { extraerMensajeError } from "@/compartido/api/formato-error";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 import { Button } from "@/compartido/componentes/ui/button";
+import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -33,6 +34,7 @@ import type { VehiculoFlota } from "@/modulos/flota/asignaciones/tipos/asignacio
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { useTiposChecklistQuery } from "../servicios/tipos-checklist-queries";
 import { useColoresRotulacionQuery } from "../servicios/colores-rotulacion-queries";
+import { consultarDisponibilidadAcido } from "../servicios/checklist-api";
 import { useIniciarInspeccionMutation } from "../servicios/inspecciones-queries";
 import { obtenerTodoPersonal } from "../servicios/personal-api";
 import type { Inspeccion } from "../tipos/inspeccion.tipos";
@@ -83,6 +85,7 @@ export function IniciarInspeccionSheet({
   const [acopleId, setAcopleId] = useState<string>("");
   const [busquedaAcople, setBusquedaAcople] = useState("");
   const [operadoresSel, setOperadoresSel] = useState<(Persona | null)[]>([null]);
+  const [acido, setAcido] = useState(false);
 
   // Operadores: personal OPERATIVO de BC01_SocioDeNegocio. Se trae TODO una
   // sola vez al abrir el sheet (el API no filtra por tipoRegimen server-side)
@@ -97,6 +100,17 @@ export function IniciarInspeccionSheet({
   const clase = unidad.clase ?? null;
   const claseAcople = claseAcopleAplicable(clase);
   const acopleObligatorio = acopleEsObligatorio(clase);
+
+  // ¿Hay una plantilla ácido publicada para esta clase? Fuente de verdad en
+  // el backend (PlantillaVersion.criterioAplicabilidad) — no se hardcodea la
+  // lista de clases acá, para no desincronizarse si se agrega/quita una
+  // plantilla ácido más adelante.
+  const disponibilidadAcidoConsulta = useConsulta(
+    () => (clase ? consultarDisponibilidadAcido(clase) : Promise.resolve(false)),
+    [clase],
+    { enabled: Boolean(clase) },
+  );
+  const mostrarCheckAcido = disponibilidadAcidoConsulta.data ?? false;
 
   // Solo se pide cuando la unidad es Remolcador o Semirremolque: un
   // semirremolque no anda solo, hay que emparejarlo con su complementaria.
@@ -201,6 +215,7 @@ export function IniciarInspeccionSheet({
       tipoChecklistId: tipoId,
       unidadId: unidad.id,
       unidadAcopleId: acopleId || null,
+      acido: mostrarCheckAcido ? acido : false,
       horometro: aNumeroONull(formData.get("horometro")),
       hubodometro: aNumeroONull(formData.get("hubodometro")),
       kilometraje: aNumeroONull(formData.get("kilometraje")),
@@ -354,6 +369,19 @@ export function IniciarInspeccionSheet({
                   </SelectContent>
                 </Select>
               </div>
+
+              {mostrarCheckAcido ? (
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                  <Checkbox
+                    id="ins-acido"
+                    checked={acido}
+                    onCheckedChange={(valor) => setAcido(valor === true)}
+                  />
+                  <Label htmlFor="ins-acido" className="cursor-pointer font-normal">
+                    ¿Transporta ácido / material peligroso?
+                  </Label>
+                </div>
+              ) : null}
 
               <Separator />
 
