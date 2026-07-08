@@ -98,6 +98,7 @@ const data = {
         { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
         { title: "Tarifarios", url: "/comercial/tarifarios" },
         { title: "Contratos", url: "/comercial/contratos" },
+        { title: "Ubicaciones", url: "/comercial/ubicaciones" },
         { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
         { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
         { title: "Condiciones", url: "/comercial/catalogos/condiciones" },
