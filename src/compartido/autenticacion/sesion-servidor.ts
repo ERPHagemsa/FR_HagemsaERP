@@ -61,5 +61,10 @@ export function mapearPayloadAUsuario(
     nombre: payload.name,
     tipo: payload.type,
     roles: payload.roles.map((rol: RolPayload) => rol.role),
+    codigoSocio: payload.codigoSocio,
+    codigoCuenta: payload.codigoCuenta,
+    socioExternoId: payload.socioExternoId,
+    socioNombre: payload.socioNombre,
+    socioDocumento: payload.socioDocumento,
   }
 }

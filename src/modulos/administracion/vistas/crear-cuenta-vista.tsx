@@ -25,8 +25,18 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select"
 
+import { SocioPicker, type SocioSeleccionado } from "../componentes/socio-picker"
 import { useCrearCuenta } from "../ganchos/use-mutaciones-cuenta"
 import type { TipoCuenta } from "../tipos/administracion.tipos"
+
+// Normaliza un codigo de socio/cuenta: mayusculas, solo alfanumericos, max 2.
+// Refleja la regla del dominio (^[A-Z0-9]{2}$) directamente en el input.
+function normalizarCodigo(valor: string): string {
+  return valor
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 2)
+}
 
 export function CrearCuentaVista() {
   const router = useRouter()
@@ -35,13 +45,43 @@ export function CrearCuentaVista() {
   const [nombreCompleto, setNombreCompleto] = useState("")
   const [tipoCuenta, setTipoCuenta] = useState<TipoCuenta>("interno")
   const [documentoIdentidad, setDocumentoIdentidad] = useState("")
+  // Vinculo opcional con un socio de negocio (BC01). Es "todo-o-nada".
+  const [socio, setSocio] = useState<SocioSeleccionado | null>(null)
+  const [codigoSocio, setCodigoSocio] = useState("")
+  const [codigoCuenta, setCodigoCuenta] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   const crearMutation = useCrearCuenta()
 
+  // Al elegir un socio, su DNI ya viene de BC01: lo tomamos y bloqueamos el
+  // campo manual. Al quitar el socio, se libera para carga manual.
+  function manejarCambioSocio(nuevo: SocioSeleccionado | null) {
+    setSocio(nuevo)
+    setDocumentoIdentidad(nuevo?.documento ?? "")
+  }
+
   async function manejarSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+
+    // Vinculo con socio: "todo-o-nada". Si se tocó alguno de los tres, exigir
+    // los tres (el backend valida lo mismo; esto es UX temprana).
+    const tocoSocio = Boolean(socio) || codigoSocio !== "" || codigoCuenta !== ""
+    if (tocoSocio) {
+      if (!socio || codigoSocio.length !== 2 || codigoCuenta.length !== 2) {
+        const mensaje =
+          "Para vincular un socio: elegí el socio y completá ambos códigos (2 caracteres cada uno)."
+        setError(mensaje)
+        toast.error(mensaje)
+        return
+      }
+      if (codigoSocio === codigoCuenta) {
+        const mensaje = "El código de socio y el de cuenta deben ser distintos."
+        setError(mensaje)
+        toast.error(mensaje)
+        return
+      }
+    }
 
     try {
       const respuesta = await crearMutation.mutateAsync({
@@ -50,6 +90,15 @@ export function CrearCuentaVista() {
         nombreCompleto: nombreCompleto.trim(),
         tipoCuenta,
         documentoIdentidad: documentoIdentidad.trim() || undefined,
+        ...(tocoSocio && socio
+          ? {
+              socioExternoId: socio.socioExternoId,
+              codigoSocio,
+              codigoCuenta,
+              tipoSocio: "empleado" as const,
+              socioSnapshot: socio.datos as unknown as Record<string, unknown>,
+            }
+          : {}),
       })
       toast.success("Cuenta creada correctamente")
       router.push(`/admin/cuentas/${respuesta.id}`)
@@ -154,7 +203,9 @@ export function CrearCuentaVista() {
               </Field>
               <Field className="sm:col-span-2">
                 <FieldLabel htmlFor="documentoIdentidad">
-                  Documento de identidad (opcional)
+                  {socio
+                    ? "Documento de identidad (del socio de negocio)"
+                    : "Documento de identidad (opcional)"}
                 </FieldLabel>
                 <Input
                   id="documentoIdentidad"
@@ -163,8 +214,65 @@ export function CrearCuentaVista() {
                   value={documentoIdentidad}
                   onChange={(e) => setDocumentoIdentidad(e.target.value)}
                   maxLength={50}
+                  disabled={socio !== null}
+                  aria-readonly={socio !== null}
                 />
+                {socio ? (
+                  <p className="text-xs text-muted-foreground">
+                    Se toma automáticamente del socio seleccionado.
+                  </p>
+                ) : null}
               </Field>
+
+              <div className="space-y-4 border-t pt-4 sm:col-span-2">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-medium">
+                    Socio de negocio (opcional)
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Vinculá la cuenta a un socio de BC01. Si vinculás, ambos
+                    códigos son obligatorios (2 caracteres alfanuméricos, distintos
+                    entre sí).
+                  </p>
+                </div>
+
+                <Field>
+                  <FieldLabel>Socio</FieldLabel>
+                  <SocioPicker value={socio} onChange={manejarCambioSocio} />
+                </Field>
+
+                <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="codigoSocio">Código de socio</FieldLabel>
+                    <Input
+                      id="codigoSocio"
+                      className="rounded-md uppercase"
+                      type="text"
+                      autoComplete="off"
+                      inputMode="text"
+                      value={codigoSocio}
+                      onChange={(e) => setCodigoSocio(normalizarCodigo(e.target.value))}
+                      maxLength={2}
+                      placeholder="Ej. BA"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="codigoCuenta">Código de cuenta</FieldLabel>
+                    <Input
+                      id="codigoCuenta"
+                      className="rounded-md uppercase"
+                      type="text"
+                      autoComplete="off"
+                      inputMode="text"
+                      value={codigoCuenta}
+                      onChange={(e) => setCodigoCuenta(normalizarCodigo(e.target.value))}
+                      maxLength={2}
+                      placeholder="Ej. C1"
+                    />
+                  </Field>
+                </FieldGroup>
+              </div>
+
               {error ? (
                 <Field data-invalid className="sm:col-span-2">
                   <FieldError>{error}</FieldError>
