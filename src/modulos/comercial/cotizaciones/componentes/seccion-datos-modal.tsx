@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Check, MapPin } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -83,7 +84,7 @@ export function SeccionDatosModal({
 
   return (
     <Dialog open={abierto} onOpenChange={(v) => (!v ? onCerrar() : undefined)}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Datos de la sección</DialogTitle>
           <DialogDescription>
@@ -92,7 +93,7 @@ export function SeccionDatosModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-2">
+        <div className="flex flex-col gap-5 py-2">
           <Campo label="Nombre de la sección" obligatorio>
             <Input
               value={borrador.nombre}
@@ -197,28 +198,57 @@ function RutaCampo({
   );
 }
 
-/** Tarjeta de detalle de la ubicación elegida del maestro. */
+/** Tarjeta de detalle de la ubicación elegida del maestro (datos completos). */
 function DetalleUbicacion({ u }: { u: Ubicacion }) {
   const coords =
     u.latitud != null && u.longitud != null
       ? `${u.latitud}, ${u.longitud}`
       : null;
-  const geo = [jerarquiaUbicacion(u, ", "), u.pais].filter(Boolean).join(", ");
+  const jerarquia = jerarquiaUbicacion(u, " · ");
   return (
-    <div className="grid gap-1 rounded-md border bg-muted/40 p-2.5 text-xs">
-      <div className="flex items-center gap-2">
-        <Badge variant="secondary">{etiquetaTipoUbicacion(u.tipoUbicacion)}</Badge>
-        <span className="text-muted-foreground">del maestro</span>
+    <div className="grid gap-2.5 rounded-lg border bg-muted/40 p-3 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <Badge variant="secondary" className="font-normal">
+          {etiquetaTipoUbicacion(u.tipoUbicacion)}
+        </Badge>
+        <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+          <Check className="size-3" /> En el maestro
+        </span>
       </div>
-      {u.direccion ? (
-        <p className="truncate" title={u.direccion}>
-          {u.direccion}
-        </p>
-      ) : null}
-      {geo ? <p className="text-muted-foreground">{geo}</p> : null}
-      {coords ? (
-        <p className="text-muted-foreground tabular-nums">{coords}</p>
-      ) : null}
+      <DetalleFila label="Dirección" valor={u.direccion} />
+      <DetalleFila label="Ubicación" valor={jerarquia || null} />
+      <DetalleFila label="País" valor={u.pais} />
+      <DetalleFila label="Referencia" valor={u.referenciaUbicacion} />
+      <DetalleFila
+        label="Coordenadas"
+        valor={coords}
+        icono={<MapPin className="size-3" />}
+        mono
+      />
+    </div>
+  );
+}
+
+/** Fila etiqueta:valor del detalle; se omite si el valor está vacío. */
+function DetalleFila({
+  label,
+  valor,
+  icono,
+  mono,
+}: {
+  label: string;
+  valor?: string | null;
+  icono?: React.ReactNode;
+  mono?: boolean;
+}) {
+  if (!valor) return null;
+  return (
+    <div className="grid grid-cols-[6rem_1fr] items-start gap-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={"inline-flex items-center gap-1 " + (mono ? "tabular-nums" : "")}>
+        {icono}
+        {valor}
+      </span>
     </div>
   );
 }
