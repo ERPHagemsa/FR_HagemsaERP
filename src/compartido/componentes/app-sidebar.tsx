@@ -60,12 +60,12 @@ const data = {
       url: "/activos",
       icon: <Boxes />,
       items: [
-        { title: "Listado de activos", url: "/activos/inventario" },
-        { title: "Inventario fisico", url: "/activos/inventario-fisico" },
         { title: "Nuevo activo", url: "/activos/nuevo" },
+        { title: "Listado de activos", url: "/activos/inventario" },
+        { title: "Replaqueo", url: "/activos/nuevo-acople" },
         { title: "Carga masiva activos", url: "/activos/carga-masiva" },
         { title: "Carga masiva documentos", url: "/activos/carga-masiva-documentos" },
-        { title: "Replaqueo", url: "/activos/nuevo-acople" },
+        { title: "Inventario fisico", url: "/activos/inventario-fisico" },
         { title: "Administrador de maestros", url: "/activos/maestros" },
       ],
     },
@@ -98,9 +98,11 @@ const data = {
         { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
         { title: "Tarifarios", url: "/comercial/tarifarios" },
         { title: "Contratos", url: "/comercial/contratos" },
+        { title: "Ubicaciones", url: "/comercial/ubicaciones" },
         { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
         { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
         { title: "Condiciones", url: "/comercial/catalogos/condiciones" },
+        { title: "Tipos de Unidad", url: "/comercial/catalogos/tipos-unidad" },
         // Listado global de cotizaciones: vista secundaria/reporte. El camino principal
         // para cotizar es Solicitudes de cliente (la cotizacion nace de una SC).
         { title: "Todas las cotizaciones", url: "/comercial/cotizaciones" },

@@ -82,12 +82,19 @@ import {
   type Tarifa,
   type TarifaCargo,
 } from "../tipos/tarifarios.tipos"
+// Acoplamiento conocido tarifarios -> cotizaciones: reutiliza el combobox y el tipo del
+// maestro de tipos de unidad (unica fuente de verdad, ya usada en el editor de cotizaciones).
+import { TipoUnidadCombobox } from "../../cotizaciones/componentes/tipo-unidad-combobox"
+import type { FuenteTipoUnidad } from "../../cotizaciones/tipos/cotizaciones.tipos"
 
 type FormTarifa = {
   idModalidad: string
   origen: string
   destino: string
-  tipoVehiculo: string
+  // Snapshot del tipo de unidad elegido del maestro (combobox). "" = sin seleccion.
+  idTipoUnidad: string
+  fuenteTipoUnidad: FuenteTipoUnidad | ""
+  tipoUnidadNombre: string
   condicion: string
   precio: string
   tarifaStandbyDia: string
@@ -97,7 +104,9 @@ const FORM_VACIO: FormTarifa = {
   idModalidad: "",
   origen: "",
   destino: "",
-  tipoVehiculo: "",
+  idTipoUnidad: "",
+  fuenteTipoUnidad: "",
+  tipoUnidadNombre: "",
   condicion: "",
   precio: "",
   tarifaStandbyDia: "",
@@ -108,7 +117,9 @@ function formDesdeTarifa(t: Tarifa): FormTarifa {
     idModalidad: t.idModalidad,
     origen: t.origen ?? "",
     destino: t.destino ?? "",
-    tipoVehiculo: t.tipoVehiculo ?? "",
+    idTipoUnidad: t.idTipoUnidad ?? "",
+    fuenteTipoUnidad: t.fuenteTipoUnidad ?? "",
+    tipoUnidadNombre: t.tipoUnidadNombre ?? "",
     condicion: t.condicion ?? "",
     precio: String(t.precio),
     tarifaStandbyDia: t.tarifaStandbyDia != null ? String(t.tarifaStandbyDia) : "",
@@ -117,13 +128,26 @@ function formDesdeTarifa(t: Tarifa): FormTarifa {
 
 function payloadDesdeForm(form: FormTarifa): PayloadTarifa | null {
   const precio = Number(form.precio)
-  if (!form.idModalidad || form.precio.trim() === "" || isNaN(precio) || precio < 0) {
+  // El tipo de unidad es obligatorio para la tarifa manual (el backend exige fuente + id);
+  // sin seleccion no se puede armar un payload valido.
+  if (
+    !form.idModalidad ||
+    !form.idTipoUnidad ||
+    form.fuenteTipoUnidad === "" ||
+    form.precio.trim() === "" ||
+    isNaN(precio) ||
+    precio < 0
+  ) {
     return null
   }
-  const payload: PayloadTarifa = { idModalidad: form.idModalidad, precio }
+  const payload: PayloadTarifa = {
+    idModalidad: form.idModalidad,
+    precio,
+    fuenteTipoUnidad: form.fuenteTipoUnidad,
+    idTipoUnidad: form.idTipoUnidad,
+  }
   if (form.origen.trim()) payload.origen = form.origen.trim()
   if (form.destino.trim()) payload.destino = form.destino.trim()
-  if (form.tipoVehiculo.trim()) payload.tipoVehiculo = form.tipoVehiculo.trim()
   if (form.condicion.trim()) payload.condicion = form.condicion.trim()
   if (form.tarifaStandbyDia.trim()) {
     const sb = Number(form.tarifaStandbyDia)
@@ -180,11 +204,16 @@ function CamposTarifa({
         </div>
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="t-vehiculo">Tipo de vehiculo</Label>
-        <Input
-          id="t-vehiculo"
-          value={form.tipoVehiculo}
-          onChange={(e) => onChange({ tipoVehiculo: e.target.value })}
+        <Label htmlFor="t-tipo-unidad">Tipo de unidad</Label>
+        <TipoUnidadCombobox
+          value={form.idTipoUnidad}
+          onValueChange={(id, opcion) =>
+            onChange({
+              idTipoUnidad: id,
+              fuenteTipoUnidad: opcion?.fuente ?? "",
+              tipoUnidadNombre: opcion?.nombre ?? "",
+            })
+          }
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -400,6 +429,17 @@ function CamposCargo({
   )
 }
 
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5 rounded-xl border border-border bg-card px-4 py-3">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="truncate text-sm font-semibold tabular-nums" title={value}>
+        {value}
+      </p>
+    </div>
+  )
+}
+
 interface Props {
   idTarifario: string
 }
@@ -465,15 +505,34 @@ export function TarifarioDetalle({ idTarifario }: Props) {
     )
   }
 
+  const cliente = tarifario.nombreClienteExterno ?? tarifario.idClienteExterno
+  const fmtFecha = (v: string | null) =>
+    v ? new Date(v).toLocaleDateString("es-PE", { timeZone: "UTC" }) : "—"
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/comercial/tarifarios">
-            <ArrowLeft />
-            Tarifarios
-          </Link>
-        </Button>
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5">
+      {/* Cabecera: volver + identidad + acciones (denso, sin Card aparte) */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <Button variant="ghost" size="sm" asChild className="-ml-2 w-fit text-muted-foreground">
+            <Link href="/comercial/tarifarios">
+              <ArrowLeft />
+              Tarifarios
+            </Link>
+          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-lg font-semibold">Tarifario</h1>
+            {soloLectura ? <Badge variant="outline">Solo lectura</Badge> : null}
+            <Badge variant={vigente ? "default" : "secondary"}>
+              {etiquetaEstadoTarifario(tarifario.estado)}
+            </Badge>
+          </div>
+          <p className="truncate text-sm text-muted-foreground">
+            {etiquetaTipoOrigen(tarifario.tipoOrigen)} · {tarifario.moneda}
+            {soloLectura ? " · Generado desde una cotización (no editable)" : ""}
+            {cliente ? ` · Cliente ${cliente}` : ""}
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {puedeCrearContrato ? (
             <CrearContratoDesdeTarifario idTarifario={idTarifario} />
@@ -486,10 +545,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
             </Button>
           ) : null}
           {editable ? (
-            <Button
-              variant="outline"
-              onClick={() => setEditarVigenciaAbierto(true)}
-            >
+            <Button variant="outline" onClick={() => setEditarVigenciaAbierto(true)}>
               <CalendarClock />
               Editar vigencia
             </Button>
@@ -503,72 +559,33 @@ export function TarifarioDetalle({ idTarifario }: Props) {
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="border-b border-border">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle>Tarifario</CardTitle>
-            <div className="flex items-center gap-2">
-              {soloLectura ? (
-                <Badge variant="outline">Solo lectura</Badge>
-              ) : null}
-              <Badge variant={vigente ? "default" : "secondary"}>
-                {etiquetaEstadoTarifario(tarifario.estado)}
-              </Badge>
-            </div>
-          </div>
-          <CardDescription>
-            {etiquetaTipoOrigen(tarifario.tipoOrigen)} · {tarifario.moneda}
-            {soloLectura
-              ? " · Generado desde una cotización (no editable)"
-              : ""}
-            {tarifario.nombreClienteExterno ?? tarifario.idClienteExterno
-              ? ` · Cliente ${tarifario.nombreClienteExterno ?? tarifario.idClienteExterno}`
-              : ""}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 pt-5 text-sm sm:grid-cols-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Cotizacion origen</p>
-            <p className="truncate">
-              {!tarifario.idCotizacionOrigen
-                ? "—"
-                : (codigoCotizacionOrigen ??
-                  (cotizacionOrigenQuery.isLoading
-                    ? "Cargando…"
-                    : tarifario.idCotizacionOrigen))}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Contrato</p>
-            <p className="truncate">
-              {!tarifario.idContrato
-                ? "—"
-                : (codigoContratoVinculado ??
-                  (contratoQuery.isLoading ? "Cargando…" : tarifario.idContrato))}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Vigencia</p>
-            <p>
-              {tarifario.vigenciaInicio
-                ? new Date(tarifario.vigenciaInicio).toLocaleDateString("es-PE", {
-                    timeZone: "UTC",
-                  })
-                : "—"}
-              {" → "}
-              {tarifario.vigenciaFin
-                ? new Date(tarifario.vigenciaFin).toLocaleDateString("es-PE", {
-                    timeZone: "UTC",
-                  })
-                : "—"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Tarifas</p>
-            <p>{tarifario.tarifas.length}</p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Metadata compacta: stat tiles en una sola fila (menos aire muerto) */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <StatTile
+          label="Cotizacion origen"
+          value={
+            !tarifario.idCotizacionOrigen
+              ? "—"
+              : (codigoCotizacionOrigen ??
+                (cotizacionOrigenQuery.isLoading ? "…" : tarifario.idCotizacionOrigen))
+          }
+        />
+        <StatTile
+          label="Contrato"
+          value={
+            !tarifario.idContrato
+              ? "—"
+              : (codigoContratoVinculado ??
+                (contratoQuery.isLoading ? "…" : tarifario.idContrato))
+          }
+        />
+        <StatTile
+          label="Vigencia"
+          value={`${fmtFecha(tarifario.vigenciaInicio)} → ${fmtFecha(tarifario.vigenciaFin)}`}
+        />
+        <StatTile label="Tarifas" value={String(tarifario.tarifas.length)} />
+        <StatTile label="Cargos" value={String(tarifario.cargos.length)} />
+      </div>
 
       <Card>
         <CardHeader className="border-b border-border">
@@ -613,7 +630,7 @@ export function TarifarioDetalle({ idTarifario }: Props) {
                       <TableCell className="text-sm">{nombreModalidad(t.idModalidad)}</TableCell>
                       <TableCell className="text-sm">{t.origen ?? "—"}</TableCell>
                       <TableCell className="text-sm">{t.destino ?? "—"}</TableCell>
-                      <TableCell className="text-sm">{t.tipoVehiculo ?? "—"}</TableCell>
+                      <TableCell className="text-sm">{t.tipoUnidadNombre || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {t.condicion ?? "—"}
                       </TableCell>

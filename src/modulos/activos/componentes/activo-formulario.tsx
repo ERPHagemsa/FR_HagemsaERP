@@ -89,6 +89,7 @@ import {
   agregarQueryParam,
   construirMetadataCambio,
   construirMotivoConfiguracionHistorica,
+  construirOrigenSubrecursos,
   formatearEstadoActivo,
   formatLabel,
   inferirTipoCambioConfiguracion,
@@ -154,6 +155,8 @@ export function ActivoFormulario({
   );
   const [isSaving, setIsSaving] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState("base");
+  const [tipoDocumentoDraft, setTipoDocumentoDraft] =
+    React.useState("SOAT");
   const catalogos = useCatalogosActivos();
   const [tipoActivoSeleccionadoId, setTipoActivoSeleccionadoId] =
     React.useState<number>(
@@ -445,6 +448,7 @@ export function ActivoFormulario({
         ["Placa", getValue("placa") || activo?.vehiculo?.placa],
         ["Marca", getValue("marca") || activo?.vehiculo?.marca],
         ["Modelo", getValue("modelo") || activo?.vehiculo?.modelo],
+        ["Zona", getValue("zonaRegistral") || activo?.vehiculo?.zonaRegistral],
         ["Chasis", getValue("serieChasis") || activo?.vehiculo?.serieChasis],
         ["Motor", getValue("serieMotor") || activo?.vehiculo?.serieMotor],
       ],
@@ -632,6 +636,13 @@ export function ActivoFormulario({
             marca: puedeGuardarTab("vehiculo") ? texto("marca") : null,
             modelo: puedeGuardarTab("vehiculo") ? texto("modelo") : null,
             carroceria: puedeGuardarTab("vehiculo") ? texto("carroceria") : null,
+            zonaRegistral: puedeGuardarTab("vehiculo")
+              ? texto("zonaRegistral")
+              : null,
+            tarjetaPropiedad: null,
+            tipoTarjetaPropiedad: puedeGuardarTab("documentos")
+              ? texto("tipoTarjetaPropiedad")
+              : null,
             ejes: puedeGuardarTab("vehiculo") ? numero("ejes") : null,
             categoria: puedeGuardarTab("vehiculo") ? texto("categoria") : null,
             serieChasis: puedeGuardarTab("vehiculo") ? texto("serieChasis") : null,
@@ -767,7 +778,11 @@ export function ActivoFormulario({
     if (isEdit) {
       return (
         <div className="mt-5">
-          <ImagenesActivo codigo={activo!.codigo} imagenes={imagenes} />
+          <ImagenesActivo
+            codigo={activo!.codigo}
+            imagenes={imagenes}
+            origen={construirOrigenSubrecursos(returnToEfectivo)}
+          />
         </div>
       );
     }
@@ -1124,6 +1139,7 @@ export function ActivoFormulario({
                   <DocumentosActivo
                     codigo={activo!.codigo}
                     documentos={documentos}
+                    origen={construirOrigenSubrecursos(returnToEfectivo)}
                   />
                 ) : (
                   <div className="grid gap-4">
@@ -1146,6 +1162,7 @@ export function ActivoFormulario({
                             "CERTIFICADO",
                             "OTRO",
                           ]}
+                          onChange={(value) => setTipoDocumentoDraft(value)}
                           required
                         />
                         <Field name="numeroDocumento" label="Numero" required />
@@ -1166,6 +1183,16 @@ export function ActivoFormulario({
                           placeholder="usuario.activos"
                           required
                         />
+                        {tipoActivoSeleccionadoId === TIPO_ACTIVO_VEHICULO_ID &&
+                        tipoDocumentoDraft === "TARJETA_PROPIEDAD" ? (
+                          <SelectField
+                            name="tipoTarjetaPropiedad"
+                            label="Tipo tarjeta propiedad"
+                            defaultValue={activo?.vehiculo?.tipoTarjetaPropiedad ?? ""}
+                            values={["ELECTRONICA", "FISICA"]}
+                            labels={{ ELECTRONICA: "Electronica", FISICA: "Fisica" }}
+                          />
+                        ) : null}
                       </div>
                       <Field
                         name="observacionDocumento"

@@ -1,6 +1,10 @@
 // Tipos del modulo Tarifarios (BC-03). Espejo de las respuestas del backend
 // (shapes crudas de los controllers: listas como { data, total, pagina, porPagina }).
 
+// Reutiliza el tipo de fuente del maestro de tipos de unidad (definido en cotizaciones,
+// unica fuente de verdad). Acoplamiento conocido tarifarios -> cotizaciones.
+import type { FuenteTipoUnidad } from "../../cotizaciones/tipos/cotizaciones.tipos"
+
 export type Moneda = "PEN" | "USD"
 export type TipoOrigenTarifa = "COTIZACION" | "CONTRATO" | "MANUAL"
 export type EstadoTarifario = "VIGENTE" | "ANULADO" | "VENCIDO"
@@ -11,7 +15,10 @@ export interface Tarifa {
   idModalidad: string
   origen: string | null
   destino: string | null
-  tipoVehiculo: string | null
+  // Snapshot del tipo de unidad (reemplaza tipoVehiculo — contrato bc03 Fase 2).
+  fuenteTipoUnidad: FuenteTipoUnidad
+  idTipoUnidad: string
+  tipoUnidadNombre: string
   condicion: string | null
   precio: number
   tarifaStandbyDia: number | null
@@ -91,7 +98,10 @@ export interface PayloadTarifa {
   idModalidad: string
   origen?: string
   destino?: string
-  tipoVehiculo?: string
+  // Snapshot del tipo de unidad: fuente + id opaco viajan juntos. Obligatorios al crear
+  // manual; en el PATCH parcial ambos o ninguno (el backend re-resuelve o conserva).
+  fuenteTipoUnidad?: FuenteTipoUnidad
+  idTipoUnidad?: string
   condicion?: string
   precio: number
   tarifaStandbyDia?: number

@@ -17,8 +17,13 @@ export type CarroceriaReferencia = {
 
 export type VehiculoDetalle = {
   claseVehiculoReferenciaId: number;
+  /** Nombre resuelto del catalogo, lo agrega el backend en lecturas (2026-07-01). */
+  claseVehiculoReferenciaNombre?: string;
   carroceriaReferenciaId: number | null;
+  /** Nombre resuelto del catalogo, lo agrega el backend en lecturas (2026-07-01). */
+  carroceriaReferenciaNombre?: string;
   tarjetaPropiedad: string | null;
+  tipoTarjetaPropiedad: string | null;
   tarjetaMercancias: string | null;
   soat: string | null;
   revisionTecnica12Meses: string | null;
@@ -35,6 +40,7 @@ export type VehiculoDetalle = {
   marca: string | null;
   modelo: string | null;
   carroceria: string | null;
+  zonaRegistral: string | null;
   ejes: number | null;
   categoria: string | null;
   serieChasis: string | null;
@@ -174,7 +180,12 @@ export type OrigenCambioActivo =
   | "DOCUMENTOS"
   | "SISTEMA";
 
-export type ActualizarActivoPayload = Omit<CrearActivoPayload, "codigo"> & {
+/**
+ * Metadata de trazabilidad que acompana a un cambio (quien/desde donde).
+ * La aceptan el PATCH del activo y las operaciones de imagenes/documentos,
+ * para que el historial registre el proceso real (ej. Inventario Fisico).
+ */
+export type MetadataOrigenCambio = {
   origenCambio?: OrigenCambioActivo;
   referenciaTipo?: string;
   referenciaId?: number;
@@ -182,6 +193,9 @@ export type ActualizarActivoPayload = Omit<CrearActivoPayload, "codigo"> & {
   motivoCambio?: string;
   usuarioCambio?: string;
 };
+
+export type ActualizarActivoPayload = Omit<CrearActivoPayload, "codigo"> &
+  MetadataOrigenCambio;
 
 export type TipoImagenActivo =
   | "FRONTAL"
@@ -196,6 +210,7 @@ export type ImagenActivo = {
   activoId: number;
   tipoImagen: TipoImagenActivo;
   url: string;
+  nombreArchivo: string | null;
   descripcion: string | null;
   orden: number;
   fechaCreacion: string;
@@ -205,9 +220,10 @@ export type ImagenActivo = {
 export type CrearImagenActivoPayload = {
   tipoImagen: TipoImagenActivo;
   url: string;
+  nombreArchivo?: string;
   descripcion?: string;
   orden?: number;
-};
+} & MetadataOrigenCambio;
 
 export type TipoDocumentoActivo =
   | "SOAT"
@@ -249,6 +265,7 @@ export type DocumentoActivo = {
   fechaEmision: string | null;
   fechaVencimiento: string | null;
   archivoUrl: string | null;
+  nombreArchivo: string | null;
   observacion: string | null;
   usuarioCarga: string | null;
   usuarioActualizacion: string | null;
@@ -262,9 +279,10 @@ export type CrearDocumentoActivoPayload = {
   fechaEmision: string;
   fechaVencimiento?: string;
   archivoUrl?: string;
+  nombreArchivo?: string;
   observacion?: string;
   usuarioCarga: string;
-};
+} & MetadataOrigenCambio;
 
 export type TipoTanqueActivo = "DIESEL" | "UREA";
 export type UnidadMedidaTanque = "GALON" | "LITRO";
@@ -316,6 +334,10 @@ export type InventarioFisicoDetalle = {
   carroceria: string | null;
   estadoOperativo: string | null;
   estadoCalibracion: string | null;
+  cuentaCodigo?: string | null;
+  cuentaNombre?: string | null;
+  contratoCodigo?: string | null;
+  contratoNombre?: string | null;
   placa: string | null;
   ubicacionEsperada: string | null;
   ubicacionEncontrada: string | null;

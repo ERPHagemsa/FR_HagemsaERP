@@ -12,6 +12,7 @@ import type {
   PayloadActualizarCondicionesVersion,
   PayloadBorrador,
   PayloadEnviar,
+  PayloadFijarNumeracion,
   PayloadNuevaVersion,
   PayloadPerdida,
 } from "../tipos/cotizaciones.tipos";
@@ -21,6 +22,7 @@ import {
   cancelarCotizacion,
   consultarCotizacion,
   enviarCotizacion,
+  fijarNumeracionCotizaciones,
   listarCotizaciones,
   marcarGanada,
   marcarPerdida,
@@ -32,6 +34,7 @@ import {
 } from "./cotizaciones-api";
 import { listarCatalogosCargoAdicional } from "./catalogos-cargo-adicional-api";
 import { listarModalidades } from "./modalidades-api";
+import { listarTiposUnidad } from "./tipos-unidad-api";
 
 import {
   CLAVE_CARGOS_ADICIONALES,
@@ -40,6 +43,7 @@ import {
   CLAVE_COTIZACIONES_EJECUTIVOS,
   CLAVE_COTIZACIONES_RESUMEN,
   CLAVE_MODALIDADES,
+  CLAVE_TIPOS_UNIDAD,
 } from "../../claves-consulta";
 
 // ---------------------------------------------------------------------------
@@ -209,6 +213,19 @@ export function useCancelarCotizacionMutation(id: string) {
   });
 }
 
+// PUT /cotizaciones/numeracion (API §5.5.1). Fija el proximo numero correlativo
+// del año en curso. No cambia el listado ni los KPIs (la numeracion solo se refleja
+// al emitir la proxima cotizacion), asi que NO invalida consultas. El dialog consume
+// la respuesta { anio, proximoNumero } y maneja el 409 forward-only.
+export function useFijarNumeracionMutation() {
+  return useMutar<
+    PayloadFijarNumeracion,
+    Awaited<ReturnType<typeof fijarNumeracionCotizaciones>>
+  >({
+    fn: (payload) => fijarNumeracionCotizaciones(payload),
+  });
+}
+
 // Lista de ejecutivos que tienen cotizaciones (GET /cotizaciones/ejecutivos).
 // Se usa para poblar el selector de filtro en CotizacionesTabla.
 // No tiene deps variables — siempre trae todos los ejecutivos del BC.
@@ -230,6 +247,12 @@ export function useListarModalidades(filtros: FiltrosModalidades = {}) {
     [JSON.stringify(filtros)],
     { clave: CLAVE_MODALIDADES }
   );
+}
+
+// Catalogo de tipos de unidad para el select de la carga (GET /tipos-unidad — array pelado,
+// sin filtros ni paginacion; el frontend filtra por texto en cliente).
+export function useListarTiposUnidad() {
+  return useConsulta(() => listarTiposUnidad(), [], { clave: CLAVE_TIPOS_UNIDAD });
 }
 
 // ---------------------------------------------------------------------------

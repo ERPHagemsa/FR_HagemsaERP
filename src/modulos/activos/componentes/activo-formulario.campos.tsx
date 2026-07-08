@@ -255,7 +255,7 @@ export function SelectField({
           "h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
         )}
       >
-        {!required && opciones ? <option value="">Seleccionar...</option> : null}
+        {!required ? <option value="">Seleccionar...</option> : null}
         {items.map(({ value, texto }) => (
           <option key={value} value={value}>
             {texto}

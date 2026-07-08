@@ -139,3 +139,16 @@ export async function anularColorRotulacion(id: string): Promise<ColorRotulacion
   );
   return data.datos;
 }
+
+// ── Plantillas ─────────────────────────────────────────────────────────────────
+
+// ¿Hay una PlantillaVersion publicada, variante ácido, para esta clase? Fuente
+// de verdad en el backend (PlantillaVersion.criterioAplicabilidad) — evita
+// mantener en el frontend una lista propia de clases con variante ácido.
+export async function consultarDisponibilidadAcido(clase: string): Promise<boolean> {
+  const { data } = await clienteFlota.get<{ disponible: boolean }>(
+    "/flota/plantillas/acido-disponible",
+    { params: { clase } },
+  );
+  return data.disponible;
+}

@@ -80,7 +80,8 @@ export interface ItemTarifarioConsolidado {
   idModalidad: string
   origen: string | null
   destino: string | null
-  tipoVehiculo: string | null
+  idTipoUnidad: string        // referencia opaca al maestro (snapshot congelado)
+  tipoUnidadNombre: string    // nombre congelado del tipo de unidad (reemplaza tipoVehiculo)
   condicion: string | null
   precio: number
   moneda: Moneda

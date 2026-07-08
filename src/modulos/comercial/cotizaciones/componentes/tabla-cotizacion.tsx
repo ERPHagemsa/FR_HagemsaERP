@@ -272,11 +272,11 @@ export function rutaDeSeccion(seccion: DraftSeccion): string {
 }
 
 // Unidad/recurso de la linea para la columna Unidad (igual que el PDF):
-// tipoVehiculo (transporte), equipoTipo (equipo) o rol (personal).
+// tipoUnidadNombre (transporte), equipoTipo (equipo) o rol (personal).
 export function unidadDeLinea(l: DraftLinea): string {
   switch (l.tipoLinea) {
     case "TRANSPORTE":
-      return l.carga.tipoVehiculo;
+      return l.carga.tipoUnidadNombre;
     case "ALQUILER_EQUIPO":
       return l.equipo.equipoTipo;
     case "PERSONAL":

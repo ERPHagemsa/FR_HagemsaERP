@@ -78,3 +78,14 @@ export async function cerrarInspeccion(id: string): Promise<Inspeccion> {
   );
   return data.datos;
 }
+
+// Descarga el PDF (HU-04-013): el backend arma el HTML y lo convierte vía
+// Gotenberg. `responseType: "blob"` para no intentar parsear bytes de PDF
+// como JSON.
+export async function descargarPdfInspeccion(id: string): Promise<Blob> {
+  const { data } = await clienteFlota.get<Blob>(
+    `/flota/inspecciones/${encodeURIComponent(id)}/pdf`,
+    { responseType: "blob" },
+  );
+  return data;
+}

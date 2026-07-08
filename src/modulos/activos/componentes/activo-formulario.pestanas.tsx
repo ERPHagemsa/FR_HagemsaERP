@@ -147,6 +147,14 @@ export function TabVehiculo({
           defaultValue={activo?.vehiculo?.categoria ?? undefined}
         />
       </div>
+      <div className="grid gap-4 pt-4 md:grid-cols-3">
+        <Field
+          name="zonaRegistral"
+          label="Zona registral"
+          placeholder="Zona Registral N XII - Sede Arequipa"
+          defaultValue={activo?.vehiculo?.zonaRegistral ?? undefined}
+        />
+      </div>
       <div className="grid gap-4 pt-4 md:grid-cols-2">
         <Field name="serieChasis" label="Serie de chasis" defaultValue={activo?.vehiculo?.serieChasis ?? undefined} required />
         <Field name="serieMotor" label="Serie y marca de motor" defaultValue={activo?.vehiculo?.serieMotor ?? undefined} required />
