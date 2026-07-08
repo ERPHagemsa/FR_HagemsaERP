@@ -67,6 +67,8 @@ import {
   useCambiarEstadoRegistroMutation,
   useCrearActivoMutation,
 } from "../servicios/activos-queries";
+import { obtenerActivos } from "../servicios/activos-api";
+import { exportarMaestroActivosExcel } from "../servicios/activos-maestro-excel";
 import type {
   Activo,
   CrearActivoPayload,
@@ -297,26 +299,26 @@ export function ActivosTabla({
     }
   }
 
-  function exportarExcel() {
-    const filas = ordenados.map((activo) => ({
-      Codigo: activo.codigo,
-      Unidad:
-        [activo.vehiculo?.marca, activo.vehiculo?.modelo]
-          .filter(Boolean)
-          .join(" ") || activo.descripcion,
-      Placa: activo.vehiculo?.placa ?? "",
-      Tipo: catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId),
-      Ubicacion: activo.ubicacion,
-      Estado: formatearEstadoActivo(activo.estadoActivo),
-      Condicion: formatear(activo.vehiculo?.estadoOperativo),
-      Calibracion: catalogos.nombrePorId(
-        "ESTADO_CALIBRACION",
-        activo.vehiculo?.estadoCalibracionReferenciaId
-      ),
-      Modificado: formatearFecha(activo.fechaModificacion),
-    }));
-    const csv = convertirCsv(filas);
-    descargarArchivo(csv, `activos-${fechaArchivo()}.csv`, "text/csv;charset=utf-8");
+  /**
+   * Reporte "Base de Activos Vehiculares" formato FT-AS-006: .xlsx real con
+   * estilos. Exporta TODO el listado segun el filtro Vigentes/Anulados/Todos
+   * (trae los datos del servidor), no solo la pagina visible.
+   */
+  async function exportarExcel() {
+    try {
+      const estadoRegistro =
+        filtrosAplicados.estadoRegistro === "TODOS"
+          ? ("TODOS" as const)
+          : filtrosAplicados.estadoRegistro !== "ANULADO";
+      const todos = await obtenerActivos({ estadoRegistro });
+      await exportarMaestroActivosExcel(todos, {
+        tipoActivo: (id) => catalogos.nombrePorId("TIPO_ACTIVO", id),
+        calibracion: (id) => catalogos.nombrePorId("ESTADO_CALIBRACION", id),
+      });
+      toast.success(`Excel generado con ${todos.length} activos.`);
+    } catch (err) {
+      toast.error(extraerMensajeError(err, "No se pudo generar el Excel."));
+    }
   }
 
   function exportarPdf() {
@@ -1089,37 +1091,6 @@ function formatearEstadoActivo(value?: string | null) {
   if (value === "SINIESTRADO") return "Baja / Siniestro";
   if (value === "INACTIVO") return "Baja / De baja";
   return formatear(value);
-}
-
-function convertirCsv(filas: Array<Record<string, string>>) {
-  if (!filas.length) return "";
-  const columnas = Object.keys(filas[0]);
-  const contenido = [
-    columnas.join(","),
-    ...filas.map((fila) =>
-      columnas
-        .map((columna) => `"${String(fila[columna] ?? "").replaceAll('"', '""')}"`)
-        .join(",")
-    ),
-  ].join("\r\n");
-
-  return `\uFEFF${contenido}`;
-}
-
-function descargarArchivo(contenido: string, nombre: string, tipo: string) {
-  const blob = new Blob([contenido], { type: tipo });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = nombre;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-function fechaArchivo() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function escaparHtml(value: string) {

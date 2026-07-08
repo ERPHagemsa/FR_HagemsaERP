@@ -49,7 +49,11 @@ function construirJerarquiaCargos(
     return {
       clave: `cargo-${dato.id}`,
       titulo: dato.nombre,
-      descripcion: dato.descripcion || dato.codigo,
+      // Se antepone el area para que en el arbol se vea de un vistazo a que area
+      // pertenece cada cargo (util cuando la misma area existe en varias sedes).
+      descripcion: dato.areaNombre
+        ? `${dato.areaNombre} · ${dato.descripcion || dato.codigo}`
+        : dato.descripcion || dato.codigo,
       etiqueta: dato.cargoSuperiorId == null ? "Cargo principal" : "Reporta a otro cargo",
       dato,
       hijos,
@@ -69,6 +73,19 @@ function construirJerarquiaCargos(
   return raices
 }
 
+// Etiqueta segun posicion real en el arbol (no solo nivelArea, que es libre):
+// raiz = "Gerencia" si asi se marco, si no "Area"; con padre = "Sub-area".
+function etiquetaArea(area: ConfiguracionGeneralResponse): string {
+  if (area.gerenciaId == null) {
+    return area.nivelArea === "GERENCIA" ? "Gerencia" : "Area"
+  }
+  return area.nivelArea === "GERENCIA" ? "Gerencia dependiente" : "Sub-area"
+}
+
+// Areas: jerarquia recursiva de profundidad ilimitada via gerenciaId, agrupada
+// por sede. gerenciaId apunta a otra Area (null = raiz). nivelArea es solo una
+// etiqueta y NO limita la profundidad; el arbol se arma por gerenciaId, igual que
+// cargos por cargoSuperiorId. Se protege contra ciclos con la ruta visitada.
 function construirJerarquiaAreas(
   datos: ConfiguracionGeneralResponse[],
 ): NodoJerarquia[] {
@@ -89,51 +106,57 @@ function construirJerarquiaAreas(
       ),
     )
     .map(([claveSede, grupo]) => {
-      const gerencias = ordenarPorNombre(
-        grupo.filter((dato) => dato.nivelArea === "GERENCIA"),
-      )
-      const areas = ordenarPorNombre(
-        grupo.filter((dato) => dato.nivelArea !== "GERENCIA"),
-      )
-      const idsGerencia = new Set(gerencias.map((gerencia) => gerencia.id))
-      const nodosGerencia = gerencias.map((gerencia) => ({
-        clave: `area-${gerencia.id}`,
-        titulo: gerencia.nombre,
-        descripcion: gerencia.descripcion || gerencia.codigo,
-        etiqueta: "Gerencia",
-        dato: gerencia,
-        hijos: areas
-          .filter((area) => area.gerenciaId === gerencia.id)
-          .map((area) => ({
-            clave: `area-${area.id}`,
-            titulo: area.nombre,
-            descripcion: area.descripcion || area.codigo,
-            etiqueta: "Area",
-            dato: area,
-            hijos: [],
-          })),
-      }))
-      const areasSinGerencia = areas
-        .filter(
-          (area) => area.gerenciaId == null || !idsGerencia.has(area.gerenciaId),
-        )
-        .map((area) => ({
+      // Solo se considera padre a una area de la MISMA sede; si el gerenciaId
+      // apunta fuera del grupo, el area se trata como raiz de esta sede.
+      const idsEnSede = new Set(grupo.map((area) => area.id))
+      const hijosPorPadre = new Map<number, ConfiguracionGeneralResponse[]>()
+
+      grupo.forEach((area) => {
+        if (area.gerenciaId == null || !idsEnSede.has(area.gerenciaId)) return
+        const hijos = hijosPorPadre.get(area.gerenciaId) ?? []
+        hijos.push(area)
+        hijosPorPadre.set(area.gerenciaId, hijos)
+      })
+
+      const visitados = new Set<number>()
+      const crearNodo = (
+        area: ConfiguracionGeneralResponse,
+        ruta: Set<number>,
+      ): NodoJerarquia => {
+        visitados.add(area.id)
+        const siguienteRuta = new Set(ruta).add(area.id)
+        const hijos = ordenarPorNombre(hijosPorPadre.get(area.id) ?? [])
+          .filter((hijo) => !siguienteRuta.has(hijo.id))
+          .map((hijo) => crearNodo(hijo, siguienteRuta))
+
+        return {
           clave: `area-${area.id}`,
           titulo: area.nombre,
           descripcion: area.descripcion || area.codigo,
-          etiqueta: area.gerenciaNombre
-            ? `Area de ${area.gerenciaNombre}`
-            : "Area sin gerencia",
+          etiqueta: etiquetaArea(area),
           dato: area,
-          hijos: [],
-        }))
+          hijos,
+        }
+      }
+
+      const raices = ordenarPorNombre(
+        grupo.filter(
+          (area) => area.gerenciaId == null || !idsEnSede.has(area.gerenciaId),
+        ),
+      ).map((area) => crearNodo(area, new Set()))
+
+      // Cualquier area atrapada en un ciclo no fue visitada: la colgamos como raiz
+      // para que no desaparezca del arbol.
+      ordenarPorNombre(grupo)
+        .filter((area) => !visitados.has(area.id))
+        .forEach((area) => raices.push(crearNodo(area, new Set())))
 
       return {
         clave: `sede-${claveSede}`,
         titulo: grupo[0]?.sedeNombre || "Sin sede asignada",
         descripcion: "Areas de esta sede",
         etiqueta: "Sede",
-        hijos: [...nodosGerencia, ...areasSinGerencia],
+        hijos: raices,
       }
     })
 }
@@ -171,76 +194,6 @@ function construirJerarquiaSedes(
         hijos: [],
       })),
     }))
-}
-
-function construirJerarquiaAlmacenes(
-  datos: ConfiguracionGeneralResponse[],
-): NodoJerarquia[] {
-  const gruposUbicacion = new Map<string, ConfiguracionGeneralResponse[]>()
-
-  datos.forEach((dato) => {
-    const clave = `${dato.ubicacionId ?? "sin-ubicacion"}:${dato.ubicacionNombre ?? "Sin ubicacion"}`
-    const grupo = gruposUbicacion.get(clave) ?? []
-    grupo.push(dato)
-    gruposUbicacion.set(clave, grupo)
-  })
-
-  return [...gruposUbicacion.entries()]
-    .sort(([, a], [, b]) =>
-      (a[0]?.ubicacionNombre ?? "Sin ubicacion").localeCompare(
-        b[0]?.ubicacionNombre ?? "Sin ubicacion",
-        "es",
-      ),
-    )
-    .map(([claveUbicacion, grupo]) => {
-      const gruposSede = new Map<string, ConfiguracionGeneralResponse[]>()
-      const sinSede: ConfiguracionGeneralResponse[] = []
-
-      grupo.forEach((almacen) => {
-        if (almacen.sedeId == null) {
-          sinSede.push(almacen)
-          return
-        }
-        const claveSede = `${almacen.sedeId}:${almacen.sedeNombre ?? "Sin nombre"}`
-        const almacenes = gruposSede.get(claveSede) ?? []
-        almacenes.push(almacen)
-        gruposSede.set(claveSede, almacenes)
-      })
-
-      const crearNodoAlmacen = (almacen: ConfiguracionGeneralResponse): NodoJerarquia => ({
-        clave: `almacen-${almacen.id}`,
-        titulo: almacen.nombre,
-        descripcion: almacen.descripcion || almacen.codigo,
-        etiqueta: almacen.esTemporal ? "Almacen temporal" : "Almacen fijo",
-        dato: almacen,
-        hijos: [],
-      })
-      const sedes = [...gruposSede.entries()]
-        .sort(([, a], [, b]) =>
-          (a[0]?.sedeNombre ?? "Sin sede").localeCompare(
-            b[0]?.sedeNombre ?? "Sin sede",
-            "es",
-          ),
-        )
-        .map(([claveSede, almacenes]) => ({
-          clave: `sede-almacen-${claveSede}`,
-          titulo: almacenes[0]?.sedeNombre || "Sin sede asignada",
-          descripcion: "Sede",
-          etiqueta: "Sede",
-          hijos: ordenarPorNombre(almacenes).map(crearNodoAlmacen),
-        }))
-
-      return {
-        clave: `ubicacion-almacen-${claveUbicacion}`,
-        titulo: grupo[0]?.ubicacionNombre || "Sin ubicacion asignada",
-        descripcion: "Almacenes de esta ubicacion",
-        etiqueta: "Ubicacion",
-        hijos: [
-          ...sedes,
-          ...ordenarPorNombre(sinSede).map(crearNodoAlmacen),
-        ],
-      }
-    })
 }
 
 function construirJerarquiaContratos(
@@ -308,17 +261,16 @@ export function construirJerarquia(
   if (tipo === "CARGO") return construirJerarquiaCargos(datos)
   if (tipo === "AREA") return construirJerarquiaAreas(datos)
   if (tipo === "SEDE") return construirJerarquiaSedes(datos)
-  if (tipo === "ALMACEN") return construirJerarquiaAlmacenes(datos)
   return construirJerarquiaContratos(datos)
 }
 
 // Tipos cuyo arbol cuelga de la ubicacion: se sirven con el endpoint especifico
 // /ubicaciones/jerarquia en una sola llamada, en vez de listar el tipo plano y
 // agrupar en el navegador (que truncaba a la primera pagina).
-export type TipoDesdeJerarquia = "SEDE" | "AREA" | "ALMACEN"
+export type TipoDesdeJerarquia = "SEDE" | "AREA"
 
 export function esTipoDesdeJerarquia(tipo: TipoListado): tipo is TipoDesdeJerarquia {
-  return tipo === "SEDE" || tipo === "AREA" || tipo === "ALMACEN"
+  return tipo === "SEDE" || tipo === "AREA"
 }
 
 // Aplana la respuesta anidada de /ubicaciones/jerarquia al tipo pedido,
@@ -330,13 +282,13 @@ export function aplanarDesdeJerarquia(
   ubicaciones: UbicacionJerarquiaResponse[],
 ): ConfiguracionGeneralResponse[] {
   const salida: ConfiguracionGeneralResponse[] = []
-  // Evita ids repetidos: un mismo almacen puede venir anidado en su sede y, a la
-  // vez, colgado directamente de la ubicacion. Sin esto, el arbol genera dos
-  // nodos con la misma key (ej. "almacen-1").
-  const vistos = new Set<number>()
-  const agregar = (registro: ConfiguracionGeneralResponse) => {
-    if (vistos.has(registro.id)) return
-    vistos.add(registro.id)
+  // Evita filas repetidas en el arbol plano. El area es un catalogo GLOBAL que
+  // puede estar habilitada en varias sedes: para AREA la clave incluye la sede,
+  // de modo que la misma area aparezca una vez por cada sede que la habilita.
+  const vistos = new Set<string>()
+  const agregar = (registro: ConfiguracionGeneralResponse, clave: string) => {
+    if (vistos.has(clave)) return
+    vistos.add(clave)
     salida.push(registro)
   }
 
@@ -345,12 +297,15 @@ export function aplanarDesdeJerarquia(
 
     if (tipo === "SEDE") {
       for (const sede of sedes) {
-        agregar({
-          ...sede,
-          tipoDatoMaestro: sede.tipoDatoMaestro ?? "SEDE",
-          ubicacionId: sede.ubicacionId ?? ubicacion.id,
-          ubicacionNombre: sede.ubicacionNombre ?? ubicacion.nombre,
-        })
+        agregar(
+          {
+            ...sede,
+            tipoDatoMaestro: sede.tipoDatoMaestro ?? "SEDE",
+            ubicacionId: sede.ubicacionId ?? ubicacion.id,
+            ubicacionNombre: sede.ubicacionNombre ?? ubicacion.nombre,
+          },
+          `sede-${sede.id}`,
+        )
       }
       continue
     }
@@ -358,38 +313,20 @@ export function aplanarDesdeJerarquia(
     if (tipo === "AREA") {
       for (const sede of sedes) {
         for (const area of sede.areas ?? []) {
-          agregar({
-            ...area,
-            tipoDatoMaestro: area.tipoDatoMaestro ?? "AREA",
-            sedeId: area.sedeId ?? sede.id,
-            sedeNombre: area.sedeNombre ?? sede.nombre,
-          })
+          agregar(
+            {
+              ...area,
+              tipoDatoMaestro: area.tipoDatoMaestro ?? "AREA",
+              sedeId: area.sedeId ?? sede.id,
+              sedeNombre: area.sedeNombre ?? sede.nombre,
+            },
+            `area-${sede.id}-${area.id}`,
+          )
         }
       }
       continue
     }
 
-    // ALMACEN: anidados bajo cada sede + los colgados directo de la ubicacion.
-    for (const sede of sedes) {
-      for (const almacen of sede.almacenes ?? []) {
-        agregar({
-          ...almacen,
-          tipoDatoMaestro: almacen.tipoDatoMaestro ?? "ALMACEN",
-          ubicacionId: almacen.ubicacionId ?? ubicacion.id,
-          ubicacionNombre: almacen.ubicacionNombre ?? ubicacion.nombre,
-          sedeId: almacen.sedeId ?? sede.id,
-          sedeNombre: almacen.sedeNombre ?? sede.nombre,
-        })
-      }
-    }
-    for (const almacen of ubicacion.almacenes ?? []) {
-      agregar({
-        ...almacen,
-        tipoDatoMaestro: almacen.tipoDatoMaestro ?? "ALMACEN",
-        ubicacionId: almacen.ubicacionId ?? ubicacion.id,
-        ubicacionNombre: almacen.ubicacionNombre ?? ubicacion.nombre,
-      })
-    }
   }
 
   return salida
@@ -404,19 +341,20 @@ export function relacionResumen(dato: ConfiguracionGeneralResponse): string | nu
     case "AREA": {
       const partes: string[] = []
       if (dato.sedeNombre) partes.push(`Sede: ${dato.sedeNombre}`)
-      if (dato.nivelArea === "AREA" && dato.gerenciaNombre) {
-        partes.push(`Gerencia: ${dato.gerenciaNombre}`)
-      }
+      // El padre puede ser cualquier area (gerenciaId), no solo cuando el nivel es
+      // AREA: la jerarquia es recursiva. Si no tiene padre, es raiz de la sede.
+      if (dato.gerenciaNombre) partes.push(`Depende de: ${dato.gerenciaNombre}`)
       return partes.length > 0 ? partes.join(" · ") : null
     }
-    case "ALMACEN": {
+    case "CARGO": {
       const partes: string[] = []
-      if (dato.ubicacionNombre) partes.push(`Ubicacion: ${dato.ubicacionNombre}`)
-      if (dato.sedeNombre) partes.push(`Sede: ${dato.sedeNombre}`)
+      // El cargo pertenece a un area (de una sede concreta). El mando puede cruzar
+      // areas/sedes, asi que se muestran por separado: donde trabaja y a quien
+      // reporta. Si no tiene superior, es un cargo raiz (nivel mas alto).
+      if (dato.areaNombre) partes.push(`Area: ${dato.areaNombre}`)
+      if (dato.cargoSuperiorNombre) partes.push(`Reporta a: ${dato.cargoSuperiorNombre}`)
       return partes.length > 0 ? partes.join(" · ") : null
     }
-    case "CARGO":
-      return dato.cargoSuperiorNombre ? `Reporta a: ${dato.cargoSuperiorNombre}` : null
     case "CONTRATO":
       return dato.contratoPadreNombre ? `Pertenece a: ${dato.contratoPadreNombre}` : null
     default:

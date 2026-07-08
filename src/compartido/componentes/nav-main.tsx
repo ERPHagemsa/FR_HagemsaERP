@@ -164,7 +164,7 @@ export function NavMain({
                           isActive={subItem.url === subUrlActiva}
                           className={cn(
                             subItem.url === subUrlActiva &&
-                              "bg-primary/10 font-medium text-primary hover:bg-primary/15 hover:text-primary focus-visible:ring-primary/30"
+                              "!bg-primary !text-primary-foreground font-semibold shadow-sm ring-1 ring-primary/25 hover:!bg-primary hover:!text-primary-foreground focus-visible:ring-primary/40"
                           )}
                         >
                           <Link

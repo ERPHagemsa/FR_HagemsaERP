@@ -116,7 +116,7 @@ export async function consultarCatalogoConfiguracionGeneral(
 
 /**
  * Endpoint especifico recomendado para arboles de ubicacion -> sedes -> areas ->
- * almacenes. Devuelve la estructura anidada en una sola llamada paginada por
+ * areas. Devuelve la estructura anidada en una sola llamada paginada por
  * ubicacion, evitando el patron N+1 y el truncado al armar el arbol en memoria.
  */
 export async function obtenerJerarquiaUbicaciones(

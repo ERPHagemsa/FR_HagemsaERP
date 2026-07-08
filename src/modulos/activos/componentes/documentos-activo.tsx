@@ -27,6 +27,7 @@ import {
 import type {
   DocumentoActivo,
   EstadoDocumentoActivo,
+  MetadataOrigenCambio,
   TipoDocumentoActivo,
 } from "../tipos/activo.tipos";
 import type { TipoDocumentoMaestro } from "../tipos/carga-masiva.tipos";
@@ -39,6 +40,14 @@ type Props = {
   onCambio?: () => void;
   /** Vista reducida (ej. dentro del panel lateral): oculta columnas secundarias. */
   compacto?: boolean;
+  /** Trazabilidad del historial: desde que proceso se gestiona (ej. inventario fisico). */
+  origen?: MetadataOrigenCambio;
+};
+
+type EstadoDocumentosOptimistas = {
+  codigo: string;
+  creados: DocumentoActivo[];
+  eliminadosIds: number[];
 };
 
 const tiposDocumento: TipoDocumentoActivo[] = [
@@ -58,6 +67,7 @@ export function DocumentosActivo({
   editable = true,
   onCambio,
   compacto = false,
+  origen,
 }: Props) {
   const router = useRouter();
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
@@ -65,14 +75,41 @@ export function DocumentosActivo({
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [archivoNombre, setArchivoNombre] = React.useState("");
   const [archivoDataUrl, setArchivoDataUrl] = React.useState("");
+  const [documentosOptimistas, setDocumentosOptimistas] =
+    React.useState<EstadoDocumentosOptimistas>({
+      codigo,
+      creados: [],
+      eliminadosIds: [],
+    });
   const [tiposMaestro, setTiposMaestro] = React.useState<TipoDocumentoMaestro[]>(
     [],
   );
   const [tipoSeleccionado, setTipoSeleccionado] = React.useState<string>("SOAT");
   const crearDocumentoMutation = useCrearDocumentoActivoMutation(codigo);
-  const eliminarDocumentoMutation = useEliminarDocumentoActivoMutation(codigo);
-  const quitarCoberturaMutation =
-    useQuitarCoberturaDocumentoCompartidoMutation(codigo);
+  const eliminarDocumentoMutation = useEliminarDocumentoActivoMutation(
+    codigo,
+    origen
+  );
+  const quitarCoberturaMutation = useQuitarCoberturaDocumentoCompartidoMutation(
+    codigo,
+    origen
+  );
+
+  const documentosLocales = React.useMemo(() => {
+    const documentosCreados =
+      documentosOptimistas.codigo === codigo ? documentosOptimistas.creados : [];
+    const documentosEliminadosIds =
+      documentosOptimistas.codigo === codigo
+        ? documentosOptimistas.eliminadosIds
+        : [];
+    const eliminados = new Set(documentosEliminadosIds);
+    const base = documentos.filter((documento) => !eliminados.has(documento.id));
+    const idsBase = new Set(base.map((documento) => documento.id));
+    const creados = documentosCreados.filter(
+      (documento) => !eliminados.has(documento.id) && !idsBase.has(documento.id)
+    );
+    return [...base, ...creados];
+  }, [codigo, documentos, documentosOptimistas]);
 
   // Maestro Documentario: tipos disponibles, alcance y vencimiento obligatorio.
   React.useEffect(() => {
@@ -135,15 +172,31 @@ export function DocumentosActivo({
     }
 
     try {
-      await crearDocumentoMutation.mutateAsync({
+      const documentoCreado = await crearDocumentoMutation.mutateAsync({
         tipoDocumento: tipoSeleccionado as TipoDocumentoActivo,
         numero: String(formData.get("numero") ?? "").trim(),
         fechaEmision: String(formData.get("fechaEmision") ?? ""),
         fechaVencimiento: fechaVencimiento || undefined,
         archivoUrl,
+        nombreArchivo: archivoNombre || undefined,
         observacion: observacion || undefined,
         usuarioCarga:
           String(formData.get("usuarioCarga") ?? "").trim() || "usuario.activos",
+        ...(origen ?? {}),
+      });
+      setDocumentosOptimistas((actual) => {
+        const base =
+          actual.codigo === codigo
+            ? actual
+            : { codigo, creados: [], eliminadosIds: [] };
+        const creados = base.creados.some(
+          (documento) => documento.id === documentoCreado.id
+        )
+          ? base.creados.map((documento) =>
+              documento.id === documentoCreado.id ? documentoCreado : documento
+            )
+          : [...base.creados, documentoCreado];
+        return { ...base, creados };
       });
 
       form.reset();
@@ -192,6 +245,16 @@ export function DocumentosActivo({
         await eliminarDocumentoMutation.mutateAsync(documento.id);
         toast.success("Documento eliminado correctamente.");
       }
+      setDocumentosOptimistas((actual) => {
+        const base =
+          actual.codigo === codigo
+            ? actual
+            : { codigo, creados: [], eliminadosIds: [] };
+        const eliminadosIds = base.eliminadosIds.includes(documento.id)
+          ? base.eliminadosIds
+          : [...base.eliminadosIds, documento.id];
+        return { ...base, eliminadosIds };
+      });
       onCambio?.();
       router.refresh();
     } catch (error) {
@@ -207,8 +270,9 @@ export function DocumentosActivo({
         <div>
           <p className="font-semibold">Documentos del activo</p>
           <p className="text-sm text-muted-foreground">
-            {documentos.length} documento{documentos.length === 1 ? "" : "s"} registrado
-            {documentos.length === 1 ? "" : "s"}
+            {documentosLocales.length} documento
+            {documentosLocales.length === 1 ? "" : "s"} registrado
+            {documentosLocales.length === 1 ? "" : "s"}
           </p>
         </div>
         {editable ? (
@@ -332,7 +396,7 @@ export function DocumentosActivo({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documentos.map((documento) => (
+            {documentosLocales.map((documento) => (
               <TableRow key={documento.id}>
                 <TableCell className="font-medium">
                   <span className="flex items-center gap-2">
@@ -397,7 +461,7 @@ export function DocumentosActivo({
                 ) : null}
               </TableRow>
             ))}
-            {!documentos.length ? (
+            {!documentosLocales.length ? (
               <TableRow>
                 <TableCell
                   colSpan={editable ? 8 : 7}

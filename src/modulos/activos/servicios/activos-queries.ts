@@ -9,6 +9,7 @@ import type {
   CrearTanqueActivoPayload,
   EstadoActivo,
   EstadoRegistro,
+  MetadataOrigenCambio,
 } from "../tipos/activo.tipos";
 import {
   actualizarActivo,
@@ -128,21 +129,31 @@ export function useCrearDocumentoActivoMutation(codigo: string) {
   });
 }
 
-export function useEliminarDocumentoActivoMutation(codigo: string) {
+export function useEliminarDocumentoActivoMutation(
+  codigo: string,
+  origen?: MetadataOrigenCambio
+) {
   return useMutar<number, Awaited<ReturnType<typeof eliminarDocumentoPorCodigo>>>(
     {
-      fn: (documentoId) => eliminarDocumentoPorCodigo(codigo, documentoId),
+      fn: (documentoId) => eliminarDocumentoPorCodigo(codigo, documentoId, origen),
     }
   );
 }
 
-export function useQuitarCoberturaDocumentoCompartidoMutation(codigo: string) {
+export function useQuitarCoberturaDocumentoCompartidoMutation(
+  codigo: string,
+  origen?: MetadataOrigenCambio
+) {
   return useMutar<
     number,
     Awaited<ReturnType<typeof quitarCoberturaDocumentoCompartidoPorCodigo>>
   >({
     fn: (documentoCompartidoId) =>
-      quitarCoberturaDocumentoCompartidoPorCodigo(codigo, documentoCompartidoId),
+      quitarCoberturaDocumentoCompartidoPorCodigo(
+        codigo,
+        documentoCompartidoId,
+        origen
+      ),
   });
 }
 
@@ -155,9 +166,12 @@ export function useCrearImagenActivoMutation(codigo: string) {
   });
 }
 
-export function useEliminarImagenActivoMutation(codigo: string) {
+export function useEliminarImagenActivoMutation(
+  codigo: string,
+  origen?: MetadataOrigenCambio
+) {
   return useMutar<number, Awaited<ReturnType<typeof eliminarImagenPorCodigo>>>({
-    fn: (imagenId) => eliminarImagenPorCodigo(codigo, imagenId),
+    fn: (imagenId) => eliminarImagenPorCodigo(codigo, imagenId, origen),
   });
 }
 

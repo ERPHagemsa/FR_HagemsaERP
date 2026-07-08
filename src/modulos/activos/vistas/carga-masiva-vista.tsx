@@ -416,7 +416,13 @@ function PasoCargar({
           <Button
             type="button"
             variant="outline"
-            onClick={() => descargarPlantilla(tipo, catalogos)}
+            onClick={async () => {
+              try {
+                await descargarPlantilla(tipo, catalogos);
+              } catch {
+                toast.error("No se pudo generar la plantilla.");
+              }
+            }}
           >
             <Download className="size-4" />
             Descargar plantilla

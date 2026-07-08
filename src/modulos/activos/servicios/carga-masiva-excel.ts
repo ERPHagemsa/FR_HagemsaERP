@@ -10,48 +10,108 @@ import {
   opcionesCatalogo,
   type ColumnaCarga,
 } from "./carga-masiva-columnas";
+import {
+  GRIS_SUAVE,
+  NEGRO,
+  agregarCabeceraCorporativa,
+  bordeFino,
+  descargarLibro,
+  estilarFilaEncabezados,
+  obtenerLogoBase64,
+} from "./excel-estilo-hagemsa";
 
 /**
- * Genera y descarga la plantilla Excel para un tipo de activo.
- * Hoja 1 (Activos): encabezados + una fila de ejemplo.
+ * Genera y descarga la plantilla Excel para un tipo de activo, con el estilo
+ * corporativo del cliente (FT-AS-006): logo, titulo, encabezados negros.
+ * Hoja 1 (Activos): cabecera corporativa + encabezados (fila 4, con * en las
+ * obligatorias) + una fila de ejemplo en gris.
  * Hoja 2 (Instrucciones): guia de cada columna.
+ *
+ * El parser (`parsearArchivo`) encuentra la fila de encabezados
+ * dinamicamente, asi que las plantillas viejas (encabezados en fila 1)
+ * siguen funcionando.
  */
-export function descargarPlantilla(
+export async function descargarPlantilla(
   tipoActivoReferenciaId: number,
   catalogos: CatalogosActivos,
-): void {
+): Promise<void> {
   const columnas = COLUMNAS_POR_TIPO[tipoActivoReferenciaId];
-  const libro = XLSX.utils.book_new();
+  const { Workbook } = await import("exceljs");
+  const libro = new Workbook();
+  const logo = await obtenerLogoBase64();
 
-  const encabezados = columnas.map((columna) => columna.encabezado);
-  const ejemplo = columnas.map((columna) => columna.ejemplo ?? "");
-  const hojaActivos = XLSX.utils.aoa_to_sheet([encabezados, ejemplo]);
-  hojaActivos["!cols"] = columnas.map((columna) => ({
-    wch: Math.max(columna.encabezado.length + 2, 16),
+  // --- Hoja Activos ---
+  const hoja = libro.addWorksheet("Activos");
+  const nCols = columnas.length;
+  hoja.columns = columnas.map((columna) => ({
+    width: Math.max(columna.encabezado.length + 4, 16),
   }));
-  XLSX.utils.book_append_sheet(libro, hojaActivos, "Activos");
 
-  const filasInstruccion = [
+  const filaEncabezados = agregarCabeceraCorporativa(libro, hoja, {
+    titulo: `Carga Masiva de Activos - ${ETIQUETA_TIPO_ACTIVO[tipoActivoReferenciaId]}`,
+    metas: ["Plantilla oficial", "Campos con * son obligatorios", "Borrar la fila de ejemplo"],
+    nCols,
+    logoPngBase64: logo,
+    tamanoTitulo: 18,
+  });
+
+  // El parser quita los "*" al normalizar, asi que marcarlos es seguro.
+  estilarFilaEncabezados(
+    hoja,
+    filaEncabezados,
+    columnas.map((columna) =>
+      columna.obligatorio ? `${columna.encabezado} *` : columna.encabezado,
+    ),
+  );
+
+  const filaEjemplo = hoja.getRow(filaEncabezados + 1);
+  columnas.forEach((columna, indice) => {
+    const celda = filaEjemplo.getCell(indice + 1);
+    celda.value = columna.ejemplo ?? null;
+    celda.font = { name: "Arial", size: 9, italic: true, color: { argb: "FF666666" } };
+    celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: GRIS_SUAVE } };
+    celda.border = bordeFino;
+  });
+
+  // --- Hoja Instrucciones ---
+  const instrucciones = libro.addWorksheet("Instrucciones");
+  instrucciones.columns = [
+    { width: 26 },
+    { width: 12 },
+    { width: 12 },
+    { width: 44 },
+    { width: 54 },
+  ];
+  estilarFilaEncabezados(
+    instrucciones,
+    1,
     ["Columna", "Obligatorio", "Tipo", "Valores permitidos", "Ayuda"],
-    ...columnas.map((columna) => [
+    22,
+  );
+  columnas.forEach((columna, indice) => {
+    const fila = instrucciones.getRow(indice + 2);
+    const valores = [
       columna.encabezado,
       columna.obligatorio ? "SI" : "No",
       etiquetaTipo(columna),
       opcionesCatalogo(columna, catalogos).join(" | "),
       columna.ayuda ?? "",
-    ]),
-  ];
-  const hojaInstrucciones = XLSX.utils.aoa_to_sheet(filasInstruccion);
-  hojaInstrucciones["!cols"] = [
-    { wch: 24 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 40 },
-    { wch: 50 },
-  ];
-  XLSX.utils.book_append_sheet(libro, hojaInstrucciones, "Instrucciones");
+    ];
+    valores.forEach((valor, col) => {
+      const celda = fila.getCell(col + 1);
+      celda.value = valor || null;
+      celda.font = {
+        name: "Arial",
+        size: 9,
+        bold: col === 0,
+        color: { argb: NEGRO },
+      };
+      celda.border = bordeFino;
+      celda.alignment = { vertical: "middle", wrapText: col >= 3 };
+    });
+  });
 
-  XLSX.writeFile(
+  await descargarLibro(
     libro,
     `plantilla-carga-${ETIQUETA_TIPO_ACTIVO[tipoActivoReferenciaId].toLowerCase()}.xlsx`,
   );
@@ -95,7 +155,12 @@ export async function parsearArchivo(
   }
 
   const columnas = COLUMNAS_POR_TIPO[tipoActivoReferenciaId];
-  const encabezados = (matriz[0] as unknown[]).map((celda) =>
+  const filaEncabezados = encontrarFilaEncabezados(matriz, columnas);
+  if (filaEncabezados < 0) {
+    return [];
+  }
+
+  const encabezados = (matriz[filaEncabezados] as unknown[]).map((celda) =>
     normalizarEncabezado(String(celda ?? "")),
   );
 
@@ -111,7 +176,7 @@ export async function parsearArchivo(
 
   const filas: FilaPrevisualizada[] = [];
 
-  for (let i = 1; i < matriz.length; i++) {
+  for (let i = filaEncabezados + 1; i < matriz.length; i++) {
     const fila = matriz[i] as unknown[];
     if (esFilaVacia(fila)) continue;
 
@@ -127,6 +192,39 @@ export async function parsearArchivo(
   }
 
   return filas;
+}
+
+/**
+ * Encuentra la fila de encabezados escaneando las primeras filas del archivo:
+ * es la que mas coincidencias tiene con los encabezados esperados (minimo 2).
+ * Necesario porque la plantilla oficial trae cabecera corporativa (logo y
+ * titulo en las filas 1-3, encabezados en la 4), pero tambien deben seguir
+ * funcionando plantillas viejas o archivos hechos a mano (encabezados en la
+ * fila 1). Exportada solo para poder probarla.
+ */
+export function encontrarFilaEncabezados(
+  matriz: unknown[][],
+  columnas: ColumnaCarga[],
+): number {
+  const objetivos = new Set(
+    columnas.map((columna) => normalizarEncabezado(columna.encabezado)),
+  );
+  const maxFilasAExplorar = Math.min(matriz.length, 10);
+  let mejorFila = -1;
+  let mejorPuntaje = 0;
+
+  for (let i = 0; i < maxFilasAExplorar; i++) {
+    const fila = matriz[i] as unknown[];
+    const puntaje = fila.filter((celda) =>
+      objetivos.has(normalizarEncabezado(String(celda ?? ""))),
+    ).length;
+    if (puntaje > mejorPuntaje) {
+      mejorPuntaje = puntaje;
+      mejorFila = i;
+    }
+  }
+
+  return mejorPuntaje >= 2 ? mejorFila : -1;
 }
 
 function mapearFila(

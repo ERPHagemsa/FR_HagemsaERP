@@ -6,14 +6,12 @@ import { useState } from "react"
 import {
   BriefcaseBusiness,
   Building2,
-  CalendarClock,
   CheckCircle2,
   ClipboardList,
   Database,
   MapPin,
   Network,
   ShieldCheck,
-  Warehouse,
 } from "lucide-react"
 
 import { SiteHeader } from "@/compartido/componentes/site-header"
@@ -73,33 +71,21 @@ const modulosRegistro: RegistroModulo[] = [
   },
   {
     orden: 4,
-    tipo: "ALMACEN",
-    icon: Warehouse,
-    dependencia: "Almacen fijo o temporal.",
-  },
-  {
-    orden: 5,
     tipo: "CUENTA",
     icon: BriefcaseBusiness,
     dependencia: "Cuenta comercial.",
   },
   {
-    orden: 6,
+    orden: 5,
     tipo: "CONTRATO",
     icon: ClipboardList,
     dependencia: "Contrato asociado opcionalmente a una cuenta.",
   },
   {
-    orden: 7,
+    orden: 6,
     tipo: "CARGO",
     icon: ShieldCheck,
     dependencia: "Puesto de trabajo y a quien reporta.",
-  },
-  {
-    orden: 8,
-    tipo: "REGIMEN",
-    icon: CalendarClock,
-    dependencia: "Ciclo de trabajo/descanso y jornada diaria.",
   },
 ]
 
@@ -107,11 +93,9 @@ const rutasRegistroConfiguracion: Record<TipoDatoMaestro, string> = {
   UBICACION: "ubicacion",
   SEDE: "sede",
   AREA: "area",
-  ALMACEN: "almacen",
   CUENTA: "cuenta",
   CONTRATO: "contrato",
   CARGO: "cargo",
-  REGIMEN: "regimen",
 }
 
 // Ruta de la pantalla (seccion) de cada tipo, para volver tras crear/cancelar.
@@ -119,11 +103,9 @@ const rutaListadoPorTipo: Record<TipoDatoMaestro, string> = {
   UBICACION: "/configuracion/ubicaciones",
   SEDE: "/configuracion/sedes-areas",
   AREA: "/configuracion/sedes-areas",
-  ALMACEN: "/configuracion/almacenes",
   CUENTA: "/configuracion/cuentas-contratos",
   CONTRATO: "/configuracion/cuentas-contratos",
-  CARGO: "/configuracion/cargos",
-  REGIMEN: "/configuracion/regimenes",
+  CARGO: "/configuracion/sedes-areas",
 }
 
 const detalleFormularioMaestro: Record<
@@ -137,7 +119,7 @@ const detalleFormularioMaestro: Record<
 > = {
   UBICACION: {
     titulo: "Configurar ubicacion",
-    descripcion: "Registra un punto fisico o logistico para usarlo luego en sedes y almacenes.",
+    descripcion: "Registra un punto fisico o logistico para usarlo luego en sedes.",
     alcance: "Base fisica",
     seccion: "Direccion y referencia",
   },
@@ -152,12 +134,6 @@ const detalleFormularioMaestro: Record<
     descripcion: "Define una gerencia o un area dentro de una sede.",
     alcance: "Organizacion",
     seccion: "Sede y gerencia",
-  },
-  ALMACEN: {
-    titulo: "Configurar almacen",
-    descripcion: "Registra un almacen fijo o temporal con su ubicacion operativa.",
-    alcance: "Logistica",
-    seccion: "Ubicacion y vigencia",
   },
   CUENTA: {
     titulo: "Configurar cuenta",
@@ -176,12 +152,6 @@ const detalleFormularioMaestro: Record<
     descripcion: "Registra un puesto de trabajo e indica a quien reporta si aplica.",
     alcance: "Cargos",
     seccion: "A quien reporta",
-  },
-  REGIMEN: {
-    titulo: "Configurar regimen",
-    descripcion: "Define un regimen laboral con su ciclo de trabajo/descanso y jornada diaria.",
-    alcance: "Personal",
-    seccion: "Parametros del regimen",
   },
 }
 
@@ -234,14 +204,6 @@ function ejemplosFormulario(tipo: TipoDatoMaestro) {
       nombre: "Contrato Transporte 2026",
       descripcion: "Contrato anual de transporte.",
     },
-    ALMACEN: {
-      nombre: "Almacen Central Lima",
-      descripcion: "Almacen fijo principal.",
-    },
-    REGIMEN: {
-      nombre: "Regimen 14x7",
-      descripcion: "Regimen laboral 14 dias de trabajo por 7 de descanso.",
-    },
   } satisfies Record<TipoDatoMaestro, Record<"nombre" | "descripcion", string>>
 
   return ejemplos[tipo]
@@ -253,10 +215,8 @@ function ejemplosFormulario(tipo: TipoDatoMaestro) {
 const seccionesRegistro: Array<{ titulo: string; tipos: TipoDatoMaestro[] }> = [
   { titulo: "Ubicaciones", tipos: ["UBICACION"] },
   { titulo: "Sedes y areas", tipos: ["SEDE", "AREA"] },
-  { titulo: "Almacenes", tipos: ["ALMACEN"] },
   { titulo: "Cuentas y contratos", tipos: ["CUENTA", "CONTRATO"] },
   { titulo: "Cargos", tipos: ["CARGO"] },
-  { titulo: "Regimenes", tipos: ["REGIMEN"] },
 ]
 
 function NavegacionRegistroConfiguracion({ tipoActivo }: { tipoActivo: TipoDatoMaestro }) {
@@ -322,8 +282,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
   const formId = `agregar-configuracion-${rutasRegistroConfiguracion[tipoNuevo]}`
   const [nombreNuevo, setNombreNuevo] = useState("")
   const ejemplos = ejemplosFormulario(tipoNuevo)
-  const tieneNodoPadre =
-    tipoNuevo !== "UBICACION" && tipoNuevo !== "CUENTA" && tipoNuevo !== "REGIMEN"
+  const tieneNodoPadre = tipoNuevo !== "UBICACION" && tipoNuevo !== "CUENTA"
 
   const queryCatalogo: ConsultarConfiguracionGeneralQuery = {
     estado: "ACTIVO",
@@ -337,15 +296,19 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
   const ubicacionesQuery = useListarPorTipoQuery(
     "UBICACION",
     queryCatalogo,
-    tipoNuevo === "SEDE" || tipoNuevo === "ALMACEN",
+    tipoNuevo === "SEDE",
   )
   const cargosQuery = useListarPorTipoQuery("CARGO", queryCatalogo, tipoNuevo === "CARGO")
   const sedesQuery = useListarPorTipoQuery(
     "SEDE",
     queryCatalogo,
-    tipoNuevo === "AREA" || tipoNuevo === "ALMACEN",
+    tipoNuevo === "AREA",
   )
-  const areasQuery = useListarPorTipoQuery("AREA", queryCatalogo, tipoNuevo === "AREA")
+  const areasQuery = useListarPorTipoQuery(
+    "AREA",
+    queryCatalogo,
+    tipoNuevo === "AREA" || tipoNuevo === "CARGO",
+  )
   const cuentasQuery = useListarPorTipoQuery("CUENTA", queryCatalogo, tipoNuevo === "CONTRATO")
   const contratosQuery = useListarPorTipoQuery("CONTRATO", queryCatalogo, tipoNuevo === "CONTRATO")
   const registrarMutation = useRegistrarPorTipoMutation(tipoNuevo)
@@ -374,13 +337,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
               accion: "Registrar cuenta",
               tipoDestino: "CUENTA" as TipoDatoMaestro,
             }
-        : tipoNuevo === "ALMACEN" && ubicaciones.length === 0
-          ? {
-              mensaje: "Primero registra una ubicacion para crear almacenes.",
-                accion: "Registrar ubicacion",
-                tipoDestino: "UBICACION" as TipoDatoMaestro,
-              }
-            : null
+        : null
 
   async function registrar(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -391,11 +348,17 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
     const formData = new FormData(form)
     const ubicacionId = String(formData.get("ubicacionId") ?? "").trim()
     const sedeId = String(formData.get("sedeId") ?? "").trim()
+    const areaId = String(formData.get("areaId") ?? "").trim()
     const contratoPadreId = String(formData.get("contratoPadreId") ?? "").trim()
     const pais = String(formData.get("pais") ?? "").trim()
 
     if (tipoNuevo === "AREA" && !sedeId) {
       setError("Selecciona la sede a la que pertenece el area.")
+      return
+    }
+
+    if (tipoNuevo === "CARGO" && !areaId) {
+      setError("Selecciona el area a la que pertenece el cargo.")
       return
     }
 
@@ -411,11 +374,6 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
 
     if (tipoNuevo === "SEDE" && !ubicacionId) {
       setError("Selecciona la ubicacion de la sede.")
-      return
-    }
-
-    if (tipoNuevo === "ALMACEN" && !ubicacionId) {
-      setError("Selecciona la ubicacion del almacen.")
       return
     }
 
@@ -545,7 +503,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
                     </CardContent>
                     <CardFooter className="border-t">
                       <Badge variant="secondary">
-                        {tipoNuevo === "CARGO" || tipoNuevo === "ALMACEN"
+                        {tipoNuevo === "CARGO"
                           ? "Puede ser raiz"
                           : "Relacion requerida"}
                       </Badge>

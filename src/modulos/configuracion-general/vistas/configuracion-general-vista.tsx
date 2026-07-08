@@ -18,7 +18,6 @@ import {
   Network,
   Plus,
   ShieldCheck,
-  Warehouse,
 } from "lucide-react"
 
 import { SiteHeader } from "@/compartido/componentes/site-header"
@@ -65,10 +64,8 @@ const tipos: Array<{ value: "TODOS" | TipoDatoMaestro; label: string }> = [
   { value: "UBICACION", label: "Ubicacion" },
   { value: "SEDE", label: "Sede" },
   { value: "AREA", label: "Area" },
-  { value: "ALMACEN", label: "Almacen" },
   { value: "CUENTA", label: "Cuenta" },
   { value: "CONTRATO", label: "Contrato" },
-  { value: "REGIMEN", label: "Regimen" },
 ]
 
 // Slug de la ruta de registro de cada tipo (/configuracion/nuevo/<slug>).
@@ -76,11 +73,9 @@ const rutaNuevoPorTipo: Record<TipoDatoMaestro, string> = {
   UBICACION: "ubicacion",
   SEDE: "sede",
   AREA: "area",
-  ALMACEN: "almacen",
   CUENTA: "cuenta",
   CONTRATO: "contrato",
   CARGO: "cargo",
-  REGIMEN: "regimen",
 }
 
 // Ruta de la pantalla (seccion) que contiene cada tipo. Sedes y areas comparten
@@ -89,11 +84,9 @@ const rutaListadoPorTipo: Record<TipoDatoMaestro, string> = {
   UBICACION: "/configuracion/ubicaciones",
   SEDE: "/configuracion/sedes-areas",
   AREA: "/configuracion/sedes-areas",
-  ALMACEN: "/configuracion/almacenes",
   CUENTA: "/configuracion/cuentas-contratos",
   CONTRATO: "/configuracion/cuentas-contratos",
-  CARGO: "/configuracion/cargos",
-  REGIMEN: "/configuracion/regimenes",
+  CARGO: "/configuracion/sedes-areas",
 }
 
 // Secciones del menu de configuracion. Algunas agrupan dos tipos relacionados en
@@ -111,29 +104,14 @@ export const seccionesConfiguracion = {
     tipos: ["UBICACION"],
   },
   "sedes-areas": {
-    titulo: "Sedes y areas",
-    descripcion: "Centros de trabajo y las areas que hay dentro de cada uno.",
-    tipos: ["SEDE", "AREA"],
-  },
-  almacenes: {
-    titulo: "Almacenes",
-    descripcion: "Almacenes fijos o temporales de cada ubicacion.",
-    tipos: ["ALMACEN"],
+    titulo: "Sedes, areas y cargos",
+    descripcion: "Centros de trabajo, las areas dentro de cada uno y los cargos que pertenecen a esas areas.",
+    tipos: ["SEDE", "AREA", "CARGO"],
   },
   "cuentas-contratos": {
     titulo: "Cuentas y contratos",
     descripcion: "Cuentas de la empresa y los contratos que dependen de ellas.",
     tipos: ["CUENTA", "CONTRATO"],
-  },
-  cargos: {
-    titulo: "Cargos",
-    descripcion: "Puestos de trabajo y a quien reporta cada uno.",
-    tipos: ["CARGO"],
-  },
-  regimenes: {
-    titulo: "Regimenes",
-    descripcion: "Regimenes de trabajo con sus dias y jornada.",
-    tipos: ["REGIMEN"],
   },
 } satisfies Record<string, SeccionConfiguracion>
 
@@ -144,11 +122,9 @@ const tituloMaestro: Record<TipoDatoMaestro, string> = {
   UBICACION: "Ubicaciones",
   SEDE: "Sedes",
   AREA: "Areas",
-  ALMACEN: "Almacenes",
   CUENTA: "Cuentas",
   CONTRATO: "Contratos",
   CARGO: "Cargos",
-  REGIMEN: "Regimenes",
 }
 
 function obtenerMensajeError(error: unknown) {
@@ -187,13 +163,7 @@ function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
   if (dato.tipoDatoMaestro === "CARGO") return dato.cargoSuperiorNombre || "-"
   if (dato.tipoDatoMaestro === "SEDE") return dato.ubicacionNombre || "-"
   if (dato.tipoDatoMaestro === "AREA") return dato.gerenciaNombre || dato.sedeNombre || "-"
-  if (dato.tipoDatoMaestro === "ALMACEN") return dato.ubicacionNombre || dato.sedeNombre || "-"
   if (dato.tipoDatoMaestro === "CONTRATO") return dato.contratoPadreNombre || "-"
-  if (dato.tipoDatoMaestro === "REGIMEN") {
-    return dato.regimenCodigo
-      ? `${dato.regimenCodigo} (${dato.diasTrabajo ?? "-"}x${dato.diasDescanso ?? "-"})`
-      : "-"
-  }
   return "-"
 }
 
@@ -202,7 +172,6 @@ function etiquetaDetalleEspecifico(tipo: TipoDatoMaestro) {
   if (tipo === "CARGO") return "Reporta a"
   if (tipo === "SEDE") return "Ubicacion"
   if (tipo === "AREA") return "Gerencia / sede"
-  if (tipo === "ALMACEN") return "Ubicacion / sede"
   if (tipo === "CONTRATO") return "Pertenece a"
   return "Detalle"
 }
@@ -279,7 +248,7 @@ function MetricasMaestros({
     {
       etiqueta: "Configuraciones",
       valor: total || datos.length,
-      detalle: "Ubicaciones, sedes, areas, almacenes, cargos, cuentas y contratos.",
+      detalle: "Ubicaciones, sedes, areas, cargos, cuentas y contratos.",
       icon: Database,
       contexto: "Total",
     },
@@ -418,7 +387,9 @@ function ResumenPorTipoDashboard({
   cargando?: boolean
   resumen?: ResumenConfiguracionGeneralResponse
 }) {
-  const datos = resumen?.porTipoDatoMaestro ?? []
+  const datos = (resumen?.porTipoDatoMaestro ?? []).filter(
+    (item) => rutaListadoPorTipo[item.tipoDatoMaestro] !== undefined,
+  )
   const datosOrdenados = [...datos].sort((a, b) =>
     a.tipoDatoMaestro.localeCompare(b.tipoDatoMaestro),
   )
@@ -582,7 +553,7 @@ function OrdenRegistroConfiguracionGeneral() {
   const pasos = [
     {
       titulo: "1. Ubicacion",
-      descripcion: "Registra el punto fisico o logistico que luego usaran sedes y almacenes.",
+      descripcion: "Registra el punto fisico o logistico que luego usaran sedes.",
     },
     {
       titulo: "2. Sede, area y almacen",
@@ -789,7 +760,7 @@ export function ConfiguracionGeneralDashboardVista() {
                           : "Disponible"
                     }
                   />
-                  <Dato label="Uso" value="Ubicaciones, sedes, areas, almacenes, cargos, cuentas y contratos" />
+                  <Dato label="Uso" value="Ubicaciones, sedes, areas, cargos, cuentas y contratos" />
                 </CardContent>
               </Card>
               <EstadoResumenDashboard resumen={resumen} estadoServicio={estadoServicio} />
@@ -831,8 +802,6 @@ function IconoMaestro({ tipo, className }: { tipo: TipoDatoMaestro; className?: 
       return <Building2 className={className} />
     case "AREA":
       return <Network className={className} />
-    case "ALMACEN":
-      return <Warehouse className={className} />
     case "CARGO":
       return <ShieldCheck className={className} />
     case "CUENTA":
@@ -1038,7 +1007,7 @@ export function ConfiguracionGeneralReportesVista() {
                 <div>
                   <h2 className="text-base font-semibold">Configuraciones para revisar</h2>
                   <p className="text-sm text-muted-foreground">
-                    Vista consolidada de ubicaciones, sedes, areas, almacenes, cargos, cuentas y contratos.
+                    Vista consolidada de ubicaciones, sedes, areas, cargos, cuentas y contratos.
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => void exportacion.refetch()}>

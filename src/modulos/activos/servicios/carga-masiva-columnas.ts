@@ -259,6 +259,35 @@ const COLUMNAS_VEHICULO_TECNICO: ColumnaCarga[] = [
   },
 ];
 
+// Datos registrales/documentarios propios del vehiculo.
+const COLUMNAS_VEHICULO_REGISTRALES: ColumnaCarga[] = [
+  {
+    clave: "zonaRegistral",
+    encabezado: "Zona registral",
+    obligatorio: false,
+    tipo: "texto",
+    destino: "vehiculo",
+    ejemplo: "Zona Registral N XII - Sede Arequipa",
+  },
+  {
+    clave: "tarjetaPropiedad",
+    encabezado: "Tarjeta propiedad",
+    obligatorio: false,
+    tipo: "texto",
+    destino: "vehiculo",
+    ejemplo: "TP-123456",
+  },
+  {
+    clave: "tipoTarjetaPropiedad",
+    encabezado: "Tipo tarjeta propiedad",
+    obligatorio: false,
+    tipo: "opciones",
+    destino: "vehiculo",
+    opciones: ["ELECTRONICA", "FISICA"],
+    ejemplo: "ELECTRONICA",
+  },
+];
+
 // Dimensiones fisicas.
 const COLUMNAS_DIMENSIONES: ColumnaCarga[] = [
   {
@@ -338,6 +367,7 @@ export const COLUMNAS_POR_TIPO: Record<number, ColumnaCarga[]> = {
     ...COLUMNAS_BASE,
     ...COLUMNAS_VEHICULO_IDENTIDAD,
     ...COLUMNAS_VEHICULO_TECNICO,
+    ...COLUMNAS_VEHICULO_REGISTRALES,
     ...COLUMNAS_DIMENSIONES,
     ...COLUMNAS_CONTROL,
     ...COLUMNAS_COMBUSTIBLE,

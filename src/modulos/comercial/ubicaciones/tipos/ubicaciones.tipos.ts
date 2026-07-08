@@ -77,8 +77,12 @@ export interface DatosUbicacionGeo {
   nombre?: string;
   pais: string;
   departamento: string;
+  codigoDepartamento?: string;
   provincia: string;
+  codigoProvincia?: string;
   distrito: string;
+  codigoDistrito?: string;
+  ubigeo?: string;
   direccion: string;
   latitud: number;
   longitud: number;
@@ -91,8 +95,12 @@ export interface PayloadCompletarUbicacion {
   tipoUbicacion: TipoUbicacion;
   pais: string;
   departamento: string;
+  codigoDepartamento?: string | null;
   provincia: string;
+  codigoProvincia?: string | null;
   distrito: string;
+  codigoDistrito?: string | null;
+  ubigeo?: string | null;
   direccion: string;
   referenciaUbicacion?: string | null;
   latitud?: number | null;

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { BriefcaseBusiness, Clock, Copy, FileText, History, MapPin, X } from "lucide-react"
 
@@ -32,6 +32,7 @@ import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 import {
   useAsignacionPersonalQuery,
   useCrearAsignacionPersonalMutation,
+  useCargosConfiguracionGeneralQuery,
   useModificarAsignacionPersonalMutation,
   useOpcionesFormularioAsignacionQuery,
   useReemplazarCuentasContratosMutation,
@@ -70,6 +71,8 @@ import {
   mapearOrganizacionInicial,
   nombreOpcionSeleccionada,
   obtenerMensajeError,
+  obtenerCandidatosJefe,
+  obtenerEtiquetaPersonal,
   soloFecha,
   validarYConstruirCuentasContratos,
 } from "./utilidades"
@@ -82,6 +85,8 @@ function AsignacionFormularioContenido({
   cuentasCatalogo,
   contratosCatalogo,
   catalogosOrganizacion,
+  cargosCatalogo: cargosCatalogoInicial,
+  cargandoCargos: cargandoCargosInicial,
   tiposTareo,
   configuracionesLaboralesCatalogo,
   onClose,
@@ -93,6 +98,8 @@ function AsignacionFormularioContenido({
   cuentasCatalogo: ConfiguracionGeneralOpcionResponse[]
   contratosCatalogo: ConfiguracionGeneralOpcionResponse[]
   catalogosOrganizacion: CatalogosOrganizacion
+  cargosCatalogo: ConfiguracionGeneralOpcionResponse[]
+  cargandoCargos: boolean
   tiposTareo: TipoTareoPersonalResponse[]
   configuracionesLaboralesCatalogo: ConfiguracionLaboralPersonalResponse[]
   onClose: (actualizado: boolean) => void
@@ -104,8 +111,26 @@ function AsignacionFormularioContenido({
       ? mapearOrganizacionInicial(asignacion, catalogosOrganizacion)
       : { ...VALORES_ORGANIZACION_VACIOS }
   const [valores, setValores] = useState<ValoresOrganizacion>(organizacionInicial)
-  // Jefe/responsable: dato libre (BC-01 ya no lo valida contra Configuracion
-  // General). Se guarda como jefeCodigo (opcional) y jefeNombre.
+  const cargosQuery = useCargosConfiguracionGeneralQuery(
+    {
+      areaId: valores.areaId || undefined,
+      sedeId: valores.sedeId || undefined,
+    },
+    true,
+  )
+  const cargosCatalogo = cargosQuery.data ?? cargosCatalogoInicial
+  const cargandoCargos = cargosQuery.isLoading || cargandoCargosInicial
+  // Cargo elegido y a quien reporta segun la ESTRUCTURA (cargoSuperiorNombre que
+  // ahora envia Configuracion General). Sirve para mostrar el jefe-posicion aunque
+  // todavia no exista una persona asignada en ese cargo.
+  const cargoSeleccionadoObj = cargosCatalogo.find(
+    (item) => String(item.id) === String(valores.cargoId),
+  )
+  const jefeSegunEstructura = cargoSeleccionadoObj?.cargoSuperiorNombre ?? null
+  // Cargo raiz = maximo nivel (no reporta a otro cargo). En ese caso el jefe es
+  // vacio a proposito: no lleva jefe ni se autocompleta con la propia persona.
+  const esCargoRaiz = Boolean(cargoSeleccionadoObj) && !jefeSegunEstructura
+  // Jefe/responsable: se resuelve por area/cargo desde personal vigente.
   const [jefeCodigo, setJefeCodigo] = useState(asignacion?.jefeCodigo ?? "")
   const [jefeNombre, setJefeNombre] = useState(asignacion?.jefeNombre ?? "")
   const jefeCodigoInicial = asignacion?.jefeCodigo ?? ""
@@ -149,6 +174,62 @@ function AsignacionFormularioContenido({
     sortOrder: "desc",
   })
   const personalCatalogo = personalQuery.data?.datos ?? []
+  const candidatosJefe = useMemo(
+    () =>
+      obtenerCandidatosJefe(
+        personalCatalogo,
+        catalogosOrganizacion.areas,
+        catalogosOrganizacion.cargos,
+        valores.areaId,
+        valores.cargoId,
+      ),
+    [
+      personalCatalogo,
+      catalogosOrganizacion.areas,
+      catalogosOrganizacion.cargos,
+      valores.areaId,
+      valores.cargoId,
+    ],
+  )
+  const candidatosJefeClave = candidatosJefe.map((item) => String(item.personal.id)).join("|")
+
+  useEffect(() => {
+    // Cargo raiz (maximo nivel): no lleva jefe. Se limpia y no se autoresuelve
+    // aunque haya personas en su area.
+    if (esCargoRaiz) {
+      if (jefeCodigo || jefeNombre) {
+        setJefeCodigo("")
+        setJefeNombre("")
+      }
+      return
+    }
+
+    if (candidatosJefe.length === 0) {
+      if (jefeCodigo || jefeNombre) {
+        setJefeCodigo("")
+        setJefeNombre("")
+      }
+      return
+    }
+
+    if (candidatosJefe.length === 1) {
+      const unico = candidatosJefe[0]
+      const codigo = String(unico.personal.id)
+      const nombre = obtenerEtiquetaPersonal(unico.personal)
+      if (jefeCodigo !== codigo || jefeNombre !== nombre) {
+        setJefeCodigo(codigo)
+        setJefeNombre(nombre)
+      }
+      return
+    }
+
+    const sigueVigente = candidatosJefe.some((item) => String(item.personal.id) === jefeCodigo)
+    if (!sigueVigente) {
+      const primero = candidatosJefe[0]
+      setJefeCodigo(String(primero.personal.id))
+      setJefeNombre(obtenerEtiquetaPersonal(primero.personal))
+    }
+  }, [candidatosJefeClave, jefeCodigo, jefeNombre, esCargoRaiz])
   const [relaciones, setRelaciones] = useState<RelacionCuentaContratoFila[]>(() =>
     modo === "editar" && asignacion
       ? crearFilasRelacionActual(asignacion, cuentasCatalogo, contratosCatalogo)
@@ -176,7 +257,6 @@ function AsignacionFormularioContenido({
     // catalogo (igual que en edicion); el area depende de la sede y puede quedar
     // para reelegir si su catalogo aun no cargo.
     setValores(mapearOrganizacionInicial(ultimaAsignacion, catalogosOrganizacion))
-    // Jefe/responsable es dato libre: se copia tal cual.
     setJefeCodigo(ultimaAsignacion.jefeCodigo ?? "")
     setJefeNombre(ultimaAsignacion.jefeNombre ?? "")
     // Horario/regimen: el resumen trae codigos; se resuelven a id contra los
@@ -308,7 +388,7 @@ function AsignacionFormularioContenido({
       return
     }
 
-    const firmas = aprobadoresValidos(aprobadores, personalCatalogo)
+    const firmas = aprobadoresValidos(aprobadores)
     let resultadoRelacion: ResultadoRelacionContractual | null = null
     if (relaciones.length > 0) {
       resultadoRelacion = validarYConstruirCuentasContratos(
@@ -589,7 +669,8 @@ function AsignacionFormularioContenido({
             valores={valores}
             onChange={actualizarValor}
             habilitado
-            catalogos={catalogosOrganizacion}
+            catalogos={{ ...catalogosOrganizacion, cargos: cargosCatalogo }}
+            cargandoCargos={cargandoCargos}
             actuales={
               modo === "editar" && asignacion
                 ? {
@@ -601,30 +682,90 @@ function AsignacionFormularioContenido({
             }
           />
 
-          <FieldSet className="rounded-lg border border-border p-4">
+            <FieldSet className="rounded-lg border border-border p-4">
             <FieldLegend>Jefe o responsable</FieldLegend>
             <FieldDescription>
-              Responsable directo del personal. Es un dato libre: BC-01 lo guarda tal cual (no se
-              valida contra Configuracion General). El codigo es opcional.
+              Se resuelve por area y jerarquia de gerencia. El cargo solo acompaña como dato de la
+              asignacion.
             </FieldDescription>
+            {jefeSegunEstructura ? (
+              <p className="text-xs text-muted-foreground">
+                Segun la estructura, este cargo reporta a{" "}
+                <span className="font-medium text-foreground">{jefeSegunEstructura}</span>.
+                {candidatosJefe.length === 0
+                  ? " Aun no hay una persona asignada en ese cargo o area superior: asignala primero para autocompletar el jefe."
+                  : ""}
+              </p>
+            ) : cargoSeleccionadoObj ? (
+              <p className="text-xs text-muted-foreground">
+                Este cargo es el nivel mas alto (no reporta a otro cargo).
+              </p>
+            ) : null}
+            {esCargoRaiz ? null : (
             <div className="grid gap-4 sm:grid-cols-2">
+              <Field className="sm:col-span-2">
+                <FieldLabel>Jefe sugerido *</FieldLabel>
+                <Select
+                  value={jefeCodigo || "__none"}
+                  disabled={esCargoRaiz || candidatosJefe.length === 0 || personalQuery.isLoading}
+                  onValueChange={(value) => {
+                    const candidato = candidatosJefe.find((item) => String(item.personal.id) === value)
+                    if (!candidato) return
+                    setJefeCodigo(String(candidato.personal.id))
+                    setJefeNombre(obtenerEtiquetaPersonal(candidato.personal))
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue
+                      placeholder={
+                        esCargoRaiz
+                          ? "Sin jefe (maximo nivel)"
+                          : personalQuery.isLoading
+                            ? "Cargando jefes..."
+                            : candidatosJefe.length === 0
+                              ? "Sin jefe disponible"
+                              : "Selecciona jefe"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="__none" disabled>
+                        {personalQuery.isLoading ? "Cargando jefes..." : "Selecciona jefe"}
+                      </SelectItem>
+                      {candidatosJefe.map(({ personal, asignacion }) => (
+                        <SelectItem key={personal.id} value={String(personal.id)}>
+                          {obtenerEtiquetaPersonal(personal)} · {asignacion?.cargoNombre ?? "Cargo"}
+                          {asignacion?.areaNombre ? ` · ${asignacion.areaNombre}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  {esCargoRaiz
+                    ? "Este cargo es el maximo nivel: no lleva jefe (se deja vacio)."
+                    : "Dinamico por cargo y area. Si cambias cargo o area, el jefe se recalcula."}
+                </FieldDescription>
+              </Field>
               <Field>
                 <FieldLabel>Codigo del jefe</FieldLabel>
                 <Input
                   value={jefeCodigo}
-                  placeholder="Ej. SUP01"
-                  onChange={(event) => setJefeCodigo(event.target.value)}
+                  readOnly
+                  placeholder={esCargoRaiz ? "Sin jefe" : "Auto"}
                 />
               </Field>
               <Field>
                 <FieldLabel>Nombre del jefe</FieldLabel>
                 <Input
                   value={jefeNombre}
-                  placeholder="Ej. Supervisor de Operaciones"
-                  onChange={(event) => setJefeNombre(event.target.value)}
+                  readOnly
+                  placeholder={esCargoRaiz ? "Sin jefe" : "Auto"}
                 />
               </Field>
             </div>
+            )}
           </FieldSet>
         </div>
 
@@ -835,8 +976,8 @@ function AsignacionFormularioContenido({
           <EditorAprobadores
             filas={aprobadores}
             onChange={setAprobadores}
-            personalCatalogo={personalCatalogo}
-            cargandoPersonal={personalQuery.isLoading}
+            cargosCatalogo={cargosCatalogo}
+            cargandoCargos={cargandoCargos}
           />
         </FieldSet>
 
@@ -907,7 +1048,7 @@ function AsignacionFormularioContenido({
                 label: "Contratos",
                 value: `${relaciones.filter((item) => item.contrato).length}`,
               },
-              { label: "Aprobadores", value: `${aprobadoresValidos(aprobadores, personalCatalogo).length}` },
+              { label: "Aprobadores", value: `${aprobadoresValidos(aprobadores).length}` },
               { label: "Tipo de horario", value: tipoTareoSeleccionado?.nombre || "Sin asignar" },
               {
                 label: "Configuracion del horario",
@@ -962,18 +1103,19 @@ export function AsignacionFormulario({
   ultimaAsignacion?: AsignacionPersonalResponse
   onClose: (actualizado: boolean) => void
 }) {
-  // Una sola llamada trae cargos, sedes, areas, cuentas, contratos, tipos de
-  // tareo, configuraciones laborales y catalogos de disponibilidad. Reemplaza el
-  // patron anterior de pedir combo por combo a Configuracion General.
+  // Cargos salen directo de BC14. El resto de catalogos sigue saliendo por el
+  // formulario consolidado de BC-01.
   const opcionesQuery = useOpcionesFormularioAsignacionQuery()
+  const cargosQuery = useCargosConfiguracionGeneralQuery({}, true)
   const asignacionDetalleQuery = useAsignacionPersonalQuery(
     asignacion?.id ?? "",
     modo === "editar" && Boolean(asignacion?.id),
   )
 
-  const cargando = opcionesQuery.isLoading || asignacionDetalleQuery.isLoading
-  const errorCarga = opcionesQuery.error
+  const cargando = opcionesQuery.isLoading || cargosQuery.isLoading || asignacionDetalleQuery.isLoading
+  const errorCarga = opcionesQuery.error || cargosQuery.error
   const opciones = opcionesQuery.data
+  const cargosCatalogo = cargosQuery.data ?? []
   const asignacionEfectiva = asignacionDetalleQuery.data ?? asignacion
 
   if (cargando) {
@@ -1009,10 +1151,12 @@ export function AsignacionFormulario({
       cuentasCatalogo={opciones.cuentas}
       contratosCatalogo={opciones.contratos}
       catalogosOrganizacion={{
-        cargos: opciones.cargos,
+        cargos: cargosCatalogo,
         sedes: opciones.sedes,
         areas: opciones.areas,
       }}
+      cargosCatalogo={cargosCatalogo}
+      cargandoCargos={cargosQuery.isLoading}
       tiposTareo={opciones.tiposTareo}
       configuracionesLaboralesCatalogo={opciones.configuracionesLaborales}
       onClose={onClose}

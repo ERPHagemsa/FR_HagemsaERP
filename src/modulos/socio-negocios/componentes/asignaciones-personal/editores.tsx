@@ -23,7 +23,6 @@ import { cn } from "@/compartido/utilidades/utils"
 
 import { useAreasPorSedeQuery } from "../../servicios/asignaciones-personal-queries"
 import type { ConfiguracionGeneralOpcionResponse } from "../../tipos/asignacion-personal"
-import type { PersonalListadoResponse } from "../../tipos/socio-negocio"
 import {
   type AprobadorFila,
   type CampoOrganizacion,
@@ -39,8 +38,6 @@ import {
   crearFilaContratoVacia,
   crearFilaCuentaVacia,
   obtenerEtiquetaCatalogo,
-  obtenerEtiquetaPersonal,
-  obtenerNombrePersonal,
 } from "./utilidades"
 
 // Recibe el catalogo ya cargado (se centraliza la carga en el contenedor para
@@ -147,6 +144,7 @@ export function FormularioOrganizacion({
   habilitado,
   actuales,
   catalogos,
+  cargandoCargos = false,
 }: {
   valores: ValoresOrganizacion
   onChange: (key: CampoOrganizacion["key"], item: ConfiguracionGeneralOpcionResponse | null) => void
@@ -157,7 +155,9 @@ export function FormularioOrganizacion({
     area?: string
   }
   catalogos: CatalogosOrganizacion
+  cargandoCargos?: boolean
 }) {
+  const cargoSeleccionado = catalogos.cargos.find((cargo) => String(cargo.id) === valores.cargoId)
   // El combo de area depende de la sede elegida. `opciones-formulario` no trae
   // areas (llega vacio), asi que se cargan bajo demanda desde Configuracion
   // General filtrando por la sede seleccionada. Sin sede el combo se deshabilita.
@@ -222,14 +222,25 @@ export function FormularioOrganizacion({
           <FieldLabel>Cargo *</FieldLabel>
           <SelectCatalogo
             catalogo={catalogos.cargos}
+            cargando={cargandoCargos}
             value={valores.cargoId}
             onChange={(item) => onChange("cargoId", item)}
-            enabled={habilitado}
+            enabled={habilitado && Boolean(valores.areaId) && !cargandoCargos}
             includeNone={false}
-            placeholder={actuales?.cargo ? `Conservar: ${actuales.cargo}` : "Selecciona cargo"}
+            placeholder={
+              !valores.areaId
+                ? "Primero selecciona un area"
+                : cargandoCargos
+                  ? "Cargando cargos..."
+                  : actuales?.cargo
+                    ? `Conservar: ${actuales.cargo}`
+                    : "Selecciona cargo"
+            }
           />
           {actuales?.cargo ? (
             <FieldDescription>Actual: {actuales.cargo}</FieldDescription>
+          ) : cargoSeleccionado?.cargoSuperiorNombre ? (
+            <FieldDescription>Reporta a: {cargoSeleccionado.cargoSuperiorNombre}</FieldDescription>
           ) : null}
         </Field>
       </div>
@@ -471,13 +482,13 @@ export function EditorRelacionContractual({
 export function EditorAprobadores({
   filas,
   onChange,
-  personalCatalogo = [],
-  cargandoPersonal = false,
+  cargosCatalogo = [],
+  cargandoCargos = false,
 }: {
   filas: AprobadorFila[]
   onChange: (filas: AprobadorFila[]) => void
-  personalCatalogo?: PersonalListadoResponse[]
-  cargandoPersonal?: boolean
+  cargosCatalogo?: ConfiguracionGeneralOpcionResponse[]
+  cargandoCargos?: boolean
 }) {
   function actualizarFila(key: string, cambios: Partial<AprobadorFila>) {
     onChange(filas.map((fila) => (fila.key === key ? { ...fila, ...cambios } : fila)))
@@ -517,68 +528,44 @@ export function EditorAprobadores({
 
           <div className="grid gap-3 md:grid-cols-2">
             <Field className="md:col-span-2">
-              <FieldLabel>Elegir de la lista de personal</FieldLabel>
+              <FieldLabel>Cargo aprobador *</FieldLabel>
               <Select
-                value={
-                  personalCatalogo.some((personal) => String(personal.id) === fila.aprobadorCodigo)
-                    ? fila.aprobadorCodigo
-                    : "__manual"
-                }
+                value={fila.aprobadorCodigo || "__none"}
+                disabled={cargandoCargos}
                 onValueChange={(value) => {
-                  if (value === "__manual") return
-                  const personal = personalCatalogo.find((item) => String(item.id) === value)
-                  if (!personal) return
+                  const item = cargosCatalogo.find((cargo) => cargo.codigo === value)
+                  if (!item) return
                   actualizarFila(fila.key, {
-                    aprobadorCodigo: String(personal.id),
-                    aprobadorNombre: obtenerNombrePersonal(personal),
+                    aprobadorCodigo: item.codigo,
+                    aprobadorNombre: item.nombre,
                   })
                 }}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona un aprobador" />
+                  <SelectValue placeholder={cargandoCargos ? "Cargando cargos..." : "Selecciona cargo aprobador"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="__manual">
-                      {cargandoPersonal ? "Cargando personal..." : "Seleccion manual"}
+                    <SelectItem value="__none" disabled>
+                      Selecciona cargo aprobador
                     </SelectItem>
-                    {personalCatalogo.map((personal) => (
-                      <SelectItem key={personal.id} value={String(personal.id)}>
-                        {obtenerEtiquetaPersonal(personal)}
+                    {cargosCatalogo.map((cargo) => (
+                      <SelectItem key={cargo.id} value={cargo.codigo}>
+                        {obtenerEtiquetaCatalogo(cargo)}
                       </SelectItem>
                     ))}
-                    {personalCatalogo.length === 0 && !cargandoPersonal ? (
+                    {cargosCatalogo.length === 0 && !cargandoCargos ? (
                       <SelectItem value="__vacio" disabled>
-                        Sin personal disponible
+                        Sin cargos disponibles
                       </SelectItem>
                     ) : null}
                   </SelectGroup>
                 </SelectContent>
               </Select>
               <FieldDescription>
-                Elige a la persona que aprobara. Si no esta en la lista, puedes escribir su codigo y
-                nombre a mano abajo.
+                Selecciona cargo que debe aprobar. Al aprobar, backend guardara usuarioId y el
+                cargo vigente del usuario.
               </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel>Codigo del aprobador *</FieldLabel>
-              <Input
-                value={fila.aprobadorCodigo}
-                placeholder="Ej. GER-OPER"
-                onChange={(event) =>
-                  actualizarFila(fila.key, { aprobadorCodigo: event.target.value })
-                }
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Nombre del aprobador *</FieldLabel>
-              <Input
-                value={fila.aprobadorNombre}
-                placeholder="Ej. Gerente de Operaciones"
-                onChange={(event) =>
-                  actualizarFila(fila.key, { aprobadorNombre: event.target.value })
-                }
-              />
             </Field>
           </div>
         </div>
