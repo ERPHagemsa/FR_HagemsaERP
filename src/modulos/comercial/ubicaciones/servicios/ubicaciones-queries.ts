@@ -14,6 +14,7 @@ import {
 } from "./ubicaciones-api";
 import {
   CLAVE_COTIZACION_DETALLE,
+  CLAVE_UBICACIONES_MAESTRA,
   CLAVE_UBICACIONES_TEMPORALES,
 } from "../../claves-consulta";
 
@@ -42,6 +43,33 @@ export function useBuscarUbicacionesMaestra(q: string) {
   return useConsulta(() => listarUbicaciones(termino), [termino], {
     enabled: termino.length >= 2,
   });
+}
+
+// Listado de la MAESTRA local para la página de ubicaciones. Siempre habilitado:
+// con búsqueda vacía trae todo (el backend no pagina este endpoint).
+export function useUbicacionesQuery(busqueda?: string) {
+  const termino = busqueda?.trim() ?? "";
+  return useConsulta(
+    () => listarUbicaciones(termino || undefined),
+    [termino],
+    { clave: CLAVE_UBICACIONES_MAESTRA }
+  );
+}
+
+// Una ubicación exacta del maestro por nombre. Sirve para enriquecer el panel de
+// una cotización GANADA: los origen/destino que resolvieron al maestro solo
+// llevan el nombre en la ruta, así que se recupera el registro completo. Reusa
+// la búsqueda `contains` y filtra el match exacto (insensible a mayúsculas).
+export function useUbicacionMaestraPorNombre(nombre: string) {
+  const termino = nombre.trim();
+  const consulta = useConsulta(() => listarUbicaciones(termino), [termino], {
+    enabled: termino.length >= 2,
+  });
+  const ubicacion =
+    consulta.data?.find(
+      (u) => u.nombre.trim().toLowerCase() === termino.toLowerCase()
+    ) ?? null;
+  return { ...consulta, ubicacion };
 }
 
 // ---------------------------------------------------------------------------

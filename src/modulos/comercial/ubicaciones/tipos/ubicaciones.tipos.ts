@@ -59,7 +59,7 @@ export interface UbicacionBc14 {
 
 // Ubicación maestra local (réplica confirmada de BC-14).
 export interface Ubicacion extends UbicacionBc14 {
-  idUbicacionBc14: string;
+  idUbicacionBc14: number; // entero autoincremental que asigna BC-14
   fechaCreacion: string;
 }
 
