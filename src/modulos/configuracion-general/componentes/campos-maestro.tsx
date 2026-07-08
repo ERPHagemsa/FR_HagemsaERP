@@ -185,16 +185,18 @@ function DistritoGeoAutocomplete({
   const secuencia = useRef(0)
 
   useEffect(() => {
-    if (busqueda.trim().length < 2) {
-      setResultados([])
-      setCargando(false)
-      return
-    }
     const idIntento = ++secuencia.current
-    setCargando(true)
-    setError(null)
+    const termino = busqueda.trim()
     const temporizador = setTimeout(() => {
-      buscarDistritos(busqueda.trim(), 8)
+      if (secuencia.current !== idIntento) return
+      if (termino.length < 2) {
+        setResultados([])
+        setCargando(false)
+        return
+      }
+      setCargando(true)
+      setError(null)
+      buscarDistritos(termino, 8)
         .then((data) => {
           if (secuencia.current !== idIntento) return
           setResultados(data)
@@ -465,7 +467,7 @@ export function CamposMaestro({
   onRelacionChange?: (cambios: Partial<RelacionVistaPreviaMaestro>) => void
   seccion?: "detalle" | "relacion" | "todos"
 }) {
-  const { areas, cargos, contratos, cuentas, sedes, ubicaciones } = catalogos
+  const { areas, cargos, contratos, cuentas, ubicaciones } = catalogos
   const [nivelArea, setNivelArea] = useState<NivelArea>(valoresIniciales?.nivelArea ?? "AREA")
   // CARGO: area elegida (filtra los posibles cargos superiores) y cargo superior
   // en curso (para la etiqueta raiz/dependiente en vivo y la ayuda textual).
