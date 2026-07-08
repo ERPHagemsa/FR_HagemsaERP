@@ -117,6 +117,28 @@ export function obtenerOrigenCambioVisual(returnTo?: string) {
     : "Maestro de activos";
 }
 
+/**
+ * Origen para las operaciones de imagenes/documentos. Solo devuelve metadata
+ * cuando se edita desde un inventario fisico; en el flujo normal devuelve
+ * undefined para que el backend use sus defaults (origen maestro + referencia
+ * al subrecurso afectado). No incluye motivo: cada operacion conserva su
+ * motivo especifico ("Imagen eliminada del activo.", etc.).
+ */
+export function construirOrigenSubrecursos(returnTo?: string) {
+  if (!returnTo?.startsWith("/activos/inventario-fisico/")) return undefined;
+
+  const inventarioId = Number(
+    returnTo.match(/^\/activos\/inventario-fisico\/(\d+)/)?.[1]
+  );
+
+  return {
+    origenCambio: "INVENTARIO_FISICO" as const,
+    referenciaTipo: "INVENTARIO_FISICO",
+    referenciaId: Number.isFinite(inventarioId) ? inventarioId : undefined,
+    usuarioCambio: "activos.web",
+  };
+}
+
 export function formatearEstadoActivo(value?: string | null) {
   if (value === "ACTIVO") return "Activo";
   if (value === "SINIESTRADO") return "Baja / Siniestro";
