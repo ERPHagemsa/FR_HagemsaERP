@@ -18,6 +18,29 @@ export type EstadoSolicitudCliente =
 
 export type TipoOrigen = "PROSPECTO" | "CLIENTE";
 
+// Cliente de BC-01 tal como lo devuelve el backend Comercial (passthrough del
+// endpoint GET /solicitudes-cliente/clientes). Se usa para elegir el origen de la SC.
+export interface ClienteBc01 {
+  id: number;
+  numeroDocumento: string;
+  razonSocial: string | null;
+  nombreComercial: string | null;
+  estado: string;
+  estadoRegistro: string;
+  estadoAprobacion: string;
+  direccion: string | null;
+  contacto: string | null;
+  correo: string | null;
+  numeroCelular: string | null;
+}
+
+// Filtros para buscar clientes en BC-01 (todos opcionales, se combinan).
+export interface FiltrosBuscarClientes {
+  numeroDocumento?: string;
+  razonSocial?: string;
+  nombreComercial?: string;
+}
+
 // Buckets del pipeline (estilo Salesforce): filtran el listado y son la
 // contraparte 1:1 de los KPIs de /resumen. Comparten predicado con el backend
 // (fuente unica de verdad), por eso el numero del KPI === filas del bucket.

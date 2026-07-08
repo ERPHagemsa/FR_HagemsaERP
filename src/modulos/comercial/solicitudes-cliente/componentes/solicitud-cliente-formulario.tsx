@@ -34,7 +34,7 @@ import { cn } from "@/compartido/utilidades/utils";
 
 import { consultarProspecto } from "../../prospectos/servicios/prospectos-api";
 import { useRegistrarSCMutation } from "../servicios/solicitudes-cliente-queries";
-import { ResolverIdentidadPanel } from "./resolver-identidad-panel";
+import { BuscarOrigenPanel } from "./buscar-origen-panel";
 import type { CanalEntrada, OrigenTipo } from "../../cotizaciones/tipos/cotizaciones.tipos";
 import {
   issuesAErroresCampo,
@@ -378,10 +378,10 @@ export function CamposNuevaSolicitud({
         />
       ) : (
         <>
-          <ResolverIdentidadPanel onIdentidadResuelta={onIdentidadResuelta} />
+          <BuscarOrigenPanel onIdentidadResuelta={onIdentidadResuelta} />
           {erroresCampo["origenId"] ? (
             <p className="text-xs text-destructive">
-              Selecciona un origen valido buscando por documento.
+              Selecciona un origen válido (prospecto o cliente).
             </p>
           ) : null}
         </>
