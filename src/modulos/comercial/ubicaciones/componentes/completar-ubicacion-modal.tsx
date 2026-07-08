@@ -31,7 +31,10 @@ import {
   listarDistritos,
   listarProvincias,
 } from "../servicios/geo-api";
-import { useCompletarUbicacionMutation } from "../servicios/ubicaciones-queries";
+import {
+  useCompletarUbicacionMutation,
+  useCorregirUbicacionMutation,
+} from "../servicios/ubicaciones-queries";
 import { normalizarErrorAccion } from "../../cotizaciones/servicios/cotizaciones-error-handler";
 import { SelectorUbicacionMapa } from "./selector-ubicacion-mapa";
 import type {
@@ -40,6 +43,7 @@ import type {
   TipoUbicacion,
   UbicacionTemporal,
 } from "../tipos/ubicaciones.tipos";
+import { MAX_CORRECCIONES_UBICACION } from "../tipos/ubicaciones.tipos";
 
 const TIPOS_UBICACION: { valor: TipoUbicacion; etiqueta: string }[] = [
   { valor: "SEDE", etiqueta: "Sede" },
@@ -57,8 +61,10 @@ const TIPOS_UBICACION: { valor: TipoUbicacion; etiqueta: string }[] = [
 
 type Props = {
   abierto: boolean;
-  // Ubicación temporal a completar. null cuando no hay nada abierto.
+  // Ubicación temporal a completar/corregir. null cuando no hay nada abierto.
   temporal: UbicacionTemporal | null;
+  // "completar" (temporal PENDIENTE/COMPLETA) o "corregir" (ya SINCRONIZADA).
+  modo?: "completar" | "corregir";
   onCerrar: () => void;
 };
 
@@ -96,12 +102,22 @@ function estadoInicial(t: UbicacionTemporal | null): FormState {
  * (fase final): BC-14 valida si ya existe y devuelve los datos para replicar en
  * la maestra local. No se deduplica acá.
  */
-export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) {
+export function CompletarUbicacionModal({
+  abierto,
+  temporal,
+  modo = "completar",
+  onCerrar,
+}: Props) {
   const [form, setForm] = React.useState<FormState>(() =>
     estadoInicial(temporal)
   );
 
-  const mutacion = useCompletarUbicacionMutation(temporal?.id ?? "");
+  const esCorregir = modo === "corregir";
+  // Ambos hooks se montan siempre (regla de hooks); se usa el del modo activo.
+  const completarMut = useCompletarUbicacionMutation(temporal?.id ?? "");
+  const corregirMut = useCorregirUbicacionMutation(temporal?.id ?? "");
+  const mutacion = esCorregir ? corregirMut : completarMut;
+  const restantes = MAX_CORRECCIONES_UBICACION - (temporal?.intentosActualizacion ?? 0);
 
   // El estado se reinicia por remount (el padre pasa `key` con el id de la
   // temporal), no vía efecto: así evitamos setState dentro de useEffect.
@@ -189,12 +205,14 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
   async function completar(payload: PayloadCompletarUbicacion) {
     try {
       await mutacion.mutateAsync(payload);
-      toast.success("Ubicación completada");
+      toast.success(esCorregir ? "Corrección enviada" : "Ubicación completada");
       onCerrar();
     } catch (err) {
       const { mensaje } = normalizarErrorAccion(
         err,
-        "No se pudo completar la ubicación"
+        esCorregir
+          ? "No se pudo enviar la corrección"
+          : "No se pudo completar la ubicación"
       );
       toast.error(mensaje);
     }
@@ -212,15 +230,24 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="size-4" />
-            Completar ubicación
+            {esCorregir ? "Corregir ubicación" : "Completar ubicación"}
           </DialogTitle>
           <DialogDescription>
             {temporal ? (
-              <>
-                Completá los datos de <strong>{temporal.nombre}</strong> que
-                exige Configuración General (BC-14). Al registrar, BC-14 valida y
-                sincroniza la ubicación.
-              </>
+              esCorregir ? (
+                <>
+                  Corregí los datos de <strong>{temporal.nombre}</strong>. Se
+                  reenvía a Configuración General (BC-14) para actualizar el
+                  maestro. Te quedan <strong>{restantes}</strong>{" "}
+                  {restantes === 1 ? "corrección" : "correcciones"}.
+                </>
+              ) : (
+                <>
+                  Completá los datos de <strong>{temporal.nombre}</strong> que
+                  exige Configuración General (BC-14). Al registrar, BC-14 valida
+                  y sincroniza la ubicación.
+                </>
+              )
             ) : null}
           </DialogDescription>
         </DialogHeader>
@@ -360,7 +387,7 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
             disabled={!camposCompletos || enviando}
           >
             {enviando ? <Loader2 className="size-4 animate-spin" /> : null}
-            Registrar ubicación
+            {esCorregir ? "Guardar corrección" : "Registrar ubicación"}
           </Button>
         </DialogFooter>
       </DialogContent>

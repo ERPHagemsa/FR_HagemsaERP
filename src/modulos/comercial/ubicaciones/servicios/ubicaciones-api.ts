@@ -39,6 +39,20 @@ export async function completarUbicacionTemporal(
   return data;
 }
 
+// PATCH /ubicaciones/temporales/:id/corregir — corrige una ubicación YA
+// SINCRONIZADA (el usuario detectó un error). Re-viaja a BC-14 como actualización;
+// hasta 3 correcciones (la creación no cuenta). Mismo payload que completar.
+export async function corregirUbicacionTemporal(
+  id: string,
+  payload: PayloadCompletarUbicacion
+): Promise<UbicacionTemporal> {
+  const { data } = await clienteComercial.patch<UbicacionTemporal>(
+    `/ubicaciones/temporales/${id}/corregir`,
+    payload
+  );
+  return data;
+}
+
 // GET /ubicaciones?busqueda= — maestra local (réplica confirmada de BC-14).
 export async function listarUbicaciones(
   busqueda?: string

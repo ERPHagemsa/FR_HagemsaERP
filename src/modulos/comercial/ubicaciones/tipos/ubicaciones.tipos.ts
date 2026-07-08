@@ -38,9 +38,16 @@ export interface UbicacionTemporal {
   latitud: number | null;
   longitud: number | null;
   idUbicacion: string | null;
+  // Correcciones ya enviadas tras la creación en BC-14 (la creación no cuenta).
+  // Tope 3: el frontend bloquea el botón "Corregir" al llegar al máximo.
+  intentosActualizacion: number;
   fechaCreacion: string;
   fechaModificacion: string | null;
 }
+
+// Máximo de correcciones que admite una ubicación ya sincronizada (debe coincidir
+// con MAX_CORRECCIONES del backend). La creación es el "intento 0" y no cuenta.
+export const MAX_CORRECCIONES_UBICACION = 3;
 
 // Ubicación del maestro de BC-14 (candidata de dedup / réplica local).
 export interface UbicacionBc14 {

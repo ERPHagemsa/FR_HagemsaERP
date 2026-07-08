@@ -9,6 +9,7 @@ import type {
 } from "../tipos/ubicaciones.tipos";
 import {
   completarUbicacionTemporal,
+  corregirUbicacionTemporal,
   listarUbicaciones,
   listarUbicacionesTemporales,
 } from "./ubicaciones-api";
@@ -82,6 +83,18 @@ export function useUbicacionMaestraPorNombre(nombre: string) {
 export function useCompletarUbicacionMutation(idTemporal: string) {
   return useMutar<PayloadCompletarUbicacion, UbicacionTemporal>({
     fn: (payload) => completarUbicacionTemporal(idTemporal, payload),
+    onSuccess: () => {
+      invalidarConsulta(CLAVE_UBICACIONES_TEMPORALES);
+      invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+    },
+  });
+}
+
+// Corrige una ubicación ya sincronizada (re-viaja a BC-14 como actualización).
+// Invalida la bandeja y el detalle igual que completar.
+export function useCorregirUbicacionMutation(idTemporal: string) {
+  return useMutar<PayloadCompletarUbicacion, UbicacionTemporal>({
+    fn: (payload) => corregirUbicacionTemporal(idTemporal, payload),
     onSuccess: () => {
       invalidarConsulta(CLAVE_UBICACIONES_TEMPORALES);
       invalidarConsulta(CLAVE_COTIZACION_DETALLE);

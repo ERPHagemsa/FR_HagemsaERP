@@ -13,8 +13,11 @@ import type {
   EstadoUbicacionTemporal,
   UbicacionTemporal,
 } from "../tipos/ubicaciones.tipos";
+import { MAX_CORRECCIONES_UBICACION } from "../tipos/ubicaciones.tipos";
 import { etiquetaTipoUbicacion } from "./autocomplete-ubicacion";
 import { CompletarUbicacionModal } from "./completar-ubicacion-modal";
+
+type ModoModal = "completar" | "corregir";
 
 const ESTADO_META: Record<
   EstadoUbicacionTemporal,
@@ -70,6 +73,12 @@ export function PanelUbicacionesPorCompletar({ idCotizacion, rutas }: Props) {
   const [enEdicion, setEnEdicion] = React.useState<UbicacionTemporal | null>(
     null
   );
+  const [modoModal, setModoModal] = React.useState<ModoModal>("completar");
+
+  function abrir(temporal: UbicacionTemporal, modo: ModoModal) {
+    setModoModal(modo);
+    setEnEdicion(temporal);
+  }
 
   const temporales = data ?? [];
   const pendientes = temporales.filter((u) => u.estado === "PENDIENTE").length;
@@ -123,7 +132,7 @@ export function PanelUbicacionesPorCompletar({ idCotizacion, rutas }: Props) {
               <FilaTemporal
                 key={`t-${item.temporal.id}`}
                 u={item.temporal}
-                onEditar={() => setEnEdicion(item.temporal)}
+                onAbrir={(modo) => abrir(item.temporal, modo)}
               />
             ) : (
               <FilaMaestra key={`m-${item.nombre}`} nombre={item.nombre} />
@@ -136,6 +145,7 @@ export function PanelUbicacionesPorCompletar({ idCotizacion, rutas }: Props) {
         key={enEdicion?.id ?? "cerrado"}
         abierto={enEdicion !== null}
         temporal={enEdicion}
+        modo={modoModal}
         onCerrar={() => setEnEdicion(null)}
       />
     </section>
@@ -176,12 +186,13 @@ function LineasGeo({
 /** Fila de una ubicación temporal (por completar / sincronizando / sincronizada). */
 function FilaTemporal({
   u,
-  onEditar,
+  onAbrir,
 }: {
   u: UbicacionTemporal;
-  onEditar: () => void;
+  onAbrir: (modo: ModoModal) => void;
 }) {
   const meta = ESTADO_META[u.estado];
+  const restantes = MAX_CORRECCIONES_UBICACION - u.intentosActualizacion;
   return (
     <li className="flex items-center justify-between gap-3 py-2.5">
       <div className="min-w-0">
@@ -203,15 +214,31 @@ function FilaTemporal({
           ) : null}
           {meta.etiqueta}
         </Badge>
-        {u.estado !== "SINCRONIZADA" ? (
+        {u.estado === "SINCRONIZADA" ? (
+          // Ya está en el maestro; se puede corregir hasta agotar los intentos.
+          restantes > 0 ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onAbrir("corregir")}
+              title={`Te quedan ${restantes} correcciones`}
+            >
+              Corregir ({restantes})
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">
+              Sin correcciones
+            </span>
+          )
+        ) : (
           <Button
             size="sm"
             variant={u.estado === "PENDIENTE" ? "default" : "outline"}
-            onClick={onEditar}
+            onClick={() => onAbrir("completar")}
           >
             {u.estado === "PENDIENTE" ? "Completar" : "Editar"}
           </Button>
-        ) : null}
+        )}
       </div>
     </li>
   );
