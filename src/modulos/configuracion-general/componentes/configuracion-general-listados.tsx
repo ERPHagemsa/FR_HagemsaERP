@@ -288,10 +288,6 @@ export function ConfiguracionGeneralAreasListarVista() {
   return <ConfiguracionGeneralListadoPorTipoVista tipo="AREA" />
 }
 
-export function ConfiguracionGeneralAlmacenesListarVista() {
-  return <ConfiguracionGeneralListadoPorTipoVista tipo="ALMACEN" />
-}
-
 export function ConfiguracionGeneralCuentasListarVista() {
   return <ConfiguracionGeneralListadoPorTipoVista tipo="CUENTA" />
 }
@@ -302,8 +298,4 @@ export function ConfiguracionGeneralContratosListarVista() {
 
 export function ConfiguracionGeneralCargosListarVista() {
   return <ConfiguracionGeneralListadoPorTipoVista tipo="CARGO" />
-}
-
-export function ConfiguracionGeneralRegimenesListarVista() {
-  return <ConfiguracionGeneralListadoPorTipoVista tipo="REGIMEN" />
 }

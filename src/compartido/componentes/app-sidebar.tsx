@@ -190,11 +190,8 @@ const data = {
       items: [
         { title: "Inicio", url: "/configuracion" },
         { title: "Ubicaciones", url: "/configuracion/ubicaciones" },
-        { title: "Sedes y áreas", url: "/configuracion/sedes-areas" },
-        { title: "Almacenes", url: "/configuracion/almacenes" },
+        { title: "Sedes, áreas y cargos", url: "/configuracion/sedes-areas" },
         { title: "Cuentas y contratos", url: "/configuracion/cuentas-contratos" },
-        { title: "Cargos", url: "/configuracion/cargos" },
-        { title: "Regímenes", url: "/configuracion/regimenes" },
         { title: "Peajes", url: "/configuracion/peajes" },
         { title: "Rutas", url: "/configuracion/rutas" },
         { title: "Costos operativos", url: "/configuracion/costos-operativos" },

@@ -5,6 +5,7 @@ import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
   aprobarAprobacionCuentaContrato,
+  consultarCargosConfiguracionGeneral,
   consultarAsignacionesPorPersonal,
   consultarOpcionesConfiguracionGeneral,
   consultarHistorialAsignacionPersonal,
@@ -70,6 +71,17 @@ export function useAreasPorSedeQuery(sedeId: string, enabled = Boolean(sedeId)) 
     () => obtenerAreasPorSede(sedeId),
     ["areas-por-sede", sedeId],
     { enabled: enabled && Boolean(sedeId) },
+  )
+}
+
+export function useCargosConfiguracionGeneralQuery(
+  query?: { areaId?: string | number; sedeId?: string | number; cargoSuperiorId?: string | number },
+  enabled = true,
+) {
+  return useConsulta(
+    () => consultarCargosConfiguracionGeneral(query),
+    ["cargos-configuracion-general", JSON.stringify(query ?? {})],
+    { enabled },
   )
 }
 

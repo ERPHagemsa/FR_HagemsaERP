@@ -3,10 +3,8 @@ export type TipoDatoMaestro =
   | "UBICACION"
   | "SEDE"
   | "AREA"
-  | "ALMACEN"
   | "CUENTA"
   | "CONTRATO"
-  | "REGIMEN"
 
 export type EstadoDatoMaestro = "ACTIVO" | "INACTIVO"
 
@@ -79,20 +77,30 @@ export interface ConfiguracionGeneralResponse {
   // Los IDs son numericos incrementales POR TABLA (no UUID). Por eso el ciclo de
   // vida y el PUT generico exigen tipoDatoMaestro: un id se repite entre tablas.
   id: number
+  // Identidad publica estable para integraciones y sincronizacion.
+  // No usar para key visual en UI ni mostrarla en formularios.
+  publicId?: string | null
   tipoDatoMaestro: TipoDatoMaestro
   codigo: string
   nombre: string
   descripcion?: string | null
   cargoSuperiorId?: number | null
   cargoSuperiorNombre?: string | null
+  areaId?: number | null
+  areaNombre?: string | null
   ubicacionId?: number | null
   ubicacionNombre?: string | null
   tipoUbicacion?: TipoUbicacion | null
   direccion?: string | null
   pais?: string | null
   departamento?: string | null
+  codigoDepartamento?: string | null
   provincia?: string | null
+  codigoProvincia?: string | null
   distrito?: string | null
+  codigoDistrito?: string | null
+  // Codigo INEI de 6 digitos devuelto por geo-peru-api al resolver el distrito.
+  ubigeo?: string | null
   referenciaUbicacion?: string | null
   latitud?: number | null
   longitud?: number | null
@@ -108,11 +116,6 @@ export interface ConfiguracionGeneralResponse {
   nivelCuentaContrato?: number | null
   contratoPadreId?: number | null
   contratoPadreNombre?: string | null
-  // Campos propios del REGIMEN laboral.
-  regimenCodigo?: string | null
-  diasTrabajo?: number | null
-  diasDescanso?: number | null
-  horasPorDia?: number | null
   estado: EstadoDatoMaestro
   estadoRegistro: EstadoRegistro
   motivoInhabilitacion?: string | null
@@ -153,8 +156,11 @@ export interface ConsultarConfiguracionGeneralQuery {
   departamento?: string
   provincia?: string
   distrito?: string
+  // Codigo ubigeo INEI exacto (6 digitos, ej. resuelto por geo-peru-api).
+  ubigeo?: string
   // Filtros especificos por tipo (cada recurso dedicado los reconoce).
   cargoSuperiorId?: number
+  areaId?: number
   ubicacionId?: number
   sedeId?: number
   nivelArea?: NivelArea
@@ -175,24 +181,12 @@ export interface ConsultarConfiguracionGeneralQuery {
   sortOrder?: "asc" | "desc"
 }
 
-// ---------------------------------------------------------------------------
-// Jerarquia de ubicaciones
-//
-// Respuesta de GET /configuracion-general/ubicaciones/jerarquia: ubicaciones
-// con sus sedes (y, dentro de cada sede, sus areas y almacenes) y los almacenes
-// colgados directamente de la ubicacion. Una sola llamada paginada por ubicacion
-// en lugar de un request por nivel (evita el patron N+1 y el truncado a 100 al
-// armar el arbol en el navegador).
-// ---------------------------------------------------------------------------
-
 export interface SedeJerarquiaResponse extends ConfiguracionGeneralResponse {
   areas?: ConfiguracionGeneralResponse[]
-  almacenes?: ConfiguracionGeneralResponse[]
 }
 
 export interface UbicacionJerarquiaResponse extends ConfiguracionGeneralResponse {
   sedes?: SedeJerarquiaResponse[]
-  almacenes?: ConfiguracionGeneralResponse[]
 }
 
 export type FormatoExportacionConfiguracionGeneral = "EXCEL" | "PDF"
@@ -216,10 +210,8 @@ export const RUTA_POR_TIPO: Record<TipoDatoMaestro, string> = {
   UBICACION: "ubicaciones",
   SEDE: "sedes",
   AREA: "areas",
-  ALMACEN: "almacenes",
   CUENTA: "cuentas",
   CONTRATO: "contratos",
-  REGIMEN: "regimenes",
 }
 
 interface RegistrarBaseRequest {
@@ -236,17 +228,24 @@ interface ModificarBaseRequest {
 
 export interface RegistrarCargoRequest extends RegistrarBaseRequest {
   cargoSuperiorId?: number | null
+  areaId: number
 }
 export interface ModificarCargoRequest extends ModificarBaseRequest {
   cargoSuperiorId?: number | null
+  areaId?: number
 }
 
 export interface RegistrarUbicacionRequest extends RegistrarBaseRequest {
   tipoUbicacion?: TipoUbicacion
   pais?: string | null
   departamento?: string | null
+  codigoDepartamento?: string | null
   provincia?: string | null
+  codigoProvincia?: string | null
   distrito?: string | null
+  codigoDistrito?: string | null
+  // Codigos INEI resueltos por geo-peru-api (/distritos/por-punto o /buscar).
+  ubigeo?: string | null
   direccion?: string | null
   referenciaUbicacion?: string | null
   // Coordenada en formato "latitud, longitud" (Google). El backend la separa y
@@ -260,8 +259,12 @@ export interface ModificarUbicacionRequest extends ModificarBaseRequest {
   tipoUbicacion?: TipoUbicacion
   pais?: string | null
   departamento?: string | null
+  codigoDepartamento?: string | null
   provincia?: string | null
+  codigoProvincia?: string | null
   distrito?: string | null
+  codigoDistrito?: string | null
+  ubigeo?: string | null
   direccion?: string | null
   referenciaUbicacion?: string | null
   coordenadasGoogle?: string
@@ -288,21 +291,6 @@ export interface ModificarAreaRequest extends ModificarBaseRequest {
   gerenciaId?: number | null
 }
 
-export interface RegistrarAlmacenRequest extends RegistrarBaseRequest {
-  ubicacionId: number
-  sedeId?: number | null
-  esTemporal?: boolean
-  fechaInicio?: string | null
-  fechaFin?: string | null
-}
-export interface ModificarAlmacenRequest extends ModificarBaseRequest {
-  ubicacionId?: number
-  sedeId?: number | null
-  esTemporal?: boolean
-  fechaInicio?: string | null
-  fechaFin?: string | null
-}
-
 // Cuenta no tiene campos propios al crear/editar: nombre + descripcion. El
 // backend asigna nivelCuentaContrato.
 export type RegistrarCuentaRequest = RegistrarBaseRequest
@@ -315,32 +303,14 @@ export interface RegistrarContratoRequest extends RegistrarBaseRequest {
 // El PUT de contrato solo cambia nombre/descripcion; el padre es inmutable.
 export type ModificarContratoRequest = ModificarBaseRequest
 
-// El regimen laboral define el ciclo de trabajo/descanso y la jornada diaria.
-// `regimenCodigo` es un codigo de negocio que viaja en el body (distinto del
-// `codigo` autogenerado por el backend).
-export interface RegistrarRegimenRequest extends RegistrarBaseRequest {
-  regimenCodigo: string
-  diasTrabajo: number
-  diasDescanso: number
-  horasPorDia: number
-}
-export interface ModificarRegimenRequest extends ModificarBaseRequest {
-  regimenCodigo?: string
-  diasTrabajo?: number
-  diasDescanso?: number
-  horasPorDia?: number
-}
-
 /** Mapa tipo -> request de registro, para tipar helpers genericos. */
 export interface RegistrarRequestPorTipo {
   CARGO: RegistrarCargoRequest
   UBICACION: RegistrarUbicacionRequest
   SEDE: RegistrarSedeRequest
   AREA: RegistrarAreaRequest
-  ALMACEN: RegistrarAlmacenRequest
   CUENTA: RegistrarCuentaRequest
   CONTRATO: RegistrarContratoRequest
-  REGIMEN: RegistrarRegimenRequest
 }
 
 /** Mapa tipo -> request de modificacion. */
@@ -349,8 +319,6 @@ export interface ModificarRequestPorTipo {
   UBICACION: ModificarUbicacionRequest
   SEDE: ModificarSedeRequest
   AREA: ModificarAreaRequest
-  ALMACEN: ModificarAlmacenRequest
   CUENTA: ModificarCuentaRequest
   CONTRATO: ModificarContratoRequest
-  REGIMEN: ModificarRegimenRequest
 }

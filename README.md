@@ -11,6 +11,7 @@ El objetivo es tener un solo frontend para el ERP, pero consumiendo backends sep
 - `comercial`: ruta base del contexto comercial.
 - `despacho`: ruta base del contexto despacho.
 - `flota`: ruta base del contexto flota.
+- `socio-negocios`: BC-01 Socio de Negocio. Maestro de socios, personal, asignaciones, aprobaciones y consumo de configuracion general.
 
 ## Estructura base
 
@@ -128,6 +129,15 @@ src/modulos/activos/tipos/activo.tipos.ts
 Cada modulo frontend consume su propio backend o microservicio. Las APIs que
 requieren JWT, como Socio de Negocios, usan variables server-only y pasan por
 un Route Handler que inyecta el bearer token.
+
+Para `socio-negocios` no se expone CRUD directo de configuracion general desde
+el navegador. El modulo consume:
+
+- BC-01 para asignaciones, aprobaciones e historial operativo.
+- BC-14 configuracion general solo en modo lectura para catalogos necesarios
+  para formularios y resolucion de aprobadores, como `cargo`, `area` y `sede`.
+- `usuarioAprobacionId` como identidad tecnica de quien aprobo; el cargo y el
+  area vigentes se resuelven por la asignacion activa del personal.
 
 Archivo recomendado:
 

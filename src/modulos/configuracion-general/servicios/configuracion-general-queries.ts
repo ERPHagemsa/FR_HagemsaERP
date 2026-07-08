@@ -57,7 +57,7 @@ export function useListarPorTipoQuery(
   )
 }
 
-/** Jerarquia de ubicaciones (ubicacion -> sedes -> areas/almacenes) en una llamada. */
+/** Jerarquia de ubicaciones (ubicacion -> sedes -> areas) en una llamada. */
 export function useJerarquiaUbicacionesQuery(
   query?: ConsultarConfiguracionGeneralQuery,
   enabled = true,

@@ -61,8 +61,12 @@ interface FormState {
   tipoUbicacion: TipoUbicacion | "";
   pais: string;
   departamento: string;
+  codigoDepartamento: string;
   provincia: string;
+  codigoProvincia: string;
   distrito: string;
+  codigoDistrito: string;
+  ubigeo: string;
   direccion: string;
   referenciaUbicacion: string;
   coordenadasGoogle: string;
@@ -73,8 +77,12 @@ function estadoInicial(t: UbicacionTemporal | null): FormState {
     tipoUbicacion: t?.tipoUbicacion ?? "",
     pais: t?.pais ?? "Peru",
     departamento: t?.departamento ?? "",
+    codigoDepartamento: "",
     provincia: t?.provincia ?? "",
+    codigoProvincia: "",
     distrito: t?.distrito ?? "",
+    codigoDistrito: "",
+    ubigeo: "",
     direccion: t?.direccion ?? "",
     referenciaUbicacion: t?.referenciaUbicacion ?? "",
     coordenadasGoogle:
@@ -119,6 +127,10 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
     const parcial: Partial<FormState> = {
       direccion: d.direccion,
       coordenadasGoogle: `${d.latitud}, ${d.longitud}`,
+      codigoDepartamento: d.codigoDepartamento ?? "",
+      codigoProvincia: d.codigoProvincia ?? "",
+      codigoDistrito: d.codigoDistrito ?? "",
+      ubigeo: d.ubigeo ?? "",
     };
     if (d.pais) parcial.pais = d.pais;
     if (d.departamento) parcial.departamento = d.departamento;
@@ -140,8 +152,12 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
       tipoUbicacion: form.tipoUbicacion as TipoUbicacion,
       pais: form.pais.trim(),
       departamento: form.departamento.trim(),
+      codigoDepartamento: form.codigoDepartamento.trim() || null,
       provincia: form.provincia.trim(),
+      codigoProvincia: form.codigoProvincia.trim() || null,
       distrito: form.distrito.trim(),
+      codigoDistrito: form.codigoDistrito.trim() || null,
+      ubigeo: form.ubigeo.trim() || null,
       direccion: form.direccion.trim(),
       referenciaUbicacion: form.referenciaUbicacion.trim() || null,
       coordenadasGoogle: form.coordenadasGoogle.trim() || null,
@@ -244,7 +260,15 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
               <Label>País</Label>
               <Input
                 value={form.pais}
-                onChange={(e) => set({ pais: e.target.value })}
+                onChange={(e) =>
+                  set({
+                    pais: e.target.value,
+                    codigoDepartamento: "",
+                    codigoProvincia: "",
+                    codigoDistrito: "",
+                    ubigeo: "",
+                  })
+                }
                 disabled={enviando}
               />
             </div>
@@ -252,7 +276,15 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
               <Label>Departamento</Label>
               <Input
                 value={form.departamento}
-                onChange={(e) => set({ departamento: e.target.value })}
+                onChange={(e) =>
+                  set({
+                    departamento: e.target.value,
+                    codigoDepartamento: "",
+                    codigoProvincia: "",
+                    codigoDistrito: "",
+                    ubigeo: "",
+                  })
+                }
                 disabled={enviando}
               />
             </div>
@@ -260,7 +292,14 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
               <Label>Provincia</Label>
               <Input
                 value={form.provincia}
-                onChange={(e) => set({ provincia: e.target.value })}
+                onChange={(e) =>
+                  set({
+                    provincia: e.target.value,
+                    codigoProvincia: "",
+                    codigoDistrito: "",
+                    ubigeo: "",
+                  })
+                }
                 disabled={enviando}
               />
             </div>
@@ -268,7 +307,13 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
               <Label>Distrito</Label>
               <Input
                 value={form.distrito}
-                onChange={(e) => set({ distrito: e.target.value })}
+                onChange={(e) =>
+                  set({
+                    distrito: e.target.value,
+                    codigoDistrito: "",
+                    ubigeo: "",
+                  })
+                }
                 disabled={enviando}
               />
             </div>
