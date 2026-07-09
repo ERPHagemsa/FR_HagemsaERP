@@ -21,7 +21,6 @@ import {
   actualizarCondicionesVersion,
   cancelarCotizacion,
   consultarCotizacion,
-  enviarCotizacion,
   fijarNumeracionCotizaciones,
   listarCotizaciones,
   marcarGanada,
@@ -31,6 +30,7 @@ import {
   obtenerPrecioSugerido,
   obtenerResumenCotizaciones,
   obtenerSugerenciasCarga,
+  solicitarAprobacion,
 } from "./cotizaciones-api";
 import { listarCatalogosCargoAdicional } from "./catalogos-cargo-adicional-api";
 import { listarModalidades } from "./modalidades-api";
@@ -38,6 +38,8 @@ import { listarTiposUnidad } from "./tipos-unidad-api";
 
 import {
   CLAVE_CARGOS_ADICIONALES,
+  CLAVE_APROBACIONES_PENDIENTES,
+  CLAVE_COTIZACION_APROBACIONES_HISTORIAL,
   CLAVE_COTIZACION_DETALLE,
   CLAVE_COTIZACIONES,
   CLAVE_COTIZACIONES_EJECUTIVOS,
@@ -150,16 +152,18 @@ export function useActualizarCondicionesVersionMutation(idCotizacion: string) {
   });
 }
 
-export function useEnviarCotizacionMutation(id: string) {
+export function useSolicitarAprobacionMutation(id: string) {
   return useMutar<
     PayloadEnviar,
-    Awaited<ReturnType<typeof enviarCotizacion>>
+    Awaited<ReturnType<typeof solicitarAprobacion>>
   >({
-    fn: (payload) => enviarCotizacion(id, payload),
+    fn: (payload) => solicitarAprobacion(id, payload),
     onSuccess: () => {
+      invalidarConsulta(CLAVE_APROBACIONES_PENDIENTES);
       invalidarConsulta(CLAVE_COTIZACIONES);
       invalidarConsulta(CLAVE_COTIZACIONES_RESUMEN);
       invalidarConsulta(CLAVE_COTIZACION_DETALLE);
+      invalidarConsulta(CLAVE_COTIZACION_APROBACIONES_HISTORIAL);
     },
   });
 }

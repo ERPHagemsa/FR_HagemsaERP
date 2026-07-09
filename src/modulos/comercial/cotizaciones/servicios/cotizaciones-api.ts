@@ -124,13 +124,18 @@ export async function actualizarCondicionesVersion(
 // Transiciones de estado
 // ---------------------------------------------------------------------------
 
-// POST /cotizaciones/:id/enviar → 204
+// POST /cotizaciones/:id/enviar → 201 { id }
+// El id devuelto es el de la SolicitudAprobacion creada, no el de la cotizacion.
 // validezDias default = 10 (DELTA 3)
-export async function enviarCotizacion(
+export async function solicitarAprobacion(
   id: string,
   payload?: PayloadEnviar
-): Promise<void> {
-  await clienteComercial.post(`/cotizaciones/${id}/enviar`, payload ?? {});
+): Promise<{ id: string }> {
+  const { data } = await clienteComercial.post<{ id: string }>(
+    `/cotizaciones/${id}/enviar`,
+    payload ?? {}
+  );
+  return data;
 }
 
 // POST /cotizaciones/:id/nueva-version → 204

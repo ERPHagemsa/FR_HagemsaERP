@@ -23,6 +23,7 @@ export type Moneda = "PEN" | "USD";
 
 export type EstadoCotizacion =
   | "BORRADOR"
+  | "PENDIENTE_APROBACION"
   | "ENVIADA"
   | "EN_REVISION"
   | "GANADA"
@@ -38,11 +39,13 @@ export type TipoModalidad = "SPOT" | "PROYECTO" | "OTRO";
 // contraparte 1:1 de los KPIs de /resumen). Comparten predicado con el backend
 // (fuente unica de verdad), por eso el numero del KPI === filas del bucket.
 //   enPreparacion → BORRADOR + EN_REVISION
+//   pendientesAprobacion → PENDIENTE_APROBACION
 //   enviadas      → ENVIADA
 //   ganadas       → GANADA
 //   perdidas      → PERDIDA + VENCIDA + CANCELADA
 export type BucketCotizacion =
   | "enPreparacion"
+  | "pendientesAprobacion"
   | "enviadas"
   | "ganadas"
   | "perdidas";
@@ -333,6 +336,7 @@ export type CotizacionResumen = {
 export type ResumenCotizaciones = {
   total: number;
   enPreparacion: number;
+  pendientesAprobacion: number;
   enviadas: number;
   ganadas: number;
   perdidas: number;
@@ -682,6 +686,8 @@ export function accionesPermitidas(estado: EstadoCotizacion): AccionesPermitidas
   switch (estado) {
     case "BORRADOR":
       return { editar: true, enviar: true, nuevaVersion: false, ganar: false, perder: false, cancelar: true };
+    case "PENDIENTE_APROBACION":
+      return { editar: false, enviar: false, nuevaVersion: false, ganar: false, perder: false, cancelar: false };
     case "ENVIADA":
       return { editar: false, enviar: false, nuevaVersion: true, ganar: true, perder: true, cancelar: false };
     case "EN_REVISION":

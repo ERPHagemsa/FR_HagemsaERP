@@ -31,6 +31,7 @@ export default async function Page({ searchParams }: Props) {
 
   const bucketsValidos: BucketCotizacion[] = [
     "enPreparacion",
+    "pendientesAprobacion",
     "enviadas",
     "ganadas",
     "perdidas",
@@ -42,6 +43,7 @@ export default async function Page({ searchParams }: Props) {
 
   const estadosValidos: EstadoCotizacion[] = [
     "BORRADOR",
+    "PENDIENTE_APROBACION",
     "ENVIADA",
     "EN_REVISION",
     "GANADA",
