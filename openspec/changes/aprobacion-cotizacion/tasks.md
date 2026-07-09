@@ -263,12 +263,14 @@
 
 ## 12. Verificación final (gate del proyecto: sin test runner)
 
-- [ ] 12.1 Ejecutar `pnpm build` y `pnpm lint` sobre el estado final; corregir cualquier error de
+- [x] 12.1 Ejecutar `pnpm build` y `pnpm lint` sobre el estado final; corregir cualquier error de
       tipos (en particular, confirmar que no queda ningún `switch` sobre `EstadoCotizacion` o
       `EstadoSolicitud` sin cubrir) y cualquier warning de lint antes de considerar la fase
       apply cerrada. Este es el gate definido en `openspec/config.yaml` (`rules.verify`); no hay
       test runner configurado, así que reemplaza a la suite automatizada.
       Soporta: `openspec/config.yaml` — `rules.apply`, `rules.verify`.
+      Nota de cierre: `npm run build` y `npx eslint src/modulos/comercial` pasan. `npm run lint`
+      sigue fallando solo por deuda fuera de Comercial; ver waiver/evidencia en `apply-progress.md`.
 
 ---
 
