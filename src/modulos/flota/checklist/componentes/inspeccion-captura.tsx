@@ -404,16 +404,28 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
         </div>
       </div>
 
-      {/* Cabecera */}
+      {/* Cabecera. La clase (Camión/Equipo liviano/Remolcador/Semirremolque) va
+          como badge junto al título — es el dato que identifica de un vistazo
+          qué checklist es, sin tener que abrir el PDF para saberlo. */}
       <Card>
         <CardHeader className="border-b border-border">
-          <CardTitle>
+          <CardTitle className="flex flex-wrap items-center gap-2">
             Inspección {inspeccion.codigo ? `#${inspeccion.codigo}` : ""}
             {inspeccion.vehiculoPlaca ? ` — ${inspeccion.vehiculoPlaca}` : ""}
+            {inspeccion.vehiculo?.clase ? (
+              <Badge variant="outline">{inspeccion.vehiculo.clase}</Badge>
+            ) : null}
+            {inspeccion.acido ? (
+              <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
+                Ácido sulfúrico
+              </Badge>
+            ) : null}
           </CardTitle>
           <CardDescription>
-            {inspeccion.tipoChecklist?.nombre ?? "Tipo de checklist"} · estructura resuelta
-            automáticamente por la carrocería de la unidad.
+            {inspeccion.tipoChecklist?.nombre ?? "Tipo de checklist"}
+            {inspeccion.vehiculo?.marca || inspeccion.vehiculo?.modelo
+              ? ` · ${[inspeccion.vehiculo.marca, inspeccion.vehiculo.modelo].filter(Boolean).join(" ")}`
+              : ""}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 pt-5 sm:grid-cols-4">

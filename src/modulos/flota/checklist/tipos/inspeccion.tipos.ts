@@ -77,10 +77,21 @@ export type InspeccionResumen = {
 
 // ── Detalle completo ──────────────────────────────────────────────────────────
 
+// Espejo de VehiculoSnapshot (backend BC04_Flota) — snapshot del vehículo al
+// momento de iniciar la inspección, no una referencia viva a BC-Activos.
+export type VehiculoSnapshot = {
+  tipo: string | null;
+  marca: string | null;
+  modelo: string | null;
+  carroceria: string | null;
+  clase: string | null;
+  descripcion: string | null;
+};
+
 export type Inspeccion = InspeccionResumen & {
   tipoChecklist: { id?: string; nombre?: string } | null;
-  vehiculo: Record<string, unknown> | null;
-  vehiculoAcople: Record<string, unknown> | null;
+  vehiculo: VehiculoSnapshot | null;
+  vehiculoAcople: VehiculoSnapshot | null;
   contrato: Record<string, unknown> | null;
   cuenta: Record<string, unknown> | null;
   horometro: number | null;
@@ -95,6 +106,10 @@ export type Inspeccion = InspeccionResumen & {
   actorId: string;
   actor: unknown | null;
   observaciones: string | null;
+  // Snapshot inmutable fijado al iniciar (ver criterioAplicabilidad.acido en
+  // el backend) — no se deriva de la plantilla resuelta, así el PDF de una
+  // inspección vieja no cambia si la plantilla se re-publica.
+  acido: boolean;
   secciones: InspeccionSeccion[];
   neumaticos: InspeccionNeumatico[];
 };
