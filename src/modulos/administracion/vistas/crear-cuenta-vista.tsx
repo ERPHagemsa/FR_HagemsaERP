@@ -29,8 +29,8 @@ import { SocioPicker, type SocioSeleccionado } from "../componentes/socio-picker
 import { useCrearCuenta } from "../ganchos/use-mutaciones-cuenta"
 import type { TipoCuenta } from "../tipos/administracion.tipos"
 
-// Normaliza un codigo de socio/cuenta: mayusculas, solo alfanumericos, max 2.
-// Refleja la regla del dominio (^[A-Z0-9]{2}$) directamente en el input.
+// Normaliza un codigo de socio/cuenta: mayusculas, solo alfanumericos, max 20.
+// Refleja la regla del dominio (^[A-Z0-9]{1,20}$) directamente en el input.
 function normalizarCodigo(valor: string): string {
   return valor
     .toUpperCase()
@@ -45,7 +45,7 @@ export function CrearCuentaVista() {
   const [nombreCompleto, setNombreCompleto] = useState("")
   const [tipoCuenta, setTipoCuenta] = useState<TipoCuenta>("interno")
   const [documentoIdentidad, setDocumentoIdentidad] = useState("")
-  // Vinculo opcional con un socio de negocio (BC01). Es "todo-o-nada".
+  // Vinculo opcional con un socio de negocio (BC01). Independiente de los codigos.
   const [socio, setSocio] = useState<SocioSeleccionado | null>(null)
   const [codigoSocio, setCodigoSocio] = useState("")
   const [codigoCuenta, setCodigoCuenta] = useState("")
@@ -64,13 +64,12 @@ export function CrearCuentaVista() {
     event.preventDefault()
     setError(null)
 
-    // Vinculo con socio: "todo-o-nada". Si se tocó alguno de los tres, exigir
-    // los tres (el backend valida lo mismo; esto es UX temprana).
-    const tocoSocio = Boolean(socio) || codigoSocio !== "" || codigoCuenta !== ""
-    if (tocoSocio) {
-      if (!socio || codigoSocio.length === 0 || codigoCuenta.length === 0) {
-        const mensaje =
-          "Para vincular un socio: elegí el socio y completá ambos códigos."
+    // Codigos internos: opcionales e independientes del socio. Son "todo o nada":
+    // ambos o ninguno, y distintos entre si.
+    const tocoCodigos = codigoSocio !== "" || codigoCuenta !== ""
+    if (tocoCodigos) {
+      if (codigoSocio.length === 0 || codigoCuenta.length === 0) {
+        const mensaje = "Completa ambos códigos internos o deja los dos vacíos."
         setError(mensaje)
         toast.error(mensaje)
         return
@@ -90,11 +89,11 @@ export function CrearCuentaVista() {
         nombreCompleto: nombreCompleto.trim(),
         tipoCuenta,
         documentoIdentidad: documentoIdentidad.trim() || undefined,
-        ...(tocoSocio && socio
+        // Codigos y socio viajan por separado: pueden ir juntos, solo uno, o ninguno.
+        ...(tocoCodigos ? { codigoSocio, codigoCuenta } : {}),
+        ...(socio
           ? {
               socioExternoId: socio.socioExternoId,
-              codigoSocio,
-              codigoCuenta,
               tipoSocio: "empleado" as const,
               socioSnapshot: socio.datos as unknown as Record<string, unknown>,
             }
@@ -227,19 +226,14 @@ export function CrearCuentaVista() {
               <div className="space-y-4 border-t pt-4 sm:col-span-2">
                 <div className="space-y-1">
                   <h2 className="text-sm font-medium">
-                    Socio de negocio (opcional)
+                    Códigos internos (opcional)
                   </h2>
                   <p className="text-xs text-muted-foreground">
-                    Vinculá la cuenta a un socio de BC01. Si vinculás, ambos
-                    códigos son obligatorios (hasta 20 caracteres alfanuméricos,
-                    distintos entre sí).
+                    Códigos para la generación de códigos en PDFs (hasta 20
+                    caracteres alfanuméricos, distintos entre sí). Son "todo o
+                    nada": ambos o ninguno. Son independientes del socio.
                   </p>
                 </div>
-
-                <Field>
-                  <FieldLabel>Socio</FieldLabel>
-                  <SocioPicker value={socio} onChange={manejarCambioSocio} />
-                </Field>
 
                 <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field>
@@ -271,6 +265,23 @@ export function CrearCuentaVista() {
                     />
                   </Field>
                 </FieldGroup>
+              </div>
+
+              <div className="space-y-4 border-t pt-4 sm:col-span-2">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-medium">
+                    Socio de negocio (opcional)
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Vincula la cuenta a un socio de BC01. El documento de
+                    identidad se toma del socio seleccionado.
+                  </p>
+                </div>
+
+                <Field>
+                  <FieldLabel>Socio</FieldLabel>
+                  <SocioPicker value={socio} onChange={manejarCambioSocio} />
+                </Field>
               </div>
 
               {error ? (
