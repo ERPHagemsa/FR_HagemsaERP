@@ -22,6 +22,10 @@ export type TipoOrigen = "PROSPECTO" | "CLIENTE";
 // endpoint GET /solicitudes-cliente/clientes). Se usa para elegir el origen de la SC.
 export interface ClienteBc01 {
   id: number;
+  // UUID público del cliente en BC-01. Es lo que se manda como `origenId` de la
+  // SC (origen CLIENTE): la columna origen_id es uuid y el schema lo valida como
+  // tal — el `id` entero no sirve para eso.
+  publicId: string;
   numeroDocumento: string;
   razonSocial: string | null;
   nombreComercial: string | null;

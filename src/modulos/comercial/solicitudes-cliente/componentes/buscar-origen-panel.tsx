@@ -40,6 +40,7 @@ type DatosIdentidadResuelta = {
   nombre?: string;
   tipoDocumento?: string;
   numeroDocumento?: string;
+  correo?: string | null;
 };
 
 type Props = {
@@ -102,10 +103,12 @@ export function BuscarOrigenPanel({ onIdentidadResuelta }: Props) {
   function usarCliente(c: ClienteBc01) {
     onIdentidadResuelta({
       origenTipo: "CLIENTE",
-      origenId: String(c.id),
+      // El origen_id de la SC es uuid → usamos el publicId de BC-01, no el id entero.
+      origenId: c.publicId,
       nombre: c.razonSocial ?? c.nombreComercial ?? undefined,
       tipoDocumento: inferirTipoDocumento(c.numeroDocumento),
       numeroDocumento: c.numeroDocumento,
+      correo: c.correo,
     });
   }
 
