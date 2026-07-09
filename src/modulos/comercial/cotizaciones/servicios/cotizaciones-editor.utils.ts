@@ -139,6 +139,23 @@ export type DraftBorrador = {
 };
 
 // ---------------------------------------------------------------------------
+// Modo de servicio de la cotizacion (SOLO frontend)
+// ---------------------------------------------------------------------------
+// El "tipo de servicio" (tipoLinea) se persiste POR LINEA, pero en la UI la
+// cotizacion se arranca eligiendo un modo global: TRANSPORTE (lineas de
+// transporte) u OTROS (servicios no-transporte, por defecto alquiler de equipo).
+// El modo NO se persiste: solo siembra la linea inicial y acota el selector de
+// tipo de servicio por linea. En el flujo de edicion de una cotizacion ya
+// existente no aplica (el modo llega undefined y el selector muestra todos).
+export type ModoServicio = "TRANSPORTE" | "OTROS";
+
+// Tipo de linea inicial segun el modo: TRANSPORTE → transporte; OTROS → alquiler
+// de equipo (default de los servicios no-transporte).
+export function tipoLineaInicial(modo: ModoServicio): TipoLinea {
+  return modo === "TRANSPORTE" ? "TRANSPORTE" : "ALQUILER_EQUIPO";
+}
+
+// ---------------------------------------------------------------------------
 // Valores por defecto para hijos polimorficos
 // ---------------------------------------------------------------------------
 

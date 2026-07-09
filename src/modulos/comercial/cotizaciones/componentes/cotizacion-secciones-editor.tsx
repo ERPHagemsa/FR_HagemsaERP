@@ -11,6 +11,7 @@ import type {
   DraftCargoAdicional,
   DraftLinea,
   DraftSeccion,
+  ModoServicio,
 } from "../servicios/cotizaciones-editor.utils";
 import {
   cargoAdicionalVacio,
@@ -19,6 +20,7 @@ import {
   precioVentaLinea,
   seccionVacia,
   sincronizarRutaSeccion,
+  tipoLineaInicial,
 } from "../servicios/cotizaciones-editor.utils";
 import { useListarCatalogosCargoAdicional } from "../servicios/cotizaciones-queries";
 import { LineaDetalleModal } from "./linea-detalle-modal";
@@ -44,6 +46,9 @@ type Props = {
   // Origen de la cotizacion: acota el precio sugerido al historial del cliente.
   clienteTipo?: OrigenTipo;
   clienteId?: string;
+  // Modo de servicio (solo creacion): TRANSPORTE fija el tipo; OTROS lo acota a los
+  // no-transporte (default alquiler de equipo). undefined = edicion (sin acotar).
+  modoServicio?: ModoServicio;
   onChange: (secciones: DraftSeccion[]) => void;
 };
 
@@ -63,6 +68,7 @@ export function CotizacionSeccionesEditor({
   disabled,
   clienteTipo,
   clienteId,
+  modoServicio,
   onChange,
 }: Props) {
   // Catalogo de cargos — cargado una vez al nivel del editor y pasado al modal.
@@ -125,8 +131,12 @@ export function CotizacionSeccionesEditor({
   }
 
   function abrirAgregarLinea(seccion: DraftSeccion) {
-    // La linea nueva nace con la ruta de la seccion (TRANSPORTE) ya heredada.
-    const nueva = lineaVacia();
+    // La linea nueva nace con la ruta de la seccion (TRANSPORTE) ya heredada. Su
+    // tipo de servicio inicial sale del modo (TRANSPORTE/OTROS); en edicion, sin
+    // modo, cae al default TRANSPORTE de lineaVacia().
+    const nueva = lineaVacia(
+      modoServicio ? tipoLineaInicial(modoServicio) : undefined
+    );
     nueva.carga = { ...nueva.carga, origen: seccion.origen, destino: seccion.destino };
     setLineaEditando({
       seccionClave: seccion.claveCliente,
@@ -273,6 +283,7 @@ export function CotizacionSeccionesEditor({
         disabled={disabled}
         clienteTipo={clienteTipo}
         clienteId={clienteId}
+        modoServicio={modoServicio}
         onCerrar={() => setLineaEditando(null)}
         onGuardar={guardarLinea}
       />

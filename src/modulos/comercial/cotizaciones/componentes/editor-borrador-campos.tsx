@@ -19,7 +19,11 @@ import {
 } from "@/compartido/componentes/ui/select";
 
 import type { Moneda, OrigenTipo } from "../tipos/cotizaciones.tipos";
-import type { DraftBorrador, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
+import type {
+  DraftBorrador,
+  DraftSeccion,
+  ModoServicio,
+} from "../servicios/cotizaciones-editor.utils";
 import { CotizacionSeccionesEditor } from "./cotizacion-secciones-editor";
 
 // Presentacional puro del cuerpo del editor de borrador en MODO CREACION
@@ -50,6 +54,8 @@ type Props = {
   // Origen de la cotizacion (opcional): acota el precio sugerido al historial del cliente.
   clienteTipo?: OrigenTipo;
   clienteId?: string;
+  // Modo de servicio elegido en el gate: acota el tipo de servicio por linea.
+  modoServicio: ModoServicio;
 };
 
 export function EditorBorradorCampos({
@@ -64,6 +70,7 @@ export function EditorBorradorCampos({
   sucio,
   clienteTipo,
   clienteId,
+  modoServicio,
 }: Props) {
   function actualizarSecciones(secciones: DraftSeccion[]) {
     setDraft((d) => ({ ...d, secciones }));
@@ -110,6 +117,7 @@ export function EditorBorradorCampos({
             disabled={guardando}
             clienteTipo={clienteTipo}
             clienteId={clienteId}
+            modoServicio={modoServicio}
             onChange={actualizarSecciones}
           />
         </CardContent>
