@@ -13,8 +13,6 @@ function variantPorEstado(estado: EstadoSolicitud): BadgeVariant {
       return "default";
     case "RECHAZADA":
       return "destructive";
-    case "OBSERVADA":
-      return "secondary";
   }
 }
 
@@ -26,8 +24,6 @@ function etiquetaPorEstado(estado: EstadoSolicitud): string {
       return "Aprobada";
     case "RECHAZADA":
       return "Rechazada";
-    case "OBSERVADA":
-      return "Observada";
   }
 }
 

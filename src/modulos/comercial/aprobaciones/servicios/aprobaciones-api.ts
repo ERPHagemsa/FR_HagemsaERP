@@ -1,10 +1,12 @@
 import { clienteComercial } from "@/compartido/api/clientes-backend";
 
 import type {
+  Aprobador,
+  FiltrosAprobaciones,
   PayloadAprobar,
-  PayloadObservar,
   PayloadRechazar,
   RespuestaPaginadaAprobaciones,
+  ResumenAprobaciones,
   SolicitudAprobacion,
 } from "../tipos/aprobaciones.tipos";
 
@@ -24,27 +26,39 @@ export async function rechazarSolicitud(
   await clienteComercial.post(`/aprobaciones/${id}/rechazar`, payload);
 }
 
-// POST /aprobaciones/:id/observar → 204
-export async function observarSolicitud(
-  id: string,
-  payload: PayloadObservar
-): Promise<void> {
-  await clienteComercial.post(`/aprobaciones/${id}/observar`, payload);
+// GET /aprobaciones → 200 { data, total, pagina, porPagina }
+// Todas las solicitudes, de cualquier estado. Omitir `estado` trae todas.
+export async function listarAprobaciones(
+  filtros: FiltrosAprobaciones
+): Promise<RespuestaPaginadaAprobaciones> {
+  const { data } = await clienteComercial.get<RespuestaPaginadaAprobaciones>(
+    "/aprobaciones",
+    { params: filtros }
+  );
+  return data;
 }
 
-// GET /aprobaciones/pendientes → 200 { data, total, pagina, porPagina }
-export async function listarPendientes(params: {
-  pagina: number;
-  porPagina: number;
-}): Promise<RespuestaPaginadaAprobaciones> {
-  const { data } = await clienteComercial.get<RespuestaPaginadaAprobaciones>(
-    "/aprobaciones/pendientes",
+// GET /aprobaciones/resumen → 200 { total, enAprobacion, aprobadas, rechazadas }
+// No acepta `estado`: filtrarlo dejaria las otras tarjetas en cero.
+export async function obtenerResumenAprobaciones(params: {
+  usuarioResolucion?: string;
+  numeroCotizacion?: number;
+}): Promise<ResumenAprobaciones> {
+  const { data } = await clienteComercial.get<ResumenAprobaciones>(
+    "/aprobaciones/resumen",
     { params }
   );
   return data;
 }
 
-// GET /cotizaciones/:id/aprobaciones → 200 SolicitudAprobacion[]
+// GET /aprobaciones/aprobadores → 200 Aprobador[]
+export async function listarAprobadores(): Promise<Aprobador[]> {
+  const { data } = await clienteComercial.get<Aprobador[]>("/aprobaciones/aprobadores");
+  return data;
+}
+
+// GET /cotizaciones/:id/aprobaciones → 200 SolicitudAprobacion[] (array pelado)
+// En orden cronologico de creacion: el front NO reordena.
 export async function obtenerHistorialAprobaciones(
   idCotizacion: string
 ): Promise<SolicitudAprobacion[]> {

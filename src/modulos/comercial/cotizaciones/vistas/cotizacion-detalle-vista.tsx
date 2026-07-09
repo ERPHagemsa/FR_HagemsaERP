@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, GitBranch, CalendarClock, CalendarDays, CalendarX, Info } from "lucide-react";
@@ -20,7 +21,10 @@ import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
 import { HistorialAprobaciones } from "../../aprobaciones/componentes/historial-aprobaciones";
-import { DialogoResolverSolicitud } from "../../aprobaciones/componentes/dialogo-resolver-solicitud";
+import {
+  DialogoResolverSolicitud,
+  type AccionResolver,
+} from "../../aprobaciones/componentes/dialogo-resolver-solicitud";
 import { useHistorialAprobacionesQuery } from "../../aprobaciones/servicios/aprobaciones-queries";
 import { PanelUbicacionesPorCompletar } from "@/modulos/comercial/ubicaciones/componentes/panel-ubicaciones-por-completar";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
@@ -221,12 +225,40 @@ function DialogDetalles({ cotizacion }: { cotizacion: Cotizacion }) {
   );
 }
 
+const ACCIONES_RESOLVER: { accion: AccionResolver; etiqueta: string; destructiva?: boolean }[] = [
+  { accion: "aprobar", etiqueta: "Aprobar" },
+  { accion: "rechazar", etiqueta: "Rechazar", destructiva: true },
+];
+
 function AccionesResolverSolicitud({ idSolicitud }: { idSolicitud: string }) {
+  // El dialogo es controlado y no trae trigger propio: la vista decide desde
+  // donde se abre y lo monta solo cuando hay una accion elegida.
+  const [accionAbierta, setAccionAbierta] = useState<AccionResolver | null>(null);
+
   return (
     <div className="flex flex-wrap gap-2">
-      <DialogoResolverSolicitud idSolicitud={idSolicitud} accion="aprobar" />
-      <DialogoResolverSolicitud idSolicitud={idSolicitud} accion="rechazar" />
-      <DialogoResolverSolicitud idSolicitud={idSolicitud} accion="observar" />
+      {ACCIONES_RESOLVER.map(({ accion, etiqueta, destructiva }) => (
+        <Button
+          key={accion}
+          type="button"
+          variant={destructiva ? "destructive" : "outline"}
+          onClick={() => setAccionAbierta(accion)}
+        >
+          {etiqueta}
+        </Button>
+      ))}
+
+      {accionAbierta ? (
+        <DialogoResolverSolicitud
+          key={accionAbierta}
+          idSolicitud={idSolicitud}
+          accion={accionAbierta}
+          abierto
+          onAbiertoChange={(abierto) => {
+            if (!abierto) setAccionAbierta(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

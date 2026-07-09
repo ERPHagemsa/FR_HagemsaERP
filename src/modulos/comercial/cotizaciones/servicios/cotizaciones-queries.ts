@@ -38,7 +38,8 @@ import { listarTiposUnidad } from "./tipos-unidad-api";
 
 import {
   CLAVE_CARGOS_ADICIONALES,
-  CLAVE_APROBACIONES_PENDIENTES,
+  CLAVE_APROBACIONES,
+  CLAVE_APROBACIONES_RESUMEN,
   CLAVE_COTIZACION_APROBACIONES_HISTORIAL,
   CLAVE_COTIZACION_DETALLE,
   CLAVE_COTIZACIONES,
@@ -159,7 +160,9 @@ export function useSolicitarAprobacionMutation(id: string) {
   >({
     fn: (payload) => solicitarAprobacion(id, payload),
     onSuccess: () => {
-      invalidarConsulta(CLAVE_APROBACIONES_PENDIENTES);
+      // La solicitud nueva suma una fila al listado de aprobaciones y mueve su KPI.
+      invalidarConsulta(CLAVE_APROBACIONES);
+      invalidarConsulta(CLAVE_APROBACIONES_RESUMEN);
       invalidarConsulta(CLAVE_COTIZACIONES);
       invalidarConsulta(CLAVE_COTIZACIONES_RESUMEN);
       invalidarConsulta(CLAVE_COTIZACION_DETALLE);

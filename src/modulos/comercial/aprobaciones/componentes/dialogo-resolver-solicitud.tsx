@@ -11,21 +11,28 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/compartido/componentes/ui/dialog";
 import { Label } from "@/compartido/componentes/ui/label";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
 import { normalizarErrorAccion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-error-handler";
 
-import { invalidarAprobacionesPendientes, useAprobarMutation, useObservarMutation, useRechazarMutation } from "../servicios/aprobaciones-queries";
-import { schemaAprobar, schemaObservar, schemaRechazar } from "../tipos/aprobaciones.schemas";
+import { invalidarAprobaciones, useAprobarMutation, useRechazarMutation } from "../servicios/aprobaciones-queries";
+import { schemaAprobar, schemaRechazar } from "../tipos/aprobaciones.schemas";
 
-type AccionResolver = "aprobar" | "rechazar" | "observar";
+/** El porton es binario: dejar salir la cotizacion, o no dejarla salir. */
+export type AccionResolver = "aprobar" | "rechazar";
 
+/**
+ * Dialogo controlado: no trae trigger propio. Quien lo usa decide desde donde
+ * se dispara (menu `⋯` de la tabla, botones del detalle) y es dueño del estado
+ * de apertura. Montarlo bajo demanda —solo cuando hay una accion elegida— hace
+ * que el estado del formulario nazca limpio en cada apertura.
+ */
 type Props = {
   idSolicitud: string;
   accion: AccionResolver;
-  children?: React.ReactNode;
+  abierto: boolean;
+  onAbiertoChange: (abierto: boolean) => void;
 };
 
 const CONFIG: Record<AccionResolver, {
@@ -49,46 +56,33 @@ const CONFIG: Record<AccionResolver, {
   },
   rechazar: {
     titulo: "Rechazar solicitud",
-    descripcion: "La cotización volverá a borrador y podrá corregirse.",
+    descripcion:
+      "La cotización volverá a borrador para que el ejecutivo la corrija y la reenvíe.",
     label: "Motivo",
-    placeholder: "Indica el motivo del rechazo...",
+    // El motivo carga toda la semantica: tanto "no procede" como "ajustá la
+    // linea 3". Por eso el placeholder invita a ser especifico.
+    placeholder: "Indica qué hay que corregir o por qué se rechaza...",
     boton: "Rechazar",
     procesando: "Rechazando...",
     obligatorio: true,
     destructivo: true,
   },
-  observar: {
-    titulo: "Observar solicitud",
-    descripcion: "La cotización volverá a borrador para que se atienda la observación.",
-    label: "Comentario",
-    placeholder: "Indica qué debe ajustarse...",
-    boton: "Observar",
-    procesando: "Observando...",
-    obligatorio: true,
-  },
 };
 
-export function DialogoResolverSolicitud({ idSolicitud, accion, children }: Props) {
+export function DialogoResolverSolicitud({
+  idSolicitud,
+  accion,
+  abierto,
+  onAbiertoChange,
+}: Props) {
   const config = CONFIG[accion];
   const aprobar = useAprobarMutation(idSolicitud);
   const rechazar = useRechazarMutation(idSolicitud);
-  const observar = useObservarMutation(idSolicitud);
 
-  const [abierto, setAbierto] = React.useState(false);
   const [texto, setTexto] = React.useState("");
   const [errorCampo, setErrorCampo] = React.useState<string | null>(null);
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
-
-  function handleOpenChange(open: boolean) {
-    if (!open) {
-      setTexto("");
-      setErrorCampo(null);
-      setErrorForm(null);
-      setIsPending(false);
-    }
-    setAbierto(open);
-  }
 
   async function onConfirmar(event: React.FormEvent) {
     event.preventDefault();
@@ -105,8 +99,7 @@ export function DialogoResolverSolicitud({ idSolicitud, accion, children }: Prop
           return;
         }
         await aprobar.mutateAsync(resultado.data);
-      }
-      if (accion === "rechazar") {
+      } else {
         const resultado = schemaRechazar.safeParse({ motivo: valor });
         if (!resultado.success) {
           setErrorCampo(resultado.error.issues[0]?.message ?? "El motivo es obligatorio.");
@@ -114,19 +107,11 @@ export function DialogoResolverSolicitud({ idSolicitud, accion, children }: Prop
         }
         await rechazar.mutateAsync(resultado.data);
       }
-      if (accion === "observar") {
-        const resultado = schemaObservar.safeParse({ comentario: valor });
-        if (!resultado.success) {
-          setErrorCampo(resultado.error.issues[0]?.message ?? "El comentario es obligatorio.");
-          return;
-        }
-        await observar.mutateAsync(resultado.data);
-      }
-      setAbierto(false);
+      onAbiertoChange(false);
     } catch (err) {
       if (esError409(err)) {
         setErrorForm("La solicitud ya fue resuelta por otra operación.");
-        invalidarAprobacionesPendientes();
+        invalidarAprobaciones();
       } else {
         const { mensaje } = normalizarErrorAccion(err, "No se pudo resolver la solicitud");
         setErrorForm(mensaje);
@@ -137,10 +122,7 @@ export function DialogoResolverSolicitud({ idSolicitud, accion, children }: Prop
   }
 
   return (
-    <Dialog open={abierto} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {children ?? <Button type="button" variant={config.destructivo ? "destructive" : "outline"}>{config.boton}</Button>}
-      </DialogTrigger>
+    <Dialog open={abierto} onOpenChange={onAbiertoChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{config.titulo}</DialogTitle>
@@ -174,7 +156,7 @@ export function DialogoResolverSolicitud({ idSolicitud, accion, children }: Prop
           ) : null}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setAbierto(false)} disabled={isPending}>
+            <Button type="button" variant="outline" onClick={() => onAbiertoChange(false)} disabled={isPending}>
               Cancelar
             </Button>
             <Button type="submit" variant={config.destructivo ? "destructive" : "default"} disabled={isPending}>

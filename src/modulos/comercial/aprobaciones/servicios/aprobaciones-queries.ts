@@ -4,27 +4,55 @@ import { invalidarConsulta, useConsulta, useMutar } from "@/compartido/api";
 import { toast } from "sonner";
 
 import {
-  CLAVE_APROBACIONES_PENDIENTES,
+  CLAVE_APROBACIONES,
+  CLAVE_APROBACIONES_RESUMEN,
+  CLAVE_APROBADORES,
   CLAVE_COTIZACION_APROBACIONES_HISTORIAL,
   CLAVE_COTIZACION_DETALLE,
   CLAVE_COTIZACIONES,
   CLAVE_COTIZACIONES_RESUMEN,
 } from "../../claves-consulta";
-import type { PayloadAprobar, PayloadObservar, PayloadRechazar } from "../tipos/aprobaciones.tipos";
+import type {
+  FiltrosAprobaciones,
+  PayloadAprobar,
+  PayloadRechazar,
+} from "../tipos/aprobaciones.tipos";
 import {
   aprobarSolicitud,
-  listarPendientes,
-  observarSolicitud,
+  listarAprobaciones,
+  listarAprobadores,
   obtenerHistorialAprobaciones,
+  obtenerResumenAprobaciones,
   rechazarSolicitud,
 } from "./aprobaciones-api";
 
-export function useAprobacionesPendientesQuery(params: { pagina: number; porPagina: number }) {
+export function useAprobacionesQuery(filtros: FiltrosAprobaciones) {
   return useConsulta(
-    () => listarPendientes(params),
-    [params.pagina, params.porPagina],
-    { clave: CLAVE_APROBACIONES_PENDIENTES }
+    () => listarAprobaciones(filtros),
+    [
+      filtros.estado,
+      filtros.usuarioResolucion,
+      filtros.numeroCotizacion,
+      filtros.pagina,
+      filtros.porPagina,
+    ],
+    { clave: CLAVE_APROBACIONES }
   );
+}
+
+export function useResumenAprobacionesQuery(params: {
+  usuarioResolucion?: string;
+  numeroCotizacion?: number;
+}) {
+  return useConsulta(
+    () => obtenerResumenAprobaciones(params),
+    [params.usuarioResolucion, params.numeroCotizacion],
+    { clave: CLAVE_APROBACIONES_RESUMEN }
+  );
+}
+
+export function useAprobadoresQuery() {
+  return useConsulta(() => listarAprobadores(), [], { clave: CLAVE_APROBADORES });
 }
 
 export function useHistorialAprobacionesQuery(idCotizacion: string) {
@@ -35,12 +63,21 @@ export function useHistorialAprobacionesQuery(idCotizacion: string) {
   );
 }
 
-export function invalidarAprobacionesPendientes() {
-  invalidarConsulta(CLAVE_APROBACIONES_PENDIENTES);
+/** Refresca el listado tras un 409 (la solicitud ya la resolvio otra operacion). */
+export function invalidarAprobaciones() {
+  invalidarConsulta(CLAVE_APROBACIONES);
+  invalidarConsulta(CLAVE_APROBACIONES_RESUMEN);
 }
 
+/**
+ * Fuente unica de invalidacion tras resolver. Resolver cambia a la vez la
+ * solicitud, sus KPIs, la cotizacion (estado/numeracion/vencimiento), los KPIs
+ * de cotizaciones y el historial del detalle. Olvidar una clave deja UI stale.
+ */
 function invalidarTrasResolver() {
-  invalidarConsulta(CLAVE_APROBACIONES_PENDIENTES);
+  invalidarConsulta(CLAVE_APROBACIONES);
+  invalidarConsulta(CLAVE_APROBACIONES_RESUMEN);
+  invalidarConsulta(CLAVE_APROBADORES);
   invalidarConsulta(CLAVE_COTIZACIONES);
   invalidarConsulta(CLAVE_COTIZACIONES_RESUMEN);
   invalidarConsulta(CLAVE_COTIZACION_DETALLE);
@@ -67,12 +104,3 @@ export function useRechazarMutation(idSolicitud: string) {
   });
 }
 
-export function useObservarMutation(idSolicitud: string) {
-  return useMutar<PayloadObservar, Awaited<ReturnType<typeof observarSolicitud>>>({
-    fn: (payload) => observarSolicitud(idSolicitud, payload),
-    onSuccess: () => {
-      invalidarTrasResolver();
-      toast.success("Solicitud observada correctamente.");
-    },
-  });
-}

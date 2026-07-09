@@ -62,7 +62,8 @@ export function HistorialAprobaciones({ historial, isLoading, isError, error }: 
                   <div>
                     <p className="text-sm font-medium">Versión {solicitud.numeroVersion}</p>
                     <p className="text-xs text-muted-foreground">
-                      Solicitada por {solicitud.usuarioCreacion} · {formatearFechaHora(solicitud.fechaCreacion)}
+                      Solicitada por {solicitud.nombreUsuarioCreacion} ·{" "}
+                      {formatearFechaHora(solicitud.fechaCreacion)}
                     </p>
                   </div>
                   <SolicitudEstadoBadge estado={solicitud.estado} />
@@ -72,8 +73,11 @@ export function HistorialAprobaciones({ historial, isLoading, isError, error }: 
                   <Dato
                     label="Resolución"
                     value={
+                      // `nombreUsuarioResolucion` es un snapshot del nombre al
+                      // momento de resolver: se muestra tal cual, sin consultar
+                      // al BC de auth. Es null mientras sigue EN_APROBACION.
                       solicitud.fechaResolucion
-                        ? `${solicitud.usuarioResolucion ?? "—"} · ${formatearFechaHora(solicitud.fechaResolucion)}`
+                        ? `${solicitud.nombreUsuarioResolucion ?? "—"} · ${formatearFechaHora(solicitud.fechaResolucion)}`
                         : "Pendiente"
                     }
                   />
