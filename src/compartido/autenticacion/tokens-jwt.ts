@@ -32,7 +32,7 @@ export interface PayloadAccessToken {
   readonly name: string
   readonly roles: ReadonlyArray<RolPayload>
   // Vinculo con el socio de negocio (BC01), presente solo si la cuenta lo tiene.
-  // codigoSocio/codigoCuenta son 2 alfanumericos; socioExternoId es el
+  // codigoSocio/codigoCuenta son alfanumericos (hasta 20); socioExternoId es el
   // personalId de BC01. El backend los emite via ...(socio && { ... }).
   readonly codigoSocio?: string
   readonly codigoCuenta?: string

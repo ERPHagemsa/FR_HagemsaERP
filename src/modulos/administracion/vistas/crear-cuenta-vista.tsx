@@ -35,7 +35,7 @@ function normalizarCodigo(valor: string): string {
   return valor
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 2)
+    .slice(0, 20)
 }
 
 export function CrearCuentaVista() {
@@ -68,9 +68,9 @@ export function CrearCuentaVista() {
     // los tres (el backend valida lo mismo; esto es UX temprana).
     const tocoSocio = Boolean(socio) || codigoSocio !== "" || codigoCuenta !== ""
     if (tocoSocio) {
-      if (!socio || codigoSocio.length !== 2 || codigoCuenta.length !== 2) {
+      if (!socio || codigoSocio.length === 0 || codigoCuenta.length === 0) {
         const mensaje =
-          "Para vincular un socio: elegí el socio y completá ambos códigos (2 caracteres cada uno)."
+          "Para vincular un socio: elegí el socio y completá ambos códigos."
         setError(mensaje)
         toast.error(mensaje)
         return
@@ -231,8 +231,8 @@ export function CrearCuentaVista() {
                   </h2>
                   <p className="text-xs text-muted-foreground">
                     Vinculá la cuenta a un socio de BC01. Si vinculás, ambos
-                    códigos son obligatorios (2 caracteres alfanuméricos, distintos
-                    entre sí).
+                    códigos son obligatorios (hasta 20 caracteres alfanuméricos,
+                    distintos entre sí).
                   </p>
                 </div>
 
@@ -252,7 +252,7 @@ export function CrearCuentaVista() {
                       inputMode="text"
                       value={codigoSocio}
                       onChange={(e) => setCodigoSocio(normalizarCodigo(e.target.value))}
-                      maxLength={2}
+                      maxLength={20}
                       placeholder="Ej. BA"
                     />
                   </Field>
@@ -266,7 +266,7 @@ export function CrearCuentaVista() {
                       inputMode="text"
                       value={codigoCuenta}
                       onChange={(e) => setCodigoCuenta(normalizarCodigo(e.target.value))}
-                      maxLength={2}
+                      maxLength={20}
                       placeholder="Ej. C1"
                     />
                   </Field>

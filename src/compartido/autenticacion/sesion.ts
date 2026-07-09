@@ -13,7 +13,7 @@ export interface UsuarioSesion {
   readonly tipo: string
   readonly roles: ReadonlyArray<string>
   // Vinculo con el socio de negocio (BC01), si la cuenta lo tiene. Los codigos
-  // son 2 alfanumericos; socioExternoId es el personalId de BC01.
+  // son alfanumericos (hasta 20); socioExternoId es el personalId de BC01.
   readonly codigoSocio?: string
   readonly codigoCuenta?: string
   readonly socioExternoId?: number
