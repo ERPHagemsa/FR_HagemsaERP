@@ -113,7 +113,7 @@ export function BuscarOrigenPanel({ onIdentidadResuelta }: Props) {
   }
 
   return (
-    <FieldSet className="gap-3 rounded-lg border border-border px-4 pb-4 pt-1">
+    <FieldSet className="min-w-0 gap-3 rounded-lg border border-border px-4 pb-4 pt-1">
       <FieldLegend
         variant="label"
         className="px-1.5 font-semibold uppercase tracking-wide text-muted-foreground data-[variant=label]:text-xs"
@@ -224,11 +224,11 @@ function Grupo({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {titulo}
       </p>
-      <ul className="flex flex-col gap-2">{children}</ul>
+      <ul className="flex min-w-0 flex-col gap-2">{children}</ul>
     </div>
   );
 }
@@ -249,8 +249,8 @@ function FilaOrigen({
   onUsar: () => void;
 }) {
   return (
-    <li className="flex items-start justify-between gap-3 rounded-md border border-border bg-background p-3">
-      <div className="flex min-w-0 gap-2.5">
+    <li className="flex min-w-0 items-start justify-between gap-3 rounded-md border border-border bg-background p-3">
+      <div className="flex min-w-0 flex-1 gap-2.5">
         <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
           {icono}
         </span>
@@ -259,7 +259,7 @@ function FilaOrigen({
           {secundario ? (
             <p className="truncate text-xs text-muted-foreground">{secundario}</p>
           ) : null}
-          <p className="text-xs text-muted-foreground tabular-nums">{documento}</p>
+          <p className="truncate text-xs text-muted-foreground tabular-nums">{documento}</p>
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">

@@ -378,82 +378,86 @@ export function CamposNuevaSolicitud({
   } = campos;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Seccion: datos del origen */}
-      <SeccionTitulo
-        titulo="Datos del origen"
-        descripcion="Prospecto o cliente que origina la solicitud."
-      />
-
-      {origenIdValue ? (
-        <OrigenSeleccionado
-          origenTipoValue={origenTipoValue}
-          origenNombreValue={origenNombreValue}
-          tipoDocumentoValue={tipoDocumentoValue}
-          numeroDocumentoValue={numeroDocumentoValue}
-          nombreContacto={nombreContacto}
-          correoContacto={correoContacto}
-          cargandoContactos={cargandoContactos}
-          errorContactos={errorContactos}
-          limpiarOrigen={limpiarOrigen}
+    <div className="grid gap-y-6 md:grid-cols-2 md:items-start md:gap-x-10">
+      {/* Columna izquierda: origen de la solicitud + canal de entrada */}
+      <div className="flex min-w-0 flex-col gap-4">
+        <SeccionTitulo
+          titulo="Datos del origen"
+          descripcion="Prospecto o cliente que origina la solicitud."
         />
-      ) : (
-        <>
-          <BuscarOrigenPanel onIdentidadResuelta={onIdentidadResuelta} />
-          {erroresCampo["origenId"] ? (
-            <p className="text-xs text-destructive">
-              Selecciona un origen válido (prospecto o cliente).
-            </p>
-          ) : null}
-        </>
-      )}
 
-      <CampoSelect
-        label="Canal de entrada"
-        name="canalEntrada"
-        requerido
-        opciones={[
-          { valor: "CORREO", etiqueta: "Correo electronico" },
-          { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
-          { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
-          { valor: "OTRO", etiqueta: "Otro" },
-        ]}
-        defaultValue="CORREO"
-        error={erroresCampo["canalEntrada"]}
-        disabled={isSaving}
-      />
+        {origenIdValue ? (
+          <OrigenSeleccionado
+            origenTipoValue={origenTipoValue}
+            origenNombreValue={origenNombreValue}
+            tipoDocumentoValue={tipoDocumentoValue}
+            numeroDocumentoValue={numeroDocumentoValue}
+            nombreContacto={nombreContacto}
+            correoContacto={correoContacto}
+            cargandoContactos={cargandoContactos}
+            errorContactos={errorContactos}
+            limpiarOrigen={limpiarOrigen}
+          />
+        ) : (
+          <>
+            <BuscarOrigenPanel onIdentidadResuelta={onIdentidadResuelta} />
+            {erroresCampo["origenId"] ? (
+              <p className="text-xs text-destructive">
+                Selecciona un origen válido (prospecto o cliente).
+              </p>
+            ) : null}
+          </>
+        )}
 
-      {/* Seccion: descripcion del servicio */}
-      <SeccionTitulo
-        titulo="Servicio solicitado"
-        descripcion="Detalle del servicio requerido por el cliente."
-      />
-      <CampoTextarea
-        label="Descripcion"
-        name="descripcionServicio"
-        requerido
-        placeholder="Describe el servicio requerido..."
-        error={erroresCampo["descripcionServicio"]}
-        disabled={isSaving}
-        onChange={() => limpiarErrorCampo("descripcionServicio")}
-      />
-      <CampoFecha
-        label="Fecha requerida del servicio"
-        value={fechaRequeridaValue}
-        onSelect={(fecha) => {
-          setFechaRequeridaValue(fecha);
-          limpiarErrorCampo("fechaRequerida");
-        }}
-        error={erroresCampo["fechaRequerida"]}
-        disabled={isSaving}
-      />
-      <CampoTextarea
-        label="Observaciones"
-        name="observaciones"
-        placeholder="Observaciones adicionales..."
-        error={erroresCampo["observaciones"]}
-        disabled={isSaving}
-      />
+        <CampoSelect
+          label="Canal de entrada"
+          name="canalEntrada"
+          requerido
+          opciones={[
+            { valor: "CORREO", etiqueta: "Correo electronico" },
+            { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
+            { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
+            { valor: "OTRO", etiqueta: "Otro" },
+          ]}
+          defaultValue="CORREO"
+          error={erroresCampo["canalEntrada"]}
+          disabled={isSaving}
+        />
+      </div>
+
+      {/* Columna derecha: datos del servicio solicitado */}
+      <div className="flex min-w-0 flex-col gap-4">
+        <SeccionTitulo
+          titulo="Servicio solicitado"
+          descripcion="Detalle del servicio requerido por el cliente."
+        />
+        <CampoTextarea
+          label="Descripcion"
+          name="descripcionServicio"
+          requerido
+          placeholder="Describe el servicio requerido..."
+          error={erroresCampo["descripcionServicio"]}
+          disabled={isSaving}
+          onChange={() => limpiarErrorCampo("descripcionServicio")}
+        />
+        <CampoFecha
+          label="Fecha requerida del servicio"
+          value={fechaRequeridaValue}
+          onSelect={(fecha) => {
+            setFechaRequeridaValue(fecha);
+            limpiarErrorCampo("fechaRequerida");
+          }}
+          error={erroresCampo["fechaRequerida"]}
+          disabled={isSaving}
+        />
+        <CampoTextarea
+          label="Observaciones"
+          name="observaciones"
+          placeholder="Observaciones adicionales..."
+          error={erroresCampo["observaciones"]}
+          disabled={isSaving}
+        />
+      </div>
     </div>
   );
 }
@@ -487,7 +491,7 @@ function OrigenSeleccionado({
     origenTipoValue === "PROSPECTO" ? "Prospecto seleccionado" : "Cliente seleccionado";
 
   return (
-    <FieldSet className="gap-3 rounded-lg border border-border px-4 pb-4 pt-1">
+    <FieldSet className="min-w-0 gap-3 rounded-lg border border-border px-4 pb-4 pt-1">
       <FieldLegend
         variant="label"
         className="px-1.5 font-semibold uppercase tracking-wide text-muted-foreground data-[variant=label]:text-xs"
@@ -497,9 +501,9 @@ function OrigenSeleccionado({
 
       {/* Header: nombre + boton Cambiar */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="text-xs font-medium text-muted-foreground">Razon social</p>
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-sm font-medium text-foreground break-words">
             {origenNombreValue ? origenNombreValue : (
               <span className="text-muted-foreground">Sin razon social registrada</span>
             )}
@@ -507,7 +511,7 @@ function OrigenSeleccionado({
           {tipoDocumentoValue && numeroDocumentoValue ? (
             <div className="mt-1 flex flex-col gap-0.5">
               <p className="text-xs font-medium text-muted-foreground">Documento</p>
-              <p className="text-sm text-foreground">
+              <p className="text-sm text-foreground break-words">
                 {tipoDocumentoValue} {numeroDocumentoValue}
               </p>
             </div>
@@ -542,12 +546,12 @@ function OrigenSeleccionado({
         ) : (
           <>
             {origenTipoValue === "PROSPECTO" && nombreContacto ? (
-              <p className="text-sm text-foreground">{nombreContacto}</p>
+              <p className="text-sm text-foreground break-words">{nombreContacto}</p>
             ) : null}
             <p
               className={
                 correoContacto
-                  ? "text-sm text-foreground"
+                  ? "text-sm text-foreground break-words"
                   : "text-sm text-muted-foreground"
               }
             >
