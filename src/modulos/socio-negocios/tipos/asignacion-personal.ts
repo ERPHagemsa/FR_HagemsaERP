@@ -19,9 +19,9 @@ export type AccionHistorialAsignacion =
   | "ASIGNACION_ANULADA"
 
 /**
- * Aprobador (firma) de un detalle cuenta/contrato. El backend solo recibe codigo
- * y nombre; el orden en el arreglo define `ordenAprobacion` (1, 2, 3...) y todas
- * quedan como firmas obligatorias y secuenciales. No se infiere jerarquia.
+ * Cargo aprobador esperado de un detalle cuenta/contrato. El backend solo recibe
+ * codigo y nombre; el orden en el arreglo define `ordenAprobacion` (1, 2, 3...)
+ * y todas quedan como firmas obligatorias y secuenciales. No se infiere persona.
  */
 export interface AprobadorCuentaContratoRequest {
   aprobadorCodigo: string
@@ -110,7 +110,9 @@ export interface ReemplazarCuentasContratosRequest {
 
 /**
  * Body para decidir (aprobar/rechazar) una firma de aprobacion de un detalle
- * cuenta/contrato. `motivoRechazo` solo aplica al rechazar.
+ * cuenta/contrato. `usuarioId` identifica quien toma la decision; el backend
+ * cruza ese usuario con su asignacion vigente para validar cargo/jerarquia.
+ * `motivoRechazo` solo aplica al rechazar.
  */
 export interface DecidirAprobacionCuentaContratoRequest {
   usuarioId?: string

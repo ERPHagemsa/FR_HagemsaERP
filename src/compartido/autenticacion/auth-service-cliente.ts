@@ -77,3 +77,33 @@ export async function logoutContraAuthService(
     headers: { Authorization: `Bearer ${accessToken}` },
   })
 }
+
+// Cambia (o limpia, con ambos null) los códigos internos de la cuenta del
+// usuario autenticado. El Auth Service responde 204. Lanza ApiError ante 409
+// (código ya en uso) / 422 (formato inválido).
+export async function cambiarCodigosContraAuthService(
+  accessToken: string,
+  codigoSocio: string | null,
+  codigoCuenta: string | null,
+): Promise<void> {
+  await cliente.patch(
+    "/api/auth/perfil/codigos",
+    { codigoSocio, codigoCuenta },
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+}
+
+// Cambia la contraseña del usuario autenticado probando la actual. El Auth
+// Service responde 204. Lanza ApiError ante 401 (actual incorrecta) / 422
+// (política no cumplida).
+export async function cambiarPasswordContraAuthService(
+  accessToken: string,
+  passwordActual: string,
+  passwordNueva: string,
+): Promise<void> {
+  await cliente.patch(
+    "/api/auth/perfil/password",
+    { passwordActual, passwordNueva },
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+}

@@ -8,6 +8,7 @@ import {
   useMap,
   useMapsLibrary,
 } from "@vis.gl/react-google-maps";
+import { useTheme } from "next-themes";
 
 import { resolverDistritoPorPunto } from "../servicios/geo-api";
 import type { DatosUbicacionGeo } from "../tipos/ubicaciones.tipos";
@@ -55,6 +56,12 @@ function MapaConPin({ valorInicial, onSeleccion }: Props) {
   const geocoding = useMapsLibrary("geocoding");
   const contenedorInput = React.useRef<HTMLDivElement>(null);
 
+  // El widget de Places y el mapa siguen el `color-scheme` de CSS (por defecto,
+  // el del sistema). Lo atamos al tema resuelto de la app (next-themes) para que
+  // el input/resultados y las tiles acompañen claro/oscuro en vez de quedar fijos.
+  const { resolvedTheme } = useTheme();
+  const esquema = resolvedTheme === "dark" ? "dark" : "light";
+
   const inicial =
     valorInicial?.latitud != null && valorInicial?.longitud != null
       ? { lat: valorInicial.latitud, lng: valorInicial.longitud }
@@ -78,6 +85,10 @@ function MapaConPin({ valorInicial, onSeleccion }: Props) {
       origen: { nombre?: string; direccion: string; admin: AdminGeo }
     ) => {
       let { pais, departamento, provincia, distrito } = origen.admin;
+      let codigoDepartamento: string | undefined;
+      let codigoProvincia: string | undefined;
+      let codigoDistrito: string | undefined;
+      let ubigeo: string | undefined;
       try {
         const geo = await resolverDistritoPorPunto(lat, lng);
         if (geo) {
@@ -85,6 +96,10 @@ function MapaConPin({ valorInicial, onSeleccion }: Props) {
           departamento = geo.departamento;
           provincia = geo.provincia;
           distrito = geo.distrito;
+          codigoDepartamento = geo.codigoDepartamento;
+          codigoProvincia = geo.codigoProvincia;
+          codigoDistrito = geo.codigoDistrito;
+          ubigeo = geo.ubigeo;
         }
       } catch {
         // geo-api caída → se cae a los niveles de Google (ya en las variables).
@@ -93,8 +108,12 @@ function MapaConPin({ valorInicial, onSeleccion }: Props) {
         nombre: origen.nombre,
         pais,
         departamento,
+        codigoDepartamento,
         provincia,
+        codigoProvincia,
         distrito,
+        codigoDistrito,
+        ubigeo,
         direccion: origen.direccion,
         latitud: lat,
         longitud: lng,
@@ -166,12 +185,16 @@ function MapaConPin({ valorInicial, onSeleccion }: Props) {
   }, [places, map, emitirConGeo]);
 
   return (
-    <div className="grid gap-2">
-      <div ref={contenedorInput} />
-      <div className="h-72 w-full overflow-hidden rounded-md border md:h-104">
+    // Ocupa toda la altura de su columna (el modal la estira a la del
+    // formulario) y el mapa crece con flex-1; en móvil cae a min-h.
+    <div className="flex h-full min-h-[34rem] flex-col gap-2">
+      {/* color-scheme ata el widget de Places (input + resultados) al tema. */}
+      <div ref={contenedorInput} style={{ colorScheme: esquema }} />
+      <div className="min-h-[30rem] w-full flex-1 overflow-hidden rounded-md border">
         <Map
           defaultCenter={inicial}
           defaultZoom={valorInicial?.latitud != null ? 15 : 11}
+          colorScheme={esquema === "dark" ? "DARK" : "LIGHT"}
           gestureHandling="greedy"
           disableDefaultUI
           zoomControl

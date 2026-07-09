@@ -1,13 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, MapPin, Search } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/compartido/componentes/ui/button";
+import { Combobox } from "@/compartido/componentes/ui/combobox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
+import { useConsulta } from "@/compartido/api";
 import {
   Select,
   SelectContent,
@@ -24,17 +26,24 @@ import {
   DialogTitle,
 } from "@/compartido/componentes/ui/dialog";
 
-import { buscarUbicacionesBc14 } from "../servicios/ubicaciones-api";
-import { useCompletarUbicacionMutation } from "../servicios/ubicaciones-queries";
+import {
+  listarDepartamentos,
+  listarDistritos,
+  listarProvincias,
+} from "../servicios/geo-api";
+import {
+  useCompletarUbicacionMutation,
+  useCorregirUbicacionMutation,
+} from "../servicios/ubicaciones-queries";
 import { normalizarErrorAccion } from "../../cotizaciones/servicios/cotizaciones-error-handler";
 import { SelectorUbicacionMapa } from "./selector-ubicacion-mapa";
 import type {
   DatosUbicacionGeo,
   PayloadCompletarUbicacion,
   TipoUbicacion,
-  UbicacionBc14,
   UbicacionTemporal,
 } from "../tipos/ubicaciones.tipos";
+import { MAX_CORRECCIONES_UBICACION } from "../tipos/ubicaciones.tipos";
 
 const TIPOS_UBICACION: { valor: TipoUbicacion; etiqueta: string }[] = [
   { valor: "SEDE", etiqueta: "Sede" },
@@ -52,8 +61,10 @@ const TIPOS_UBICACION: { valor: TipoUbicacion; etiqueta: string }[] = [
 
 type Props = {
   abierto: boolean;
-  // Ubicación temporal a completar. null cuando no hay nada abierto.
+  // Ubicación temporal a completar/corregir. null cuando no hay nada abierto.
   temporal: UbicacionTemporal | null;
+  // "completar" (temporal PENDIENTE/COMPLETA) o "corregir" (ya SINCRONIZADA).
+  modo?: "completar" | "corregir";
   onCerrar: () => void;
 };
 
@@ -61,8 +72,12 @@ interface FormState {
   tipoUbicacion: TipoUbicacion | "";
   pais: string;
   departamento: string;
+  codigoDepartamento: string;
   provincia: string;
+  codigoProvincia: string;
   distrito: string;
+  codigoDistrito: string;
+  ubigeo: string;
   direccion: string;
   referenciaUbicacion: string;
   coordenadasGoogle: string;
@@ -73,8 +88,12 @@ function estadoInicial(t: UbicacionTemporal | null): FormState {
     tipoUbicacion: t?.tipoUbicacion ?? "",
     pais: t?.pais ?? "Peru",
     departamento: t?.departamento ?? "",
+    codigoDepartamento: "",
     provincia: t?.provincia ?? "",
+    codigoProvincia: "",
     distrito: t?.distrito ?? "",
+    codigoDistrito: "",
+    ubigeo: "",
     direccion: t?.direccion ?? "",
     referenciaUbicacion: t?.referenciaUbicacion ?? "",
     coordenadasGoogle:
@@ -87,30 +106,73 @@ function estadoInicial(t: UbicacionTemporal | null): FormState {
 /**
  * Modal para completar una ubicación temporal (solo con la cotización GANADA).
  *
- * Flujo buscar-antes-de-crear: el usuario llena los datos y busca coincidencias
- * en el maestro de BC-14. Si hay candidatas, puede vincular una existente (se
- * copia a la maestra local, sin publicar) o confirmar que es nueva (queda
- * COMPLETA a la espera del PUB/SUB de la fase final).
+ * Al registrar, la temporal queda COMPLETA a la espera de la publicación PUB/SUB
+ * (fase final): BC-14 valida si ya existe y devuelve los datos para replicar en
+ * la maestra local. No se deduplica acá.
  */
-export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) {
+export function CompletarUbicacionModal({
+  abierto,
+  temporal,
+  modo = "completar",
+  onCerrar,
+}: Props) {
   const [form, setForm] = React.useState<FormState>(() =>
     estadoInicial(temporal)
   );
-  // null = todavía no se buscó; [] = se buscó y no hubo coincidencias.
-  const [candidatas, setCandidatas] = React.useState<UbicacionBc14[] | null>(
-    null
-  );
-  const [buscando, setBuscando] = React.useState(false);
 
-  const mutacion = useCompletarUbicacionMutation(temporal?.id ?? "");
+  const esCorregir = modo === "corregir";
+  // Ambos hooks se montan siempre (regla de hooks); se usa el del modo activo.
+  const completarMut = useCompletarUbicacionMutation(temporal?.id ?? "");
+  const corregirMut = useCorregirUbicacionMutation(temporal?.id ?? "");
+  const mutacion = esCorregir ? corregirMut : completarMut;
+  const restantes = MAX_CORRECCIONES_UBICACION - (temporal?.intentosActualizacion ?? 0);
 
   // El estado se reinicia por remount (el padre pasa `key` con el id de la
   // temporal), no vía efecto: así evitamos setState dentro de useEffect.
 
   function set(parcial: Partial<FormState>) {
     setForm((prev) => ({ ...prev, ...parcial }));
-    // Cualquier cambio invalida la búsqueda previa.
-    setCandidatas(null);
+  }
+
+  // Cascada geo-api: departamento → provincia → distrito. Cada lista depende de
+  // la selección de la de arriba; al cambiar el padre se reinician los hijos.
+  const departamentos = useConsulta(() => listarDepartamentos(), [], {
+    clave: "geo-departamentos",
+  });
+  const provincias = useConsulta(
+    () => listarProvincias(form.departamento),
+    [form.departamento],
+    { enabled: form.departamento.trim() !== "" }
+  );
+  const distritos = useConsulta(
+    () => listarDistritos(form.departamento, form.provincia),
+    [form.departamento, form.provincia],
+    { enabled: form.provincia.trim() !== "" }
+  );
+
+  const opcionesDepartamento = (departamentos.data ?? []).map((d) => ({
+    valor: d.nombre,
+    etiqueta: d.nombre,
+  }));
+  const opcionesProvincia = (provincias.data ?? []).map((p) => ({
+    valor: p.nombre,
+    etiqueta: p.nombre,
+  }));
+  const opcionesDistrito = (distritos.data ?? []).map((d) => ({
+    valor: d.nombre,
+    etiqueta: d.nombre,
+  }));
+
+  // Elegir departamento reinicia provincia y distrito; elegir provincia
+  // reinicia distrito. Así no queda una jerarquía inconsistente.
+  function elegirDepartamento(valor: string) {
+    set({ departamento: valor, provincia: "", distrito: "" });
+  }
+  function elegirProvincia(valor: string) {
+    set({ provincia: valor, distrito: "" });
+  }
+  function elegirDistrito(valor: string) {
+    set({ distrito: valor });
   }
 
   // Vuelca los datos del mapa (Places / Geocoding) al formulario. Los campos
@@ -119,6 +181,10 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
     const parcial: Partial<FormState> = {
       direccion: d.direccion,
       coordenadasGoogle: `${d.latitud}, ${d.longitud}`,
+      codigoDepartamento: d.codigoDepartamento ?? "",
+      codigoProvincia: d.codigoProvincia ?? "",
+      codigoDistrito: d.codigoDistrito ?? "",
+      ubigeo: d.ubigeo ?? "",
     };
     if (d.pais) parcial.pais = d.pais;
     if (d.departamento) parcial.departamento = d.departamento;
@@ -140,84 +206,70 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
       tipoUbicacion: form.tipoUbicacion as TipoUbicacion,
       pais: form.pais.trim(),
       departamento: form.departamento.trim(),
+      codigoDepartamento: form.codigoDepartamento.trim() || null,
       provincia: form.provincia.trim(),
+      codigoProvincia: form.codigoProvincia.trim() || null,
       distrito: form.distrito.trim(),
+      codigoDistrito: form.codigoDistrito.trim() || null,
+      ubigeo: form.ubigeo.trim() || null,
       direccion: form.direccion.trim(),
       referenciaUbicacion: form.referenciaUbicacion.trim() || null,
       coordenadasGoogle: form.coordenadasGoogle.trim() || null,
     };
   }
 
-  async function alBuscar() {
-    if (!temporal) return;
-    setBuscando(true);
-    try {
-      const resultado = await buscarUbicacionesBc14({
-        nombre: temporal.nombre,
-        departamento: form.departamento.trim() || undefined,
-        provincia: form.provincia.trim() || undefined,
-        distrito: form.distrito.trim() || undefined,
-      });
-      setCandidatas(resultado);
-    } catch (err) {
-      const { mensaje } = normalizarErrorAccion(
-        err,
-        "No se pudo consultar el maestro de ubicaciones"
-      );
-      toast.error(mensaje);
-    } finally {
-      setBuscando(false);
-    }
-  }
-
   async function completar(payload: PayloadCompletarUbicacion) {
     try {
       await mutacion.mutateAsync(payload);
-      toast.success("Ubicación completada");
+      toast.success(esCorregir ? "Corrección enviada" : "Ubicación completada");
       onCerrar();
     } catch (err) {
       const { mensaje } = normalizarErrorAccion(
         err,
-        "No se pudo completar la ubicación"
+        esCorregir
+          ? "No se pudo enviar la corrección"
+          : "No se pudo completar la ubicación"
       );
       toast.error(mensaje);
     }
   }
 
-  function alVincular(candidata: UbicacionBc14) {
-    void completar({
-      ...payloadBase(),
-      vincularUbicacionBc14Id: candidata.id,
-    });
-  }
-
-  function alRegistrarNueva() {
-    void completar({ ...payloadBase(), confirmarCreacion: true });
+  function alRegistrar() {
+    void completar(payloadBase());
   }
 
   const enviando = mutacion.isPending;
 
   return (
     <Dialog open={abierto} onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-6xl lg:max-w-7xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MapPin className="size-4" />
-            Completar ubicación
+            {esCorregir ? "Corregir ubicación" : "Completar ubicación"}
           </DialogTitle>
           <DialogDescription>
             {temporal ? (
-              <>
-                Completá los datos de <strong>{temporal.nombre}</strong> que
-                exige Configuración General (BC-14). Antes de registrar, buscá si
-                ya existe para no duplicarla.
-              </>
+              esCorregir ? (
+                <>
+                  Corregí los datos de <strong>{temporal.nombre}</strong>. Se
+                  reenvía a Configuración General (BC-14) para actualizar el
+                  maestro. Te quedan <strong>{restantes}</strong>{" "}
+                  {restantes === 1 ? "corrección" : "correcciones"}.
+                </>
+              ) : (
+                <>
+                  Completá los datos de <strong>{temporal.nombre}</strong> que
+                  exige Configuración General (BC-14). Al registrar, BC-14 valida
+                  y sincroniza la ubicación.
+                </>
+              )
             ) : null}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2 md:grid-cols-2">
-          {/* Columna izquierda: formulario */}
+        <div className="grid gap-5 py-2 md:grid-cols-[28rem_minmax(0,1fr)] md:items-stretch">
+          {/* Columna izquierda: formulario (ancho fijo, el mapa se lleva el resto) */}
           <div className="grid content-start gap-4">
           <div className="grid gap-2">
             <Label>Tipo de ubicación</Label>
@@ -244,32 +296,59 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
               <Label>País</Label>
               <Input
                 value={form.pais}
-                onChange={(e) => set({ pais: e.target.value })}
+                onChange={(e) =>
+                  set({
+                    pais: e.target.value,
+                    codigoDepartamento: "",
+                    codigoProvincia: "",
+                    codigoDistrito: "",
+                    ubigeo: "",
+                  })
+                }
                 disabled={enviando}
               />
             </div>
             <div className="grid gap-2">
               <Label>Departamento</Label>
-              <Input
-                value={form.departamento}
-                onChange={(e) => set({ departamento: e.target.value })}
+              <Combobox
+                opciones={opcionesDepartamento}
+                valor={form.departamento}
+                onValorChange={elegirDepartamento}
+                placeholder="Seleccioná departamento"
+                cargando={departamentos.isLoading}
                 disabled={enviando}
               />
             </div>
             <div className="grid gap-2">
               <Label>Provincia</Label>
-              <Input
-                value={form.provincia}
-                onChange={(e) => set({ provincia: e.target.value })}
-                disabled={enviando}
+              <Combobox
+                opciones={opcionesProvincia}
+                valor={form.provincia}
+                onValorChange={elegirProvincia}
+                placeholder="Seleccioná provincia"
+                textoVacio={
+                  form.departamento
+                    ? "Sin resultados."
+                    : "Elegí un departamento primero."
+                }
+                cargando={provincias.isLoading}
+                disabled={enviando || !form.departamento}
               />
             </div>
             <div className="grid gap-2">
               <Label>Distrito</Label>
-              <Input
-                value={form.distrito}
-                onChange={(e) => set({ distrito: e.target.value })}
-                disabled={enviando}
+              <Combobox
+                opciones={opcionesDistrito}
+                valor={form.distrito}
+                onValorChange={elegirDistrito}
+                placeholder="Seleccioná distrito"
+                textoVacio={
+                  form.provincia
+                    ? "Sin resultados."
+                    : "Elegí una provincia primero."
+                }
+                cargando={distritos.isLoading}
+                disabled={enviando || !form.provincia}
               />
             </div>
           </div>
@@ -302,70 +381,10 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
               disabled={enviando}
             />
           </div>
-
-          {/* Buscar-antes-de-crear */}
-          {candidatas === null ? (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => void alBuscar()}
-              disabled={!camposCompletos || buscando || enviando}
-            >
-              {buscando ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Search className="size-4" />
-              )}
-              Buscar duplicados en BC-14
-            </Button>
-          ) : candidatas.length > 0 ? (
-            <div className="grid gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
-              <p className="text-sm font-medium">
-                Ya existen ubicaciones parecidas en BC-14. ¿Es alguna de estas?
-              </p>
-              {candidatas.map((c) => (
-                <div
-                  key={c.id}
-                  className="flex items-center justify-between gap-2 rounded border bg-background p-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{c.nombre}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {[c.distrito, c.provincia, c.departamento]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => alVincular(c)}
-                    disabled={enviando}
-                  >
-                    Vincular
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={alRegistrarNueva}
-                disabled={enviando}
-              >
-                Ninguna: registrar como nueva
-              </Button>
-            </div>
-          ) : (
-            <div className="grid gap-2 rounded-md border border-emerald-300 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-950/40">
-              <p className="text-sm">
-                No hay coincidencias en BC-14. Podés registrarla como nueva.
-              </p>
-            </div>
-          )}
           </div>
 
-          {/* Columna derecha: mapa */}
-          <div className="md:order-last md:self-start">
+          {/* Columna derecha: mapa (se estira a la altura del formulario) */}
+          <div className="md:order-last">
             <SelectorUbicacionMapa
               valorInicial={
                 temporal
@@ -388,11 +407,11 @@ export function CompletarUbicacionModal({ abierto, temporal, onCerrar }: Props) 
           </Button>
           <Button
             type="button"
-            onClick={alRegistrarNueva}
-            disabled={!camposCompletos || candidatas === null || enviando}
+            onClick={alRegistrar}
+            disabled={!camposCompletos || enviando}
           >
             {enviando ? <Loader2 className="size-4 animate-spin" /> : null}
-            Registrar ubicación
+            {esCorregir ? "Guardar corrección" : "Registrar ubicación"}
           </Button>
         </DialogFooter>
       </DialogContent>

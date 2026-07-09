@@ -3,6 +3,18 @@ import type { Paginacion } from "@/compartido/api/contrato"
 export type EstadoCuenta = "activo" | "suspendido" | "inactivo"
 export type TipoCuenta = "interno" | "cliente" | "proveedor"
 
+// Socio de negocio (BC01) vinculado a la cuenta, con su snapshot completo.
+// Solo viene en el detalle (GET /admin/cuentas/:id) y si la cuenta tiene socio.
+export interface SocioAsignado {
+  readonly socioExternoId: number
+  readonly tipo: string
+  readonly codigoSocio: string
+  readonly codigoCuenta: string
+  readonly nombre: string | null
+  readonly documento: string | null
+  readonly snapshot: Record<string, unknown> | null
+}
+
 export interface CuentaResponse {
   readonly id: string
   readonly email: string
@@ -13,6 +25,7 @@ export interface CuentaResponse {
   readonly documentoIdentidad: string | null
   readonly createdAt: string
   readonly updatedAt: string
+  readonly socio?: SocioAsignado | null
 }
 
 // Resultado del listado tras desempaquetar la respuesta del backend
@@ -30,12 +43,25 @@ export interface ListarCuentasQuery {
   limite?: number
 }
 
+// Tipo de socio de negocio (BC01). Por ahora solo se usa "empleado"; el
+// backend acepta el enum completo para futuros clientes/proveedores.
+export type TipoSocio = "empleado" | "cliente" | "proveedor"
+
 export interface CrearCuentaPayload {
   email: string
   nombreUsuario: string
   nombreCompleto: string
   tipoCuenta: TipoCuenta
   documentoIdentidad?: string
+  // Vinculo opcional con un socio de negocio de BC01. Es "todo-o-nada": si se
+  // envia uno de los tres, el backend exige los tres. Los codigos son 2
+  // alfanumericos; socioExternoId es el personalId de BC01.
+  socioExternoId?: number
+  codigoSocio?: string
+  codigoCuenta?: string
+  tipoSocio?: TipoSocio
+  // Snapshot completo del socio (objeto de BC01) para denormalizar en el backend.
+  socioSnapshot?: Record<string, unknown>
 }
 
 export interface CrearCuentaResponse {

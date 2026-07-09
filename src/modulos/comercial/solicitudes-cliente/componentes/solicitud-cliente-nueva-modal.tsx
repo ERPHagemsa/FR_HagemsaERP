@@ -1,17 +1,14 @@
 "use client";
 
-import * as React from "react";
-
 import { Button } from "@/compartido/componentes/ui/button";
-import { Separator } from "@/compartido/componentes/ui/separator";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/compartido/componentes/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/compartido/componentes/ui/dialog";
 
 import {
   CamposNuevaSolicitud,
@@ -22,7 +19,7 @@ import {
 // Props
 // ---------------------------------------------------------------------------
 
-interface SolicitudClienteNuevaSheetProps {
+interface SolicitudClienteNuevaModalProps {
   abierto: boolean;
   onCerrar: () => void;
   onCreado: () => void;
@@ -32,11 +29,11 @@ interface SolicitudClienteNuevaSheetProps {
 // Componente
 // ---------------------------------------------------------------------------
 
-export function SolicitudClienteNuevaSheet({
+export function SolicitudClienteNuevaModal({
   abierto,
   onCerrar,
   onCreado,
-}: SolicitudClienteNuevaSheetProps) {
+}: SolicitudClienteNuevaModalProps) {
   const { formularioRef, campos } = useFormularioNuevaSolicitud({
     onExito: () => {
       onCreado();
@@ -51,11 +48,15 @@ export function SolicitudClienteNuevaSheet({
   }
 
   return (
-    <Sheet open={abierto} onOpenChange={handleOpenChange}>
-      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
-        <SheetHeader className="border-b border-border">
-          <SheetTitle>Nueva solicitud de cliente</SheetTitle>
-        </SheetHeader>
+    <Dialog open={abierto} onOpenChange={handleOpenChange}>
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
+        <DialogHeader className="border-b border-border px-6 py-4">
+          <DialogTitle>Nueva solicitud de cliente</DialogTitle>
+          <DialogDescription>
+            Registrá la solicitud a partir de un prospecto de Comercial o un
+            cliente existente en Socios de Negocio.
+          </DialogDescription>
+        </DialogHeader>
 
         <form
           ref={formularioRef}
@@ -65,24 +66,25 @@ export function SolicitudClienteNuevaSheet({
             campos.onSubmit();
           }}
         >
-          <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <CamposNuevaSolicitud campos={campos} />
           </div>
 
-          <Separator />
-
-          <SheetFooter className="flex-row justify-end gap-2 px-6 py-4">
-            <SheetClose asChild>
-              <Button type="button" variant="outline" disabled={campos.isSaving}>
-                Cancelar
-              </Button>
-            </SheetClose>
+          <DialogFooter className="border-t border-border px-6 py-4">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={campos.isSaving}
+              onClick={onCerrar}
+            >
+              Cancelar
+            </Button>
             <Button type="submit" disabled={campos.isSaving}>
               {campos.isSaving ? "Registrando..." : "Registrar solicitud"}
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

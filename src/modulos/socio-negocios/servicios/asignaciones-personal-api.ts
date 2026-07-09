@@ -19,6 +19,17 @@ import type {
 const BASE_ENDPOINT = "/asignaciones-personal"
 const ASIGNACIONES_CACHE_MS = 10_000
 
+type CargoConfiguracionGeneralResponse = {
+  id: number | string
+  codigo: string
+  nombre: string
+  estado: string
+  estadoRegistro: string
+  cargoSuperiorId?: number | string | null
+  cargoSuperiorNombre?: string | null
+  cargoSuperiorCodigo?: string | null
+}
+
 const asignacionesCache = new Map<
   string,
   { datos: AsignacionPersonalResponse[]; expiraEn: number }
@@ -122,37 +133,31 @@ export async function consultarOpcionesConfiguracionGeneral(
  * `opciones-formulario` (que devuelve `areas: []`), este endpoint si filtra por
  * sede y trae `sedeId`/`sedeNombre`/`nivelArea`.
  */
-interface AreaConfiguracionGeneralResponse {
+interface AreaHabilitadaConfiguracionGeneralResponse {
   id: number | string
   codigo: string
   nombre: string
+  descripcion?: string | null
   estado: string
   estadoRegistro: string
-  sedeId?: number | string | null
-  sedeNombre?: string | null
   nivelArea?: string | null
   gerenciaId?: number | string | null
   gerenciaNombre?: string | null
+  gerenciaCodigo?: string | null
+  habilitada?: boolean
 }
 
 /**
- * Lista las areas ACTIVAS de una sede. El combo de area del formulario de
- * asignacion depende de la sede elegida, asi que se cargan bajo demanda en vez
- * de venir en `opciones-formulario`.
+ * Lista las areas HABILITADAS en una sede. Area es un catalogo global; su
+ * disponibilidad por sede se gestiona con AreaSede en Configuracion General, asi
+ * que se consulta el recurso de habilitacion por sede (no un filtro sobre areas).
  */
 export async function obtenerAreasPorSede(
   sedeId: string | number,
 ): Promise<ConfiguracionGeneralOpcionResponse[]> {
-  const params = new URLSearchParams({
-    sedeId: String(sedeId),
-    estado: "ACTIVO",
-    estadoRegistro: "ACTIVO",
-    // El backend de Configuracion General limita pageSize a 100.
-    pageSize: "100",
-  })
   const { data } = await clienteConfiguracionGeneral.get<{
-    datos: AreaConfiguracionGeneralResponse[]
-  }>(`/configuracion-general/areas?${params.toString()}`)
+    datos: AreaHabilitadaConfiguracionGeneralResponse[]
+  }>(`/configuracion-general/sedes/${encodeURIComponent(String(sedeId))}/areas`)
   return (data.datos ?? []).map((area) => ({
     id: String(area.id),
     tipoDatoMaestro: "AREA",
@@ -163,8 +168,40 @@ export async function obtenerAreasPorSede(
     nivelArea: area.nivelArea ?? undefined,
     gerenciaId: area.gerenciaId != null ? String(area.gerenciaId) : undefined,
     gerenciaNombre: area.gerenciaNombre ?? undefined,
-    sedeId: area.sedeId != null ? String(area.sedeId) : undefined,
-    sedeNombre: area.sedeNombre ?? undefined,
+    gerenciaCodigo: area.gerenciaCodigo ?? undefined,
+    // area es global: la sede la aporta el contexto de la consulta, no el area.
+    sedeId: String(sedeId),
+  }))
+}
+
+export async function consultarCargosConfiguracionGeneral(query?: {
+  areaId?: string | number
+  sedeId?: string | number
+  cargoSuperiorId?: string | number
+}): Promise<ConfiguracionGeneralOpcionResponse[]> {
+  const params = new URLSearchParams()
+  if (query?.areaId != null && query.areaId !== "") params.set("areaId", String(query.areaId))
+  if (query?.sedeId != null && query.sedeId !== "") params.set("sedeId", String(query.sedeId))
+  if (query?.cargoSuperiorId != null && query.cargoSuperiorId !== "") {
+    params.set("cargoSuperiorId", String(query.cargoSuperiorId))
+  }
+  const queryString = params.toString()
+  const { data } = await clienteConfiguracionGeneral.get<{
+    datos: CargoConfiguracionGeneralResponse[]
+  }>(
+    `/configuracion-general/cargos?estado=ACTIVO&estadoRegistro=ACTIVO&pageSize=100${queryString ? `&${queryString}` : ""}`,
+  )
+
+  return (data.datos ?? []).map((cargo) => ({
+    id: String(cargo.id),
+    tipoDatoMaestro: "CARGO",
+    codigo: cargo.codigo,
+    nombre: cargo.nombre,
+    estado: cargo.estado,
+    estadoRegistro: cargo.estadoRegistro,
+    cargoSuperiorId: cargo.cargoSuperiorId != null ? String(cargo.cargoSuperiorId) : undefined,
+    cargoSuperiorNombre: cargo.cargoSuperiorNombre ?? undefined,
+    cargoSuperiorCodigo: cargo.cargoSuperiorCodigo ?? undefined,
   }))
 }
 

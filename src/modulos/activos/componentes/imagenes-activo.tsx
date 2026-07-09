@@ -21,13 +21,26 @@ import {
   useCrearImagenActivoMutation,
   useEliminarImagenActivoMutation,
 } from "../servicios/activos-queries";
-import type { ImagenActivo, TipoImagenActivo } from "../tipos/activo.tipos";
+import type {
+  ImagenActivo,
+  MetadataOrigenCambio,
+  TipoImagenActivo,
+} from "../tipos/activo.tipos";
 
 type Props = {
   codigo: string;
   imagenes: ImagenActivo[];
   editable?: boolean;
   embedded?: boolean;
+  /** Trazabilidad del historial: desde que proceso se gestiona (ej. inventario fisico). */
+  origen?: MetadataOrigenCambio;
+  onCambio?: () => void;
+};
+
+type EstadoImagenesOptimistas = {
+  codigo: string;
+  creadas: ImagenActivo[];
+  eliminadasIds: number[];
 };
 
 const tiposImagen: TipoImagenActivo[] = [
@@ -52,17 +65,41 @@ export function ImagenesActivo({
   imagenes,
   editable = true,
   embedded = false,
+  origen,
+  onCambio,
 }: Props) {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [imagenesOptimistas, setImagenesOptimistas] =
+    React.useState<EstadoImagenesOptimistas>({
+      codigo,
+      creadas: [],
+      eliminadasIds: [],
+    });
   const [selectedFileName, setSelectedFileName] = React.useState<string | null>(
     null
   );
   const [localImageUrl, setLocalImageUrl] = React.useState<string | null>(null);
   const crearImagenMutation = useCrearImagenActivoMutation(codigo);
-  const eliminarImagenMutation = useEliminarImagenActivoMutation(codigo);
+  const eliminarImagenMutation = useEliminarImagenActivoMutation(codigo, origen);
+
+  const imagenesLocales = React.useMemo(() => {
+    const imagenesCreadas =
+      imagenesOptimistas.codigo === codigo ? imagenesOptimistas.creadas : [];
+    const imagenesEliminadasIds =
+      imagenesOptimistas.codigo === codigo
+        ? imagenesOptimistas.eliminadasIds
+        : [];
+    const eliminadas = new Set(imagenesEliminadasIds);
+    const base = imagenes.filter((imagen) => !eliminadas.has(imagen.id));
+    const idsBase = new Set(base.map((imagen) => imagen.id));
+    const creadas = imagenesCreadas.filter(
+      (imagen) => !eliminadas.has(imagen.id) && !idsBase.has(imagen.id)
+    );
+    return [...base, ...creadas];
+  }, [codigo, imagenes, imagenesOptimistas]);
 
   function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -108,17 +145,35 @@ export function ImagenesActivo({
         throw new Error("Selecciona una imagen desde tu equipo.");
       }
 
-      await crearImagenMutation.mutateAsync({
+      const imagenCreada = await crearImagenMutation.mutateAsync({
         tipoImagen: String(formData.get("tipoImagen")) as TipoImagenActivo,
         url,
+        nombreArchivo: selectedFileName ?? undefined,
         descripcion:
           String(formData.get("descripcion") ?? "").trim() || undefined,
         orden: orden ? Number(orden) : undefined,
+        ...(origen ?? {}),
+      });
+      setImagenesOptimistas((actual) => {
+        const base =
+          actual.codigo === codigo
+            ? actual
+            : { codigo, creadas: [], eliminadasIds: [] };
+        const creadas = base.creadas.some(
+          (imagen) => imagen.id === imagenCreada.id
+        )
+          ? base.creadas.map((imagen) =>
+              imagen.id === imagenCreada.id ? imagenCreada : imagen
+            )
+          : [...base.creadas, imagenCreada];
+        return { ...base, creadas };
       });
       form.reset();
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setSelectedFileName(null);
       setLocalImageUrl(null);
       toast.success("Imagen registrada correctamente.");
+      onCambio?.();
       router.refresh();
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo registrar la imagen"));
@@ -138,7 +193,18 @@ export function ImagenesActivo({
 
     try {
       await eliminarImagenMutation.mutateAsync(imagen.id);
+      setImagenesOptimistas((actual) => {
+        const base =
+          actual.codigo === codigo
+            ? actual
+            : { codigo, creadas: [], eliminadasIds: [] };
+        const eliminadasIds = base.eliminadasIds.includes(imagen.id)
+          ? base.eliminadasIds
+          : [...base.eliminadasIds, imagen.id];
+        return { ...base, eliminadasIds };
+      });
       toast.success("Imagen eliminada correctamente.");
+      onCambio?.();
       router.refresh();
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudo eliminar la imagen"));
@@ -224,9 +290,9 @@ export function ImagenesActivo({
         </form>
         ) : null}
 
-        {imagenes.length ? (
+        {imagenesLocales.length ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {imagenes.map((imagen) => (
+            {imagenesLocales.map((imagen) => (
               <figure
                 key={imagen.id}
                 className="overflow-hidden rounded-xl border border-border bg-muted/20"
@@ -261,7 +327,7 @@ export function ImagenesActivo({
                     ) : null}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {imagen.descripcion || "Sin descripcion"}
+                    {imagen.descripcion || imagen.nombreArchivo || "Sin descripcion"}
                   </p>
                 </figcaption>
               </figure>

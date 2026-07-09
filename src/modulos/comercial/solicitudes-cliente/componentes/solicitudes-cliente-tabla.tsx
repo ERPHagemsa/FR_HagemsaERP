@@ -30,7 +30,7 @@ import type {
 } from "../tipos/solicitud-cliente.tipos";
 import { EstadoSolicitudBadge } from "./estado-solicitud-badge";
 import { SolicitudesClienteKpis } from "./solicitudes-cliente-kpis";
-import { SolicitudClienteNuevaSheet } from "./solicitud-cliente-nueva-sheet";
+import { SolicitudClienteNuevaModal } from "./solicitud-cliente-nueva-modal";
 
 type Props = {
   items: SolicitudClienteResumen[];
@@ -308,7 +308,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
         }
       />
 
-      <SolicitudClienteNuevaSheet
+      <SolicitudClienteNuevaModal
         abierto={crearAbierto}
         onCerrar={() => setCrearAbierto(false)}
         onCreado={() => {

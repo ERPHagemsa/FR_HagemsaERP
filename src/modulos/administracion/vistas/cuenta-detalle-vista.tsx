@@ -43,6 +43,7 @@ import { cn } from "@/compartido/utilidades/utils"
 
 import { RolesAsignadosSeccion } from "../componentes/roles-asignados-seccion"
 import { SesionesActivasSeccion } from "../componentes/sesiones-activas-seccion"
+import { SocioAsignadoSeccion } from "../componentes/socio-asignado-seccion"
 import { useCuenta } from "../ganchos/use-cuenta"
 import {
   useActualizarCuenta,
@@ -674,6 +675,8 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
               <span className="font-mono text-xs">{data.id}</span>
             </Dato>
           </dl>
+
+          {data.socio ? <SocioAsignadoSeccion socio={data.socio} /> : null}
 
           <RolesAsignadosSeccion cuentaId={data.id} />
 

@@ -15,11 +15,10 @@ import type {
 } from "../../tipos/configuracion-general"
 
 export type TipoListado = TipoDatoMaestro | "TODOS"
-export type TipoJerarquico = "ALMACEN" | "AREA" | "CARGO" | "CONTRATO" | "SEDE"
+export type TipoJerarquico = "AREA" | "CARGO" | "CONTRATO" | "SEDE"
 
 export function esTipoJerarquico(tipo: TipoListado): tipo is TipoJerarquico {
   return (
-    tipo === "ALMACEN" ||
     tipo === "AREA" ||
     tipo === "CARGO" ||
     tipo === "CONTRATO" ||
@@ -30,7 +29,7 @@ export function esTipoJerarquico(tipo: TipoListado): tipo is TipoJerarquico {
 export const detalleListado: Record<TipoListado, { descripcion: string; titulo: string }> = {
   TODOS: {
     titulo: "Todas las configuraciones",
-    descripcion: "Vista general de ubicaciones, sedes, areas, almacenes, cargos, cuentas y contratos.",
+    descripcion: "Vista general de ubicaciones, sedes, areas, cargos, cuentas y contratos.",
   },
   UBICACION: {
     titulo: "Ubicaciones",
@@ -44,10 +43,6 @@ export const detalleListado: Record<TipoListado, { descripcion: string; titulo: 
     titulo: "Areas",
     descripcion: "Gerencias y areas que pertenecen a cada sede.",
   },
-  ALMACEN: {
-    titulo: "Almacenes",
-    descripcion: "Almacenes fijos o temporales de cada ubicacion.",
-  },
   CUENTA: {
     titulo: "Cuentas",
     descripcion: "Cuentas de la empresa de las que pueden depender contratos.",
@@ -60,10 +55,6 @@ export const detalleListado: Record<TipoListado, { descripcion: string; titulo: 
     titulo: "Cargos",
     descripcion: "Puestos de trabajo y a quien reporta cada uno.",
   },
-  REGIMEN: {
-    titulo: "Regimenes",
-    descripcion: "Regimenes de trabajo con sus dias de trabajo, descanso y jornada.",
-  },
 }
 
 // Catalogos que cada tipo necesita exclusivamente para alimentar el formulario
@@ -73,11 +64,9 @@ const catalogosRequeridos: Record<TipoListado, TipoDatoMaestro[]> = {
   UBICACION: [],
   SEDE: ["UBICACION"],
   AREA: ["SEDE", "AREA"],
-  ALMACEN: ["UBICACION", "SEDE"],
   CUENTA: [],
   CONTRATO: ["CUENTA", "CONTRATO"],
-  CARGO: ["CARGO"],
-  REGIMEN: [],
+  CARGO: ["CARGO", "AREA"],
 }
 
 export function obtenerMensajeError(error: unknown) {
@@ -139,6 +128,10 @@ export const columnasPorTipo: Record<TipoListado, ColumnaTipo[]> = {
   ],
   CARGO: [
     {
+      header: "Area",
+      render: (dato) => referenciaTexto(dato.areaNombre, dato.areaId),
+    },
+    {
       header: "Reporta a",
       render: (dato) => referenciaTexto(dato.cargoSuperiorNombre, dato.cargoSuperiorId),
     },
@@ -181,36 +174,10 @@ export const columnasPorTipo: Record<TipoListado, ColumnaTipo[]> = {
       render: (dato) => referenciaTexto(dato.sedeNombre, dato.sedeId),
     },
     {
-      header: "Gerencia",
-      render: (dato) =>
-        dato.nivelArea === "AREA"
-          ? referenciaTexto(dato.gerenciaNombre, dato.gerenciaId)
-          : "-",
-    },
-  ],
-  ALMACEN: [
-    {
-      header: "Ubicacion",
-      render: (dato) => referenciaTexto(dato.ubicacionNombre, dato.ubicacionId),
-    },
-    {
-      header: "Sede",
-      render: (dato) => referenciaTexto(dato.sedeNombre, dato.sedeId),
-    },
-    {
-      header: "Modalidad",
-      render: (dato) => (
-        <Badge variant={dato.esTemporal ? "secondary" : "outline"}>
-          {dato.esTemporal ? "Temporal" : "Fijo"}
-        </Badge>
-      ),
-    },
-    {
-      header: "Vigencia",
-      render: (dato) =>
-        dato.esTemporal
-          ? `${formatearDia(dato.fechaInicio)} - ${formatearDia(dato.fechaFin)}`
-          : "-",
+      // El padre puede ser cualquier area (jerarquia recursiva), no solo cuando el
+      // nivel es AREA. Sin padre = area raiz.
+      header: "Area superior",
+      render: (dato) => referenciaTexto(dato.gerenciaNombre, dato.gerenciaId),
     },
   ],
   CUENTA: [
@@ -233,26 +200,6 @@ export const columnasPorTipo: Record<TipoListado, ColumnaTipo[]> = {
     {
       header: "Pertenece a",
       render: (dato) => referenciaTexto(dato.contratoPadreNombre, dato.contratoPadreId),
-    },
-  ],
-  REGIMEN: [
-    {
-      header: "Codigo",
-      render: (dato) => dato.regimenCodigo ?? "-",
-    },
-    {
-      header: "Ciclo (T/D)",
-      className: "text-right",
-      render: (dato) => (
-        <span className="tabular-nums">
-          {dato.diasTrabajo ?? "-"} / {dato.diasDescanso ?? "-"}
-        </span>
-      ),
-    },
-    {
-      header: "Horas/dia",
-      className: "text-right",
-      render: (dato) => <span className="tabular-nums">{dato.horasPorDia ?? "-"}</span>,
     },
   ],
 }

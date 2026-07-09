@@ -95,7 +95,97 @@ const etiquetaDevengo: Record<UnidadDevengo, string> = {
 }
 const etiquetaBaseConteo: Record<BaseConteo, string> = {
   DIA: "Por dia",
-  NOCHE: "Por noche (dias - 1)",
+  NOCHE: "Por noche",
+}
+
+// --- Plantillas de concepto (UI en lenguaje simple) --------------------------
+//
+// Los 4 campos tecnicos (naturaleza, baseImputacion, unidadDevengo, baseConteo)
+// confunden a un usuario que solo quiere decir "esto se paga por persona cada
+// dia". Cada plantilla es UNA frase de negocio ya completa; elegirla llena los
+// 4 campos tecnicos por detras. No hay caja de resumen aparte: la frase de la
+// tarjeta elegida ES la unica fuente de verdad visible.
+
+type ClavePlantilla = "ALIMENTACION" | "ALOJAMIENTO" | "COCHERA" | "LAVADO" | "SERVICIO_FIJO"
+
+interface DefinicionPlantilla {
+  frase: string
+  ejemplo: string
+  nota?: string
+  naturaleza: NaturalezaConcepto
+  baseImputacion: BaseImputacion
+  unidadDevengo: UnidadDevengo
+  baseConteo: BaseConteo
+}
+
+const plantillasConcepto: Record<ClavePlantilla, DefinicionPlantilla> = {
+  ALIMENTACION: {
+    frase: "Se paga por cada persona, cada dia de viaje",
+    ejemplo: "Alimentacion, viaticos diarios",
+    naturaleza: "VARIABLE",
+    baseImputacion: "PERSONA",
+    unidadDevengo: "DIA_PERSONA",
+    baseConteo: "DIA",
+  },
+  ALOJAMIENTO: {
+    frase: "Se paga por cada persona, cada noche",
+    ejemplo: "Alojamiento, hospedaje",
+    nota: "Las noches se escriben a mano al configurar la ruta + cuenta (no se calculan solas).",
+    naturaleza: "VARIABLE",
+    baseImputacion: "PERSONA",
+    unidadDevengo: "DIA_PERSONA",
+    baseConteo: "NOCHE",
+  },
+  COCHERA: {
+    frase: "Se paga por cada vehiculo, cada dia de viaje",
+    ejemplo: "Cochera, estacionamiento",
+    naturaleza: "VARIABLE",
+    baseImputacion: "UNIDAD",
+    unidadDevengo: "DIA_UNIDAD",
+    baseConteo: "DIA",
+  },
+  LAVADO: {
+    frase: "Se paga una sola vez por viaje",
+    ejemplo: "Lavado del vehiculo",
+    naturaleza: "FIJO",
+    baseImputacion: "UNIDAD",
+    unidadDevengo: "VIAJE",
+    baseConteo: "DIA",
+  },
+  SERVICIO_FIJO: {
+    frase: "Se paga una sola vez por todo el servicio",
+    ejemplo: "Gasto fijo del contrato, sin importar dias",
+    naturaleza: "FIJO",
+    baseImputacion: "SERVICIO",
+    unidadDevengo: "SERVICIO",
+    baseConteo: "DIA",
+  },
+}
+
+// Frase en lenguaje simple a partir de los 4 campos tecnicos actuales. Se usa
+// en la tarjeta de resumen del catalogo (no en el dialogo: ahi la frase vive
+// en la plantilla elegida).
+function fraseComportamientoConcepto(unidadDevengo: UnidadDevengo, baseConteo: BaseConteo): string {
+  if (unidadDevengo === "VIAJE") return "Se paga una sola vez por cada viaje."
+  if (unidadDevengo === "SERVICIO") return "Se paga una sola vez por todo el servicio contratado."
+  const unidadTiempo = baseConteo === "NOCHE" ? "noche" : "dia"
+  if (unidadDevengo === "DIA_PERSONA") return `Se paga por cada persona, en cada ${unidadTiempo} del viaje.`
+  if (unidadDevengo === "DIA_UNIDAD") return `Se paga por cada vehiculo, en cada ${unidadTiempo} del viaje.`
+  return ""
+}
+
+// Al editar un concepto existente, detecta que plantilla calza para dejarla
+// preseleccionada. null = ningun caso comun calza -> abrir modo manual.
+function detectarPlantilla(concepto?: ConceptoCostoResponse): ClavePlantilla | null {
+  if (!concepto) return "ALIMENTACION"
+  const entrada = Object.entries(plantillasConcepto).find(
+    ([, def]) =>
+      def.naturaleza === concepto.naturaleza &&
+      def.baseImputacion === concepto.baseImputacion &&
+      def.unidadDevengo === concepto.unidadDevengo &&
+      def.baseConteo === concepto.baseConteo,
+  )
+  return (entrada?.[0] as ClavePlantilla) ?? null
 }
 // El devengo responde: "una sola vez, cada cuanto se paga este costo?".
 const ayudaDevengo: Record<UnidadDevengo, string> = {
@@ -214,14 +304,20 @@ function ConceptoDialog({
   const usuarioId = usuario?.email ?? "admin"
   const [nombre, setNombre] = useState(concepto?.nombre ?? "")
   const [descripcion, setDescripcion] = useState(concepto?.descripcion ?? "")
-  const [naturaleza, setNaturaleza] = useState<NaturalezaConcepto>(concepto?.naturaleza ?? "VARIABLE")
+  const [naturaleza, setNaturaleza] = useState<NaturalezaConcepto>(
+    concepto?.naturaleza ?? plantillasConcepto.ALIMENTACION.naturaleza,
+  )
   const [baseImputacion, setBaseImputacion] = useState<BaseImputacion>(
-    concepto?.baseImputacion ?? "SERVICIO",
+    concepto?.baseImputacion ?? plantillasConcepto.ALIMENTACION.baseImputacion,
   )
   const [unidadDevengo, setUnidadDevengo] = useState<UnidadDevengo>(
-    concepto?.unidadDevengo ?? "VIAJE",
+    concepto?.unidadDevengo ?? plantillasConcepto.ALIMENTACION.unidadDevengo,
   )
-  const [baseConteo, setBaseConteo] = useState<BaseConteo>(concepto?.baseConteo ?? "DIA")
+  const [baseConteo, setBaseConteo] = useState<BaseConteo>(
+    concepto?.baseConteo ?? plantillasConcepto.ALIMENTACION.baseConteo,
+  )
+  const [plantilla, setPlantilla] = useState<ClavePlantilla | null>(() => detectarPlantilla(concepto))
+  const [modoManual, setModoManual] = useState(() => detectarPlantilla(concepto) === null)
   const [montoReferencial, setMontoReferencial] = useState(
     concepto?.montoReferencial != null ? String(concepto.montoReferencial) : "",
   )
@@ -305,71 +401,143 @@ function ConceptoDialog({
             onChange={(e) => setDescripcion(e.target.value)}
           />
         </Field>
-        <div className="rounded-lg border border-border bg-muted/30 p-4">
-          <p className="text-sm font-medium">Como se comporta el costo</p>
-          <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
-            Tres preguntas que describen el costo. No es el precio: el precio se pone despues.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field>
-              <FieldLabel>1. Cambia en el tiempo?</FieldLabel>
-              <Select value={naturaleza} onValueChange={(v) => setNaturaleza(v as NaturalezaConcepto)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FIJO">Fijo - monto unico</SelectItem>
-                  <SelectItem value="VARIABLE">Variable - se acumula por dia</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field>
-              <FieldLabel>2. A quien o a que se le carga?</FieldLabel>
-              <Select
-                value={baseImputacion}
-                onValueChange={(v) => setBaseImputacion(v as BaseImputacion)}
+        <div>
+          <p className="mb-2 text-sm font-medium">Como se paga este costo</p>
+
+          {!modoManual ? (
+            <>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {(Object.entries(plantillasConcepto) as [ClavePlantilla, DefinicionPlantilla][]).map(
+                  ([clave, def]) => {
+                    const seleccionado = plantilla === clave
+                    return (
+                      <button
+                        key={clave}
+                        type="button"
+                        onClick={() => {
+                          setPlantilla(clave)
+                          setNaturaleza(def.naturaleza)
+                          setBaseImputacion(def.baseImputacion)
+                          setUnidadDevengo(def.unidadDevengo)
+                          setBaseConteo(def.baseConteo)
+                        }}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          seleccionado
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "border-border bg-background hover:bg-muted/40"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">{def.frase}</p>
+                        <p className="text-xs text-muted-foreground">{def.ejemplo}</p>
+                        {def.nota ? (
+                          <p className="mt-1 text-[11px] text-amber-600">{def.nota}</p>
+                        ) : null}
+                      </button>
+                    )
+                  },
+                )}
+              </div>
+              <button
+                type="button"
+                className="mt-2 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                onClick={() => setModoManual(true)}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="UNIDAD">A la unidad (vehiculo)</SelectItem>
-                  <SelectItem value="PERSONA">A la persona (conductor)</SelectItem>
-                  <SelectItem value="SERVICIO">Al servicio completo</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field className="sm:col-span-2">
-              <FieldLabel>3. Cada cuanto se paga (una sola vez)?</FieldLabel>
-              <Select value={unidadDevengo} onValueChange={(v) => setUnidadDevengo(v as UnidadDevengo)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="VIAJE">1 vez por viaje</SelectItem>
-                  <SelectItem value="DIA_PERSONA">1 vez por persona por dia</SelectItem>
-                  <SelectItem value="DIA_UNIDAD">1 vez por vehiculo por dia</SelectItem>
-                  <SelectItem value="SERVICIO">1 vez por todo el servicio</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {ayudaDevengo[unidadDevengo]} Evita pagar el mismo costo dos veces cuando hay varios
-                viajes.
-              </p>
-            </Field>
-            <Field className="sm:col-span-2">
-              <FieldLabel>4. Como se cuentan los dias del viaje?</FieldLabel>
-              <Select value={baseConteo} onValueChange={(v) => setBaseConteo(v as BaseConteo)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DIA">Por dia - cantidad = dias del viaje</SelectItem>
-                  <SelectItem value="NOCHE">Por noche - cantidad = dias - 1 (no se paga ultima noche)</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
+                Ninguna opcion aplica, configurar a mano
+              </button>
+            </>
+          ) : (
+            <div className="flex flex-col gap-4 rounded-lg border border-border bg-muted/30 p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Configuracion manual</p>
+                <button
+                  type="button"
+                  className="text-xs text-primary underline underline-offset-2"
+                  onClick={() => {
+                    setModoManual(false)
+                    setPlantilla("ALIMENTACION")
+                    const def = plantillasConcepto.ALIMENTACION
+                    setNaturaleza(def.naturaleza)
+                    setBaseImputacion(def.baseImputacion)
+                    setUnidadDevengo(def.unidadDevengo)
+                    setBaseConteo(def.baseConteo)
+                  }}
+                >
+                  Volver a las opciones comunes
+                </button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel>Cambia en el tiempo?</FieldLabel>
+                  <Select value={naturaleza} onValueChange={(v) => setNaturaleza(v as NaturalezaConcepto)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FIJO">Fijo - monto unico</SelectItem>
+                      <SelectItem value="VARIABLE">Variable - se acumula por dia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel>A quien o a que se le carga?</FieldLabel>
+                  <Select
+                    value={baseImputacion}
+                    onValueChange={(v) => setBaseImputacion(v as BaseImputacion)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UNIDAD">A la unidad (vehiculo)</SelectItem>
+                      <SelectItem value="PERSONA">A la persona (conductor)</SelectItem>
+                      <SelectItem value="SERVICIO">Al servicio completo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field className="sm:col-span-2">
+                  <FieldLabel>Cada cuanto se paga (una sola vez)?</FieldLabel>
+                  <Select
+                    value={unidadDevengo}
+                    onValueChange={(v) => setUnidadDevengo(v as UnidadDevengo)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="VIAJE">1 vez por viaje</SelectItem>
+                      <SelectItem value="DIA_PERSONA">1 vez por persona por dia</SelectItem>
+                      <SelectItem value="DIA_UNIDAD">1 vez por vehiculo por dia</SelectItem>
+                      <SelectItem value="SERVICIO">1 vez por todo el servicio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {ayudaDevengo[unidadDevengo]} Evita pagar el mismo costo dos veces cuando hay
+                    varios viajes.
+                  </p>
+                </Field>
+                {unidadDevengo === "DIA_PERSONA" || unidadDevengo === "DIA_UNIDAD" ? (
+                  <Field className="sm:col-span-2">
+                    <FieldLabel>Se cuenta por dia o por noche?</FieldLabel>
+                    <Select value={baseConteo} onValueChange={(v) => setBaseConteo(v as BaseConteo)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DIA">Por dia</SelectItem>
+                        <SelectItem value="NOCHE">Por noche</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {baseConteo === "NOCHE" ? (
+                      <p className="text-xs text-amber-600">
+                        Las noches se escriben a mano al configurar la ruta + cuenta (no se calculan
+                        solas).
+                      </p>
+                    ) : null}
+                  </Field>
+                ) : null}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="rounded-lg border border-border bg-muted/30 p-4">
@@ -454,11 +622,12 @@ function ConceptoCard({
           <p className="font-mono text-xs text-muted-foreground">{concepto.codigo}</p>
           <h2 className="mt-1 line-clamp-2 text-base font-semibold">{concepto.nombre}</h2>
         </div>
+        <p className="text-xs text-muted-foreground">
+          {fraseComportamientoConcepto(concepto.unidadDevengo, concepto.baseConteo)}
+        </p>
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="secondary">{etiquetaNaturaleza[concepto.naturaleza]}</Badge>
           <Badge variant="secondary">{etiquetaBase[concepto.baseImputacion]}</Badge>
-          <Badge variant="secondary">{etiquetaDevengo[concepto.unidadDevengo]}</Badge>
-          <Badge variant="secondary">{etiquetaBaseConteo[concepto.baseConteo]}</Badge>
         </div>
         {concepto.montoReferencial != null ? (
           <p className="text-xs text-muted-foreground">

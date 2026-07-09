@@ -5,11 +5,14 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  CalendarDays,
   ClipboardCheck,
+  Download,
   Eye,
   History,
   Pencil,
   Save,
+  X,
 } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -51,6 +54,11 @@ import {
   cerrarInventarioFisico,
   registrarRevisionInventarioFisico,
 } from "../servicios/activos-api";
+import {
+  obtenerAsignacionesContratosFlota,
+  type AsignacionContratoFlota,
+} from "../servicios/flota-asignaciones-api";
+import { exportarInventarioFisicoExcel } from "../servicios/inventario-fisico-excel";
 import {
   useDocumentosActivoQuery,
   useImagenesActivoQuery,
@@ -94,6 +102,9 @@ export function InventarioFisicoDetallePanel({
   const [inventario, setInventario] = React.useState(inventarioInicial);
   const [busqueda, setBusqueda] = React.useState("");
   const [estadoFiltro, setEstadoFiltro] = React.useState<FiltroRevision>("TODOS");
+  // Filtro por fecha de revision (AAAA-MM-DD); tambien acota el export a Excel.
+  const [fechaRevisionDesde, setFechaRevisionDesde] = React.useState("");
+  const [fechaRevisionHasta, setFechaRevisionHasta] = React.useState("");
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
   const [error, setError] = React.useState<string | null>(null);
@@ -103,11 +114,20 @@ export function InventarioFisicoDetallePanel({
   const [detalleSeleccionadoKey, setDetalleSeleccionadoKey] = React.useState<
     string | null
   >(null);
+  const [asignacionesFlota, setAsignacionesFlota] = React.useState<
+    Map<number, AsignacionContratoFlota>
+  >(new Map());
   const catalogos = useCatalogosActivos();
 
   const detallesBase = React.useMemo(
-    () => construirDetallesInventario(inventario, activosMaestro, catalogos),
-    [inventario, activosMaestro, catalogos]
+    () =>
+      construirDetallesInventario(
+        inventario,
+        activosMaestro,
+        catalogos,
+        asignacionesFlota
+      ),
+    [inventario, activosMaestro, catalogos, asignacionesFlota]
   );
 
   const detallesFiltrados = detallesBase.filter((detalle) => {
@@ -123,6 +143,10 @@ export function InventarioFisicoDetallePanel({
       detalle.estadoActivo,
       detalle.estadoOperativo,
       detalle.estadoCalibracion,
+      detalle.cuentaCodigo,
+      detalle.cuentaNombre,
+      detalle.contratoCodigo,
+      detalle.contratoNombre,
     ];
     const coincideBusqueda =
       !query ||
@@ -136,7 +160,17 @@ export function InventarioFisicoDetallePanel({
         ? detalle.estadoRevision !== "PENDIENTE"
         : detalle.estadoRevision === estadoFiltro);
 
-    return coincideBusqueda && coincideEstado;
+    // Rango por fecha de revision: si hay rango activo, los detalles aun sin
+    // revisar (sin fecha) quedan fuera — el rango pregunta "que se reviso
+    // entre estas fechas".
+    const fechaRevision = detalle.fechaRevision?.slice(0, 10) ?? null;
+    const coincideFechaRevision =
+      (!fechaRevisionDesde && !fechaRevisionHasta) ||
+      (fechaRevision !== null &&
+        (!fechaRevisionDesde || fechaRevision >= fechaRevisionDesde) &&
+        (!fechaRevisionHasta || fechaRevision <= fechaRevisionHasta));
+
+    return coincideBusqueda && coincideEstado && coincideFechaRevision;
   });
 
   const totalPaginas = Math.max(
@@ -161,7 +195,28 @@ export function InventarioFisicoDetallePanel({
 
   React.useEffect(() => {
     setPagina(1);
-  }, [busqueda, estadoFiltro, detallesBase.length, registrosPorPagina]);
+  }, [
+    busqueda,
+    estadoFiltro,
+    fechaRevisionDesde,
+    fechaRevisionHasta,
+    detallesBase.length,
+    registrosPorPagina,
+  ]);
+
+  React.useEffect(() => {
+    let cancelado = false;
+
+    obtenerAsignacionesContratosFlota().then((asignaciones) => {
+      if (!cancelado) {
+        setAsignacionesFlota(asignaciones);
+      }
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   React.useEffect(() => {
     if (detalleSeleccionadoKey || !activoInicial) {
@@ -410,7 +465,7 @@ export function InventarioFisicoDetallePanel({
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
               <input
                 value={busqueda}
                 onChange={(event) => setBusqueda(event.target.value)}
@@ -429,6 +484,71 @@ export function InventarioFisicoDetallePanel({
                 <option value="REGISTRADO">Registrado</option>
                 <option value="FALTANTE">Faltante</option>
               </select>
+              <div className="grid gap-1.5">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Fecha revision
+                </span>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <label className="flex h-10 items-center gap-2 rounded-full border border-input bg-background px-3 text-sm focus-within:ring-2 focus-within:ring-ring">
+                    <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Desde</span>
+                    <input
+                      type="date"
+                      value={fechaRevisionDesde}
+                      onChange={(event) => setFechaRevisionDesde(event.target.value)}
+                      title="Fecha de revision desde"
+                      aria-label="Fecha de revision desde"
+                      className="h-8 bg-transparent text-sm outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                    />
+                  </label>
+                  <label className="flex h-10 items-center gap-2 rounded-full border border-input bg-background px-3 text-sm focus-within:ring-2 focus-within:ring-ring">
+                    <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Hasta</span>
+                    <input
+                      type="date"
+                      value={fechaRevisionHasta}
+                      onChange={(event) => setFechaRevisionHasta(event.target.value)}
+                      title="Fecha de revision hasta"
+                      aria-label="Fecha de revision hasta"
+                      className="h-8 bg-transparent text-sm outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                    />
+                  </label>
+                  {(fechaRevisionDesde || fechaRevisionHasta) ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-10 rounded-full"
+                      onClick={() => {
+                        setFechaRevisionDesde("");
+                        setFechaRevisionHasta("");
+                      }}
+                      title="Limpiar fechas"
+                      aria-label="Limpiar fechas"
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!detallesFiltrados.length}
+                onClick={async () => {
+                  try {
+                    await exportarInventarioFisicoExcel(inventario, detallesFiltrados);
+                    toast.success(
+                      `Excel descargado: ${detallesFiltrados.length} activo(s) del inventario ${inventario.codigo}.`
+                    );
+                  } catch {
+                    toast.error("No se pudo generar el Excel del inventario.");
+                  }
+                }}
+              >
+                <Download className="size-4" />
+                Exportar Excel
+              </Button>
             </div>
 
           <div className="overflow-hidden rounded-xl border border-border">
@@ -575,6 +695,17 @@ function DetalleRow({
             }
           />
           <TextoDato label="Carroceria" value={detalle.carroceria} />
+          <TextoDato
+            label="Cuenta"
+            value={formatearAsignacionFlota(detalle.cuentaCodigo, detalle.cuentaNombre)}
+          />
+          <TextoDato
+            label="Contrato"
+            value={formatearAsignacionFlota(
+              detalle.contratoCodigo,
+              detalle.contratoNombre
+            )}
+          />
           <div className="mt-1 flex flex-wrap gap-1">
             <Badge variant="outline">
               {formatear(detalle.estadoOperativo)}
@@ -864,6 +995,26 @@ function FichaRevisionInventario({
                   <DatoInventario
                     label="Carroceria"
                     value={vehiculo?.carroceria ?? detalle.carroceria}
+                  />
+                  <DatoInventario label="Zona registral" value={vehiculo?.zonaRegistral} />
+                  <DatoInventario label="Tarjeta propiedad" value={vehiculo?.tarjetaPropiedad} />
+                  <DatoInventario
+                    label="Tipo tarjeta propiedad"
+                    value={vehiculo?.tipoTarjetaPropiedad}
+                  />
+                  <DatoInventario
+                    label="Cuenta"
+                    value={formatearAsignacionFlota(
+                      detalle.cuentaCodigo,
+                      detalle.cuentaNombre
+                    )}
+                  />
+                  <DatoInventario
+                    label="Contrato"
+                    value={formatearAsignacionFlota(
+                      detalle.contratoCodigo,
+                      detalle.contratoNombre
+                    )}
                   />
                   <DatoInventario label="Ejes" value={vehiculo?.ejes} />
                   <DatoInventario label="Categoria" value={vehiculo?.categoria} />
@@ -1569,6 +1720,21 @@ function SnapshotInventario({
             snapshotRaw={leerSnapshot(vehiculo, "carroceria") ?? detalle.carroceria}
             maestroRaw={activo?.vehiculo?.carroceria}
           />
+          <DatoConciliado
+            label="Zona registral"
+            snapshotRaw={leerSnapshot(vehiculo, "zonaRegistral")}
+            maestroRaw={activo?.vehiculo?.zonaRegistral}
+          />
+          <DatoConciliado
+            label="Tarjeta propiedad"
+            snapshotRaw={leerSnapshot(vehiculo, "tarjetaPropiedad")}
+            maestroRaw={activo?.vehiculo?.tarjetaPropiedad}
+          />
+          <DatoConciliado
+            label="Tipo tarjeta propiedad"
+            snapshotRaw={leerSnapshot(vehiculo, "tipoTarjetaPropiedad")}
+            maestroRaw={activo?.vehiculo?.tipoTarjetaPropiedad}
+          />
           <DatoInventario label="Ejes" value={leerSnapshot(vehiculo, "ejes")} />
           <DatoInventario
             label="Categoria"
@@ -1821,6 +1987,9 @@ function construirFilasComparativo(actualAnterior: unknown, actual: unknown) {
     { campo: "Placa", path: ["vehiculo", "placa"] },
     { campo: "Clase", path: ["vehiculo", "plantillaInventario"] },
     { campo: "Carroceria", path: ["vehiculo", "carroceria"] },
+    { campo: "Zona registral", path: ["vehiculo", "zonaRegistral"] },
+    { campo: "Tarjeta propiedad", path: ["vehiculo", "tarjetaPropiedad"] },
+    { campo: "Tipo tarjeta propiedad", path: ["vehiculo", "tipoTarjetaPropiedad"] },
     { campo: "Marca", path: ["vehiculo", "marca"] },
     { campo: "Modelo", path: ["vehiculo", "modelo"] },
     { campo: "Serie chasis", path: ["vehiculo", "serieChasis"] },
@@ -2126,10 +2295,18 @@ function formatearEstadoActivo(value?: string | null) {
   return value ?? "-";
 }
 
+function formatearAsignacionFlota(
+  codigo?: string | null,
+  nombre?: string | null
+) {
+  return [codigo, nombre].filter(Boolean).join(" - ") || "Sin asignacion";
+}
+
 function construirDetallesInventario(
   inventario: InventarioFisico,
   activosMaestro: Activo[],
-  catalogos: CatalogosActivos
+  catalogos: CatalogosActivos,
+  asignacionesFlota: Map<number, AsignacionContratoFlota>
 ): InventarioFisicoDetalle[] {
   const detallesPorActivo = new Map<number, InventarioFisicoDetalle>();
 
@@ -2145,9 +2322,18 @@ function construirDetallesInventario(
 
   const detallesDesdeMaestro = vehiculosVigentes.map((activo) => {
     const existente = detallesPorActivo.get(activo.id);
+    const asignacion = asignacionesFlota.get(activo.id);
 
     if (existente) {
-      return existente;
+      return {
+        ...existente,
+        cuentaCodigo: asignacion?.cuentaCodigo ?? existente.cuentaCodigo ?? null,
+        cuentaNombre: asignacion?.cuentaNombre ?? existente.cuentaNombre ?? null,
+        contratoCodigo:
+          asignacion?.contratoCodigo ?? existente.contratoCodigo ?? null,
+        contratoNombre:
+          asignacion?.contratoNombre ?? existente.contratoNombre ?? null,
+      };
     }
 
     const vehiculo = activo.vehiculo;
@@ -2174,6 +2360,10 @@ function construirDetallesInventario(
       carroceria: vehiculo?.carroceria ?? null,
       estadoOperativo: vehiculo?.estadoOperativo ?? null,
       estadoCalibracion: estadoCalibracionNombre || null,
+      cuentaCodigo: asignacion?.cuentaCodigo ?? null,
+      cuentaNombre: asignacion?.cuentaNombre ?? null,
+      contratoCodigo: asignacion?.contratoCodigo ?? null,
+      contratoNombre: asignacion?.contratoNombre ?? null,
       placa: vehiculo?.placa ?? null,
       ubicacionEsperada: activo.ubicacion,
       ubicacionEncontrada: null,
@@ -2198,9 +2388,21 @@ function construirDetallesInventario(
   });
 
   const idsMaestro = new Set(vehiculosVigentes.map((activo) => activo.id));
-  const detallesFueraDelMaestro = inventario.detalles.filter(
-    (detalle) => !idsMaestro.has(detalle.activoId)
-  );
+  const detallesFueraDelMaestro = inventario.detalles
+    .filter((detalle) => !idsMaestro.has(detalle.activoId))
+    .map((detalle) => {
+      const asignacion = asignacionesFlota.get(detalle.activoId);
+
+      return {
+        ...detalle,
+        cuentaCodigo: asignacion?.cuentaCodigo ?? detalle.cuentaCodigo ?? null,
+        cuentaNombre: asignacion?.cuentaNombre ?? detalle.cuentaNombre ?? null,
+        contratoCodigo:
+          asignacion?.contratoCodigo ?? detalle.contratoCodigo ?? null,
+        contratoNombre:
+          asignacion?.contratoNombre ?? detalle.contratoNombre ?? null,
+      };
+    });
 
   return [...detallesDesdeMaestro, ...detallesFueraDelMaestro];
 }

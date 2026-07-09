@@ -30,7 +30,7 @@ import { PanelUbicacionesPorCompletar } from "@/modulos/comercial/ubicaciones/co
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
 import { CLAVE_COTIZACION_DETALLE } from "@/modulos/comercial/claves-consulta";
 import { accionesPermitidas, etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
-import type { Cotizacion, EstadoCotizacion } from "../tipos/cotizaciones.tipos";
+import type { Cotizacion, EstadoCotizacion, Version } from "../tipos/cotizaciones.tipos";
 
 type Props = {
   id: string;
@@ -79,6 +79,10 @@ function CotizacionDetalleContenido({
   const historialQuery = useHistorialAprobacionesQuery(cotizacion.id);
   const solicitudVigente =
     historialQuery.data?.find((solicitud) => solicitud.estado === "EN_APROBACION") ?? null;
+
+  // Origen/destino distintos de la ruta (para el panel de Ubicaciones tras ganar):
+  // los que tengan temporal están por completar; el resto ya vive en el maestro.
+  const rutasUbicacion = rutasDeVersion(vigente);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -169,11 +173,29 @@ function CotizacionDetalleContenido({
 
         {/* === Ubicaciones por completar (solo tras ganar) === */}
         {cotizacion.estado === "GANADA" ? (
-          <PanelUbicacionesPorCompletar idCotizacion={cotizacion.id} />
+          <PanelUbicacionesPorCompletar
+            idCotizacion={cotizacion.id}
+            rutas={rutasUbicacion}
+          />
         ) : null}
       </div>
     </main>
   );
+}
+
+// Nombres de origen/destino distintos de las líneas de una versión (la ruta se
+// captura en las líneas de transporte, en `carga.origen/destino`). Insensible a
+// duplicados; conserva el nombre tal cual para cruzarlo con las temporales.
+function rutasDeVersion(version: Version | null): string[] {
+  if (!version) return [];
+  const nombres = new Map<string, string>(); // clave lower → nombre original
+  for (const linea of version.lineas) {
+    for (const punto of [linea.carga?.origen, linea.carga?.destino]) {
+      const nombre = punto?.trim();
+      if (nombre) nombres.set(nombre.toLowerCase(), nombre);
+    }
+  }
+  return [...nombres.values()];
 }
 
 // ---------------------------------------------------------------------------

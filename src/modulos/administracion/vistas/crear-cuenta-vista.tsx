@@ -25,8 +25,18 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select"
 
+import { SocioPicker, type SocioSeleccionado } from "../componentes/socio-picker"
 import { useCrearCuenta } from "../ganchos/use-mutaciones-cuenta"
 import type { TipoCuenta } from "../tipos/administracion.tipos"
+
+// Normaliza un codigo de socio/cuenta: mayusculas, solo alfanumericos, max 20.
+// Refleja la regla del dominio (^[A-Z0-9]{1,20}$) directamente en el input.
+function normalizarCodigo(valor: string): string {
+  return valor
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 20)
+}
 
 export function CrearCuentaVista() {
   const router = useRouter()
@@ -35,13 +45,42 @@ export function CrearCuentaVista() {
   const [nombreCompleto, setNombreCompleto] = useState("")
   const [tipoCuenta, setTipoCuenta] = useState<TipoCuenta>("interno")
   const [documentoIdentidad, setDocumentoIdentidad] = useState("")
+  // Vinculo opcional con un socio de negocio (BC01). Independiente de los codigos.
+  const [socio, setSocio] = useState<SocioSeleccionado | null>(null)
+  const [codigoSocio, setCodigoSocio] = useState("")
+  const [codigoCuenta, setCodigoCuenta] = useState("")
   const [error, setError] = useState<string | null>(null)
 
   const crearMutation = useCrearCuenta()
 
+  // Al elegir un socio, su DNI ya viene de BC01: lo tomamos y bloqueamos el
+  // campo manual. Al quitar el socio, se libera para carga manual.
+  function manejarCambioSocio(nuevo: SocioSeleccionado | null) {
+    setSocio(nuevo)
+    setDocumentoIdentidad(nuevo?.documento ?? "")
+  }
+
   async function manejarSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+
+    // Codigos internos: opcionales e independientes del socio. Son "todo o nada":
+    // ambos o ninguno, y distintos entre si.
+    const tocoCodigos = codigoSocio !== "" || codigoCuenta !== ""
+    if (tocoCodigos) {
+      if (codigoSocio.length === 0 || codigoCuenta.length === 0) {
+        const mensaje = "Completa ambos códigos internos o deja los dos vacíos."
+        setError(mensaje)
+        toast.error(mensaje)
+        return
+      }
+      if (codigoSocio === codigoCuenta) {
+        const mensaje = "El código de socio y el de cuenta deben ser distintos."
+        setError(mensaje)
+        toast.error(mensaje)
+        return
+      }
+    }
 
     try {
       const respuesta = await crearMutation.mutateAsync({
@@ -50,6 +89,15 @@ export function CrearCuentaVista() {
         nombreCompleto: nombreCompleto.trim(),
         tipoCuenta,
         documentoIdentidad: documentoIdentidad.trim() || undefined,
+        // Codigos y socio viajan por separado: pueden ir juntos, solo uno, o ninguno.
+        ...(tocoCodigos ? { codigoSocio, codigoCuenta } : {}),
+        ...(socio
+          ? {
+              socioExternoId: socio.socioExternoId,
+              tipoSocio: "empleado" as const,
+              socioSnapshot: socio.datos as unknown as Record<string, unknown>,
+            }
+          : {}),
       })
       toast.success("Cuenta creada correctamente")
       router.push(`/admin/cuentas/${respuesta.id}`)
@@ -154,7 +202,9 @@ export function CrearCuentaVista() {
               </Field>
               <Field className="sm:col-span-2">
                 <FieldLabel htmlFor="documentoIdentidad">
-                  Documento de identidad (opcional)
+                  {socio
+                    ? "Documento de identidad (del socio de negocio)"
+                    : "Documento de identidad (opcional)"}
                 </FieldLabel>
                 <Input
                   id="documentoIdentidad"
@@ -163,8 +213,77 @@ export function CrearCuentaVista() {
                   value={documentoIdentidad}
                   onChange={(e) => setDocumentoIdentidad(e.target.value)}
                   maxLength={50}
+                  disabled={socio !== null}
+                  aria-readonly={socio !== null}
                 />
+                {socio ? (
+                  <p className="text-xs text-muted-foreground">
+                    Se toma automáticamente del socio seleccionado.
+                  </p>
+                ) : null}
               </Field>
+
+              <div className="space-y-4 border-t pt-4 sm:col-span-2">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-medium">
+                    Códigos internos (opcional)
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Códigos para la generación de códigos en PDFs (hasta 20
+                    caracteres alfanuméricos, distintos entre sí). Son "todo o
+                    nada": ambos o ninguno. Son independientes del socio.
+                  </p>
+                </div>
+
+                <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="codigoSocio">Código de socio</FieldLabel>
+                    <Input
+                      id="codigoSocio"
+                      className="rounded-md uppercase"
+                      type="text"
+                      autoComplete="off"
+                      inputMode="text"
+                      value={codigoSocio}
+                      onChange={(e) => setCodigoSocio(normalizarCodigo(e.target.value))}
+                      maxLength={20}
+                      placeholder="Ej. BA"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel htmlFor="codigoCuenta">Código de cuenta</FieldLabel>
+                    <Input
+                      id="codigoCuenta"
+                      className="rounded-md uppercase"
+                      type="text"
+                      autoComplete="off"
+                      inputMode="text"
+                      value={codigoCuenta}
+                      onChange={(e) => setCodigoCuenta(normalizarCodigo(e.target.value))}
+                      maxLength={20}
+                      placeholder="Ej. C1"
+                    />
+                  </Field>
+                </FieldGroup>
+              </div>
+
+              <div className="space-y-4 border-t pt-4 sm:col-span-2">
+                <div className="space-y-1">
+                  <h2 className="text-sm font-medium">
+                    Socio de negocio (opcional)
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Vincula la cuenta a un socio de BC01. El documento de
+                    identidad se toma del socio seleccionado.
+                  </p>
+                </div>
+
+                <Field>
+                  <FieldLabel>Socio</FieldLabel>
+                  <SocioPicker value={socio} onChange={manejarCambioSocio} />
+                </Field>
+              </div>
+
               {error ? (
                 <Field data-invalid className="sm:col-span-2">
                   <FieldError>{error}</FieldError>

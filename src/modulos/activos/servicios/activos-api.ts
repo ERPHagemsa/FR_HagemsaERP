@@ -22,6 +22,7 @@ import type {
   CrearDocumentoActivoPayload,
   CrearImagenActivoPayload,
   CrearInventarioFisicoPayload,
+  MetadataOrigenCambio,
   CrearTanqueActivoPayload,
   DocumentoActivo,
   EstadoActivo,
@@ -407,11 +408,24 @@ export async function crearImagenPorCodigo(
   return data;
 }
 
+/** Serializa la metadata de origen como query params para los DELETE. */
+function paramsOrigen(origen?: MetadataOrigenCambio) {
+  if (!origen) return undefined;
+  const params = Object.fromEntries(
+    Object.entries(origen).filter(([, valor]) => valor !== undefined)
+  );
+  return Object.keys(params).length ? { params } : undefined;
+}
+
 export async function eliminarImagenPorCodigo(
   codigo: string,
-  imagenId: number
+  imagenId: number,
+  origen?: MetadataOrigenCambio
 ): Promise<void> {
-  await clienteActivos.delete(`/activos/codigo/${codigo}/imagenes/${imagenId}`);
+  await clienteActivos.delete(
+    `/activos/codigo/${codigo}/imagenes/${imagenId}`,
+    paramsOrigen(origen)
+  );
 }
 
 export async function obtenerDocumentosPorCodigo(
@@ -445,10 +459,12 @@ export async function crearDocumentoPorCodigo(
 
 export async function eliminarDocumentoPorCodigo(
   codigo: string,
-  documentoId: number
+  documentoId: number,
+  origen?: MetadataOrigenCambio
 ): Promise<void> {
   await clienteActivos.delete(
-    `/activos/codigo/${codigo}/documentos/${documentoId}`
+    `/activos/codigo/${codigo}/documentos/${documentoId}`,
+    paramsOrigen(origen)
   );
 }
 
@@ -459,10 +475,12 @@ export async function eliminarDocumentoPorCodigo(
  */
 export async function quitarCoberturaDocumentoCompartidoPorCodigo(
   codigo: string,
-  documentoCompartidoId: number
+  documentoCompartidoId: number,
+  origen?: MetadataOrigenCambio
 ): Promise<void> {
   await clienteActivos.delete(
-    `/activos/codigo/${codigo}/documentos-compartidos/${documentoCompartidoId}`
+    `/activos/codigo/${codigo}/documentos-compartidos/${documentoCompartidoId}`,
+    paramsOrigen(origen)
   );
 }
 

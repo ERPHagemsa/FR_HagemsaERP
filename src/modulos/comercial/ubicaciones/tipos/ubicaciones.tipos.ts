@@ -38,9 +38,16 @@ export interface UbicacionTemporal {
   latitud: number | null;
   longitud: number | null;
   idUbicacion: string | null;
+  // Correcciones ya enviadas tras la creación en BC-14 (la creación no cuenta).
+  // Tope 3: el frontend bloquea el botón "Corregir" al llegar al máximo.
+  intentosActualizacion: number;
   fechaCreacion: string;
   fechaModificacion: string | null;
 }
+
+// Máximo de correcciones que admite una ubicación ya sincronizada (debe coincidir
+// con MAX_CORRECCIONES del backend). La creación es el "intento 0" y no cuenta.
+export const MAX_CORRECCIONES_UBICACION = 3;
 
 // Ubicación del maestro de BC-14 (candidata de dedup / réplica local).
 export interface UbicacionBc14 {
@@ -59,7 +66,7 @@ export interface UbicacionBc14 {
 
 // Ubicación maestra local (réplica confirmada de BC-14).
 export interface Ubicacion extends UbicacionBc14 {
-  idUbicacionBc14: string;
+  idUbicacionBc14: number; // entero autoincremental que asigna BC-14
   fechaCreacion: string;
 }
 
@@ -70,36 +77,33 @@ export interface DatosUbicacionGeo {
   nombre?: string;
   pais: string;
   departamento: string;
+  codigoDepartamento?: string;
   provincia: string;
+  codigoProvincia?: string;
   distrito: string;
+  codigoDistrito?: string;
+  ubigeo?: string;
   direccion: string;
   latitud: number;
   longitud: number;
 }
 
-// Filtros del proxy de búsqueda/dedup contra BC-14.
-export interface FiltroUbicacionesBc14 {
-  nombre?: string;
-  departamento?: string;
-  provincia?: string;
-  distrito?: string;
-}
-
-// Payload para completar una ubicación temporal. La decisión de dedup es
-// mutuamente excluyente: vincular una existente de BC-14 O confirmar que es nueva.
+// Payload para completar una ubicación temporal. La dedup contra BC-14 la
+// resuelve la fase final (PUB/SUB): al completar, la temporal queda COMPLETA y
+// BC-14 valida y devuelve los datos para replicar en la maestra local.
 export interface PayloadCompletarUbicacion {
   tipoUbicacion: TipoUbicacion;
   pais: string;
   departamento: string;
+  codigoDepartamento?: string | null;
   provincia: string;
+  codigoProvincia?: string | null;
   distrito: string;
+  codigoDistrito?: string | null;
+  ubigeo?: string | null;
   direccion: string;
   referenciaUbicacion?: string | null;
   latitud?: number | null;
   longitud?: number | null;
   coordenadasGoogle?: string | null;
-  // Vincular a una ubicación existente de BC-14 (se copia a la maestra local).
-  vincularUbicacionBc14Id?: string;
-  // Confirmar que es una ubicación nueva (queda COMPLETA a la espera del PUB/SUB).
-  confirmarCreacion?: boolean;
 }
