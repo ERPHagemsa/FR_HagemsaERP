@@ -193,7 +193,7 @@ function SeccionCodigos({
     e.preventDefault()
     if (!ambosVacios && !ambosCompletos) {
       toast.error(
-        "Completá ambos códigos o dejá los dos vacíos para quitarlos.",
+        "Completa ambos códigos o deja los dos vacíos para quitarlos.",
       )
       return
     }
@@ -245,7 +245,7 @@ function SeccionCodigos({
               />
             </Field>
             <FieldDescription className="sm:col-span-2">
-              Dejá ambos vacíos y guardá para quitar tus códigos.
+              Deja ambos vacíos y guarda para quitar tus códigos.
             </FieldDescription>
           </FieldGroup>
           <div className="mt-auto pt-6">
@@ -297,7 +297,7 @@ function SeccionPassword() {
       <CardHeader>
         <CardTitle>Cambiar contraseña</CardTitle>
         <CardDescription>
-          Ingresá tu contraseña actual y la nueva (mínimo 8 caracteres).
+          Ingresa tu contraseña actual y la nueva (mínimo 8 caracteres).
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
