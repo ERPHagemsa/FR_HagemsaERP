@@ -4,16 +4,6 @@ import * as React from "react";
 import { LayersIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
-import { Input } from "@/compartido/componentes/ui/input";
-import { Label } from "@/compartido/componentes/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/compartido/componentes/ui/dialog";
 import { ConfirmarEliminar } from "@/compartido/componentes/ui/confirmar-eliminar";
 
 import type { CatalogoCargoAdicional, OrigenTipo } from "../tipos/cotizaciones.tipos";
@@ -79,7 +69,9 @@ export function CotizacionSeccionesEditor({
   const { data: catalogoData } = useListarCatalogosCargoAdicional({ estado: "ACTIVO", porPagina: 50 });
   const opcionesCatalogo = catalogoData?.data ?? [];
 
-  // Seccion abierta en el modal de DATOS (nombre + ruta).
+  // Seccion abierta en el modal de DATOS (nombre + ruta). Se usa tanto para CREAR
+  // (seccion nueva vacia) como para EDITAR una existente — misma UX con autocomplete
+  // contra el maestro de ubicaciones.
   const [datosEditando, setDatosEditando] = React.useState<DraftSeccion | null>(null);
   // Linea abierta en el modal de edicion de UNA sola linea (editar existente o
   // agregar nueva). Guarda la seccion a la que pertenece para persistir el cambio.
@@ -89,11 +81,6 @@ export function CotizacionSeccionesEditor({
     rutaSeccion: { origen: string; destino: string };
     linea: DraftLinea;
   } | null>(null);
-  // Dialog "crear seccion" (pide nombre + ruta antes de abrir el modal de lineas).
-  const [crearAbierto, setCrearAbierto] = React.useState(false);
-  const [nuevoNombre, setNuevoNombre] = React.useState("");
-  const [nuevoOrigen, setNuevoOrigen] = React.useState("");
-  const [nuevoDestino, setNuevoDestino] = React.useState("");
 
   const ordenadas = secciones
     .slice()
@@ -102,23 +89,13 @@ export function CotizacionSeccionesEditor({
   const total = secciones.reduce((acc, s) => acc + subtotalSeccion(s), 0);
   const totalLineas = secciones.reduce((acc, s) => acc + s.lineas.length, 0);
 
+  // Crear seccion: abre el MISMO modal de datos (nombre + ruta con autocomplete
+  // contra el maestro) con una seccion nueva vacia. Al aplicar entra a la lista y
+  // su bloque aparece con el boton "Agregar linea".
   function abrirCrear() {
-    setNuevoNombre("");
-    setNuevoOrigen("");
-    setNuevoDestino("");
-    setCrearAbierto(true);
-  }
-
-  function confirmarCrear() {
     const nueva = seccionVacia(false);
     nueva.orden = secciones.length;
-    nueva.nombre = nuevoNombre.trim();
-    nueva.origen = nuevoOrigen.trim();
-    nueva.destino = nuevoDestino.trim();
-    setCrearAbierto(false);
-    // La seccion entra a la lista de inmediato (su bloque aparece con el boton
-    // "Agregar linea"). Una seccion vacia no se persiste hasta tener contenido.
-    guardarSeccion(nueva);
+    setDatosEditando(nueva);
   }
 
   // Reemplaza la seccion si ya existe, o la agrega si es nueva. No cierra modales:
@@ -273,7 +250,7 @@ export function CotizacionSeccionesEditor({
         Estimado — el backend recalcula totales e impuestos al guardar.
       </p>
 
-      {/* Modal de DATOS de la seccion (nombre + ruta) */}
+      {/* Modal de DATOS de la seccion (nombre + ruta) — crear y editar */}
       <SeccionDatosModal
         abierto={datosEditando !== null}
         seccion={datosEditando}
@@ -299,52 +276,6 @@ export function CotizacionSeccionesEditor({
         onCerrar={() => setLineaEditando(null)}
         onGuardar={guardarLinea}
       />
-
-      {/* Dialog "crear seccion": nombre + ruta */}
-      <Dialog open={crearAbierto} onOpenChange={setCrearAbierto}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nueva seccion</DialogTitle>
-            <DialogDescription>
-              Define la ruta de la seccion. Sus lineas de transporte heredaran este origen
-              y destino.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-2">
-            <CampoCrear label="Nombre de la seccion" obligatorio>
-              <Input
-                value={nuevoNombre}
-                placeholder="Ej: Tramo Lima - Mina"
-                onChange={(e) => setNuevoNombre(e.target.value)}
-              />
-            </CampoCrear>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <CampoCrear label="Origen">
-                <Input
-                  value={nuevoOrigen}
-                  placeholder="Ej: Lima"
-                  onChange={(e) => setNuevoOrigen(e.target.value)}
-                />
-              </CampoCrear>
-              <CampoCrear label="Destino">
-                <Input
-                  value={nuevoDestino}
-                  placeholder="Ej: Mina"
-                  onChange={(e) => setNuevoDestino(e.target.value)}
-                />
-              </CampoCrear>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCrearAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button type="button" disabled={nuevoNombre.trim() === ""} onClick={confirmarCrear}>
-              Crear y agregar lineas
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -677,23 +608,4 @@ function entradasLeadTime(seccion: DraftSeccion): EntradaLeadTime[] {
     }
   }
   return entradas;
-}
-
-function CampoCrear({
-  label,
-  obligatorio,
-  children,
-}: {
-  label: string;
-  obligatorio?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="grid gap-1.5">
-      <Label className="text-xs text-muted-foreground">
-        {label} {obligatorio ? <span className="text-destructive">*</span> : null}
-      </Label>
-      {children}
-    </div>
-  );
 }
