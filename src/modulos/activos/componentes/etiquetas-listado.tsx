@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
-import { Plus, QrCode } from "lucide-react";
+import { Plus, Printer } from "lucide-react";
 
 import { extraerMensajeError } from "@/compartido/api/formato-error";
 import {
@@ -14,6 +15,7 @@ import {
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Card, CardContent } from "@/compartido/componentes/ui/card";
+import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
@@ -192,6 +194,15 @@ function DialogLoteGenerado({
   creadas: Etiqueta[] | null;
   onCerrar: () => void;
 }) {
+  const router = useRouter();
+
+  function imprimirLote() {
+    if (!creadas?.length) return;
+    const ids = creadas.map((etiqueta) => etiqueta.id).join(",");
+    onCerrar();
+    router.push(`/activos/etiquetas/imprimir?ids=${ids}`);
+  }
+
   return (
     <Sheet open={creadas !== null} onOpenChange={(open) => !open && onCerrar()}>
       <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
@@ -226,10 +237,14 @@ function DialogLoteGenerado({
         <Separator />
         <SheetFooter className="flex-row justify-end gap-2">
           <SheetClose asChild>
-            <Button type="button" onClick={onCerrar}>
+            <Button type="button" variant="outline" onClick={onCerrar}>
               Cerrar
             </Button>
           </SheetClose>
+          <Button type="button" onClick={imprimirLote}>
+            <Printer />
+            Imprimir lote
+          </Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>
@@ -241,6 +256,7 @@ function DialogLoteGenerado({
 // ---------------------------------------------------------------------------
 
 export function EtiquetasListado() {
+  const router = useRouter();
   const [estadoFiltro, setEstadoFiltro] = useState<"TODOS" | EstadoEtiqueta>("TODOS");
   const [asignacionFiltro, setAsignacionFiltro] = useState<"TODOS" | "true" | "false">(
     "TODOS"
@@ -258,6 +274,30 @@ export function EtiquetasListado() {
   const [dialogGenerarAbierto, setDialogGenerarAbierto] = useState(false);
   const [loteGenerado, setLoteGenerado] = useState<Etiqueta[] | null>(null);
 
+  // Seleccion para imprimir varias etiquetas de una vez (hoja de rotulos QR).
+  const [seleccionadas, setSeleccionadas] = useState<Set<number>>(new Set());
+  const idsFiltrados = etiquetasFiltradas.map((e) => e.id);
+  const todasSeleccionadas =
+    idsFiltrados.length > 0 && idsFiltrados.every((id) => seleccionadas.has(id));
+
+  function alternarSeleccion(id: number, marcada: boolean) {
+    setSeleccionadas((previas) => {
+      const siguientes = new Set(previas);
+      if (marcada) siguientes.add(id);
+      else siguientes.delete(id);
+      return siguientes;
+    });
+  }
+
+  function alternarSeleccionTodas(marcada: boolean) {
+    setSeleccionadas(marcada ? new Set(idsFiltrados) : new Set());
+  }
+
+  function imprimir(ids: number[]) {
+    if (!ids.length) return;
+    router.push(`/activos/etiquetas/imprimir?ids=${ids.join(",")}`);
+  }
+
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -268,10 +308,20 @@ export function EtiquetasListado() {
             {etiquetasFiltradas.length === 1 ? "etiqueta" : "etiquetas"}
           </p>
         </div>
-        <Button onClick={() => setDialogGenerarAbierto(true)}>
-          <Plus />
-          Generar lote
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={seleccionadas.size === 0}
+            onClick={() => imprimir([...seleccionadas])}
+          >
+            <Printer />
+            Imprimir ({seleccionadas.size})
+          </Button>
+          <Button onClick={() => setDialogGenerarAbierto(true)}>
+            <Plus />
+            Generar lote
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -322,10 +372,17 @@ export function EtiquetasListado() {
             <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[10%] text-center">QR</TableHead>
-                  <TableHead className="w-[18%]">Codigo</TableHead>
+                  <TableHead className="w-[6%] text-center">
+                    <Checkbox
+                      checked={todasSeleccionadas}
+                      onCheckedChange={(v) => alternarSeleccionTodas(v === true)}
+                      aria-label="Seleccionar todas"
+                    />
+                  </TableHead>
+                  <TableHead className="w-[8%] text-center">Imprimir</TableHead>
+                  <TableHead className="w-[16%]">Codigo</TableHead>
                   <TableHead className="w-[16%]">Estado</TableHead>
-                  <TableHead className="w-[30%]">Activo asignado</TableHead>
+                  <TableHead className="w-[28%]">Activo asignado</TableHead>
                   <TableHead className="w-[26%]">Creado</TableHead>
                 </TableRow>
               </TableHeader>
@@ -333,14 +390,14 @@ export function EtiquetasListado() {
                 {consulta.isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={5}>
+                      <TableCell colSpan={6}>
                         <Skeleton className="h-7 w-full" />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : etiquetasFiltradas.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="h-28 text-center text-muted-foreground">
                       No hay etiquetas para los filtros aplicados.
                     </TableCell>
                   </TableRow>
@@ -348,7 +405,23 @@ export function EtiquetasListado() {
                   etiquetasFiltradas.map((etiqueta) => (
                     <TableRow key={etiqueta.id}>
                       <TableCell className="text-center">
-                        <QrCode className="mx-auto size-4 text-muted-foreground" />
+                        <Checkbox
+                          checked={seleccionadas.has(etiqueta.id)}
+                          onCheckedChange={(v) =>
+                            alternarSeleccion(etiqueta.id, v === true)
+                          }
+                          aria-label={`Seleccionar ${etiqueta.codigo}`}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Imprimir esta etiqueta"
+                          onClick={() => imprimir([etiqueta.id])}
+                        >
+                          <Printer className="size-4" />
+                        </Button>
                       </TableCell>
                       <TableCell className="truncate text-sm font-medium">
                         <Link
