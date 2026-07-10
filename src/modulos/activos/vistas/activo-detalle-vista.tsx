@@ -84,8 +84,8 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
       <div className="flex w-full flex-col gap-5">
         <section className="flex flex-col gap-4 border-b border-border pb-5 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">{activo.codigo}</p>
-            <h1 className="text-2xl font-semibold tracking-normal">{activo.descripcion}</h1>
+            <h1 className="font-mono text-3xl font-bold tracking-wide">{activo.codigo}</h1>
+            <p className="text-base font-medium text-muted-foreground">{activo.descripcion}</p>
             <p className="text-sm text-muted-foreground">{activo.ubicacion}</p>
             <p className="mt-2 max-w-full truncate font-mono text-xs text-muted-foreground" title={String(activo.id)}>
               ID inventario: {activo.id}
@@ -197,6 +197,7 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Tarjeta propiedad" value={vehiculo?.tarjetaPropiedad} />
                     <Dato label="Tipo tarjeta propiedad" value={vehiculo?.tipoTarjetaPropiedad} />
                     <Dato label="Ejes" value={vehiculo?.ejes} />
+                    <Dato label="Ruedas" value={vehiculo?.cantidadRuedas} />
                     <Dato label="Categoria" value={vehiculo?.categoria} />
                     <Dato label="Serie chasis" value={vehiculo?.serieChasis} />
                     <Dato label="Serie motor" value={vehiculo?.serieMotor} />
@@ -211,6 +212,13 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Camara" value={vehiculo?.camara} />
                     <Dato label="Tablet" value={vehiculo?.tablet} />
                     <Dato label="Dispositivos seguridad" value={vehiculo?.dispositivosSeguridad} />
+                    <Dato label="GPS" value={vehiculo?.gps} />
+                    <Dato label="Telemetría" value={vehiculo?.telemetria} />
+                    <Dato label="Radio base" value={vehiculo?.radioBase} />
+                    <Dato label="ADAS" value={vehiculo?.adas} />
+                    <Dato label="ADAS Antapaccay" value={vehiculo?.adasAntapaccay} />
+                    <Dato label="ADAS Quellaveco" value={vehiculo?.adasQuellaveco} />
+                    <Dato label="Proveedor ADAS" value={vehiculo?.proveedorAdas} />
                     <Dato label="Caja herramientas" value={vehiculo?.cajaHerramientas} />
                     <Dato label="Jaula antivuelco" value={vehiculo?.jaulaAntivuelco} />
                     <Dato label="Carriboy" value={vehiculo?.carriboy} />
@@ -224,6 +232,9 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Ancho" value={vehiculo?.ancho} />
                     <Dato label="Longitud" value={vehiculo?.longitud} />
                     <Dato label="Alto" value={vehiculo?.alto} />
+                    <Dato label="Peso bruto (kg)" value={vehiculo?.pesoBruto} />
+                    <Dato label="Peso neto (kg)" value={vehiculo?.pesoNeto} />
+                    <Dato label="Carga util (kg)" value={vehiculo?.cargaUtil} />
                     <Dato label="Tipo suspension" value={vehiculo?.tipoSuspension} />
                     <Dato label="Tipo tornamesa" value={vehiculo?.tipoTornamesa} />
                     <Dato

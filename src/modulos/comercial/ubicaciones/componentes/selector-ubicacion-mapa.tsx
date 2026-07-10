@@ -85,6 +85,10 @@ function MapaConPin({ valorInicial, onSeleccion }: Props) {
       origen: { nombre?: string; direccion: string; admin: AdminGeo }
     ) => {
       let { pais, departamento, provincia, distrito } = origen.admin;
+      let codigoDepartamento: string | undefined;
+      let codigoProvincia: string | undefined;
+      let codigoDistrito: string | undefined;
+      let ubigeo: string | undefined;
       try {
         const geo = await resolverDistritoPorPunto(lat, lng);
         if (geo) {
@@ -92,6 +96,10 @@ function MapaConPin({ valorInicial, onSeleccion }: Props) {
           departamento = geo.departamento;
           provincia = geo.provincia;
           distrito = geo.distrito;
+          codigoDepartamento = geo.codigoDepartamento;
+          codigoProvincia = geo.codigoProvincia;
+          codigoDistrito = geo.codigoDistrito;
+          ubigeo = geo.ubigeo;
         }
       } catch {
         // geo-api caída → se cae a los niveles de Google (ya en las variables).
@@ -100,8 +108,12 @@ function MapaConPin({ valorInicial, onSeleccion }: Props) {
         nombre: origen.nombre,
         pais,
         departamento,
+        codigoDepartamento,
         provincia,
+        codigoProvincia,
         distrito,
+        codigoDistrito,
+        ubigeo,
         direccion: origen.direccion,
         latitud: lat,
         longitud: lng,

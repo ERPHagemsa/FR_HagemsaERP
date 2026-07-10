@@ -85,8 +85,8 @@ export function TabVehiculo({
         <Field name="marca" label="Marca" placeholder="TOYOTA" defaultValue={activo?.vehiculo?.marca ?? undefined} />
         <Field name="modelo" label="Modelo" placeholder="HILUX" defaultValue={activo?.vehiculo?.modelo ?? undefined} />
       </div>
-      <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-5">
-        <Field name="anioFabricacion" label="Ano fabricacion" type="number" defaultValue={activo?.vehiculo?.anioFabricacion ?? undefined} />
+      <div className="grid gap-4 pt-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <Field name="anioFabricacion" label="Año de fabricación" type="number" defaultValue={activo?.vehiculo?.anioFabricacion ?? undefined} />
         <Field name="color" label="Color" defaultValue={activo?.vehiculo?.color ?? undefined} />
         <label className="grid gap-2">
           <span
@@ -142,6 +142,13 @@ export function TabVehiculo({
           defaultValue={activo?.vehiculo?.ejes ?? undefined}
         />
         <Field
+          name="cantidadRuedas"
+          label="Ruedas"
+          min="0"
+          type="number"
+          defaultValue={activo?.vehiculo?.cantidadRuedas ?? undefined}
+        />
+        <Field
           name="categoria"
           label="Categoria"
           defaultValue={activo?.vehiculo?.categoria ?? undefined}
@@ -167,6 +174,9 @@ export function TabBase({
   activo,
   isEdit,
   catalogos,
+  tipoActivoActual,
+  codigoGenerado,
+  generandoCodigo,
   estadoActivoGrupo,
   onEstadoActivoChange,
   causaBaja,
@@ -176,12 +186,24 @@ export function TabBase({
   activo?: Activo;
   isEdit: boolean;
   catalogos: CatalogosActivos;
+  /** Tipo de activo actualmente elegido en el selector (creacion). */
+  tipoActivoActual?: number;
+  /** Correlativo automatico previsualizado (HU-02-042), null si aun no aplica. */
+  codigoGenerado?: string | null;
+  generandoCodigo?: boolean;
   estadoActivoGrupo: "ACTIVO" | "BAJA";
   onEstadoActivoChange: (estado: "ACTIVO" | "BAJA") => void;
   causaBaja: "SINIESTRADO" | "INACTIVO";
   onCausaBajaChange: (causa: "SINIESTRADO" | "INACTIVO") => void;
   onTipoActivoChange: (tipoActivoReferenciaId: number) => void;
 }) {
+  // El codigo se autogenera SOLO al crear un vehiculo nuevo (formato oficial
+  // HG-[carroceria][clase]-NNN, ver PENDING.md HU-02-042). En edicion el
+  // codigo ya existe y nunca cambia; en otros tipos de activo no hay esquema
+  // oficial, se sigue escribiendo a mano.
+  const esCodigoAutomatico =
+    !isEdit && tipoActivoActual === TIPO_ACTIVO_VEHICULO_ID;
+
   return (
     <>
       <SectionIntro
@@ -190,14 +212,36 @@ export function TabBase({
         description="Identificacion administrativa del activo."
       />
       <div className="grid gap-4 lg:grid-cols-[220px_1fr_220px]">
-        <Field
-          name="codigo"
-          label="Codigo"
-          placeholder="ACT-000864"
-          defaultValue={activo?.codigo}
-          disabled={isEdit}
-          required
-        />
+        {esCodigoAutomatico ? (
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium">Codigo</span>
+            <input type="hidden" name="codigo" value={codigoGenerado ?? ""} readOnly />
+            <div className="flex h-11 items-center rounded-lg border border-dashed border-input bg-muted/40 px-3">
+              {generandoCodigo ? (
+                <span className="text-sm text-muted-foreground">
+                  Generando...
+                </span>
+              ) : codigoGenerado ? (
+                <span className="font-mono text-2xl font-bold tracking-wide text-primary">
+                  {codigoGenerado}
+                </span>
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  Elige clase y carroceria en la pestana Vehiculo
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <Field
+            name="codigo"
+            label="Codigo"
+            placeholder="ACT-000864"
+            defaultValue={activo?.codigo}
+            disabled={isEdit}
+            required={!isEdit}
+          />
+        )}
         <Field
           name="descripcion"
           label="Descripcion"
@@ -321,6 +365,13 @@ export function TabEquipamiento({ activo }: { activo?: Activo }) {
         <Field name="camara" label="Camara" defaultValue={activo?.vehiculo?.camara ?? undefined} />
         <Field name="tablet" label="Tablet" defaultValue={activo?.vehiculo?.tablet ?? undefined} />
         <Field name="dispositivosSeguridad" label="Dispositivos de seguridad" defaultValue={activo?.vehiculo?.dispositivosSeguridad ?? undefined} />
+        <Field name="gps" label="GPS" placeholder="SI / NO" defaultValue={activo?.vehiculo?.gps ?? undefined} />
+        <Field name="telemetria" label="Telemetría" placeholder="SI / NO" defaultValue={activo?.vehiculo?.telemetria ?? undefined} />
+        <Field name="radioBase" label="Radio base" placeholder="SI / NO" defaultValue={activo?.vehiculo?.radioBase ?? undefined} />
+        <Field name="adas" label="ADAS" placeholder="SI / NO" defaultValue={activo?.vehiculo?.adas ?? undefined} />
+        <Field name="adasAntapaccay" label="ADAS Antapaccay" placeholder="SI / NO" defaultValue={activo?.vehiculo?.adasAntapaccay ?? undefined} />
+        <Field name="adasQuellaveco" label="ADAS Quellaveco" placeholder="SI / NO" defaultValue={activo?.vehiculo?.adasQuellaveco ?? undefined} />
+        <Field name="proveedorAdas" label="Proveedor ADAS" placeholder="Proveedor del sistema" defaultValue={activo?.vehiculo?.proveedorAdas ?? undefined} />
         <Field name="cajaHerramientas" label="Caja de herramientas" defaultValue={activo?.vehiculo?.cajaHerramientas ?? undefined} />
         <Field name="jaulaAntivuelco" label="Jaula antivuelco" defaultValue={activo?.vehiculo?.jaulaAntivuelco ?? undefined} />
         <Field name="carriboy" label="Carriboy" defaultValue={activo?.vehiculo?.carriboy ?? undefined} />
@@ -366,6 +417,30 @@ export function TabDimensiones({
           type="number"
           step="0.001"
           defaultValue={activo?.vehiculo?.alto ?? undefined}
+        />
+        <Field
+          name="pesoBruto"
+          label="Peso bruto (kg)"
+          min="0"
+          step="0.01"
+          type="number"
+          defaultValue={activo?.vehiculo?.pesoBruto ?? undefined}
+        />
+        <Field
+          name="pesoNeto"
+          label="Peso neto (kg)"
+          min="0"
+          step="0.01"
+          type="number"
+          defaultValue={activo?.vehiculo?.pesoNeto ?? undefined}
+        />
+        <Field
+          name="cargaUtil"
+          label="Carga util (kg)"
+          min="0"
+          step="0.01"
+          type="number"
+          defaultValue={activo?.vehiculo?.cargaUtil ?? undefined}
         />
         <Field name="tipoSuspension" label="Tipo de suspension" defaultValue={activo?.vehiculo?.tipoSuspension ?? undefined} />
         <Field name="tipoTornamesa" label="Tipo de tornamesa" defaultValue={activo?.vehiculo?.tipoTornamesa ?? undefined} />

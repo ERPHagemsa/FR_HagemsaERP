@@ -1,19 +1,31 @@
 # Piloto Detallado: BC-01 Socio de Negocio
 
-Este documento describe la gestión de las personas y organizaciones que interactúan con la empresa como clientes, proveedores y personal. Actúa como la fuente oficial de información maestra de Socios de Negocio, permitiendo registrar, modificar, dar de baja, consultar y exportar información maestra.
+Este documento describe la gestión de personas y organizaciones que interactúan con la empresa como clientes, proveedores y personal. Actúa como fuente oficial de información maestra de Socios de Negocio, incluyendo el alta de cliente desde Comercial cuando un prospecto se convierte en cliente.
 
 | Campo | Detalle |
 | --- | --- |
 | Área | Recursos Humanos |
 | Roles | **Administrador Principal**, **Analista de Recursos Humanos** y **Auditor**. |
 | Relación clave | Un Socio de Negocio se identifica por la combinación de documento/RUC/DNI + tipo de socio. Un mismo documento puede estar asociado a más de un Socio de Negocio cuando cumple roles diferentes dentro de la empresa, por ejemplo, CLIENTE, PROVEEDOR o PERSONAL. Cada registro mantiene el tipo de socio, si está disponible para operar o fue dado de baja, si el registro sigue vigente o fue anulado, y si está pendiente de aprobación o aprobado. |
-| Alcance funcional | Registrar, modificar, aprobar, dar de baja, consultar y exportar clientes, proveedores y personal; revisar el resumen general del módulo; consultar listados separados por tipo; consultar SAP para clientes y proveedores cuando corresponda; administrar la asignación del personal (dónde trabaja, sus cuentas y contratos con su aprobación, y el horario o régimen de trabajo elegido); administrar tipos de tareo y configuraciones laborales; y registrar la disponibilidad esperada del personal. |
+| Alcance funcional | Registrar, modificar, aprobar, dar de baja, consultar y exportar clientes, proveedores y personal; recibir cliente desde Comercial a partir de prospecto convertido; revisar el resumen general del módulo; consultar listados separados por tipo; consultar SAP para clientes y proveedores cuando corresponda; administrar la asignación del personal (dónde trabaja, sus cuentas y contratos con su aprobación, y el horario o régimen de trabajo elegido); administrar tipos de tareo y configuraciones laborales; y registrar la disponibilidad esperada del personal. |
 | Regla de edición | La edición normal permite actualizar razón social, nombre comercial, nombre completo o nombre para mostrar cuando aplica, dirección, contacto, correo y celular. No permite cambiar documento ni código interno. |
 | Lo que entra | Solicitudes de registro, modificación, baja, anulación o aprobación de clientes, proveedores y personal; consulta de información SAP para clientes y proveedores; creación o cambios de la asignación del personal; aprobación de sus cuentas y contratos; cambios de horario, régimen o configuración laboral; y registro de disponibilidad esperada. |
 | Lo que sale | Confirmaciones de los cambios realizados; decisiones de aprobación; estado de sincronización SAP cuando aplica; reportes e información para auditoría. |
 | Quién la usa | Personas y áreas que consultan o reutilizan el maestro de clientes, proveedores y personal, incluyendo asignaciones, horarios y régimen, disponibilidad, reportería y auditoría. |
 
 > **Fuera de alcance:** Este maestro no administra la operación diaria del personal, ni las solicitudes de permisos o viáticos, ni la asistencia (marcaciones, faltas, tardanzas, horas extra o regularizaciones). Esas funciones pertenecen a otros procesos de la empresa.
+
+## Endpoints BFF Vigentes
+
+Ruta canonica consumida por frontend:
+
+- `POST /api/socios-de-negocio/desde-comercial/prospecto-convertido-a-cliente`
+
+Alias BFF compatible:
+
+- `POST /api/socio-negocios/socios-de-negocio/desde-comercial/prospecto-convertido-a-cliente`
+
+Uso: alta de cliente ya validado desde Comercial. No gestiona ciclo de prospectos; solo consume conversion.
 
 ## Resumen de Épicas
 

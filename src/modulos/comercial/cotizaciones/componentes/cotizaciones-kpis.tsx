@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import {
+  ClipboardCheck,
   FilePen,
   Send,
   Trophy,
@@ -47,6 +48,14 @@ const TARJETAS: DefTarjeta[] = [
     claseActiva: "ring-2 ring-amber-500/60 bg-amber-500/5",
   },
   {
+    bucket: "pendientesAprobacion",
+    etiqueta: "Pendientes de aprobación",
+    descripcion: "En espera de resolución",
+    icono: ClipboardCheck,
+    claseIcono: "text-indigo-500",
+    claseActiva: "ring-2 ring-indigo-500/60 bg-indigo-500/5",
+  },
+  {
     bucket: "enviadas",
     etiqueta: "Enviadas",
     descripcion: "Enviadas al cliente",
@@ -82,7 +91,7 @@ export function CotizacionesKpis({ filtros, onSeleccionar }: Props) {
   const bucketActivo = filtros.bucket;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {TARJETAS.map((tarjeta) => {
         const activo = bucketActivo === tarjeta.bucket;
         const valor = data == null ? null : data[tarjeta.bucket];

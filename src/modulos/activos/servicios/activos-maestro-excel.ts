@@ -46,17 +46,21 @@ const ENCABEZADOS = [
   "Calibracion",
   "Zona Registral De Vehiculo",
   "EJE",
+  "RUEDAS",
   "LARGO",
   "ALTO",
   "ANCHO",
+  "PESO BRUTO (KG)",
+  "PESO NETO (KG)",
+  "CARGA UTIL (KG)",
   "Ubicacion",
 ];
 
-const ANCHOS = [7, 13, 11, 9, 12, 16, 14, 20, 14, 18, 10, 18, 20, 12, 13, 14, 13, 18, 6, 8, 8, 8, 24];
+const ANCHOS = [7, 13, 11, 9, 12, 16, 14, 20, 14, 18, 10, 18, 20, 12, 13, 14, 13, 18, 6, 8, 8, 8, 8, 16, 16, 16, 24];
 
 // Columnas centradas (1-based): ITEM, año, antiguedad, categoria, estado,
 // condicion, calibracion, zona, eje y dimensiones.
-const COLUMNAS_CENTRADAS = new Set([1, 4, 5, 11, 15, 16, 17, 18, 19, 20, 21, 22]);
+const COLUMNAS_CENTRADAS = new Set([1, 4, 5, 11, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
 
 /** Arma el libro completo. Separado del download para poder probarlo en Node. */
 export async function construirLibroMaestro(
@@ -109,9 +113,13 @@ export async function construirLibroMaestro(
       resolutores.calibracion(v?.estadoCalibracionReferenciaId),
       v?.zonaRegistral ?? "",
       v?.ejes ?? "",
+      v?.cantidadRuedas ?? "",
       v?.longitud ?? "",
       v?.alto ?? "",
       v?.ancho ?? "",
+      v?.pesoBruto ?? "",
+      v?.pesoNeto ?? "",
+      v?.cargaUtil ?? "",
       activo.ubicacion,
     ];
 

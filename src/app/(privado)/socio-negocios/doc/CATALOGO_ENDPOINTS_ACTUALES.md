@@ -15,7 +15,7 @@ Importante:
 | `GET` | `/api/socio-negocios/socios-de-negocio/estado` | Estado del BC |
 | `GET` | `/api/socio-negocios/socios-de-negocio/resumen` | Resumen dashboard |
 | `POST` | `/api/socio-negocios/socios-de-negocio` | Registrar socio |
-| `POST` | `/api/socio-negocios/socios-de-negocio/desde-comercial/prospecto-convertido-a-cliente` | Registrar cliente desde Comercial |
+| `POST` | `/api/socios-de-negocio/desde-comercial/prospecto-convertido-a-cliente` | Registrar cliente desde Comercial |
 | `PUT` | `/api/socio-negocios/socios-de-negocio/:id` | Modificar socio |
 | `POST` | `/api/socio-negocios/socios-de-negocio/:id/reemplazo` | Reemplazar socio |
 | `PATCH` | `/api/socio-negocios/socios-de-negocio/:id/aprobar` | Aprobar socio |
@@ -55,5 +55,6 @@ Importante:
 ## Observaciones
 
 - La parte que faltaba en el catalogo de Socio de Negocio era `asignaciones-personal`, que el frontend ya consume de forma separada.
+- El endpoint de alta desde Comercial usa la ruta canonica `/api/socios-de-negocio/desde-comercial/prospecto-convertido-a-cliente`; el alias `/api/socio-negocios/...` tambien existe, pero no es la ruta que usa el servicio del frontend.
 - Hoy el frontend no tiene llamadas implementadas para una ruta de aprobacion de asignaciones; en el documento funcional aparece la HU, pero no existe consumo equivalente en `asignaciones-personal-api.ts`.
 - En el frontend actual, `eventos` se consumen como `RespuestaDto<[]>` y no como respuesta paginada.

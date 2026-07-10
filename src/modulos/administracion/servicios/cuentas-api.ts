@@ -5,6 +5,7 @@ import type {
 } from "@/compartido/api/contrato"
 
 import type {
+  ActualizarCodigosPayload,
   ActualizarCuentaPayload,
   CrearCuentaPayload,
   CrearCuentaResponse,
@@ -15,6 +16,7 @@ import type {
   ResetPasswordResponse,
   SetPasswordPayload,
   SuspenderCuentaPayload,
+  VincularSocioPayload,
 } from "../tipos/administracion.tipos"
 
 function construirQuery(query: ListarCuentasQuery): string {
@@ -88,6 +90,22 @@ export async function actualizarCuenta(
   payload: ActualizarCuentaPayload,
 ): Promise<void> {
   await clienteHttp.patch(`/api/admin/cuentas/${id}`, payload)
+}
+
+// Setea, edita o limpia (ambos null) los codigos internos de la cuenta.
+export async function actualizarCodigosCuenta(
+  id: string,
+  payload: ActualizarCodigosPayload,
+): Promise<void> {
+  await clienteHttp.patch(`/api/admin/cuentas/${id}/codigos`, payload)
+}
+
+// Vincula un socio de BC01 a una cuenta existente (1:1).
+export async function vincularSocioCuenta(
+  id: string,
+  payload: VincularSocioPayload,
+): Promise<void> {
+  await clienteHttp.post(`/api/admin/cuentas/${id}/vincular-socio`, payload)
 }
 
 // Desactivacion logica — el backend espera body en la DELETE para la razon.

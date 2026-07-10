@@ -359,6 +359,33 @@ export interface AsignacionPersonalResumen {
 }
 
 /**
+ * Item del endpoint real de BC01 `GET /personal/activos`. OJO: su forma difiere
+ * de `PersonalListadoResponse` (el del maestro /socios-de-negocio/personal): el
+ * id es `personalId`, el documento va anidado en `documento`, y el contacto en
+ * `contacto`. Se usa para el buscador de socio (vincular socio a una cuenta).
+ */
+export interface PersonalActivoResponse {
+  personalId: number
+  documento: {
+    numeroDocumento: string
+    tipoDocumento?: string
+  }
+  primerNombre?: string
+  segundoNombre?: string
+  apellidoPaterno?: string
+  apellidoMaterno?: string
+  nombreCompleto?: string
+  contacto?: {
+    direccion?: string
+    contacto?: string
+    correo?: string
+    numeroCelular?: string
+  }
+  asignacionVigente?: Record<string, unknown>
+  cuentasContratos?: CuentaContratoResumen[]
+}
+
+/**
  * Item del listado de personal. Incluye nombre completo y sus asignaciones
  * vigentes embebidas (el endpoint /personal las devuelve junto al registro).
  */

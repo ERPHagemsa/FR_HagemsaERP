@@ -72,8 +72,12 @@ interface FormState {
   tipoUbicacion: TipoUbicacion | "";
   pais: string;
   departamento: string;
+  codigoDepartamento: string;
   provincia: string;
+  codigoProvincia: string;
   distrito: string;
+  codigoDistrito: string;
+  ubigeo: string;
   direccion: string;
   referenciaUbicacion: string;
   coordenadasGoogle: string;
@@ -84,8 +88,12 @@ function estadoInicial(t: UbicacionTemporal | null): FormState {
     tipoUbicacion: t?.tipoUbicacion ?? "",
     pais: t?.pais ?? "Peru",
     departamento: t?.departamento ?? "",
+    codigoDepartamento: "",
     provincia: t?.provincia ?? "",
+    codigoProvincia: "",
     distrito: t?.distrito ?? "",
+    codigoDistrito: "",
+    ubigeo: "",
     direccion: t?.direccion ?? "",
     referenciaUbicacion: t?.referenciaUbicacion ?? "",
     coordenadasGoogle:
@@ -173,6 +181,10 @@ export function CompletarUbicacionModal({
     const parcial: Partial<FormState> = {
       direccion: d.direccion,
       coordenadasGoogle: `${d.latitud}, ${d.longitud}`,
+      codigoDepartamento: d.codigoDepartamento ?? "",
+      codigoProvincia: d.codigoProvincia ?? "",
+      codigoDistrito: d.codigoDistrito ?? "",
+      ubigeo: d.ubigeo ?? "",
     };
     if (d.pais) parcial.pais = d.pais;
     if (d.departamento) parcial.departamento = d.departamento;
@@ -189,6 +201,9 @@ export function CompletarUbicacionModal({
     form.distrito.trim() !== "" &&
     form.direccion.trim() !== "";
 
+  // El contrato del backend es por NOMBRES: los códigos geográficos (codigo*/
+  // ubigeo) que trae la geo-peru-api se quedan en el form (selector/mapa) pero no
+  // viajan al backend (el ubigeo se descartó por diseño).
   function payloadBase(): PayloadCompletarUbicacion {
     return {
       tipoUbicacion: form.tipoUbicacion as TipoUbicacion,
@@ -280,7 +295,15 @@ export function CompletarUbicacionModal({
               <Label>País</Label>
               <Input
                 value={form.pais}
-                onChange={(e) => set({ pais: e.target.value })}
+                onChange={(e) =>
+                  set({
+                    pais: e.target.value,
+                    codigoDepartamento: "",
+                    codigoProvincia: "",
+                    codigoDistrito: "",
+                    ubigeo: "",
+                  })
+                }
                 disabled={enviando}
               />
             </div>

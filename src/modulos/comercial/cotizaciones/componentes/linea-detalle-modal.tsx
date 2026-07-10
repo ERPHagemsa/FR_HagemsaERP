@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/compartido/componentes/ui/dialog";
 import type { CatalogoCargoAdicional, OrigenTipo } from "../tipos/cotizaciones.tipos";
-import type { DraftLinea } from "../servicios/cotizaciones-editor.utils";
+import type { DraftLinea, ModoServicio } from "../servicios/cotizaciones-editor.utils";
 import { montoCargo } from "../servicios/cotizaciones-editor.utils";
 import { LineaFormulario } from "./linea-formulario";
 import { etiquetaTipo, formatearMoneda, totalLinea } from "./lineas-grid.utils";
@@ -32,6 +32,8 @@ type Props = {
   // Origen de la cotizacion: acota el precio sugerido al historial del cliente.
   clienteTipo?: OrigenTipo;
   clienteId?: string;
+  // Modo de servicio (solo creacion): acota el selector de tipo de servicio.
+  modoServicio?: ModoServicio;
   onCerrar: () => void;
   onGuardar: (linea: DraftLinea) => void;
 };
@@ -53,6 +55,7 @@ export function LineaDetalleModal({
   disabled,
   clienteTipo,
   clienteId,
+  modoServicio,
   onCerrar,
   onGuardar,
 }: Props) {
@@ -101,6 +104,7 @@ export function LineaDetalleModal({
               clienteTipo={clienteTipo}
               clienteId={clienteId}
               rutaSeccion={rutaSeccion}
+              modoServicio={modoServicio}
               onChange={(l) => setBorrador(l)}
             />
           </div>

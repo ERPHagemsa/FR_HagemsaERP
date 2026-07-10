@@ -11,6 +11,8 @@ function variantPorEstado(estado: EstadoCotizacion): BadgeVariant {
   switch (estado) {
     case "BORRADOR":
       return "secondary";
+    case "PENDIENTE_APROBACION":
+      return "outline";
     case "ENVIADA":
       return "default";
     case "EN_REVISION":
@@ -30,6 +32,8 @@ function etiquetaPorEstado(estado: EstadoCotizacion): string {
   switch (estado) {
     case "BORRADOR":
       return "Borrador";
+    case "PENDIENTE_APROBACION":
+      return "Pendiente de aprobación";
     case "ENVIADA":
       return "Enviada";
     case "EN_REVISION":

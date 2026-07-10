@@ -139,6 +139,20 @@ const COLUMNAS_BASE: ColumnaCarga[] = [
   },
 ];
 
+const CLAVES_ADQUISICION = new Set([
+  "valorUnidad",
+  "moneda",
+  "proveedor",
+  "numeroFactura",
+  "fechaFactura",
+]);
+const COLUMNAS_ADQUISICION = COLUMNAS_BASE.filter((columna) =>
+  CLAVES_ADQUISICION.has(columna.clave),
+);
+const COLUMNAS_BASE_SIN_ADQUISICION = COLUMNAS_BASE.filter(
+  (columna) => !CLAVES_ADQUISICION.has(columna.clave),
+);
+
 // Columnas vehiculares principales (placa, motor, chasis, etc.).
 const COLUMNAS_VEHICULO_IDENTIDAD: ColumnaCarga[] = [
   {
@@ -199,20 +213,27 @@ const COLUMNAS_VEHICULO_IDENTIDAD: ColumnaCarga[] = [
   },
 ];
 
-// Carroceria, ejes, categoria, clase Euro, transmision, ratio corona.
+// Clase, carroceria, ejes, ruedas, categoria, clase Euro, transmision, ratio corona.
 const COLUMNAS_VEHICULO_TECNICO: ColumnaCarga[] = [
   {
-    clave: "carroceria",
-    encabezado: "Carroceria",
-    obligatorio: false,
-    tipo: "texto",
+    clave: "claseVehiculoReferenciaId",
+    encabezado: "Clase",
+    obligatorio: true,
+    tipo: "opciones",
     destino: "vehiculo",
-    // Si el texto coincide EXACTO con un nombre del Maestro de Catalogos
-    // (Activos > Administrador de maestros > Carroceria) se resuelve tambien
-    // el id de catalogo, no solo el texto libre. "Pick Up" generico no existe
-    // como tal en el catalogo: usar "Pickup cabina simple" o "Pickup doble
-    // cabina".
-    ejemplo: "Pickup cabina simple",
+    catalogo: "CLASE_VEHICULO",
+    ejemplo: "Camion",
+    ayuda: "Clase oficial del vehiculo. Define la letra del codigo correlativo.",
+  },
+  {
+    clave: "carroceriaReferenciaId",
+    encabezado: "Carroceria",
+    obligatorio: true,
+    tipo: "opciones",
+    destino: "vehiculo",
+    catalogo: "CARROCERIA",
+    ejemplo: "Camion (baranda)",
+    ayuda: "Carroceria oficial compatible con la clase elegida.",
   },
   {
     clave: "ejes",
@@ -221,6 +242,14 @@ const COLUMNAS_VEHICULO_TECNICO: ColumnaCarga[] = [
     tipo: "entero",
     destino: "vehiculo",
     ejemplo: "2",
+  },
+  {
+    clave: "cantidadRuedas",
+    encabezado: "Ruedas",
+    obligatorio: false,
+    tipo: "entero",
+    destino: "vehiculo",
+    ejemplo: "6",
   },
   {
     clave: "categoria",
@@ -314,6 +343,43 @@ const COLUMNAS_DIMENSIONES: ColumnaCarga[] = [
     destino: "vehiculo",
     ejemplo: "5.325",
   },
+  {
+    clave: "pesoBruto",
+    encabezado: "Peso bruto (kg)",
+    obligatorio: false,
+    tipo: "numero",
+    destino: "vehiculo",
+    ejemplo: "18000",
+  },
+  {
+    clave: "pesoNeto",
+    encabezado: "Peso neto (kg)",
+    obligatorio: false,
+    tipo: "numero",
+    destino: "vehiculo",
+    ejemplo: "8500",
+  },
+  {
+    clave: "cargaUtil",
+    encabezado: "Carga util (kg)",
+    obligatorio: false,
+    tipo: "numero",
+    destino: "vehiculo",
+    ejemplo: "9500",
+  },
+];
+
+// Equipamiento, rastreo y sistemas de seguridad presentes en FT-AS-006.
+const COLUMNAS_EQUIPAMIENTO: ColumnaCarga[] = [
+  { clave: "baranda", encabezado: "Baranda", obligatorio: false, tipo: "opciones", destino: "vehiculo", opciones: ["SI", "NO"], ejemplo: "NO" },
+  { clave: "gps", encabezado: "GPS", obligatorio: false, tipo: "opciones", destino: "vehiculo", opciones: ["SI", "NO"], ejemplo: "SI" },
+  { clave: "telemetria", encabezado: "Telemetría", obligatorio: false, tipo: "opciones", destino: "vehiculo", opciones: ["SI", "NO"], ejemplo: "SI" },
+  { clave: "radioBase", encabezado: "Radio base", obligatorio: false, tipo: "opciones", destino: "vehiculo", opciones: ["SI", "NO"], ejemplo: "NO" },
+  { clave: "adas", encabezado: "ADAS", obligatorio: false, tipo: "opciones", destino: "vehiculo", opciones: ["SI", "NO"], ejemplo: "NO" },
+  { clave: "adasAntapaccay", encabezado: "ADAS Antapaccay", obligatorio: false, tipo: "opciones", destino: "vehiculo", opciones: ["SI", "NO"], ejemplo: "NO" },
+  { clave: "adasQuellaveco", encabezado: "ADAS Quellaveco", obligatorio: false, tipo: "opciones", destino: "vehiculo", opciones: ["SI", "NO"], ejemplo: "NO" },
+  { clave: "proveedorAdas", encabezado: "Proveedor ADAS", obligatorio: false, tipo: "texto", destino: "vehiculo", ejemplo: "Proveedor ADAS SAC" },
+  { clave: "camara", encabezado: "Cámara", obligatorio: false, tipo: "opciones", destino: "vehiculo", opciones: ["SI", "NO"], ejemplo: "NO" },
 ];
 
 // Control operativo + combustible.
@@ -364,10 +430,17 @@ const COLUMNAS_COMBUSTIBLE: ColumnaCarga[] = [
  */
 export const COLUMNAS_POR_TIPO: Record<number, ColumnaCarga[]> = {
   [TIPO_ACTIVO_VEHICULO_ID]: [
-    ...COLUMNAS_BASE,
+    // Sin columna "codigo": para vehiculos el backend genera el correlativo
+    // oficial (HG-[carroceria][clase]-NNN) automaticamente por fila, a partir
+    // de Clase y Carroceria (HU-02-042). No se pide ni se acepta a mano.
+    ...COLUMNAS_BASE_SIN_ADQUISICION.filter(
+      (columna) => columna.clave !== "codigo",
+    ),
     ...COLUMNAS_VEHICULO_IDENTIDAD,
     ...COLUMNAS_VEHICULO_TECNICO,
     ...COLUMNAS_VEHICULO_REGISTRALES,
+    ...COLUMNAS_ADQUISICION,
+    ...COLUMNAS_EQUIPAMIENTO,
     ...COLUMNAS_DIMENSIONES,
     ...COLUMNAS_CONTROL,
     ...COLUMNAS_COMBUSTIBLE,
@@ -414,15 +487,15 @@ export const COLUMNAS_POR_TIPO: Record<number, ColumnaCarga[]> = {
 
 /**
  * Valores por defecto para el sub-objeto `vehiculo` cuando el tipo tiene datos
- * vehiculares pero el Excel no especifica clase de vehiculo / calibracion.
- * VEHICULO usa "Camion" como base generica; el resto usa "Equipo liviano".
+ * tecnicos pero el Excel no especifica clase de vehiculo / calibracion.
+ * VEHICULO no usa clase por defecto: Clase y Carroceria son obligatorias para
+ * calcular el correlativo correcto. Los otros tipos conservan Equipo liviano.
  * Calibracion por defecto: "Pendiente" (a la espera de revision).
  */
 export const VEHICULO_DEFECTO_POR_TIPO: Record<
   number,
   { claseVehiculo: string; estadoCalibracion: string }
 > = {
-  [TIPO_ACTIVO_VEHICULO_ID]: { claseVehiculo: "Camion", estadoCalibracion: "Pendiente" },
   [TIPO_ACTIVO_EQUIPO_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
   [TIPO_ACTIVO_DISPOSITIVO_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
   [TIPO_ACTIVO_HERRAMIENTA_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
@@ -445,6 +518,10 @@ export function opcionesCatalogo(
   if (columna.opciones) return columna.opciones;
   if (!columna.catalogo) return [];
   switch (columna.catalogo) {
+    case "CLASE_VEHICULO":
+      return catalogos.clasesVehiculo.map((opcion) => opcion.nombre);
+    case "CARROCERIA":
+      return catalogos.carrocerias.map((opcion) => opcion.nombre);
     case "CLASE_EURO":
       return catalogos.clasesEuro.map((opcion) => opcion.nombre);
     case "TIPO_TRANSMISION":

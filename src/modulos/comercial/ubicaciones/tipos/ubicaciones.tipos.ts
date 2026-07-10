@@ -77,8 +77,12 @@ export interface DatosUbicacionGeo {
   nombre?: string;
   pais: string;
   departamento: string;
+  codigoDepartamento?: string;
   provincia: string;
+  codigoProvincia?: string;
   distrito: string;
+  codigoDistrito?: string;
+  ubigeo?: string;
   direccion: string;
   latitud: number;
   longitud: number;
@@ -87,6 +91,10 @@ export interface DatosUbicacionGeo {
 // Payload para completar una ubicación temporal. La dedup contra BC-14 la
 // resuelve la fase final (PUB/SUB): al completar, la temporal queda COMPLETA y
 // BC-14 valida y devuelve los datos para replicar en la maestra local.
+//
+// Contrato POR NOMBRES: los códigos geográficos (codigo*/ubigeo) que trae la
+// geo-peru-api NO forman parte del payload — el modelo del backend no los guarda
+// (el ubigeo se descartó por diseño). Viven solo en el form (selector/mapa).
 export interface PayloadCompletarUbicacion {
   tipoUbicacion: TipoUbicacion;
   pais: string;

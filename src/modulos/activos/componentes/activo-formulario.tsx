@@ -39,8 +39,13 @@ import {
   crearImagenPorCodigo,
   crearTanquePorCodigo,
   obtenerCarroceriasReferencia,
+  obtenerSiguienteCorrelativo,
   registrarConfiguracionHistoricaPorCodigo,
 } from "../servicios/activos-api";
+import {
+  obtenerAsignacionesContratosFlota,
+  type AsignacionContratoFlota,
+} from "../servicios/flota-asignaciones-api";
 import {
   useActualizarActivoMutation,
   useCrearActivoMutation,
@@ -111,8 +116,8 @@ type Props = {
 const TABS_POR_TIPO_ACTIVO: Record<number, ActivoTab[]> = {
   [TIPO_ACTIVO_VEHICULO_ID]: [
     "base",
-    "adquisicion",
     "vehiculo",
+    "adquisicion",
     "equipamiento",
     "dimensiones",
     "control",
@@ -191,6 +196,17 @@ export function ActivoFormulario({
   const [carroceriaTexto, setCarroceriaTexto] = React.useState<string>(
     activo?.vehiculo?.carroceria ?? ""
   );
+  const [asignacionFlota, setAsignacionFlota] =
+    React.useState<AsignacionContratoFlota | null>(null);
+  // Correlativo automatico HG-[carroceria][clase]-NNN (HU-02-042): solo
+  // aplica a activos vehiculares nuevos. Este estado es la unica fuente de
+  // verdad - el input oculto "codigo" en TabBase es controlado directamente
+  // por este valor (value={codigoGenerado}), no por escritura imperativa al
+  // DOM: eso evitaba que React reaplicara defaultValue="" en cada re-render.
+  const [codigoGenerado, setCodigoGenerado] = React.useState<string | null>(
+    null
+  );
+  const [generandoCodigo, setGenerandoCodigo] = React.useState(false);
   const crearActivoMutation = useCrearActivoMutation();
   const actualizarActivoMutation = useActualizarActivoMutation();
   const formularioRef = React.useRef<HTMLDivElement>(null);
@@ -214,6 +230,50 @@ export function ActivoFormulario({
     (tab: ActivoTab) => tabsDisponibles.includes(tab),
     [tabsDisponibles]
   );
+
+  // Genera/previsualiza el correlativo automatico apenas hay clase+carroceria
+  // elegidas, en creacion de un vehiculo. No aplica en edicion (el codigo ya
+  // existe y no cambia) ni en otros tipos de activo (sin esquema oficial).
+  React.useEffect(() => {
+    if (isEdit || tipoActivoSeleccionadoId !== TIPO_ACTIVO_VEHICULO_ID) {
+      setCodigoGenerado(null);
+      setGenerandoCodigo(false);
+      return;
+    }
+
+    const carroceriaId = selectedCarroceriaReferenciaId
+      ? Number(selectedCarroceriaReferenciaId)
+      : null;
+
+    if (!claseVehiculoSeleccionadaId || !carroceriaId) {
+      setCodigoGenerado(null);
+      return;
+    }
+
+    let cancelado = false;
+    setGenerandoCodigo(true);
+    obtenerSiguienteCorrelativo(claseVehiculoSeleccionadaId, carroceriaId)
+      .then((codigo) => {
+        if (cancelado) return;
+        setCodigoGenerado(codigo);
+        actualizarResumen();
+      })
+      .catch(() => {
+        if (!cancelado) setCodigoGenerado(null);
+      })
+      .finally(() => {
+        if (!cancelado) setGenerandoCodigo(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    isEdit,
+    tipoActivoSeleccionadoId,
+    claseVehiculoSeleccionadaId,
+    selectedCarroceriaReferenciaId,
+  ]);
 
   React.useEffect(() => {
     if (!activo) return;
@@ -239,6 +299,25 @@ export function ActivoFormulario({
     intentoAutocompletarCarroceriaRef.current = false;
     actualizarResumen();
   }, [activo, actualizarResumen]);
+
+  React.useEffect(() => {
+    if (!activo?.id) {
+      setAsignacionFlota(null);
+      return;
+    }
+
+    let cancelado = false;
+
+    obtenerAsignacionesContratosFlota().then((asignaciones) => {
+      if (!cancelado) {
+        setAsignacionFlota(asignaciones.get(activo.id) ?? null);
+      }
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [activo?.id]);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -359,6 +438,7 @@ export function ActivoFormulario({
     setFormValue("longitud", "");
     setFormValue("alto", "");
     setFormValue("ejes", "");
+    setFormValue("cantidadRuedas", "");
     setFormValue("categoria", "");
     actualizarResumen();
   }
@@ -386,6 +466,7 @@ export function ActivoFormulario({
       setFormValue("longitud", "");
       setFormValue("alto", "");
       setFormValue("ejes", "");
+      setFormValue("cantidadRuedas", "");
       setFormValue("categoria", "");
       actualizarResumen();
       return;
@@ -413,7 +494,7 @@ export function ActivoFormulario({
 
     return {
       base: [
-        ["Codigo", getValue("codigo") || activo?.codigo],
+        ["Codigo", codigoGenerado || getValue("codigo") || activo?.codigo],
         ["Descripcion", getValue("descripcion") || activo?.descripcion],
         [
           "Tipo",
@@ -449,6 +530,21 @@ export function ActivoFormulario({
         ["Marca", getValue("marca") || activo?.vehiculo?.marca],
         ["Modelo", getValue("modelo") || activo?.vehiculo?.modelo],
         ["Zona", getValue("zonaRegistral") || activo?.vehiculo?.zonaRegistral],
+        ["Ruedas", getValue("cantidadRuedas") || activo?.vehiculo?.cantidadRuedas],
+        [
+          "Cuenta",
+          formatearAsignacionFlota(
+            asignacionFlota?.cuentaCodigo,
+            asignacionFlota?.cuentaNombre
+          ),
+        ],
+        [
+          "Contrato",
+          formatearAsignacionFlota(
+            asignacionFlota?.contratoCodigo,
+            asignacionFlota?.contratoNombre
+          ),
+        ],
         ["Chasis", getValue("serieChasis") || activo?.vehiculo?.serieChasis],
         ["Motor", getValue("serieMotor") || activo?.vehiculo?.serieMotor],
       ],
@@ -459,6 +555,13 @@ export function ActivoFormulario({
         ["Camara", getValue("camara") || activo?.vehiculo?.camara],
         ["Tablet", getValue("tablet") || activo?.vehiculo?.tablet],
         ["Seguridad", getValue("dispositivosSeguridad") || activo?.vehiculo?.dispositivosSeguridad],
+        ["GPS", getValue("gps") || activo?.vehiculo?.gps],
+        ["Telemetria", getValue("telemetria") || activo?.vehiculo?.telemetria],
+        ["Radio base", getValue("radioBase") || activo?.vehiculo?.radioBase],
+        ["ADAS", getValue("adas") || activo?.vehiculo?.adas],
+        ["ADAS Antapaccay", getValue("adasAntapaccay") || activo?.vehiculo?.adasAntapaccay],
+        ["ADAS Quellaveco", getValue("adasQuellaveco") || activo?.vehiculo?.adasQuellaveco],
+        ["Proveedor ADAS", getValue("proveedorAdas") || activo?.vehiculo?.proveedorAdas],
       ],
       control: [
         ["Condicion", getValue("estadoOperativo") || activo?.vehiculo?.estadoOperativo],
@@ -477,6 +580,9 @@ export function ActivoFormulario({
         ["Ancho", getValue("ancho") || activo?.vehiculo?.ancho],
         ["Longitud", getValue("longitud") || activo?.vehiculo?.longitud],
         ["Alto", getValue("alto") || activo?.vehiculo?.alto],
+        ["Peso bruto (kg)", getValue("pesoBruto") || activo?.vehiculo?.pesoBruto],
+        ["Peso neto (kg)", getValue("pesoNeto") || activo?.vehiculo?.pesoNeto],
+        ["Carga util (kg)", getValue("cargaUtil") || activo?.vehiculo?.cargaUtil],
         ["Suspension", getValue("tipoSuspension") || activo?.vehiculo?.tipoSuspension],
         [
           "Euro",
@@ -506,7 +612,9 @@ export function ActivoFormulario({
     };
   }, [
     activo,
+    asignacionFlota,
     catalogos,
+    codigoGenerado,
     borradores.documentosPendientes.length,
     formVersion,
     borradores.imagenesPendientes.length,
@@ -644,6 +752,9 @@ export function ActivoFormulario({
               ? texto("tipoTarjetaPropiedad")
               : null,
             ejes: puedeGuardarTab("vehiculo") ? numero("ejes") : null,
+            cantidadRuedas: puedeGuardarTab("vehiculo")
+              ? numero("cantidadRuedas")
+              : null,
             categoria: puedeGuardarTab("vehiculo") ? texto("categoria") : null,
             serieChasis: puedeGuardarTab("vehiculo") ? texto("serieChasis") : null,
             serieMotor: puedeGuardarTab("vehiculo") ? texto("serieMotor") : null,
@@ -658,6 +769,23 @@ export function ActivoFormulario({
             tablet: puedeGuardarTab("equipamiento") ? texto("tablet") : null,
             dispositivosSeguridad: puedeGuardarTab("equipamiento")
               ? texto("dispositivosSeguridad")
+              : null,
+            gps: puedeGuardarTab("equipamiento") ? texto("gps") : null,
+            telemetria: puedeGuardarTab("equipamiento")
+              ? texto("telemetria")
+              : null,
+            radioBase: puedeGuardarTab("equipamiento")
+              ? texto("radioBase")
+              : null,
+            adas: puedeGuardarTab("equipamiento") ? texto("adas") : null,
+            adasAntapaccay: puedeGuardarTab("equipamiento")
+              ? texto("adasAntapaccay")
+              : null,
+            adasQuellaveco: puedeGuardarTab("equipamiento")
+              ? texto("adasQuellaveco")
+              : null,
+            proveedorAdas: puedeGuardarTab("equipamiento")
+              ? texto("proveedorAdas")
               : null,
             estadoOperativo: puedeGuardarTab("control")
               ? ((getValue("estadoOperativo") || "OPERATIVO") as EstadoOperativo)
@@ -674,6 +802,15 @@ export function ActivoFormulario({
             ancho: puedeGuardarTab("dimensiones") ? numero("ancho") : null,
             longitud: puedeGuardarTab("dimensiones") ? numero("longitud") : null,
             alto: puedeGuardarTab("dimensiones") ? numero("alto") : null,
+            pesoBruto: puedeGuardarTab("dimensiones")
+              ? numero("pesoBruto")
+              : null,
+            pesoNeto: puedeGuardarTab("dimensiones")
+              ? numero("pesoNeto")
+              : null,
+            cargaUtil: puedeGuardarTab("dimensiones")
+              ? numero("cargaUtil")
+              : null,
             tipoSuspension: puedeGuardarTab("dimensiones")
               ? texto("tipoSuspension")
               : null,
@@ -964,16 +1101,16 @@ export function ActivoFormulario({
                 <IconClipboardText className="size-4 text-primary" />
                 Base
               </TabsTrigger>
-              <TabsTrigger value="adquisicion" className="flex-none">
-                <IconReceipt2 className="size-4 text-primary" />
-                Adquisicion
-              </TabsTrigger>
               {tieneTab("vehiculo") ? (
                 <TabsTrigger value="vehiculo" className="flex-none">
                   <IconTruck className="size-4 text-primary" />
                   Vehiculo
                 </TabsTrigger>
               ) : null}
+              <TabsTrigger value="adquisicion" className="flex-none">
+                <IconReceipt2 className="size-4 text-primary" />
+                Adquisicion
+              </TabsTrigger>
               {tieneTab("equipamiento") ? (
                 <TabsTrigger value="equipamiento" className="flex-none">
                   <IconSettings className="size-4 text-primary" />
@@ -1009,6 +1146,9 @@ export function ActivoFormulario({
                 activo={activo}
                 isEdit={isEdit}
                 catalogos={catalogos}
+                tipoActivoActual={tipoActivoSeleccionadoId}
+                codigoGenerado={codigoGenerado}
+                generandoCodigo={generandoCodigo}
                 estadoActivoGrupo={estadoActivoGrupo}
                 onEstadoActivoChange={(value) => {
                   setEstadoActivoGrupo(value);
@@ -1021,10 +1161,6 @@ export function ActivoFormulario({
                 }}
                 onTipoActivoChange={cambiarTipoActivo}
               />
-            </TabsContent>
-
-            <TabsContent forceMount value="adquisicion" className="mt-0 data-[state=inactive]:hidden">
-              <TabAdquisicion activo={activo} />
             </TabsContent>
 
             {tieneTab("vehiculo") ? (
@@ -1041,6 +1177,10 @@ export function ActivoFormulario({
               />
             </TabsContent>
             ) : null}
+
+            <TabsContent forceMount value="adquisicion" className="mt-0 data-[state=inactive]:hidden">
+              <TabAdquisicion activo={activo} />
+            </TabsContent>
 
             {tieneTab("equipamiento") ? (
             <TabsContent forceMount value="equipamiento" className="mt-0 data-[state=inactive]:hidden">
@@ -1283,4 +1423,11 @@ export function ActivoFormulario({
       </div>
     </div>
   );
+}
+
+function formatearAsignacionFlota(
+  codigo?: string | null,
+  nombre?: string | null
+) {
+  return [codigo, nombre].filter(Boolean).join(" - ") || "Sin asignacion";
 }

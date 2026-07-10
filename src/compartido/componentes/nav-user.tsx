@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 
 import { clienteHttp } from "@/compartido/api/cliente-http"
@@ -137,9 +138,11 @@ export function NavUser({ user }: NavUserProps = {}) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <CircleUser />
-                Perfil
+              <DropdownMenuItem asChild>
+                <Link href="/perfil">
+                  <CircleUser />
+                  Mi perfil
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <CreditCard />

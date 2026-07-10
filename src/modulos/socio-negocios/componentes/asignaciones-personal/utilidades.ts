@@ -163,6 +163,96 @@ export function obtenerEtiquetaPersonal(personal: PersonalListadoResponse) {
   return personal.numeroDocumento ? `${nombre} - ${personal.numeroDocumento}` : nombre
 }
 
+export function obtenerAsignacionVigentePersonal(personal: PersonalListadoResponse) {
+  return personal.asignaciones?.find((item) => item.estado === "VIGENTE") ?? null
+}
+
+export function obtenerCargoSuperiorSeleccionado(
+  cargos: ConfiguracionGeneralOpcionResponse[],
+  cargoId?: string,
+) {
+  const cargoSeleccionado = cargos.find((item) => String(item.id) === String(cargoId ?? ""))
+  if (!cargoSeleccionado?.cargoSuperiorId) return null
+  return cargos.find((item) => String(item.id) === String(cargoSeleccionado.cargoSuperiorId)) ?? null
+}
+
+export function obtenerCargosSuperiores(
+  cargos: ConfiguracionGeneralOpcionResponse[],
+  cargoId?: string,
+) {
+  const resultado: ConfiguracionGeneralOpcionResponse[] = []
+  const visitados = new Set<string>()
+  let actual = cargos.find((item) => String(item.id) === String(cargoId ?? ""))
+
+  while (actual?.cargoSuperiorId != null) {
+    const superiorId = String(actual.cargoSuperiorId)
+    if (visitados.has(superiorId)) break
+    visitados.add(superiorId)
+    const superior = cargos.find((item) => String(item.id) === superiorId)
+    if (!superior) break
+    resultado.push(superior)
+    actual = superior
+  }
+
+  return resultado
+}
+
+export function obtenerCandidatosJefe(
+  personalCatalogo: PersonalListadoResponse[],
+  areasCatalogo: ConfiguracionGeneralOpcionResponse[],
+  cargosCatalogo: ConfiguracionGeneralOpcionResponse[],
+  areaId?: string,
+  cargoId?: string,
+) {
+  const areaSeleccionada = areasCatalogo.find((item) => String(item.id) === String(areaId ?? ""))
+  // Cadena de areas objetivo: la propia area + todos sus ancestros por gerenciaId,
+  // ordenada del mas cercano al mas lejano. Asi el jefe se resuelve al responsable
+  // mas proximo hacia arriba y, si no hay, sube hasta la gerencia raiz (Gerente
+  // General). Se corta ante ciclos con el set de ids ya vistos.
+  const cadenaAreas: string[] = []
+  if (areaSeleccionada) {
+    const vistos = new Set<string>()
+    let actual: ConfiguracionGeneralOpcionResponse | undefined = areaSeleccionada
+    while (actual && !vistos.has(String(actual.id))) {
+      vistos.add(String(actual.id))
+      if (actual.codigo) cadenaAreas.push(actual.codigo)
+      const padreId: string | undefined = actual.gerenciaId
+      actual = padreId
+        ? areasCatalogo.find((item) => String(item.id) === String(padreId))
+        : undefined
+    }
+  }
+  const rangoArea = new Map(cadenaAreas.map((codigo, indice) => [codigo, indice]))
+
+  const candidatosArea = personalCatalogo
+    .map((personal) => ({
+      personal,
+      asignacion: obtenerAsignacionVigentePersonal(personal),
+    }))
+    .filter(({ asignacion }) => Boolean(asignacion))
+    .filter(({ asignacion }) => rangoArea.has(asignacion?.areaCodigo ?? ""))
+    .map(({ personal, asignacion }) => ({ personal, asignacion: asignacion! }))
+    // Mas cercano hacia arriba primero: el primero es el jefe sugerido por defecto.
+    .sort(
+      (a, b) =>
+        (rangoArea.get(a.asignacion.areaCodigo ?? "") ?? Number.MAX_SAFE_INTEGER) -
+        (rangoArea.get(b.asignacion.areaCodigo ?? "") ?? Number.MAX_SAFE_INTEGER),
+    )
+
+  if (candidatosArea.length > 0) return candidatosArea
+
+  const cargosObjetivo = obtenerCargosSuperiores(cargosCatalogo, cargoId).map((item) => item.codigo)
+
+  return personalCatalogo
+    .map((personal) => ({
+      personal,
+      asignacion: obtenerAsignacionVigentePersonal(personal),
+    }))
+    .filter(({ asignacion }) => Boolean(asignacion))
+    .filter(({ asignacion }) => cargosObjetivo.includes(asignacion?.cargoCodigo ?? ""))
+    .map(({ personal, asignacion }) => ({ personal, asignacion: asignacion! }))
+}
+
 export function aOpcionCatalogo(item: ConfiguracionGeneralOpcionResponse): OpcionCatalogo {
   return {
     id: String(item.id),
@@ -310,22 +400,14 @@ export function firmaAprobadores(filas: AprobadorFila[]) {
 /** Filas con codigo y nombre completos, listas para enviar al backend. */
 export function aprobadoresValidos(
   filas: AprobadorFila[],
-  personalCatalogo: PersonalListadoResponse[] = [],
 ): AprobadorCuentaContratoRequest[] {
   return filas
     .map((fila) => {
       const aprobadorCodigo = fila.aprobadorCodigo.trim()
       const aprobadorNombre = fila.aprobadorNombre.trim()
-      const personal = personalCatalogo.find((item) => String(item.id) === aprobadorCodigo)
-
       return {
         aprobadorCodigo,
-        aprobadorNombre:
-          !aprobadorNombre || aprobadorNombre === aprobadorCodigo
-            ? personal
-              ? obtenerNombrePersonal(personal)
-              : aprobadorNombre
-            : aprobadorNombre,
+        aprobadorNombre: aprobadorNombre || aprobadorCodigo,
       }
     })
     .filter((fila) => fila.aprobadorCodigo && fila.aprobadorNombre)

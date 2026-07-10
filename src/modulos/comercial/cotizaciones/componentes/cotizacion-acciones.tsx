@@ -37,7 +37,7 @@ import {
   schemaPerdida,
 } from "../tipos/cotizaciones.schemas";
 import {
-  useEnviarCotizacionMutation,
+  useSolicitarAprobacionMutation,
   useNuevaVersionMutation,
   useMarcarGanadaMutation,
   useMarcarPerdidaMutation,
@@ -83,9 +83,9 @@ export function CotizacionAcciones({ cotizacion }: Props) {
       {estado === "GANADA" ? <BotonTarifario idCotizacion={id} /> : null}
 
       {acciones.enviar ? (
-        <DialogEnviar
+        <DialogSolicitarAprobacion
           idCotizacion={id}
-          onExito={() => alExito("Cotizacion enviada correctamente")}
+          onExito={() => alExito("Solicitud de aprobación enviada")}
         />
       ) : null}
 
@@ -176,23 +176,23 @@ function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Dialog: Enviar cotizacion
+// Dialog: Solicitar aprobacion
 // validezDias opcional (integer >= 1, default 10 en el backend si se omite)
 // ---------------------------------------------------------------------------
 
-type DialogEnviarProps = {
+type DialogSolicitarAprobacionProps = {
   idCotizacion: string;
   onExito: () => void;
 };
 
-function DialogEnviar({ idCotizacion, onExito }: DialogEnviarProps) {
+function DialogSolicitarAprobacion({ idCotizacion, onExito }: DialogSolicitarAprobacionProps) {
   const [abierto, setAbierto] = React.useState(false);
   const [validezDiasRaw, setValidezDiasRaw] = React.useState("");
   const [errorValidez, setErrorValidez] = React.useState<string | null>(null);
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
 
-  const mutation = useEnviarCotizacionMutation(idCotizacion);
+  const mutation = useSolicitarAprobacionMutation(idCotizacion);
 
   function handleOpenChange(open: boolean) {
     if (!open) {
@@ -227,7 +227,7 @@ function DialogEnviar({ idCotizacion, onExito }: DialogEnviarProps) {
       setAbierto(false);
       onExito();
     } catch (err) {
-      const { mensaje } = normalizarErrorAccion(err, "No se pudo enviar la cotizacion");
+      const { mensaje } = normalizarErrorAccion(err, "No se pudo solicitar la aprobación");
       setErrorForm(mensaje);
     } finally {
       setIsPending(false);
@@ -239,15 +239,16 @@ function DialogEnviar({ idCotizacion, onExito }: DialogEnviarProps) {
       <DialogTrigger asChild>
         <Button type="button" variant="default">
           <Send data-icon="inline-start" />
-          Enviar
+          Solicitar aprobación
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Enviar cotizacion</DialogTitle>
+          <DialogTitle>Solicitar aprobación</DialogTitle>
           <DialogDescription>
-            La cotizacion quedara enviada y la version vigente quedara congelada.
-            Opcionalmente indica los dias de validez (por defecto 10 dias).
+            Se abrirá una solicitud de aprobación; la cotización quedará pendiente
+            hasta que se resuelva. Opcionalmente indica los dias de validez
+            (por defecto 10 dias).
           </DialogDescription>
         </DialogHeader>
 
@@ -291,7 +292,7 @@ function DialogEnviar({ idCotizacion, onExito }: DialogEnviarProps) {
               Cancelar
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Enviando..." : "Confirmar envio"}
+              {isPending ? "Solicitando..." : "Confirmar solicitud"}
             </Button>
           </DialogFooter>
         </form>
@@ -693,4 +694,3 @@ function DialogCancelar({ idCotizacion, onExito }: DialogCancelarProps) {
     </AlertDialog>
   );
 }
-

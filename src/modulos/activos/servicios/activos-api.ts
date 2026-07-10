@@ -255,6 +255,22 @@ export async function registrarConfiguracionHistoricaPorCodigo(
   return data;
 }
 
+/**
+ * Vista previa del correlativo oficial (HG-[carroceria][clase]-NNN) para
+ * mostrarlo en el formulario antes de guardar. No reserva nada; el codigo
+ * real se recalcula en el backend al crear el activo.
+ */
+export async function obtenerSiguienteCorrelativo(
+  claseVehiculoReferenciaId: number,
+  carroceriaReferenciaId: number
+): Promise<string> {
+  const { data } = await clienteActivos.get<{ codigo: string }>(
+    "/activos/correlativo",
+    { params: { claseVehiculoReferenciaId, carroceriaReferenciaId } }
+  );
+  return data.codigo;
+}
+
 export async function obtenerCarroceriasReferencia(
   claseVehiculoReferenciaId?: number
 ): Promise<CarroceriaReferencia[]> {

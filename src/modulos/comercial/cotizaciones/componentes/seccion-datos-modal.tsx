@@ -21,7 +21,7 @@ import {
   jerarquiaUbicacion,
 } from "../../ubicaciones/componentes/autocomplete-ubicacion";
 import type { Ubicacion } from "../../ubicaciones/tipos/ubicaciones.tipos";
-import type { DraftSeccion } from "../servicios/cotizaciones-editor.utils";
+import type { DraftSeccion, ModoServicio } from "../servicios/cotizaciones-editor.utils";
 import { sincronizarRutaSeccion } from "../servicios/cotizaciones-editor.utils";
 
 type Props = {
@@ -29,6 +29,9 @@ type Props = {
   // Seccion a editar (copia de trabajo). null cuando no hay nada abierto.
   seccion: DraftSeccion | null;
   disabled?: boolean;
+  // Modo de servicio (solo creación): OTROS oculta la ruta (no aplica origen/destino);
+  // TRANSPORTE la exige. undefined (edición) → ruta visible y opcional (como antes).
+  modoServicio?: ModoServicio;
   onCerrar: () => void;
   onGuardar: (seccion: DraftSeccion) => void;
 };
@@ -46,6 +49,7 @@ export function SeccionDatosModal({
   abierto,
   seccion,
   disabled,
+  modoServicio,
   onCerrar,
   onGuardar,
 }: Props) {
@@ -69,6 +73,16 @@ export function SeccionDatosModal({
 
   if (!borrador) return null;
 
+  // En "Otros" no se pide ruta; en transporte es obligatoria; en edición (sin
+  // modo) se mantiene visible y opcional (comportamiento previo).
+  const mostrarRuta = modoServicio !== "OTROS";
+  const rutaRequerida = modoServicio === "TRANSPORTE";
+
+  const nombreVacio = borrador.nombre.trim() === "";
+  const rutaIncompleta =
+    rutaRequerida &&
+    (borrador.origen.trim() === "" || borrador.destino.trim() === "");
+
   const set = (patch: Partial<DraftSeccion>) =>
     setBorrador((b) => (b ? { ...b, ...patch } : b));
 
@@ -78,6 +92,9 @@ export function SeccionDatosModal({
     const nombrada: DraftSeccion = {
       ...borrador!,
       esDefecto: borrador!.nombre.trim() !== "" ? false : borrador!.esDefecto,
+      // En "Otros" no hay ruta: se limpia cualquier origen/destino residual.
+      origen: mostrarRuta ? borrador!.origen : "",
+      destino: mostrarRuta ? borrador!.destino : "",
     };
     onGuardar(sincronizarRutaSeccion(nombrada));
   }
@@ -88,8 +105,9 @@ export function SeccionDatosModal({
         <DialogHeader>
           <DialogTitle>Datos de la sección</DialogTitle>
           <DialogDescription>
-            Nombre y ruta de la sección. Buscá el origen y destino en el maestro de
-            ubicaciones (o escribí uno nuevo); sus líneas de transporte los heredan.
+            {mostrarRuta
+              ? "Nombre y ruta de la sección. Buscá el origen y destino en el maestro de ubicaciones (o escribí uno nuevo); sus líneas de transporte los heredan."
+              : "Nombre de la sección. Este tipo de servicio no lleva ruta (origen/destino)."}
           </DialogDescription>
         </DialogHeader>
 
@@ -103,38 +121,42 @@ export function SeccionDatosModal({
             />
           </Campo>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <RutaCampo
-              label="Origen"
-              value={borrador.origen}
-              seleccionada={origenSel}
-              disabled={disabled}
-              placeholder="Buscá o escribí (ej: Lima)"
-              onTexto={(v) => {
-                set({ origen: v });
-                setOrigenSel(null);
-              }}
-              onSeleccionar={(u) => {
-                set({ origen: u.nombre });
-                setOrigenSel(u);
-              }}
-            />
-            <RutaCampo
-              label="Destino"
-              value={borrador.destino}
-              seleccionada={destinoSel}
-              disabled={disabled}
-              placeholder="Buscá o escribí (ej: Mina)"
-              onTexto={(v) => {
-                set({ destino: v });
-                setDestinoSel(null);
-              }}
-              onSeleccionar={(u) => {
-                set({ destino: u.nombre });
-                setDestinoSel(u);
-              }}
-            />
-          </div>
+          {mostrarRuta ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <RutaCampo
+                label="Origen"
+                obligatorio={rutaRequerida}
+                value={borrador.origen}
+                seleccionada={origenSel}
+                disabled={disabled}
+                placeholder="Buscá o escribí (ej: Lima)"
+                onTexto={(v) => {
+                  set({ origen: v });
+                  setOrigenSel(null);
+                }}
+                onSeleccionar={(u) => {
+                  set({ origen: u.nombre });
+                  setOrigenSel(u);
+                }}
+              />
+              <RutaCampo
+                label="Destino"
+                obligatorio={rutaRequerida}
+                value={borrador.destino}
+                seleccionada={destinoSel}
+                disabled={disabled}
+                placeholder="Buscá o escribí (ej: Mina)"
+                onTexto={(v) => {
+                  set({ destino: v });
+                  setDestinoSel(null);
+                }}
+                onSeleccionar={(u) => {
+                  set({ destino: u.nombre });
+                  setDestinoSel(u);
+                }}
+              />
+            </div>
+          ) : null}
         </div>
 
         <DialogFooter>
@@ -143,11 +165,13 @@ export function SeccionDatosModal({
           </Button>
           <Button
             type="button"
-            disabled={disabled || borrador.nombre.trim() === ""}
+            disabled={disabled || nombreVacio || rutaIncompleta}
             title={
-              borrador.nombre.trim() === ""
+              nombreVacio
                 ? "Asigna un nombre a la sección"
-                : undefined
+                : rutaIncompleta
+                  ? "Ingresa origen y destino (obligatorios para transporte)"
+                  : undefined
             }
             onClick={aplicar}
           >
@@ -162,6 +186,7 @@ export function SeccionDatosModal({
 /** Campo de ruta (origen/destino): autocomplete + detalle de lo elegido / aviso. */
 function RutaCampo({
   label,
+  obligatorio,
   value,
   seleccionada,
   disabled,
@@ -170,6 +195,7 @@ function RutaCampo({
   onSeleccionar,
 }: {
   label: string;
+  obligatorio?: boolean;
   value: string;
   seleccionada: Ubicacion | null;
   disabled?: boolean;
@@ -179,7 +205,10 @@ function RutaCampo({
 }) {
   return (
     <div className="grid content-start gap-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-xs text-muted-foreground">
+        {label}{" "}
+        {obligatorio ? <span className="text-destructive">*</span> : null}
+      </Label>
       <AutocompleteUbicacion
         value={value}
         disabled={disabled}

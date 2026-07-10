@@ -334,13 +334,6 @@ function FichaEspecifica({ dato }: { dato: ConfiguracionGeneralResponse }) {
       return <DatoFicha label="Ubicacion" value={referenciaTexto(dato.ubicacionNombre, dato.ubicacionId)} />
     case "AREA":
       return <DatoFicha label="Sede" value={referenciaTexto(dato.sedeNombre, dato.sedeId)} />
-    case "ALMACEN":
-      return (
-        <DatoFicha
-          label="Almacen"
-          value={`${dato.esTemporal ? "Temporal" : "Fijo"} · ${referenciaTexto(dato.ubicacionNombre, dato.ubicacionId)}`}
-        />
-      )
     case "CUENTA":
       return <DatoFicha label="Tipo" value="Cuenta" />
     default:

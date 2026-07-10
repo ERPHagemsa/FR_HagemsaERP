@@ -5,6 +5,8 @@ import type {
   PayloadRegistrarSC,
 } from "../../cotizaciones/tipos/cotizaciones.tipos";
 import type {
+  ClienteBc01,
+  FiltrosBuscarClientes,
   FiltrosResumenSolicitudes,
   FiltrosSolicitudesCliente,
   PayloadDescartarSC,
@@ -12,6 +14,18 @@ import type {
   ResumenSolicitudesCliente,
   SolicitudCliente,
 } from "../tipos/solicitud-cliente.tipos";
+
+// GET /solicitudes-cliente/clientes — busca clientes en BC-01 (passthrough vía el
+// backend Comercial, que hace de ACL a BC-01). Devuelve lo que BC-01 entrega.
+export async function buscarClientesBc01(
+  filtros: FiltrosBuscarClientes
+): Promise<ClienteBc01[]> {
+  const { data } = await clienteComercial.get<{ data: ClienteBc01[] }>(
+    "/solicitudes-cliente/clientes",
+    { params: filtros }
+  );
+  return data.data;
+}
 
 // ---------------------------------------------------------------------------
 // Registro (migrado desde cotizaciones/servicios/solicitudes-cliente-api.ts)

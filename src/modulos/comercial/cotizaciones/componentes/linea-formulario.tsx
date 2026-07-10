@@ -17,14 +17,14 @@ import { LightbulbIcon } from "lucide-react";
 
 import type { Moneda, OrigenTipo, PrecioSugerido, TipoLinea } from "../tipos/cotizaciones.tipos";
 import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
-import type { DraftLinea } from "../servicios/cotizaciones-editor.utils";
+import type { DraftLinea, ModoServicio } from "../servicios/cotizaciones-editor.utils";
 import { montoCargo, precioVentaLinea, totalVentaLinea } from "../servicios/cotizaciones-editor.utils";
 import { usePrecioSugerido } from "../servicios/cotizaciones-queries";
 import { ListaCargos } from "./lista-cargos";
 import { EditorCargasFisicas } from "./editor-cargas-fisicas";
 import { ModalidadSelector } from "./modalidad-selector";
 import { TipoUnidadCombobox } from "./tipo-unidad-combobox";
-import { TIPOS_LINEA, formatearMoneda } from "./lineas-grid.utils";
+import { TIPOS_LINEA, etiquetaTipo, formatearMoneda } from "./lineas-grid.utils";
 
 type Props = {
   linea: DraftLinea;
@@ -38,6 +38,9 @@ type Props = {
   // Ruta a nivel de SECCION: la define la seccion (no se edita aca) y se usa para el
   // precio sugerido; la carga de la linea la sincroniza la seccion.
   rutaSeccion?: { origen: string; destino: string };
+  // Modo de servicio (solo creacion): TRANSPORTE fija el tipo (sin selector); OTROS
+  // acota el selector a los tipos no-transporte. undefined = edicion (todos los tipos).
+  modoServicio?: ModoServicio;
   onChange: (linea: DraftLinea) => void;
 };
 
@@ -57,6 +60,7 @@ export function LineaFormulario({
   clienteTipo,
   clienteId,
   rutaSeccion,
+  modoServicio,
   onChange,
 }: Props) {
   const [toleranciaPeso, setToleranciaPeso] = React.useState(0.15);
@@ -64,6 +68,14 @@ export function LineaFormulario({
   const set = (patch: Partial<DraftLinea>) => onChange({ ...linea, ...patch });
 
   const esTransporte = linea.tipoLinea === "TRANSPORTE";
+
+  // Modo TRANSPORTE: el tipo de servicio queda fijo (sin selector). Modo OTROS:
+  // el selector solo ofrece los tipos no-transporte. En edicion (sin modo) van todos.
+  const tipoServicioFijo = modoServicio === "TRANSPORTE";
+  const tiposServicioDisponibles =
+    modoServicio === "OTROS"
+      ? TIPOS_LINEA.filter((t) => t.valor !== "TRANSPORTE")
+      : TIPOS_LINEA;
 
   // Precio sugerido (solo TRANSPORTE): cruza historico por modalidad + ruta + carga.
   const pesoTotalTn = linea.carga.cargas.reduce((acc, it) => {
@@ -134,23 +146,30 @@ export function LineaFormulario({
           {/* Servicio: que se cotiza */}
           <Seccion titulo="Servicio">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Campo label="Tipo de servicio" obligatorio>
-                <Select
-                  value={linea.tipoLinea}
-                  disabled={disabled}
-                  onValueChange={(v) => set({ tipoLinea: v as TipoLinea, idModalidad: "" })}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIPOS_LINEA.map((t) => (
-                      <SelectItem key={t.valor} value={t.valor}>
-                        {t.etiqueta}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <Campo label="Tipo de servicio" obligatorio={!tipoServicioFijo}>
+                {tipoServicioFijo ? (
+                  // Modo TRANSPORTE: tipo fijo, sin selector (mismo look que el Select).
+                  <div className="flex h-9 items-center rounded-4xl border border-input bg-input/30 px-3 text-sm text-muted-foreground">
+                    {etiquetaTipo(linea.tipoLinea)}
+                  </div>
+                ) : (
+                  <Select
+                    value={linea.tipoLinea}
+                    disabled={disabled}
+                    onValueChange={(v) => set({ tipoLinea: v as TipoLinea, idModalidad: "" })}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiposServicioDisponibles.map((t) => (
+                        <SelectItem key={t.valor} value={t.valor}>
+                          {t.etiqueta}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </Campo>
 
               <Campo label="Modalidad" obligatorio error={erroresCampo.idModalidad}>
@@ -267,7 +286,7 @@ export function LineaFormulario({
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Agregá el peso de la carga (columna Detalle) para ver el precio sugerido.
+                  Agrega el peso de la carga (columna Detalle) para ver el precio sugerido.
                 </p>
               )
             ) : null}
