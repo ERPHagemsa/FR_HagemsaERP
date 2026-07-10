@@ -177,3 +177,24 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* El shell del dashboard (app-shell.tsx) fija el area de contenido con
+   overflow-hidden para que el scroll interno no mueva el sidebar. Eso mismo
+   recorta cualquier pagina que use window.print(): el navegador solo imprime
+   lo que cabe en ese contenedor de altura fija, el resto queda en blanco.
+   Al imprimir, quitamos ese recorte y ocultamos el sidebar/header para que
+   cualquier vista con `print:` (como la hoja de etiquetas QR) pueda usar
+   toda la pagina. */
+@media print {
+  [data-slot="sidebar-inset"] {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-rail"] {
+    display: none !important;
+  }
+}
