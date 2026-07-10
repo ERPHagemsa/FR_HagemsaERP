@@ -12,6 +12,26 @@ interface RespuestaLista<T> {
   data: T[];
 }
 
+// El contrato de completar/corregir del backend es POR NOMBRES. Los códigos
+// geográficos (codigoDepartamento/Provincia/Distrito, ubigeo) que trae la
+// geo-peru-api son solo para el selector/mapa del frontend y NO forman parte del
+// contrato: el ValidationPipe del backend (forbidNonWhitelisted) rechaza campos
+// no declarados. Se envía solo el whitelist que el DTO acepta.
+function soloContratoBackend(p: PayloadCompletarUbicacion) {
+  return {
+    tipoUbicacion: p.tipoUbicacion,
+    pais: p.pais,
+    departamento: p.departamento,
+    provincia: p.provincia,
+    distrito: p.distrito,
+    direccion: p.direccion,
+    referenciaUbicacion: p.referenciaUbicacion,
+    latitud: p.latitud,
+    longitud: p.longitud,
+    coordenadasGoogle: p.coordenadasGoogle,
+  };
+}
+
 // GET /ubicaciones/temporales?idCotizacion=&estado=
 // Ubicaciones temporales de una cotización (la bandeja "por completar" usa PENDIENTE).
 export async function listarUbicacionesTemporales(
@@ -34,7 +54,7 @@ export async function completarUbicacionTemporal(
 ): Promise<UbicacionTemporal> {
   const { data } = await clienteComercial.patch<UbicacionTemporal>(
     `/ubicaciones/temporales/${id}/completar`,
-    payload
+    soloContratoBackend(payload)
   );
   return data;
 }
@@ -48,7 +68,7 @@ export async function corregirUbicacionTemporal(
 ): Promise<UbicacionTemporal> {
   const { data } = await clienteComercial.patch<UbicacionTemporal>(
     `/ubicaciones/temporales/${id}/corregir`,
-    payload
+    soloContratoBackend(payload)
   );
   return data;
 }
