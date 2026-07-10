@@ -29,6 +29,11 @@ export interface GenerarEtiquetasPayload {
   observacion?: string;
 }
 
+export interface AsignarEtiquetaPayload {
+  activoId: number;
+  reemplazarEtiquetaActual?: boolean;
+}
+
 export interface FiltrosEtiquetas {
   estado?: EstadoEtiqueta;
   estadoRegistro?: boolean;

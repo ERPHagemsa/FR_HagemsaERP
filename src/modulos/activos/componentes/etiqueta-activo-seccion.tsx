@@ -13,7 +13,10 @@ import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { LectorQrEtiqueta } from "./lector-qr-etiqueta";
-import { obtenerEtiquetas } from "../servicios/etiquetas-api";
+import {
+  asignarEtiqueta,
+  resolverEtiquetaPorToken,
+} from "../servicios/etiquetas-api";
 import { useEtiquetasQuery } from "../servicios/etiquetas-queries";
 import type { EstadoEtiqueta, Etiqueta } from "../tipos/etiquetas.tipos";
 
@@ -47,6 +50,8 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
   const [etiquetaLeida, setEtiquetaLeida] = useState<Etiqueta | null>(null);
   const [errorLectura, setErrorLectura] = useState<string | null>(null);
   const [resolviendo, setResolviendo] = useState(false);
+  const [vinculando, setVinculando] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState<string | null>(null);
 
   const vinculadas = useEtiquetasQuery({ activoId });
   const etiquetaActual =
@@ -58,23 +63,44 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
     setEtiquetaLeida(null);
     setResolviendo(true);
     try {
-      // Resolucion client-side por token mientras no exista el endpoint
-      // resolver del slice de asignacion.
-      const todas = await obtenerEtiquetas();
-      const encontrada = todas.find((item) => item.token === token) ?? null;
-      if (!encontrada) {
-        setErrorLectura(
-          "El QR se leyo bien pero no corresponde a ninguna etiqueta del maestro."
-        );
-        return;
-      }
-      setEtiquetaLeida(encontrada);
+      setEtiquetaLeida(await resolverEtiquetaPorToken(token));
     } catch (err) {
       setErrorLectura(extraerMensajeError(err));
     } finally {
       setResolviendo(false);
     }
   }
+
+  async function handleVincular() {
+    if (!etiquetaLeida) return;
+    setVinculando(true);
+    setErrorLectura(null);
+    setMensajeExito(null);
+    try {
+      await asignarEtiqueta(etiquetaLeida.id, {
+        activoId,
+        reemplazarEtiquetaActual: Boolean(etiquetaActual),
+      });
+      await vinculadas.refetch();
+      setEtiquetaLeida(null);
+      setMensajeExito(
+        etiquetaActual
+          ? "La etiqueta anterior fue reemplazada y la nueva quedo vinculada."
+          : "La etiqueta QR quedo vinculada al activo."
+      );
+    } catch (err) {
+      setErrorLectura(extraerMensajeError(err));
+    } finally {
+      setVinculando(false);
+    }
+  }
+
+  const etiquetaDeOtroActivo =
+    etiquetaLeida?.estado === "ASIGNADA" && etiquetaLeida.activoId !== activoId;
+  const etiquetaYaVinculada =
+    etiquetaLeida?.estado === "ASIGNADA" && etiquetaLeida.activoId === activoId;
+  const etiquetaNoDisponible =
+    !etiquetaLeida || etiquetaLeida.estado !== "GENERADA";
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border border-border p-4">
@@ -107,6 +133,7 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
           onClick={() => {
             setEtiquetaLeida(null);
             setErrorLectura(null);
+            setMensajeExito(null);
             setLectorAbierto(true);
           }}
         >
@@ -124,6 +151,13 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
         </Alert>
       ) : null}
 
+      {mensajeExito ? (
+        <Alert>
+          <AlertTitle>Etiqueta vinculada</AlertTitle>
+          <AlertDescription>{mensajeExito}</AlertDescription>
+        </Alert>
+      ) : null}
+
       {etiquetaLeida ? (
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 p-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -135,19 +169,34 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
               {BADGE_TEXTO[etiquetaLeida.estado]}
             </Badge>
           </div>
-          {etiquetaLeida.activo && etiquetaLeida.activoId !== activoId ? (
+          {etiquetaDeOtroActivo && etiquetaLeida.activo ? (
             <p className="text-sm text-amber-600 dark:text-amber-400">
               Ojo: esta etiqueta ya esta asignada a {etiquetaLeida.activo.codigo}{" "}
               ({etiquetaLeida.activo.descripcion || "sin descripcion"}).
             </p>
           ) : null}
-          <div className="flex items-center gap-3">
-            <Button type="button" disabled title="Disponible cuando el proceso de asignacion este listo">
-              Vincular a este activo
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              disabled={etiquetaNoDisponible || etiquetaDeOtroActivo || vinculando}
+              onClick={() => void handleVincular()}
+            >
+              {vinculando
+                ? "Vinculando..."
+                : etiquetaActual
+                  ? "Reemplazar y vincular"
+                  : "Vincular a este activo"}
             </Button>
             <p className="text-xs text-muted-foreground">
-              La vinculacion se habilita cuando el proceso de asignacion del
-              backend este disponible (en construccion).
+              {etiquetaYaVinculada
+                ? "Esta etiqueta ya esta vinculada a este activo."
+                : etiquetaDeOtroActivo
+                  ? "Esta etiqueta ya esta vinculada a otro activo."
+                  : etiquetaNoDisponible
+                    ? "Solo se pueden vincular etiquetas generadas y vigentes."
+                    : etiquetaActual
+                      ? "La etiqueta actual se conservara como reemplazada."
+                      : "La etiqueta quedara vinculada a este activo."}
             </p>
           </div>
         </div>
