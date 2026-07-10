@@ -42,6 +42,7 @@ export type VehiculoDetalle = {
   carroceria: string | null;
   zonaRegistral: string | null;
   ejes: number | null;
+  cantidadRuedas: number | null;
   categoria: string | null;
   serieChasis: string | null;
   serieMotor: string | null;
@@ -51,6 +52,13 @@ export type VehiculoDetalle = {
   camara: string | null;
   tablet: string | null;
   dispositivosSeguridad: string | null;
+  gps: string | null;
+  telemetria: string | null;
+  radioBase: string | null;
+  adas: string | null;
+  adasAntapaccay: string | null;
+  adasQuellaveco: string | null;
+  proveedorAdas: string | null;
   estadoOperativo: EstadoOperativo | null;
   cajaHerramientas: string | null;
   jaulaAntivuelco: string | null;
@@ -60,6 +68,9 @@ export type VehiculoDetalle = {
   ancho: number | null;
   longitud: number | null;
   alto: number | null;
+  pesoBruto: number | null;
+  pesoNeto: number | null;
+  cargaUtil: number | null;
   tipoSuspension: string | null;
   tipoTornamesa: string | null;
   capacidadTanqueGalones: number | null;

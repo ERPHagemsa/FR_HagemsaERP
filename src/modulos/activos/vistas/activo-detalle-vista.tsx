@@ -197,6 +197,7 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Tarjeta propiedad" value={vehiculo?.tarjetaPropiedad} />
                     <Dato label="Tipo tarjeta propiedad" value={vehiculo?.tipoTarjetaPropiedad} />
                     <Dato label="Ejes" value={vehiculo?.ejes} />
+                    <Dato label="Ruedas" value={vehiculo?.cantidadRuedas} />
                     <Dato label="Categoria" value={vehiculo?.categoria} />
                     <Dato label="Serie chasis" value={vehiculo?.serieChasis} />
                     <Dato label="Serie motor" value={vehiculo?.serieMotor} />
@@ -211,6 +212,13 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Camara" value={vehiculo?.camara} />
                     <Dato label="Tablet" value={vehiculo?.tablet} />
                     <Dato label="Dispositivos seguridad" value={vehiculo?.dispositivosSeguridad} />
+                    <Dato label="GPS" value={vehiculo?.gps} />
+                    <Dato label="Telemetría" value={vehiculo?.telemetria} />
+                    <Dato label="Radio base" value={vehiculo?.radioBase} />
+                    <Dato label="ADAS" value={vehiculo?.adas} />
+                    <Dato label="ADAS Antapaccay" value={vehiculo?.adasAntapaccay} />
+                    <Dato label="ADAS Quellaveco" value={vehiculo?.adasQuellaveco} />
+                    <Dato label="Proveedor ADAS" value={vehiculo?.proveedorAdas} />
                     <Dato label="Caja herramientas" value={vehiculo?.cajaHerramientas} />
                     <Dato label="Jaula antivuelco" value={vehiculo?.jaulaAntivuelco} />
                     <Dato label="Carriboy" value={vehiculo?.carriboy} />
@@ -224,6 +232,9 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Ancho" value={vehiculo?.ancho} />
                     <Dato label="Longitud" value={vehiculo?.longitud} />
                     <Dato label="Alto" value={vehiculo?.alto} />
+                    <Dato label="Peso bruto (kg)" value={vehiculo?.pesoBruto} />
+                    <Dato label="Peso neto (kg)" value={vehiculo?.pesoNeto} />
+                    <Dato label="Carga util (kg)" value={vehiculo?.cargaUtil} />
                     <Dato label="Tipo suspension" value={vehiculo?.tipoSuspension} />
                     <Dato label="Tipo tornamesa" value={vehiculo?.tipoTornamesa} />
                     <Dato

@@ -116,8 +116,8 @@ type Props = {
 const TABS_POR_TIPO_ACTIVO: Record<number, ActivoTab[]> = {
   [TIPO_ACTIVO_VEHICULO_ID]: [
     "base",
-    "adquisicion",
     "vehiculo",
+    "adquisicion",
     "equipamiento",
     "dimensiones",
     "control",
@@ -438,6 +438,7 @@ export function ActivoFormulario({
     setFormValue("longitud", "");
     setFormValue("alto", "");
     setFormValue("ejes", "");
+    setFormValue("cantidadRuedas", "");
     setFormValue("categoria", "");
     actualizarResumen();
   }
@@ -465,6 +466,7 @@ export function ActivoFormulario({
       setFormValue("longitud", "");
       setFormValue("alto", "");
       setFormValue("ejes", "");
+      setFormValue("cantidadRuedas", "");
       setFormValue("categoria", "");
       actualizarResumen();
       return;
@@ -528,6 +530,7 @@ export function ActivoFormulario({
         ["Marca", getValue("marca") || activo?.vehiculo?.marca],
         ["Modelo", getValue("modelo") || activo?.vehiculo?.modelo],
         ["Zona", getValue("zonaRegistral") || activo?.vehiculo?.zonaRegistral],
+        ["Ruedas", getValue("cantidadRuedas") || activo?.vehiculo?.cantidadRuedas],
         [
           "Cuenta",
           formatearAsignacionFlota(
@@ -552,6 +555,13 @@ export function ActivoFormulario({
         ["Camara", getValue("camara") || activo?.vehiculo?.camara],
         ["Tablet", getValue("tablet") || activo?.vehiculo?.tablet],
         ["Seguridad", getValue("dispositivosSeguridad") || activo?.vehiculo?.dispositivosSeguridad],
+        ["GPS", getValue("gps") || activo?.vehiculo?.gps],
+        ["Telemetria", getValue("telemetria") || activo?.vehiculo?.telemetria],
+        ["Radio base", getValue("radioBase") || activo?.vehiculo?.radioBase],
+        ["ADAS", getValue("adas") || activo?.vehiculo?.adas],
+        ["ADAS Antapaccay", getValue("adasAntapaccay") || activo?.vehiculo?.adasAntapaccay],
+        ["ADAS Quellaveco", getValue("adasQuellaveco") || activo?.vehiculo?.adasQuellaveco],
+        ["Proveedor ADAS", getValue("proveedorAdas") || activo?.vehiculo?.proveedorAdas],
       ],
       control: [
         ["Condicion", getValue("estadoOperativo") || activo?.vehiculo?.estadoOperativo],
@@ -570,6 +580,9 @@ export function ActivoFormulario({
         ["Ancho", getValue("ancho") || activo?.vehiculo?.ancho],
         ["Longitud", getValue("longitud") || activo?.vehiculo?.longitud],
         ["Alto", getValue("alto") || activo?.vehiculo?.alto],
+        ["Peso bruto (kg)", getValue("pesoBruto") || activo?.vehiculo?.pesoBruto],
+        ["Peso neto (kg)", getValue("pesoNeto") || activo?.vehiculo?.pesoNeto],
+        ["Carga util (kg)", getValue("cargaUtil") || activo?.vehiculo?.cargaUtil],
         ["Suspension", getValue("tipoSuspension") || activo?.vehiculo?.tipoSuspension],
         [
           "Euro",
@@ -739,6 +752,9 @@ export function ActivoFormulario({
               ? texto("tipoTarjetaPropiedad")
               : null,
             ejes: puedeGuardarTab("vehiculo") ? numero("ejes") : null,
+            cantidadRuedas: puedeGuardarTab("vehiculo")
+              ? numero("cantidadRuedas")
+              : null,
             categoria: puedeGuardarTab("vehiculo") ? texto("categoria") : null,
             serieChasis: puedeGuardarTab("vehiculo") ? texto("serieChasis") : null,
             serieMotor: puedeGuardarTab("vehiculo") ? texto("serieMotor") : null,
@@ -753,6 +769,23 @@ export function ActivoFormulario({
             tablet: puedeGuardarTab("equipamiento") ? texto("tablet") : null,
             dispositivosSeguridad: puedeGuardarTab("equipamiento")
               ? texto("dispositivosSeguridad")
+              : null,
+            gps: puedeGuardarTab("equipamiento") ? texto("gps") : null,
+            telemetria: puedeGuardarTab("equipamiento")
+              ? texto("telemetria")
+              : null,
+            radioBase: puedeGuardarTab("equipamiento")
+              ? texto("radioBase")
+              : null,
+            adas: puedeGuardarTab("equipamiento") ? texto("adas") : null,
+            adasAntapaccay: puedeGuardarTab("equipamiento")
+              ? texto("adasAntapaccay")
+              : null,
+            adasQuellaveco: puedeGuardarTab("equipamiento")
+              ? texto("adasQuellaveco")
+              : null,
+            proveedorAdas: puedeGuardarTab("equipamiento")
+              ? texto("proveedorAdas")
               : null,
             estadoOperativo: puedeGuardarTab("control")
               ? ((getValue("estadoOperativo") || "OPERATIVO") as EstadoOperativo)
@@ -769,6 +802,15 @@ export function ActivoFormulario({
             ancho: puedeGuardarTab("dimensiones") ? numero("ancho") : null,
             longitud: puedeGuardarTab("dimensiones") ? numero("longitud") : null,
             alto: puedeGuardarTab("dimensiones") ? numero("alto") : null,
+            pesoBruto: puedeGuardarTab("dimensiones")
+              ? numero("pesoBruto")
+              : null,
+            pesoNeto: puedeGuardarTab("dimensiones")
+              ? numero("pesoNeto")
+              : null,
+            cargaUtil: puedeGuardarTab("dimensiones")
+              ? numero("cargaUtil")
+              : null,
             tipoSuspension: puedeGuardarTab("dimensiones")
               ? texto("tipoSuspension")
               : null,
@@ -1059,16 +1101,16 @@ export function ActivoFormulario({
                 <IconClipboardText className="size-4 text-primary" />
                 Base
               </TabsTrigger>
-              <TabsTrigger value="adquisicion" className="flex-none">
-                <IconReceipt2 className="size-4 text-primary" />
-                Adquisicion
-              </TabsTrigger>
               {tieneTab("vehiculo") ? (
                 <TabsTrigger value="vehiculo" className="flex-none">
                   <IconTruck className="size-4 text-primary" />
                   Vehiculo
                 </TabsTrigger>
               ) : null}
+              <TabsTrigger value="adquisicion" className="flex-none">
+                <IconReceipt2 className="size-4 text-primary" />
+                Adquisicion
+              </TabsTrigger>
               {tieneTab("equipamiento") ? (
                 <TabsTrigger value="equipamiento" className="flex-none">
                   <IconSettings className="size-4 text-primary" />
@@ -1121,10 +1163,6 @@ export function ActivoFormulario({
               />
             </TabsContent>
 
-            <TabsContent forceMount value="adquisicion" className="mt-0 data-[state=inactive]:hidden">
-              <TabAdquisicion activo={activo} />
-            </TabsContent>
-
             {tieneTab("vehiculo") ? (
             <TabsContent forceMount value="vehiculo" className="mt-0 data-[state=inactive]:hidden">
               <TabVehiculo
@@ -1139,6 +1177,10 @@ export function ActivoFormulario({
               />
             </TabsContent>
             ) : null}
+
+            <TabsContent forceMount value="adquisicion" className="mt-0 data-[state=inactive]:hidden">
+              <TabAdquisicion activo={activo} />
+            </TabsContent>
 
             {tieneTab("equipamiento") ? (
             <TabsContent forceMount value="equipamiento" className="mt-0 data-[state=inactive]:hidden">

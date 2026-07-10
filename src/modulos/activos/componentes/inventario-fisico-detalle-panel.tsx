@@ -1017,6 +1017,7 @@ function FichaRevisionInventario({
                     )}
                   />
                   <DatoInventario label="Ejes" value={vehiculo?.ejes} />
+                  <DatoInventario label="Ruedas" value={vehiculo?.cantidadRuedas} />
                   <DatoInventario label="Categoria" value={vehiculo?.categoria} />
                   <DatoInventario label="Serie chasis" value={vehiculo?.serieChasis} />
                   <DatoInventario label="Serie motor" value={vehiculo?.serieMotor} />
@@ -1031,6 +1032,13 @@ function FichaRevisionInventario({
                   <DatoInventario label="Camara" value={vehiculo?.camara} />
                   <DatoInventario label="Tablet" value={vehiculo?.tablet} />
                   <DatoInventario label="Dispositivos seguridad" value={vehiculo?.dispositivosSeguridad} />
+                  <DatoInventario label="GPS" value={vehiculo?.gps} />
+                  <DatoInventario label="Telemetría" value={vehiculo?.telemetria} />
+                  <DatoInventario label="Radio base" value={vehiculo?.radioBase} />
+                  <DatoInventario label="ADAS" value={vehiculo?.adas} />
+                  <DatoInventario label="ADAS Antapaccay" value={vehiculo?.adasAntapaccay} />
+                  <DatoInventario label="ADAS Quellaveco" value={vehiculo?.adasQuellaveco} />
+                  <DatoInventario label="Proveedor ADAS" value={vehiculo?.proveedorAdas} />
                   <DatoInventario label="Caja herramientas" value={vehiculo?.cajaHerramientas} />
                   <DatoInventario label="Jaula antivuelco" value={vehiculo?.jaulaAntivuelco} />
                   <DatoInventario label="Carriboy" value={vehiculo?.carriboy} />
@@ -1044,6 +1052,9 @@ function FichaRevisionInventario({
                   <DatoInventario label="Ancho" value={vehiculo?.ancho} />
                   <DatoInventario label="Longitud" value={vehiculo?.longitud} />
                   <DatoInventario label="Alto" value={vehiculo?.alto} />
+                  <DatoInventario label="Peso bruto (kg)" value={vehiculo?.pesoBruto} />
+                  <DatoInventario label="Peso neto (kg)" value={vehiculo?.pesoNeto} />
+                  <DatoInventario label="Carga util (kg)" value={vehiculo?.cargaUtil} />
                   <DatoInventario label="Tipo suspension" value={vehiculo?.tipoSuspension} />
                   <DatoInventario label="Tipo tornamesa" value={vehiculo?.tipoTornamesa} />
                   <DatoInventario
@@ -1737,6 +1748,10 @@ function SnapshotInventario({
           />
           <DatoInventario label="Ejes" value={leerSnapshot(vehiculo, "ejes")} />
           <DatoInventario
+            label="Ruedas"
+            value={leerSnapshot(vehiculo, "cantidadRuedas")}
+          />
+          <DatoInventario
             label="Categoria"
             value={leerSnapshot(vehiculo, "categoria")}
           />
@@ -1995,7 +2010,11 @@ function construirFilasComparativo(actualAnterior: unknown, actual: unknown) {
     { campo: "Serie chasis", path: ["vehiculo", "serieChasis"] },
     { campo: "Serie motor", path: ["vehiculo", "serieMotor"] },
     { campo: "Ejes", path: ["vehiculo", "ejes"] },
+    { campo: "Ruedas", path: ["vehiculo", "cantidadRuedas"] },
     { campo: "Categoria", path: ["vehiculo", "categoria"] },
+    { campo: "Peso bruto (kg)", path: ["vehiculo", "pesoBruto"] },
+    { campo: "Peso neto (kg)", path: ["vehiculo", "pesoNeto"] },
+    { campo: "Carga util (kg)", path: ["vehiculo", "cargaUtil"] },
     { campo: "Condicion activo", path: ["vehiculo", "estadoOperativo"] },
     { campo: "Calibracion", path: ["vehiculo", "estadoCalibracion"] },
   ];

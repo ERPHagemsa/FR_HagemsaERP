@@ -126,6 +126,7 @@ type SeccionCarga =
   | "Base"
   | "Adquisicion"
   | "Vehiculo"
+  | "Equipamiento"
   | "Dimensiones"
   | "Control operativo"
   | "Combustible";
@@ -138,6 +139,10 @@ const CLAVES_ADQUISICION = new Set([
   "fechaFactura",
 ]);
 const CLAVES_DIMENSIONES = new Set(["alto", "ancho", "longitud"]);
+const CLAVES_EQUIPAMIENTO = new Set([
+  "baranda", "gps", "telemetria", "radioBase", "adas", "adasAntapaccay",
+  "adasQuellaveco", "proveedorAdas", "camara",
+]);
 const CLAVES_CONTROL = new Set([
   "estadoOperativo",
   "estadoCalibracionReferenciaId",
@@ -148,6 +153,7 @@ const CLAVES_COMBUSTIBLE = new Set(["capacidadTanqueGalones"]);
 function seccionDeColumna(clave: string): SeccionCarga {
   if (CLAVES_ADQUISICION.has(clave)) return "Adquisicion";
   if (CLAVES_DIMENSIONES.has(clave)) return "Dimensiones";
+  if (CLAVES_EQUIPAMIENTO.has(clave)) return "Equipamiento";
   if (CLAVES_CONTROL.has(clave)) return "Control operativo";
   if (CLAVES_COMBUSTIBLE.has(clave)) return "Combustible";
   if (
