@@ -15,9 +15,9 @@ import {
 } from "@/compartido/componentes/ui/select";
 import { LightbulbIcon } from "lucide-react";
 
-import type { Moneda, OrigenTipo, PrecioSugerido, TipoLinea } from "../tipos/cotizaciones.tipos";
+import type { Moneda, PrecioSugerido, TipoLinea } from "../tipos/cotizaciones.tipos";
 import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
-import type { DraftLinea, ModoServicio } from "../servicios/cotizaciones-editor.utils";
+import type { DraftLinea, ModoServicio, RutaSeccion } from "../servicios/cotizaciones-editor.utils";
 import { montoCargo, precioVentaLinea, totalVentaLinea } from "../servicios/cotizaciones-editor.utils";
 import { usePrecioSugerido } from "../servicios/cotizaciones-queries";
 import { ListaCargos } from "./lista-cargos";
@@ -32,12 +32,11 @@ type Props = {
   opcionesCatalogo: CatalogoCargoAdicional[];
   erroresCampo?: Record<string, string>;
   disabled?: boolean;
-  // Origen de la cotizacion (opcional): acota el precio sugerido al historial del cliente.
-  clienteTipo?: OrigenTipo;
-  clienteId?: string;
+  // Cliente externo (Socios de Negocio) para acotar el precio sugerido; undefined = mercado.
+  idClienteExterno?: string;
   // Ruta a nivel de SECCION: la define la seccion (no se edita aca) y se usa para el
-  // precio sugerido; la carga de la linea la sincroniza la seccion.
-  rutaSeccion?: { origen: string; destino: string };
+  // precio sugerido (por id de ubicacion); la carga de la linea la sincroniza la seccion.
+  rutaSeccion?: RutaSeccion;
   // Modo de servicio (solo creacion): TRANSPORTE fija el tipo (sin selector); OTROS
   // acota el selector a los tipos no-transporte. undefined = edicion (todos los tipos).
   modoServicio?: ModoServicio;
@@ -57,8 +56,7 @@ export function LineaFormulario({
   opcionesCatalogo,
   erroresCampo = {},
   disabled,
-  clienteTipo,
-  clienteId,
+  idClienteExterno,
   rutaSeccion,
   modoServicio,
   onChange,
@@ -77,24 +75,27 @@ export function LineaFormulario({
       ? TIPOS_LINEA.filter((t) => t.valor !== "TRANSPORTE")
       : TIPOS_LINEA;
 
-  // Precio sugerido (solo TRANSPORTE): cruza historico por modalidad + ruta + carga.
+  // Precio sugerido (solo TRANSPORTE): tarifas ganadas por modalidad + ruta (por id) +
+  // tipo de unidad + peso. La ruta se compara por id de ubicacion del maestro (BC-14); si la
+  // seccion no lo tiene (ruta escrita a mano o cotizacion vieja) no hay sugerencia posible.
   const pesoTotalTn = linea.carga.cargas.reduce((acc, it) => {
     const p = parseFloat(it.peso);
     if (isNaN(p) || p <= 0) return acc;
     return acc + (it.unidadPeso === "KG" ? p / 1000 : p);
   }, 0);
-  const origenEfectivo = rutaSeccion ? rutaSeccion.origen : linea.carga.origen;
-  const destinoEfectivo = rutaSeccion ? rutaSeccion.destino : linea.carga.destino;
+  const origenUbicacionId = rutaSeccion?.origenUbicacionId ?? "";
+  const destinoUbicacionId = rutaSeccion?.destinoUbicacionId ?? "";
+  const rutaConId = origenUbicacionId !== "" && destinoUbicacionId !== "";
   const sugerenciaPrecio = usePrecioSugerido(
     {
+      origenUbicacionId,
+      destinoUbicacionId,
       modalidadId: linea.idModalidad,
-      origen: origenEfectivo,
-      destino: destinoEfectivo,
+      idTipoUnidad: linea.carga.idTipoUnidad,
       moneda: moneda as Moneda,
       pesoTotal: pesoTotalTn,
       toleranciaPeso,
-      clienteTipo: clienteTipo && clienteId ? clienteTipo : undefined,
-      clienteId: clienteTipo && clienteId ? clienteId : undefined,
+      idClienteExterno,
     },
     esTransporte && !disabled
   );
@@ -247,11 +248,13 @@ export function LineaFormulario({
               </span>
             </div>
 
-            {esTransporte &&
-            linea.idModalidad &&
-            origenEfectivo.trim() !== "" &&
-            destinoEfectivo.trim() !== "" ? (
-              pesoTotalTn > 0 ? (
+            {esTransporte && linea.idModalidad && linea.carga.idTipoUnidad ? (
+              !rutaConId ? (
+                <p className="text-xs text-muted-foreground">
+                  Selecciona el origen y el destino desde el maestro de ubicaciones (en
+                  Datos de la sección) para ver el precio sugerido.
+                </p>
+              ) : pesoTotalTn > 0 ? (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between gap-2">
                     <Label className="text-xs text-muted-foreground">
@@ -486,16 +489,16 @@ function SugerenciaPrecio({
     return <p className="text-xs text-muted-foreground">Buscando precio sugerido…</p>;
   }
   if (error || !data) return null;
-  if (data.muestras === 0 || data.monto === null) {
+  if (data.muestras === 0 || data.precioSugerido === null) {
     return (
       <p className="text-xs text-muted-foreground">
-        Sin sugerencia para esta ruta todavia (sin historial comparable).
+        Sin sugerencia para esta ruta todavia (sin tarifas ganadas comparables).
       </p>
     );
   }
 
-  const monto = data.monto;
-  const hayRango = data.montoMin !== null && data.montoMax !== null;
+  const monto = data.precioSugerido;
+  const hayRango = data.precioMinimo !== null && data.precioMaximo !== null;
   const alcanceEtiqueta = data.alcance === "cliente" ? "de este cliente" : "de mercado";
 
   return (
@@ -514,8 +517,8 @@ function SugerenciaPrecio({
             {formatearMoneda(monto, moneda)}
             {hayRango ? (
               <span className="ml-2 text-xs font-normal text-muted-foreground">
-                rango {formatearMoneda(data.montoMin as number, moneda)}–
-                {formatearMoneda(data.montoMax as number, moneda)}
+                rango {formatearMoneda(data.precioMinimo as number, moneda)}–
+                {formatearMoneda(data.precioMaximo as number, moneda)}
               </span>
             ) : null}
           </span>
@@ -545,17 +548,16 @@ function SugerenciaPrecio({
           <ul className="mt-1.5 flex flex-col gap-1">
             {data.comparables.map((c) => (
               <li
-                key={c.cotizacionId}
+                key={c.tarifarioId}
                 className="flex items-center justify-between gap-3 border-t border-border/60 pt-1"
               >
                 <span className="truncate text-muted-foreground">
-                  {c.tipoUnidadNombre || "Sin unidad"} · {c.estado} · {c.ejecutivo}
+                  {c.tipoUnidadNombre || "Sin unidad"}
+                  {c.esDelCliente ? " · del cliente" : ""}
+                  {!c.dentroRangoPeso ? " · fuera de rango de peso" : ""}
                 </span>
                 <span className="shrink-0 font-mono tabular-nums text-foreground">
-                  {formatearMoneda(c.precioVenta, moneda)}
-                  <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-                    ({c.margenPct}% mg)
-                  </span>
+                  {formatearMoneda(c.precio, moneda)}
                 </span>
               </li>
             ))}

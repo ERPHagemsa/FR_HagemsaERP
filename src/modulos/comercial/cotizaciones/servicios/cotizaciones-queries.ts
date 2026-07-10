@@ -91,34 +91,34 @@ export function useSugerenciasCarga(q: string, limit = 10) {
   );
 }
 
-// Precio sugerido para una linea de TRANSPORTE (API §5.3.2). El backend exige 5 campos
-// del query (modalidadId, origen, destino, moneda y pesoTotal > 0); por eso la query SOLO
-// dispara cuando los cinco estan presentes — sin peso no hay sugerencia (es requerido).
-// OJO: igual que useSugerenciasCarga, useConsulta NO limpia `data` al deshabilitarse —
-// el consumidor debe gatear el render por la misma condicion de `habilitado`.
+// Precio sugerido para una linea de TRANSPORTE (API-Tarifarios.md §4.2). El backend compara
+// la ruta por ID de ubicacion (maestro BC-14) y exige 6 params (origenUbicacionId,
+// destinoUbicacionId, modalidadId, idTipoUnidad, moneda, pesoTotal). Sin los ids del maestro
+// —ruta escrita a mano o cotizacion vieja— NO hay sugerencia: la query no dispara y el
+// consumidor degrada a "sin sugerencia". OJO: useConsulta NO limpia `data` al deshabilitarse,
+// asi que el consumidor tambien debe gatear el render por la condicion de `habilitado`.
 export function usePrecioSugerido(
   params: ParamsPrecioSugerido,
   habilitado = true
 ) {
-  const origen = params.origen.trim();
-  const destino = params.destino.trim();
   const listo =
     habilitado &&
+    Boolean(params.origenUbicacionId) &&
+    Boolean(params.destinoUbicacionId) &&
     Boolean(params.modalidadId) &&
-    origen.length > 0 &&
-    destino.length > 0 &&
+    Boolean(params.idTipoUnidad) &&
     params.pesoTotal > 0;
   return useConsulta(
-    () => obtenerPrecioSugerido({ ...params, origen, destino }),
+    () => obtenerPrecioSugerido(params),
     [
+      params.origenUbicacionId,
+      params.destinoUbicacionId,
       params.modalidadId,
-      origen,
-      destino,
+      params.idTipoUnidad,
       params.moneda,
       params.pesoTotal,
       params.toleranciaPeso,
-      params.clienteTipo,
-      params.clienteId,
+      params.idClienteExterno,
     ],
     { enabled: listo }
   );

@@ -11,8 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/compartido/componentes/ui/dialog";
-import type { CatalogoCargoAdicional, OrigenTipo } from "../tipos/cotizaciones.tipos";
-import type { DraftLinea, ModoServicio } from "../servicios/cotizaciones-editor.utils";
+import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
+import type { DraftLinea, ModoServicio, RutaSeccion } from "../servicios/cotizaciones-editor.utils";
 import { montoCargo } from "../servicios/cotizaciones-editor.utils";
 import { LineaFormulario } from "./linea-formulario";
 import { etiquetaTipo, formatearMoneda, totalLinea } from "./lineas-grid.utils";
@@ -25,13 +25,12 @@ type Props = {
   // Titulo/subtitulo contextual (nombre de la seccion a la que pertenece la linea).
   seccionNombre?: string;
   // Ruta de la seccion: la linea de transporte la hereda (no se edita aca).
-  rutaSeccion?: { origen: string; destino: string };
+  rutaSeccion?: RutaSeccion;
   moneda: string;
   opcionesCatalogo: CatalogoCargoAdicional[];
   disabled?: boolean;
-  // Origen de la cotizacion: acota el precio sugerido al historial del cliente.
-  clienteTipo?: OrigenTipo;
-  clienteId?: string;
+  // Cliente externo (Socios de Negocio) para acotar el precio sugerido; undefined = mercado.
+  idClienteExterno?: string;
   // Modo de servicio (solo creacion): acota el selector de tipo de servicio.
   modoServicio?: ModoServicio;
   onCerrar: () => void;
@@ -53,8 +52,7 @@ export function LineaDetalleModal({
   moneda,
   opcionesCatalogo,
   disabled,
-  clienteTipo,
-  clienteId,
+  idClienteExterno,
   modoServicio,
   onCerrar,
   onGuardar,
@@ -101,8 +99,7 @@ export function LineaDetalleModal({
               moneda={moneda}
               opcionesCatalogo={opcionesCatalogo}
               disabled={disabled}
-              clienteTipo={clienteTipo}
-              clienteId={clienteId}
+              idClienteExterno={idClienteExterno}
               rutaSeccion={rutaSeccion}
               modoServicio={modoServicio}
               onChange={(l) => setBorrador(l)}
