@@ -215,6 +215,7 @@ const navAdmin = {
     { title: "Cuentas", url: "/admin/cuentas" },
     { title: "Roles", url: "/admin/roles" },
     { title: "Permisos", url: "/admin/permisos" },
+    { title: "Clientes de servicio", url: "/admin/service-clients" },
     { title: "Auditoria", url: "/admin/auditoria" },
   ],
 }
