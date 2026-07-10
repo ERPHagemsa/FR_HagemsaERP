@@ -3,6 +3,7 @@
 import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
+  actualizarCodigosCuenta,
   actualizarCuenta,
   crearCuenta,
   desactivarCuenta,
@@ -10,8 +11,10 @@ import {
   resetPasswordAdmin,
   setPassword,
   suspenderCuenta,
+  vincularSocioCuenta,
 } from "../servicios/cuentas-api"
 import type {
+  ActualizarCodigosPayload,
   ActualizarCuentaPayload,
   CrearCuentaPayload,
   CrearCuentaResponse,
@@ -19,6 +22,7 @@ import type {
   ResetPasswordResponse,
   SetPasswordPayload,
   SuspenderCuentaPayload,
+  VincularSocioPayload,
 } from "../tipos/administracion.tipos"
 
 export interface OpcionesMutacion {
@@ -79,6 +83,26 @@ export function useDesactivarCuenta(
 ) {
   return useMutar<DesactivarCuentaPayload, void>({
     fn: (payload) => desactivarCuenta(cuentaId, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useActualizarCodigos(
+  cuentaId: string,
+  opciones: OpcionesMutacion = {},
+) {
+  return useMutar<ActualizarCodigosPayload, void>({
+    fn: (payload) => actualizarCodigosCuenta(cuentaId, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useVincularSocio(
+  cuentaId: string,
+  opciones: OpcionesMutacion = {},
+) {
+  return useMutar<VincularSocioPayload, void>({
+    fn: (payload) => vincularSocioCuenta(cuentaId, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }

@@ -23,6 +23,10 @@ export interface CuentaResponse {
   readonly tipoCuenta: TipoCuenta
   readonly estado: EstadoCuenta
   readonly documentoIdentidad: string | null
+  // Codigos internos de la cuenta (para PDFs), independientes del socio de BC01.
+  // null si la cuenta no los tiene seteados.
+  readonly codigoSocio: string | null
+  readonly codigoCuenta: string | null
   readonly createdAt: string
   readonly updatedAt: string
   readonly socio?: SocioAsignado | null
@@ -78,6 +82,21 @@ export interface SuspenderCuentaPayload {
 export interface ActualizarCuentaPayload {
   nombreCompleto?: string
   documentoIdentidad?: string | null
+}
+
+// PATCH /admin/cuentas/:id/codigos — setea, edita o limpia los codigos internos.
+// "Todo o nada": ambos presentes (setear/editar) o ambos null (limpiar).
+export interface ActualizarCodigosPayload {
+  codigoSocio: string | null
+  codigoCuenta: string | null
+}
+
+// POST /admin/cuentas/:id/vincular-socio — vincula un socio de BC01 a una cuenta
+// existente. Solo socioExternoId es obligatorio; tipo y snapshot son opcionales.
+export interface VincularSocioPayload {
+  socioExternoId: number
+  tipoSocio?: TipoSocio
+  socioSnapshot?: Record<string, unknown>
 }
 
 // DELETE /admin/cuentas/:id — desactivacion logica con razon obligatoria.

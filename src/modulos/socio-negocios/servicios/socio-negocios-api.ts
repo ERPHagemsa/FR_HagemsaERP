@@ -16,6 +16,7 @@ import type {
   LineaHistoricaPersonalResponse,
   ModificarSocioDeNegocioRequest,
   PaginatedResponse,
+  PersonalActivoResponse,
   PersonalListadoResponse,
   ReactivarSocioDeNegocioRequest,
   RechazarSocioDeNegocioRequest,
@@ -240,6 +241,34 @@ export async function consultarPersonalSociosDeNegocio(
   const { data } = await clienteSocioNegocios.get<
     RespuestaPaginadaBackend<PersonalListadoResponse>
   >(`${BASE_ENDPOINT}/personal${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+// Query del endpoint real de BC01 `GET /personal/activos`. OJO: su contrato es
+// distinto al de /socios-de-negocio/personal — usa `buscar` (min 3 chars,
+// startsWith sobre documento/primerNombre/apellidoPaterno), `pagina` (default 1)
+// y `tamano` (default 10, max 100).
+export interface ConsultarPersonalActivosQuery {
+  buscar?: string
+  pagina?: number
+  tamano?: number
+}
+
+// Personal ACTIVO de BC01. A diferencia de `consultarPersonalSociosDeNegocio`
+// (que va por /socios-de-negocio/personal), este pega al endpoint real de BC01
+// `GET /personal/activos` a traves del proxy sin prefijo (/api/socio-negocios/*).
+// Se usa para el buscador de socio (vincular socio a una cuenta).
+export async function consultarPersonalActivosBc01(
+  query?: ConsultarPersonalActivosQuery,
+): Promise<PaginatedResponse<PersonalActivoResponse>> {
+  const params = new URLSearchParams()
+  if (query?.buscar) params.set("buscar", query.buscar)
+  if (query?.pagina !== undefined) params.set("pagina", String(query.pagina))
+  if (query?.tamano !== undefined) params.set("tamano", String(query.tamano))
+  const qs = params.toString()
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<PersonalActivoResponse>
+  >(`/socio-negocios/personal/activos${qs ? `?${qs}` : ""}`)
   return normalizarRespuestaPaginada(data)
 }
 

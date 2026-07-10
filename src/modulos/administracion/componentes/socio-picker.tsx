@@ -5,10 +5,10 @@ import { useEffect, useState } from "react"
 import { useConsulta } from "@/compartido/api/use-consulta"
 import { Button } from "@/compartido/componentes/ui/button"
 import { Input } from "@/compartido/componentes/ui/input"
-import { consultarPersonalSociosDeNegocio } from "@/modulos/socio-negocios/servicios/socio-negocios-api"
+import { consultarPersonalActivosBc01 } from "@/modulos/socio-negocios/servicios/socio-negocios-api"
 import type {
   CuentaContratoResumen,
-  PersonalListadoResponse,
+  PersonalActivoResponse,
 } from "@/modulos/socio-negocios/tipos/socio-negocio"
 
 // Socio de negocio (BC01) elegido para vincular a la cuenta. Solo guardamos el
@@ -17,29 +17,13 @@ export interface SocioSeleccionado {
   readonly socioExternoId: number
   readonly nombre: string
   readonly documento: string
-  // Objeto completo de BC01, se envía como snapshot al vincular.
-  readonly datos: PersonalListadoResponse
+  // Snapshot que viaja al backend al vincular. Aplanamos numeroDocumento y el
+  // contacto al nivel raiz porque el snapshot del auth-service los lee ahi
+  // (SocioSnapshot.documento / display).
+  readonly datos: Record<string, unknown>
 }
 
-// Las cuentas/contratos pueden venir anidadas en asignaciones[].cuentasContratos[]
-// (tipo del listado) o a nivel raíz del personal (según el endpoint). Cubrimos
-// ambas formas, aplanamos y deduplicamos por id.
-function cuentasDe(personal: PersonalListadoResponse): CuentaContratoResumen[] {
-  const anidadas = (personal.asignaciones ?? []).flatMap(
-    (a) => a.cuentasContratos ?? [],
-  )
-  const raiz =
-    (personal as { cuentasContratos?: CuentaContratoResumen[] })
-      .cuentasContratos ?? []
-  const vistas = new Set<number>()
-  return [...anidadas, ...raiz].filter((c) => {
-    if (vistas.has(c.id)) return false
-    vistas.add(c.id)
-    return true
-  })
-}
-
-function nombreDe(personal: PersonalListadoResponse): string {
+function nombreDe(personal: PersonalActivoResponse): string {
   if (personal.nombreCompleto?.trim()) return personal.nombreCompleto.trim()
   return [
     personal.primerNombre,
@@ -52,14 +36,36 @@ function nombreDe(personal: PersonalListadoResponse): string {
     .trim()
 }
 
+// Arma el snapshot a persistir: el objeto de BC01 tal cual + numeroDocumento y
+// contacto aplanados al nivel raiz (asi el auth-service y la vista de detalle
+// los encuentran).
+function aSnapshot(personal: PersonalActivoResponse): Record<string, unknown> {
+  return {
+    ...personal,
+    numeroDocumento: personal.documento.numeroDocumento,
+    direccion: personal.contacto?.direccion,
+    correo: personal.contacto?.correo,
+    numeroCelular: personal.contacto?.numeroCelular,
+    contacto: personal.contacto?.contacto,
+  }
+}
+
+// Lee las cuentas/contratos del snapshot (estan a nivel raiz en /personal/activos).
+function cuentasDeSnapshot(datos: Record<string, unknown>): CuentaContratoResumen[] {
+  const raw = (datos as { cuentasContratos?: CuentaContratoResumen[] })
+    .cuentasContratos
+  return Array.isArray(raw) ? raw : []
+}
+
 interface SocioPickerProps {
   readonly value: SocioSeleccionado | null
   readonly onChange: (socio: SocioSeleccionado | null) => void
   readonly disabled?: boolean
 }
 
-// Buscador de personal de BC01 por DNI. Reusa el servicio de socio-negocios.
-// Al seleccionar, expone { socioExternoId (= personalId), nombre, documento }.
+// Buscador de personal de BC01 (endpoint real GET /personal/activos, filtro
+// `buscar` por DNI / nombre / apellido paterno). Al seleccionar, expone
+// { socioExternoId (= personalId), nombre, documento, datos (snapshot) }.
 export function SocioPicker({ value, onChange, disabled }: SocioPickerProps) {
   const [termino, setTermino] = useState("")
   const [debounced, setDebounced] = useState("")
@@ -71,7 +77,7 @@ export function SocioPicker({ value, onChange, disabled }: SocioPickerProps) {
 
   const habilitado = debounced.length >= 3 && !value
   const query = useConsulta(
-    () => consultarPersonalSociosDeNegocio({ numeroDocumento: debounced, pageSize: 8 }),
+    () => consultarPersonalActivosBc01({ buscar: debounced, tamano: 8 }),
     [debounced],
     { enabled: habilitado },
   )
@@ -79,7 +85,7 @@ export function SocioPicker({ value, onChange, disabled }: SocioPickerProps) {
   const resultados = query.data?.datos ?? []
 
   if (value) {
-    const cuentas = cuentasDe(value.datos)
+    const cuentas = cuentasDeSnapshot(value.datos)
     return (
       <div className="space-y-3 rounded-md border p-3">
         <div className="flex items-start justify-between gap-2">
@@ -142,10 +148,9 @@ export function SocioPicker({ value, onChange, disabled }: SocioPickerProps) {
     <div className="space-y-2">
       <Input
         className="rounded-md"
-        placeholder="Buscar personal por DNI (mín. 3 dígitos)"
+        placeholder="Buscar por DNI, nombre o apellido (mín. 3)"
         value={termino}
         onChange={(e) => setTermino(e.target.value)}
-        inputMode="numeric"
         autoComplete="off"
         disabled={disabled}
       />
@@ -160,16 +165,16 @@ export function SocioPicker({ value, onChange, disabled }: SocioPickerProps) {
           ) : (
             <ul className="divide-y">
               {resultados.map((personal) => (
-                <li key={personal.id}>
+                <li key={personal.personalId}>
                   <button
                     type="button"
                     className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-accent"
                     onClick={() =>
                       onChange({
-                        socioExternoId: personal.id,
+                        socioExternoId: personal.personalId,
                         nombre: nombreDe(personal),
-                        documento: personal.numeroDocumento,
-                        datos: personal,
+                        documento: personal.documento.numeroDocumento,
+                        datos: aSnapshot(personal),
                       })
                     }
                   >
@@ -177,7 +182,7 @@ export function SocioPicker({ value, onChange, disabled }: SocioPickerProps) {
                       {nombreDe(personal) || "(sin nombre)"}
                     </span>
                     <span className="text-muted-foreground">
-                      DNI {personal.numeroDocumento}
+                      DNI {personal.documento.numeroDocumento}
                     </span>
                   </button>
                 </li>

@@ -41,6 +41,8 @@ import { Input } from "@/compartido/componentes/ui/input"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import { cn } from "@/compartido/utilidades/utils"
 
+import { AsignarSocioSeccion } from "../componentes/asignar-socio-seccion"
+import { CodigosCuentaSeccion } from "../componentes/codigos-cuenta-seccion"
 import { RolesAsignadosSeccion } from "../componentes/roles-asignados-seccion"
 import { SesionesActivasSeccion } from "../componentes/sesiones-activas-seccion"
 import { SocioAsignadoSeccion } from "../componentes/socio-asignado-seccion"
@@ -676,7 +678,15 @@ export function CuentaDetalleVista({ cuentaId }: PropsCuentaDetalleVista) {
             </Dato>
           </dl>
 
-          {data.socio ? <SocioAsignadoSeccion socio={data.socio} /> : null}
+          {!inactiva ? (
+            <CodigosCuentaSeccion cuenta={data} onActualizado={refetch} />
+          ) : null}
+
+          {data.socio ? (
+            <SocioAsignadoSeccion socio={data.socio} />
+          ) : !inactiva ? (
+            <AsignarSocioSeccion cuentaId={data.id} onActualizado={refetch} />
+          ) : null}
 
           <RolesAsignadosSeccion cuentaId={data.id} />
 
