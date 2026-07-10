@@ -1,51 +1,61 @@
-"use client"
+"use client";
 
-import { FormEvent, useEffect, useState } from "react"
-import { toast } from "sonner"
+import { FormEvent, useEffect, useState } from "react";
+import { toast } from "sonner";
 
-import { extraerMensajeError } from "@/compartido/api"
-import { useMutar } from "@/compartido/api"
-import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
-import type { UsuarioSesion } from "@/compartido/autenticacion/sesion"
-import { SiteHeader } from "@/compartido/componentes/site-header"
-import { Avatar, AvatarFallback } from "@/compartido/componentes/ui/avatar"
-import { Badge } from "@/compartido/componentes/ui/badge"
-import { Button } from "@/compartido/componentes/ui/button"
+import { extraerMensajeError } from "@/compartido/api";
+import { useMutar } from "@/compartido/api";
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
+import type { UsuarioSesion } from "@/compartido/autenticacion/sesion";
+import { SiteHeader } from "@/compartido/componentes/site-header";
+import { Avatar, AvatarFallback } from "@/compartido/componentes/ui/avatar";
+import { Badge } from "@/compartido/componentes/ui/badge";
+import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/compartido/componentes/ui/card"
+} from "@/compartido/componentes/ui/card";
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/compartido/componentes/ui/field"
-import { Input } from "@/compartido/componentes/ui/input"
-import { Skeleton } from "@/compartido/componentes/ui/skeleton"
+} from "@/compartido/componentes/ui/field";
+import { Input } from "@/compartido/componentes/ui/input";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
-import { cambiarCodigos, cambiarPassword } from "../servicios/perfil-api"
+import { cambiarCodigos, cambiarPassword } from "../servicios/perfil-api";
 
 // Normaliza un código: mayúsculas, solo alfanuméricos, máx 20 (regla del dominio).
 function normalizarCodigo(valor: string): string {
   return valor
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 20)
+    .slice(0, 20);
+}
+
+// Separa un código de cuenta almacenado en prefijo + sufijo para editarlo en dos
+// inputs. El prefijo por defecto es "TH" (Transportes Hagemsa); si el código no
+// empieza en "TH" se respeta tal cual en el sufijo (no se altera lo existente).
+function separarCodigoCuenta(valor: string): { prefijo: string; sufijo: string } {
+  const v = normalizarCodigo(valor);
+  if (v === "") return { prefijo: "TH", sufijo: "" };
+  if (v.startsWith("TH")) return { prefijo: "TH", sufijo: v.slice(2) };
+  return { prefijo: "", sufijo: v };
 }
 
 function calcularIniciales(nombre: string): string {
-  const partes = nombre.trim().split(/\s+/).filter(Boolean)
-  if (partes.length === 0) return "HG"
-  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase()
-  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase()
+  const partes = nombre.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "HG";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 }
 
 export function PerfilVista() {
-  const { usuario, estaCargando, recargar } = useSesion()
+  const { usuario, estaCargando, recargar } = useSesion();
 
   return (
     <>
@@ -64,15 +74,15 @@ export function PerfilVista() {
         </div>
       </div>
     </>
-  )
+  );
 }
 
 function BannerIdentidad({
   usuario,
   cargando,
 }: {
-  usuario: UsuarioSesion | null | undefined
-  cargando: boolean
+  usuario: UsuarioSesion | null | undefined;
+  cargando: boolean;
 }) {
   if (cargando || !usuario) {
     return (
@@ -85,10 +95,10 @@ function BannerIdentidad({
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
-  const iniciales = calcularIniciales(usuario.nombre || usuario.email)
+  const iniciales = calcularIniciales(usuario.nombre || usuario.email);
 
   return (
     <Card className="overflow-hidden">
@@ -150,7 +160,7 @@ function BannerIdentidad({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function SeccionCodigos({
@@ -159,19 +169,31 @@ function SeccionCodigos({
   cargando,
   onCambio,
 }: {
-  codigoSocioInicial: string
-  codigoCuentaInicial: string
-  cargando: boolean
-  onCambio: () => void
+  codigoSocioInicial: string;
+  codigoCuentaInicial: string;
+  cargando: boolean;
+  onCambio: () => void;
 }) {
-  const [codigoSocio, setCodigoSocio] = useState(codigoSocioInicial)
-  const [codigoCuenta, setCodigoCuenta] = useState(codigoCuentaInicial)
+  const [codigoSocio, setCodigoSocio] = useState(codigoSocioInicial);
+  // "Código de cuenta" se edita en dos inputs (prefijo "TH" + sufijo) y se guarda
+  // como un solo código: la concatenación normalizada de ambos.
+  const [codigoCuentaPrefijo, setCodigoCuentaPrefijo] = useState(
+    () => separarCodigoCuenta(codigoCuentaInicial).prefijo,
+  );
+  const [codigoCuentaSufijo, setCodigoCuentaSufijo] = useState(
+    () => separarCodigoCuenta(codigoCuentaInicial).sufijo,
+  );
+  const codigoCuenta = normalizarCodigo(
+    `${codigoCuentaPrefijo}${codigoCuentaSufijo}`,
+  );
 
   // Sincroniza con la sesión cuando termina de cargar o cambia tras guardar.
   useEffect(() => {
-    setCodigoSocio(codigoSocioInicial)
-    setCodigoCuenta(codigoCuentaInicial)
-  }, [codigoSocioInicial, codigoCuentaInicial])
+    setCodigoSocio(codigoSocioInicial);
+    const { prefijo, sufijo } = separarCodigoCuenta(codigoCuentaInicial);
+    setCodigoCuentaPrefijo(prefijo);
+    setCodigoCuentaSufijo(sufijo);
+  }, [codigoSocioInicial, codigoCuentaInicial]);
 
   const mutacion = useMutar<
     { codigoSocio: string | null; codigoCuenta: string | null },
@@ -180,31 +202,31 @@ function SeccionCodigos({
     fn: ({ codigoSocio, codigoCuenta }) =>
       cambiarCodigos(codigoSocio, codigoCuenta),
     onSuccess: () => {
-      toast.success("Códigos actualizados.")
-      onCambio()
+      toast.success("Códigos actualizados.");
+      onCambio();
     },
     onError: (error) => toast.error(extraerMensajeError(error)),
-  })
+  });
 
-  const ambosVacios = codigoSocio === "" && codigoCuenta === ""
-  const ambosCompletos = codigoSocio.length > 0 && codigoCuenta.length > 0
+  const ambosVacios = codigoSocio === "" && codigoCuenta === "";
+  const ambosCompletos = codigoSocio.length > 0 && codigoCuenta.length > 0;
 
   function onSubmit(e: FormEvent) {
-    e.preventDefault()
+    e.preventDefault();
     if (!ambosVacios && !ambosCompletos) {
       toast.error(
         "Completa ambos códigos o deja los dos vacíos para quitarlos.",
-      )
-      return
+      );
+      return;
     }
     if (ambosCompletos && codigoSocio === codigoCuenta) {
-      toast.error("El código de socio y el de cuenta deben ser distintos.")
-      return
+      toast.error("El código de socio y el de cuenta deben ser distintos.");
+      return;
     }
     mutacion.mutate({
       codigoSocio: ambosVacios ? null : codigoSocio,
       codigoCuenta: ambosVacios ? null : codigoCuenta,
-    })
+    });
   }
 
   return (
@@ -219,26 +241,45 @@ function SeccionCodigos({
         <form onSubmit={onSubmit} className="flex h-full flex-col">
           <FieldGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>
+              <FieldLabel htmlFor="codigoCuentaSufijo">
+                Código de cuenta
+              </FieldLabel>
+              <div className="flex gap-2">
+                <Input
+                  id="codigoCuentaPrefijo"
+                  aria-label="Prefijo del código de cuenta"
+                  title="Prefijo (por defecto TH, Transportes Hagemsa)"
+                  className="rounded-md font-mono uppercase w-16 shrink-0 text-center"
+                  autoComplete="off"
+                  value={codigoCuentaPrefijo}
+                  onChange={(e) =>
+                    setCodigoCuentaPrefijo(normalizarCodigo(e.target.value))
+                  }
+                  maxLength={4}
+                  disabled={cargando || mutacion.isPending}
+                />
+                <Input
+                  id="codigoCuentaSufijo"
+                  className="rounded-md font-mono uppercase"
+                  autoComplete="off"
+                  value={codigoCuentaSufijo}
+                  onChange={(e) =>
+                    setCodigoCuentaSufijo(normalizarCodigo(e.target.value))
+                  }
+                  maxLength={16}
+                  disabled={cargando || mutacion.isPending}
+                />
+              </div>
+            </Field>
+            <Field>
               <FieldLabel htmlFor="codigoSocio">Código de socio</FieldLabel>
               <Input
                 id="codigoSocio"
                 className="rounded-md font-mono uppercase"
                 autoComplete="off"
                 value={codigoSocio}
-                onChange={(e) => setCodigoSocio(normalizarCodigo(e.target.value))}
-                maxLength={20}
-                disabled={cargando || mutacion.isPending}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="codigoCuenta">Código de cuenta</FieldLabel>
-              <Input
-                id="codigoCuenta"
-                className="rounded-md font-mono uppercase"
-                autoComplete="off"
-                value={codigoCuenta}
                 onChange={(e) =>
-                  setCodigoCuenta(normalizarCodigo(e.target.value))
+                  setCodigoSocio(normalizarCodigo(e.target.value))
                 }
                 maxLength={20}
                 disabled={cargando || mutacion.isPending}
@@ -260,36 +301,36 @@ function SeccionCodigos({
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function SeccionPassword() {
-  const [actual, setActual] = useState("")
-  const [nueva, setNueva] = useState("")
-  const [confirmar, setConfirmar] = useState("")
+  const [actual, setActual] = useState("");
+  const [nueva, setNueva] = useState("");
+  const [confirmar, setConfirmar] = useState("");
 
   const mutacion = useMutar<{ actual: string; nueva: string }, unknown>({
     fn: ({ actual, nueva }) => cambiarPassword(actual, nueva),
     onSuccess: () => {
-      toast.success("Contraseña actualizada.")
-      setActual("")
-      setNueva("")
-      setConfirmar("")
+      toast.success("Contraseña actualizada.");
+      setActual("");
+      setNueva("");
+      setConfirmar("");
     },
     onError: (error) => toast.error(extraerMensajeError(error)),
-  })
+  });
 
   function onSubmit(e: FormEvent) {
-    e.preventDefault()
+    e.preventDefault();
     if (nueva.length < 8) {
-      toast.error("La nueva contraseña debe tener al menos 8 caracteres.")
-      return
+      toast.error("La nueva contraseña debe tener al menos 8 caracteres.");
+      return;
     }
     if (nueva !== confirmar) {
-      toast.error("La confirmación no coincide con la nueva contraseña.")
-      return
+      toast.error("La confirmación no coincide con la nueva contraseña.");
+      return;
     }
-    mutacion.mutate({ actual, nueva })
+    mutacion.mutate({ actual, nueva });
   }
 
   return (
@@ -304,7 +345,9 @@ function SeccionPassword() {
         <form onSubmit={onSubmit} className="flex h-full flex-col">
           <FieldGroup className="grid grid-cols-1 gap-4">
             <Field>
-              <FieldLabel htmlFor="passwordActual">Contraseña actual</FieldLabel>
+              <FieldLabel htmlFor="passwordActual">
+                Contraseña actual
+              </FieldLabel>
               <Input
                 id="passwordActual"
                 type="password"
@@ -351,5 +394,5 @@ function SeccionPassword() {
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }
