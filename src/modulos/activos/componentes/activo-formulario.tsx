@@ -39,8 +39,13 @@ import {
   crearImagenPorCodigo,
   crearTanquePorCodigo,
   obtenerCarroceriasReferencia,
+  obtenerSiguienteCorrelativo,
   registrarConfiguracionHistoricaPorCodigo,
 } from "../servicios/activos-api";
+import {
+  obtenerAsignacionesContratosFlota,
+  type AsignacionContratoFlota,
+} from "../servicios/flota-asignaciones-api";
 import {
   useActualizarActivoMutation,
   useCrearActivoMutation,
@@ -191,6 +196,17 @@ export function ActivoFormulario({
   const [carroceriaTexto, setCarroceriaTexto] = React.useState<string>(
     activo?.vehiculo?.carroceria ?? ""
   );
+  const [asignacionFlota, setAsignacionFlota] =
+    React.useState<AsignacionContratoFlota | null>(null);
+  // Correlativo automatico HG-[carroceria][clase]-NNN (HU-02-042): solo
+  // aplica a activos vehiculares nuevos. Este estado es la unica fuente de
+  // verdad - el input oculto "codigo" en TabBase es controlado directamente
+  // por este valor (value={codigoGenerado}), no por escritura imperativa al
+  // DOM: eso evitaba que React reaplicara defaultValue="" en cada re-render.
+  const [codigoGenerado, setCodigoGenerado] = React.useState<string | null>(
+    null
+  );
+  const [generandoCodigo, setGenerandoCodigo] = React.useState(false);
   const crearActivoMutation = useCrearActivoMutation();
   const actualizarActivoMutation = useActualizarActivoMutation();
   const formularioRef = React.useRef<HTMLDivElement>(null);
@@ -214,6 +230,50 @@ export function ActivoFormulario({
     (tab: ActivoTab) => tabsDisponibles.includes(tab),
     [tabsDisponibles]
   );
+
+  // Genera/previsualiza el correlativo automatico apenas hay clase+carroceria
+  // elegidas, en creacion de un vehiculo. No aplica en edicion (el codigo ya
+  // existe y no cambia) ni en otros tipos de activo (sin esquema oficial).
+  React.useEffect(() => {
+    if (isEdit || tipoActivoSeleccionadoId !== TIPO_ACTIVO_VEHICULO_ID) {
+      setCodigoGenerado(null);
+      setGenerandoCodigo(false);
+      return;
+    }
+
+    const carroceriaId = selectedCarroceriaReferenciaId
+      ? Number(selectedCarroceriaReferenciaId)
+      : null;
+
+    if (!claseVehiculoSeleccionadaId || !carroceriaId) {
+      setCodigoGenerado(null);
+      return;
+    }
+
+    let cancelado = false;
+    setGenerandoCodigo(true);
+    obtenerSiguienteCorrelativo(claseVehiculoSeleccionadaId, carroceriaId)
+      .then((codigo) => {
+        if (cancelado) return;
+        setCodigoGenerado(codigo);
+        actualizarResumen();
+      })
+      .catch(() => {
+        if (!cancelado) setCodigoGenerado(null);
+      })
+      .finally(() => {
+        if (!cancelado) setGenerandoCodigo(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    isEdit,
+    tipoActivoSeleccionadoId,
+    claseVehiculoSeleccionadaId,
+    selectedCarroceriaReferenciaId,
+  ]);
 
   React.useEffect(() => {
     if (!activo) return;
@@ -239,6 +299,25 @@ export function ActivoFormulario({
     intentoAutocompletarCarroceriaRef.current = false;
     actualizarResumen();
   }, [activo, actualizarResumen]);
+
+  React.useEffect(() => {
+    if (!activo?.id) {
+      setAsignacionFlota(null);
+      return;
+    }
+
+    let cancelado = false;
+
+    obtenerAsignacionesContratosFlota().then((asignaciones) => {
+      if (!cancelado) {
+        setAsignacionFlota(asignaciones.get(activo.id) ?? null);
+      }
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [activo?.id]);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -413,7 +492,7 @@ export function ActivoFormulario({
 
     return {
       base: [
-        ["Codigo", getValue("codigo") || activo?.codigo],
+        ["Codigo", codigoGenerado || getValue("codigo") || activo?.codigo],
         ["Descripcion", getValue("descripcion") || activo?.descripcion],
         [
           "Tipo",
@@ -449,6 +528,20 @@ export function ActivoFormulario({
         ["Marca", getValue("marca") || activo?.vehiculo?.marca],
         ["Modelo", getValue("modelo") || activo?.vehiculo?.modelo],
         ["Zona", getValue("zonaRegistral") || activo?.vehiculo?.zonaRegistral],
+        [
+          "Cuenta",
+          formatearAsignacionFlota(
+            asignacionFlota?.cuentaCodigo,
+            asignacionFlota?.cuentaNombre
+          ),
+        ],
+        [
+          "Contrato",
+          formatearAsignacionFlota(
+            asignacionFlota?.contratoCodigo,
+            asignacionFlota?.contratoNombre
+          ),
+        ],
         ["Chasis", getValue("serieChasis") || activo?.vehiculo?.serieChasis],
         ["Motor", getValue("serieMotor") || activo?.vehiculo?.serieMotor],
       ],
@@ -506,7 +599,9 @@ export function ActivoFormulario({
     };
   }, [
     activo,
+    asignacionFlota,
     catalogos,
+    codigoGenerado,
     borradores.documentosPendientes.length,
     formVersion,
     borradores.imagenesPendientes.length,
@@ -1009,6 +1104,9 @@ export function ActivoFormulario({
                 activo={activo}
                 isEdit={isEdit}
                 catalogos={catalogos}
+                tipoActivoActual={tipoActivoSeleccionadoId}
+                codigoGenerado={codigoGenerado}
+                generandoCodigo={generandoCodigo}
                 estadoActivoGrupo={estadoActivoGrupo}
                 onEstadoActivoChange={(value) => {
                   setEstadoActivoGrupo(value);
@@ -1283,4 +1381,11 @@ export function ActivoFormulario({
       </div>
     </div>
   );
+}
+
+function formatearAsignacionFlota(
+  codigo?: string | null,
+  nombre?: string | null
+) {
+  return [codigo, nombre].filter(Boolean).join(" - ") || "Sin asignacion";
 }

@@ -167,6 +167,9 @@ export function TabBase({
   activo,
   isEdit,
   catalogos,
+  tipoActivoActual,
+  codigoGenerado,
+  generandoCodigo,
   estadoActivoGrupo,
   onEstadoActivoChange,
   causaBaja,
@@ -176,12 +179,24 @@ export function TabBase({
   activo?: Activo;
   isEdit: boolean;
   catalogos: CatalogosActivos;
+  /** Tipo de activo actualmente elegido en el selector (creacion). */
+  tipoActivoActual?: number;
+  /** Correlativo automatico previsualizado (HU-02-042), null si aun no aplica. */
+  codigoGenerado?: string | null;
+  generandoCodigo?: boolean;
   estadoActivoGrupo: "ACTIVO" | "BAJA";
   onEstadoActivoChange: (estado: "ACTIVO" | "BAJA") => void;
   causaBaja: "SINIESTRADO" | "INACTIVO";
   onCausaBajaChange: (causa: "SINIESTRADO" | "INACTIVO") => void;
   onTipoActivoChange: (tipoActivoReferenciaId: number) => void;
 }) {
+  // El codigo se autogenera SOLO al crear un vehiculo nuevo (formato oficial
+  // HG-[carroceria][clase]-NNN, ver PENDING.md HU-02-042). En edicion el
+  // codigo ya existe y nunca cambia; en otros tipos de activo no hay esquema
+  // oficial, se sigue escribiendo a mano.
+  const esCodigoAutomatico =
+    !isEdit && tipoActivoActual === TIPO_ACTIVO_VEHICULO_ID;
+
   return (
     <>
       <SectionIntro
@@ -190,14 +205,36 @@ export function TabBase({
         description="Identificacion administrativa del activo."
       />
       <div className="grid gap-4 lg:grid-cols-[220px_1fr_220px]">
-        <Field
-          name="codigo"
-          label="Codigo"
-          placeholder="ACT-000864"
-          defaultValue={activo?.codigo}
-          disabled={isEdit}
-          required
-        />
+        {esCodigoAutomatico ? (
+          <div className="grid gap-1.5">
+            <span className="text-sm font-medium">Codigo</span>
+            <input type="hidden" name="codigo" value={codigoGenerado ?? ""} readOnly />
+            <div className="flex h-11 items-center rounded-lg border border-dashed border-input bg-muted/40 px-3">
+              {generandoCodigo ? (
+                <span className="text-sm text-muted-foreground">
+                  Generando...
+                </span>
+              ) : codigoGenerado ? (
+                <span className="font-mono text-2xl font-bold tracking-wide text-primary">
+                  {codigoGenerado}
+                </span>
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  Elige clase y carroceria en la pestana Vehiculo
+                </span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <Field
+            name="codigo"
+            label="Codigo"
+            placeholder="ACT-000864"
+            defaultValue={activo?.codigo}
+            disabled={isEdit}
+            required={!isEdit}
+          />
+        )}
         <Field
           name="descripcion"
           label="Descripcion"

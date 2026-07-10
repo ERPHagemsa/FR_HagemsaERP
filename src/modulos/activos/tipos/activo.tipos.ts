@@ -149,7 +149,12 @@ export type CrearConfiguracionHistoricaPayload = {
 };
 
 export type CrearActivoPayload = {
-  codigo: string;
+  /**
+   * Para vehiculos (clase+carroceria informados) se omite: el backend genera
+   * el correlativo oficial HG-[carroceria][clase]-NNN automaticamente.
+   * Para activos no vehiculares sigue siendo obligatorio.
+   */
+  codigo?: string;
   tipoActivoReferenciaId: number;
   descripcion: string;
   ubicacion: string;

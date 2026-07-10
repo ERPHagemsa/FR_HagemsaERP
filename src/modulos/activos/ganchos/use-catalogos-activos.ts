@@ -6,6 +6,9 @@ import { useValoresCatalogoQuery } from "../servicios/maestros-queries";
 import type { TipoCatalogoMaestro, ValorCatalogo } from "../tipos/maestros.tipos";
 
 export type OpcionCatalogo = { id: number; nombre: string };
+export type OpcionCarroceria = OpcionCatalogo & {
+  claseVehiculoReferenciaId: number | null;
+};
 
 /**
  * Ids reales de TipoActivoReferencia (catalogo dinamico, datos semilla de la
@@ -21,6 +24,7 @@ export const TIPO_ACTIVO_OTRO_ID = 5;
 export interface CatalogosActivos {
   tiposActivo: OpcionCatalogo[];
   clasesVehiculo: OpcionCatalogo[];
+  carrocerias: OpcionCarroceria[];
   clasesEuro: OpcionCatalogo[];
   tiposTransmision: OpcionCatalogo[];
   estadosCalibracion: OpcionCatalogo[];
@@ -56,9 +60,18 @@ function aOpciones(valores: ValorCatalogo[] | null): OpcionCatalogo[] {
   return (valores ?? []).map((valor) => ({ id: valor.id, nombre: valor.nombre }));
 }
 
+function aCarrocerias(valores: ValorCatalogo[] | null): OpcionCarroceria[] {
+  return (valores ?? []).map((valor) => ({
+    id: valor.id,
+    nombre: valor.nombre,
+    claseVehiculoReferenciaId: valor.claseVehiculoReferenciaId ?? null,
+  }));
+}
+
 export function useCatalogosActivos(): CatalogosActivos {
   const tipoActivo = useValoresCatalogoQuery("TIPO_ACTIVO", true);
   const claseVehiculo = useValoresCatalogoQuery("CLASE_VEHICULO", true);
+  const carroceria = useValoresCatalogoQuery("CARROCERIA", true);
   const claseEuro = useValoresCatalogoQuery("CLASE_EURO", true);
   const tipoTransmision = useValoresCatalogoQuery("TIPO_TRANSMISION", true);
   const estadoCalibracion = useValoresCatalogoQuery("ESTADO_CALIBRACION", true);
@@ -67,7 +80,7 @@ export function useCatalogosActivos(): CatalogosActivos {
     () => ({
       TIPO_ACTIVO: tipoActivo.data ?? [],
       CLASE_VEHICULO: claseVehiculo.data ?? [],
-      CARROCERIA: [],
+      CARROCERIA: carroceria.data ?? [],
       CLASE_EURO: claseEuro.data ?? [],
       TIPO_TRANSMISION: tipoTransmision.data ?? [],
       ESTADO_CALIBRACION: estadoCalibracion.data ?? [],
@@ -75,6 +88,7 @@ export function useCatalogosActivos(): CatalogosActivos {
     [
       tipoActivo.data,
       claseVehiculo.data,
+      carroceria.data,
       claseEuro.data,
       tipoTransmision.data,
       estadoCalibracion.data,
@@ -103,12 +117,14 @@ export function useCatalogosActivos(): CatalogosActivos {
     return {
       tiposActivo: aOpciones(porTipo.TIPO_ACTIVO),
       clasesVehiculo: aOpciones(porTipo.CLASE_VEHICULO),
+      carrocerias: aCarrocerias(porTipo.CARROCERIA),
       clasesEuro: aOpciones(porTipo.CLASE_EURO),
       tiposTransmision: aOpciones(porTipo.TIPO_TRANSMISION),
       estadosCalibracion: aOpciones(porTipo.ESTADO_CALIBRACION),
       estaCargando:
         tipoActivo.isLoading ||
         claseVehiculo.isLoading ||
+        carroceria.isLoading ||
         claseEuro.isLoading ||
         tipoTransmision.isLoading ||
         estadoCalibracion.isLoading,
@@ -119,6 +135,7 @@ export function useCatalogosActivos(): CatalogosActivos {
     porTipo,
     tipoActivo.isLoading,
     claseVehiculo.isLoading,
+    carroceria.isLoading,
     claseEuro.isLoading,
     tipoTransmision.isLoading,
     estadoCalibracion.isLoading,

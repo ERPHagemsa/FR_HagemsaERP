@@ -16,6 +16,8 @@ export interface ValorCatalogo {
   estadoRegistro: boolean;
   claseVehiculoReferenciaId?: number | null;
   claseVehiculoReferenciaNombre?: string | null;
+  /** Abreviatura de 1 letra (Clase) o 2 letras (Carroceria) para codigos futuros. */
+  codigoAbreviado?: string | null;
   fechaCreacion: string;
   fechaModificacion: string;
 }
@@ -37,12 +39,14 @@ export interface CrearValorCatalogoPayload {
   nombre: string;
   descripcion?: string;
   claseVehiculoReferenciaId?: number;
+  codigoAbreviado?: string;
 }
 
 export interface ActualizarValorCatalogoPayload {
   nombre?: string;
   descripcion?: string;
   claseVehiculoReferenciaId?: number;
+  codigoAbreviado?: string;
 }
 
 export interface CambiarEstadoRegistroValorCatalogoPayload {

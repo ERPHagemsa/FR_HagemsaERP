@@ -20,7 +20,6 @@ import {
 } from "@/compartido/componentes/ui/alert-dialog";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
-import { Card, CardContent } from "@/compartido/componentes/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,9 +81,12 @@ function DialogCrearValor({
   onCreado: () => void;
 }) {
   const esCarroceria = tipoCatalogo === "CARROCERIA";
+  const usaAbreviatura = esCarroceria || tipoCatalogo === "CLASE_VEHICULO";
+  const longitudAbreviatura = esCarroceria ? 2 : 1;
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [claseVehiculoId, setClaseVehiculoId] = useState("");
+  const [codigoAbreviado, setCodigoAbreviado] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const clasesVehiculo = useValoresCatalogoQuery("CLASE_VEHICULO", true, undefined, {
@@ -97,6 +99,7 @@ function DialogCrearValor({
       setNombre("");
       setDescripcion("");
       setClaseVehiculoId("");
+      setCodigoAbreviado("");
       onCreado();
       onCerrar();
     },
@@ -109,6 +112,7 @@ function DialogCrearValor({
       setNombre("");
       setDescripcion("");
       setClaseVehiculoId("");
+      setCodigoAbreviado("");
       onCerrar();
     }
   }
@@ -117,16 +121,21 @@ function DialogCrearValor({
     const nombreLimpio = nombre.trim();
     if (!nombreLimpio) return;
     if (esCarroceria && !claseVehiculoId) return;
+    if (usaAbreviatura && codigoAbreviado.trim().length !== longitudAbreviatura) return;
 
     setError(null);
     crear.mutate({
       nombre: nombreLimpio,
       descripcion: descripcion.trim() || undefined,
       claseVehiculoReferenciaId: esCarroceria ? Number(claseVehiculoId) : undefined,
+      codigoAbreviado: usaAbreviatura ? codigoAbreviado.trim().toUpperCase() : undefined,
     });
   }
 
-  const valido = nombre.trim().length > 0 && (!esCarroceria || claseVehiculoId !== "");
+  const valido =
+    nombre.trim().length > 0 &&
+    (!esCarroceria || claseVehiculoId !== "") &&
+    (!usaAbreviatura || codigoAbreviado.trim().length === longitudAbreviatura);
 
   return (
     <Sheet open={abierto} onOpenChange={handleOpenChange}>
@@ -177,6 +186,25 @@ function DialogCrearValor({
               </div>
             ) : null}
 
+            {usaAbreviatura ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="form-codigo-abreviado">
+                  Abreviatura ({longitudAbreviatura} {longitudAbreviatura === 1 ? "letra" : "letras"})
+                </Label>
+                <Input
+                  id="form-codigo-abreviado"
+                  value={codigoAbreviado}
+                  onChange={(e) => setCodigoAbreviado(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, longitudAbreviatura))}
+                  placeholder={esCarroceria ? "Ej. CA" : "Ej. M"}
+                  maxLength={longitudAbreviatura}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Solo se usa para codigos nuevos; no modifica activos ya creados.
+                </p>
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="form-descripcion">Descripcion (opcional)</Label>
               <Textarea
@@ -222,9 +250,12 @@ function DialogEditarValor({
   onActualizado: () => void;
 }) {
   const esCarroceria = tipoCatalogo === "CARROCERIA";
+  const usaAbreviatura = esCarroceria || tipoCatalogo === "CLASE_VEHICULO";
+  const longitudAbreviatura = esCarroceria ? 2 : 1;
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [claseVehiculoId, setClaseVehiculoId] = useState("");
+  const [codigoAbreviado, setCodigoAbreviado] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [itemActualId, setItemActualId] = useState<number | null>(null);
 
@@ -242,6 +273,7 @@ function DialogEditarValor({
     setClaseVehiculoId(
       item?.claseVehiculoReferenciaId ? String(item.claseVehiculoReferenciaId) : ""
     );
+    setCodigoAbreviado(item?.codigoAbreviado ?? "");
     setError(null);
   }
 
@@ -266,6 +298,7 @@ function DialogEditarValor({
     const nombreLimpio = nombre.trim();
     if (!nombreLimpio) return;
     if (esCarroceria && !claseVehiculoId) return;
+    if (usaAbreviatura && codigoAbreviado.trim().length !== longitudAbreviatura) return;
 
     setError(null);
     actualizar.mutate({
@@ -274,11 +307,15 @@ function DialogEditarValor({
         nombre: nombreLimpio,
         descripcion: descripcion.trim(),
         claseVehiculoReferenciaId: esCarroceria ? Number(claseVehiculoId) : undefined,
+        codigoAbreviado: usaAbreviatura ? codigoAbreviado.trim().toUpperCase() : undefined,
       },
     });
   }
 
-  const valido = nombre.trim().length > 0 && (!esCarroceria || claseVehiculoId !== "");
+  const valido =
+    nombre.trim().length > 0 &&
+    (!esCarroceria || claseVehiculoId !== "") &&
+    (!usaAbreviatura || codigoAbreviado.trim().length === longitudAbreviatura);
 
   // El nombre de la clase seleccionada no se auto-rellena la primera vez: Radix
   // solo registra el texto de un SelectItem cuando este se monta (al abrir el
@@ -337,6 +374,25 @@ function DialogEditarValor({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            ) : null}
+
+            {usaAbreviatura ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="form-editar-codigo-abreviado">
+                  Abreviatura ({longitudAbreviatura} {longitudAbreviatura === 1 ? "letra" : "letras"})
+                </Label>
+                <Input
+                  id="form-editar-codigo-abreviado"
+                  value={codigoAbreviado}
+                  onChange={(e) => setCodigoAbreviado(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, longitudAbreviatura))}
+                  placeholder={esCarroceria ? "Ej. CA" : "Ej. M"}
+                  maxLength={longitudAbreviatura}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  El cambio aplica solo a codigos que se generen desde ahora.
+                </p>
               </div>
             ) : null}
 
@@ -503,6 +559,7 @@ export function CatalogoValoresListado({
   notaSoloLectura,
 }: PropsCatalogoValoresListado) {
   const esCarroceria = tipoCatalogo === "CARROCERIA";
+  const muestraAbreviatura = esCarroceria || tipoCatalogo === "CLASE_VEHICULO";
   const [estadoFiltro, setEstadoFiltro] = useState<"TODOS" | "true" | "false">(
     "true"
   );
@@ -527,10 +584,15 @@ export function CatalogoValoresListado({
   }
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className="border border-border bg-card">
+      <div className="flex flex-col gap-3 border-b border-border px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold">{titulo}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">{titulo}</h2>
+            <Badge variant="secondary" className="font-medium">
+              {valores.length} {valores.length === 1 ? "registro" : "registros"}
+            </Badge>
+          </div>
           <p className="text-sm text-muted-foreground">
             {valores.length} {valores.length === 1 ? "registro" : "registros"}
             {notaSoloLectura ? ` · ${notaSoloLectura}` : ""}
@@ -544,8 +606,7 @@ export function CatalogoValoresListado({
         ) : null}
       </div>
 
-      <Card>
-        <CardContent className="flex flex-col gap-4 pt-5">
+      <div className="flex flex-col gap-4 p-4">
           {consulta.error ? (
             <Alert variant="destructive">
               <AlertTitle>No se pudo cargar la informacion</AlertTitle>
@@ -553,7 +614,8 @@ export function CatalogoValoresListado({
             </Alert>
           ) : null}
 
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-wrap items-center gap-3 border border-border bg-muted/30 px-3 py-2">
+            <span className="text-xs font-medium uppercase text-muted-foreground">Filtros</span>
             <div className="grid min-w-36 gap-1.5">
               <Select value={estadoFiltro} onValueChange={(v) => setEstadoFiltro(v as typeof estadoFiltro)}>
                 <SelectTrigger className="w-full">
@@ -585,12 +647,13 @@ export function CatalogoValoresListado({
             ) : null}
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-border">
-            <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
+          <div className="overflow-hidden border border-border">
+            <Table className="w-full table-fixed [&_td]:px-3 [&_th]:px-3">
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
                   <TableHead className="w-[8%] text-center">Accion</TableHead>
                   <TableHead className="w-[20%]">Nombre</TableHead>
+                  {muestraAbreviatura ? <TableHead className="w-[12%]">Abrev.</TableHead> : null}
                   {esCarroceria ? <TableHead className="w-[16%]">Clase</TableHead> : null}
                   <TableHead className={esCarroceria ? "w-[22%]" : "w-[32%]"}>
                     Descripcion
@@ -603,7 +666,7 @@ export function CatalogoValoresListado({
                 {consulta.isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={esCarroceria ? 6 : 5}>
+                      <TableCell colSpan={esCarroceria ? 7 : muestraAbreviatura ? 6 : 5}>
                         <Skeleton className="h-7 w-full" />
                       </TableCell>
                     </TableRow>
@@ -611,7 +674,7 @@ export function CatalogoValoresListado({
                 ) : valores.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={esCarroceria ? 6 : 5}
+                      colSpan={esCarroceria ? 7 : muestraAbreviatura ? 6 : 5}
                       className="h-28 text-center text-muted-foreground"
                     >
                       No hay valores para los filtros aplicados.
@@ -661,6 +724,11 @@ export function CatalogoValoresListado({
                         </DropdownMenu>
                       </TableCell>
                       <TableCell className="truncate text-sm font-medium">{item.nombre}</TableCell>
+                      {muestraAbreviatura ? (
+                        <TableCell className="font-mono text-sm font-semibold">
+                          {item.codigoAbreviado ?? "—"}
+                        </TableCell>
+                      ) : null}
                       {esCarroceria ? (
                         <TableCell className="truncate text-sm text-muted-foreground">
                           {item.claseVehiculoReferenciaNombre ?? "—"}
@@ -683,8 +751,7 @@ export function CatalogoValoresListado({
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       <DialogCrearValor
         tipoCatalogo={tipoCatalogo}

@@ -23,8 +23,8 @@ import {
 /**
  * Genera y descarga la plantilla Excel para un tipo de activo, con el estilo
  * corporativo del cliente (FT-AS-006): logo, titulo, encabezados negros.
- * Hoja 1 (Activos): cabecera corporativa + encabezados (fila 4, con * en las
- * obligatorias) + una fila de ejemplo en gris.
+ * Hoja 1 (Activos): cabecera corporativa + grupos equivalentes a las pestanas
+ * del formulario + encabezados (con * en las obligatorias) + ejemplo en gris.
  * Hoja 2 (Instrucciones): guia de cada columna.
  *
  * El parser (`parsearArchivo`) encuentra la fila de encabezados
@@ -47,13 +47,16 @@ export async function descargarPlantilla(
     width: Math.max(columna.encabezado.length + 4, 16),
   }));
 
-  const filaEncabezados = agregarCabeceraCorporativa(libro, hoja, {
+  const filaSecciones = agregarCabeceraCorporativa(libro, hoja, {
     titulo: `Carga Masiva de Activos - ${ETIQUETA_TIPO_ACTIVO[tipoActivoReferenciaId]}`,
     metas: ["Plantilla oficial", "Campos con * son obligatorios", "Borrar la fila de ejemplo"],
     nCols,
     logoPngBase64: logo,
     tamanoTitulo: 18,
   });
+
+  const filaEncabezados = filaSecciones + 1;
+  agregarFilaSecciones(hoja, filaSecciones, columnas);
 
   // El parser quita los "*" al normalizar, asi que marcarlos es seguro.
   estilarFilaEncabezados(
@@ -72,6 +75,8 @@ export async function descargarPlantilla(
     celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: GRIS_SUAVE } };
     celda.border = bordeFino;
   });
+
+  agregarListasDesplegables(hoja, libro, columnas, catalogos, filaEncabezados);
 
   // --- Hoja Instrucciones ---
   const instrucciones = libro.addWorksheet("Instrucciones");
@@ -115,6 +120,143 @@ export async function descargarPlantilla(
     libro,
     `plantilla-carga-${ETIQUETA_TIPO_ACTIVO[tipoActivoReferenciaId].toLowerCase()}.xlsx`,
   );
+}
+
+type SeccionCarga =
+  | "Base"
+  | "Adquisicion"
+  | "Vehiculo"
+  | "Dimensiones"
+  | "Control operativo"
+  | "Combustible";
+
+const CLAVES_ADQUISICION = new Set([
+  "valorUnidad",
+  "moneda",
+  "proveedor",
+  "numeroFactura",
+  "fechaFactura",
+]);
+const CLAVES_DIMENSIONES = new Set(["alto", "ancho", "longitud"]);
+const CLAVES_CONTROL = new Set([
+  "estadoOperativo",
+  "estadoCalibracionReferenciaId",
+  "factorCorreccion",
+]);
+const CLAVES_COMBUSTIBLE = new Set(["capacidadTanqueGalones"]);
+
+function seccionDeColumna(clave: string): SeccionCarga {
+  if (CLAVES_ADQUISICION.has(clave)) return "Adquisicion";
+  if (CLAVES_DIMENSIONES.has(clave)) return "Dimensiones";
+  if (CLAVES_CONTROL.has(clave)) return "Control operativo";
+  if (CLAVES_COMBUSTIBLE.has(clave)) return "Combustible";
+  if (
+    [
+      "placa",
+      "marca",
+      "modelo",
+      "anioFabricacion",
+      "color",
+      "serieChasis",
+      "serieMotor",
+      "claseVehiculoReferenciaId",
+      "carroceriaReferenciaId",
+      "ejes",
+      "categoria",
+      "claseEuroReferenciaId",
+      "tipoTransmisionReferenciaId",
+      "ratioCorona",
+      "zonaRegistral",
+      "tarjetaPropiedad",
+      "tipoTarjetaPropiedad",
+    ].includes(clave)
+  ) {
+    return "Vehiculo";
+  }
+  return "Base";
+}
+
+/** Dibuja una fila de grupos con la misma organizacion de las pestanas del formulario. */
+function agregarFilaSecciones(
+  hoja: import("exceljs").Worksheet,
+  fila: number,
+  columnas: ColumnaCarga[],
+): void {
+  hoja.getRow(fila).height = 24;
+  let inicio = 0;
+
+  while (inicio < columnas.length) {
+    const seccion = seccionDeColumna(columnas[inicio].clave);
+    let fin = inicio;
+    while (
+      fin + 1 < columnas.length &&
+      seccionDeColumna(columnas[fin + 1].clave) === seccion
+    ) {
+      fin++;
+    }
+
+    if (fin > inicio) hoja.mergeCells(fila, inicio + 1, fila, fin + 1);
+    const celda = hoja.getCell(fila, inicio + 1);
+    celda.value = seccion;
+    celda.font = { name: "Arial", size: 10, bold: true, color: { argb: "FFC00000" } };
+    celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF262626" } };
+    celda.alignment = { horizontal: "center", vertical: "middle" };
+
+    for (let columna = inicio + 1; columna <= fin + 1; columna++) {
+      hoja.getCell(fila, columna).border = bordeFino;
+      hoja.getCell(fila, columna).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FF262626" },
+      };
+    }
+    inicio = fin + 1;
+  }
+}
+
+/**
+ * Crea listas nativas de Excel con los catalogos activos. La validacion al
+ * importar sigue siendo obligatoria: el archivo puede venir de otra fuente y
+ * la compatibilidad Clase/Carroceria se valida fila por fila en `mapearFila`.
+ */
+function agregarListasDesplegables(
+  hoja: import("exceljs").Worksheet,
+  libro: import("exceljs").Workbook,
+  columnas: ColumnaCarga[],
+  catalogos: CatalogosActivos,
+  filaEncabezados: number,
+): void {
+  const columnasConLista = columnas
+    .map((columna, indice) => ({ columna, indice }))
+    .filter(({ columna }) => columna.tipo === "opciones");
+
+  if (!columnasConLista.length) return;
+
+  const referencias = libro.addWorksheet("Catalogos", { state: "veryHidden" });
+  referencias.columns = columnasConLista.map(() => ({ width: 34 }));
+
+  columnasConLista.forEach(({ columna, indice }, columnaLista) => {
+    const valores = opcionesCatalogo(columna, catalogos);
+    if (!valores.length) return;
+
+    referencias.getCell(1, columnaLista + 1).value = columna.encabezado;
+    valores.forEach((valor, fila) => {
+      referencias.getCell(fila + 2, columnaLista + 1).value = valor;
+    });
+
+    const letraReferencia = referencias.getColumn(columnaLista + 1).letter;
+    const formula = `'Catalogos'!$${letraReferencia}$2:$${letraReferencia}$${valores.length + 1}`;
+    for (let fila = filaEncabezados + 1; fila <= filaEncabezados + 1000; fila++) {
+      hoja.getCell(fila, indice + 1).dataValidation = {
+        type: "list",
+        allowBlank: !columna.obligatorio,
+        formulae: [formula],
+        showErrorMessage: true,
+        errorTitle: "Valor no permitido",
+        error: `Seleccione un valor de la lista: ${columna.encabezado}.`,
+      };
+    }
+  });
 }
 
 function etiquetaTipo(columna: ColumnaCarga): string {
@@ -268,6 +410,27 @@ function mapearFila(
     }
   }
 
+  if (tipoActivoReferenciaId === 1) {
+    const claseVehiculoReferenciaId = vehiculo.claseVehiculoReferenciaId as
+      | number
+      | undefined;
+    const carroceriaReferenciaId = vehiculo.carroceriaReferenciaId as
+      | number
+      | undefined;
+    const carroceria = catalogos.carrocerias.find(
+      (opcion) => opcion.id === carroceriaReferenciaId,
+    );
+
+    if (
+      claseVehiculoReferenciaId &&
+      carroceria &&
+      carroceria.claseVehiculoReferenciaId !== claseVehiculoReferenciaId
+    ) {
+      errores.carroceriaReferenciaId =
+        "La carroceria seleccionada no corresponde a la clase elegida";
+    }
+  }
+
   const activo: CrearActivoPayload = {
     codigo: String(base.codigo ?? ""),
     tipoActivoReferenciaId,
@@ -289,22 +452,18 @@ function mapearFila(
   if (tieneDatosVehiculo) {
     const defecto = VEHICULO_DEFECTO_POR_TIPO[tipoActivoReferenciaId];
     const claseVehiculoReferenciaId =
-      catalogos.idPorNombre("CLASE_VEHICULO", defecto.claseVehiculo) ?? 0;
+      (vehiculo.claseVehiculoReferenciaId as number | undefined) ??
+      (defecto
+        ? catalogos.idPorNombre("CLASE_VEHICULO", defecto.claseVehiculo) ?? 0
+        : 0);
     const estadoCalibracionReferenciaId =
-      catalogos.idPorNombre("ESTADO_CALIBRACION", defecto.estadoCalibracion) ?? 0;
-    // La columna "Carroceria" del Excel sigue siendo texto libre (para no
-    // obligar al usuario a escribir un id), pero si el texto coincide con un
-    // nombre del Maestro de Catalogos, resolvemos tambien el id real. Si no
-    // hay match, queda sin id (igual que antes) y se completa luego a mano
-    // desde Editar activo.
-    const carroceriaReferenciaId = catalogos.idPorNombre(
-      "CARROCERIA",
-      vehiculo.carroceria as string | undefined,
-    );
+      (vehiculo.estadoCalibracionReferenciaId as number | undefined) ??
+      (defecto
+        ? catalogos.idPorNombre("ESTADO_CALIBRACION", defecto.estadoCalibracion) ?? 0
+        : 0);
     activo.vehiculo = {
       claseVehiculoReferenciaId,
       estadoCalibracionReferenciaId,
-      ...(carroceriaReferenciaId ? { carroceriaReferenciaId } : {}),
       ...vehiculo,
     };
   }

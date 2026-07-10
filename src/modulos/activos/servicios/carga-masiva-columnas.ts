@@ -199,20 +199,27 @@ const COLUMNAS_VEHICULO_IDENTIDAD: ColumnaCarga[] = [
   },
 ];
 
-// Carroceria, ejes, categoria, clase Euro, transmision, ratio corona.
+// Clase, carroceria, ejes, categoria, clase Euro, transmision, ratio corona.
 const COLUMNAS_VEHICULO_TECNICO: ColumnaCarga[] = [
   {
-    clave: "carroceria",
-    encabezado: "Carroceria",
-    obligatorio: false,
-    tipo: "texto",
+    clave: "claseVehiculoReferenciaId",
+    encabezado: "Clase",
+    obligatorio: true,
+    tipo: "opciones",
     destino: "vehiculo",
-    // Si el texto coincide EXACTO con un nombre del Maestro de Catalogos
-    // (Activos > Administrador de maestros > Carroceria) se resuelve tambien
-    // el id de catalogo, no solo el texto libre. "Pick Up" generico no existe
-    // como tal en el catalogo: usar "Pickup cabina simple" o "Pickup doble
-    // cabina".
-    ejemplo: "Pickup cabina simple",
+    catalogo: "CLASE_VEHICULO",
+    ejemplo: "Camion",
+    ayuda: "Clase oficial del vehiculo. Define la letra del codigo correlativo.",
+  },
+  {
+    clave: "carroceriaReferenciaId",
+    encabezado: "Carroceria",
+    obligatorio: true,
+    tipo: "opciones",
+    destino: "vehiculo",
+    catalogo: "CARROCERIA",
+    ejemplo: "Camion (baranda)",
+    ayuda: "Carroceria oficial compatible con la clase elegida.",
   },
   {
     clave: "ejes",
@@ -364,7 +371,10 @@ const COLUMNAS_COMBUSTIBLE: ColumnaCarga[] = [
  */
 export const COLUMNAS_POR_TIPO: Record<number, ColumnaCarga[]> = {
   [TIPO_ACTIVO_VEHICULO_ID]: [
-    ...COLUMNAS_BASE,
+    // Sin columna "codigo": para vehiculos el backend genera el correlativo
+    // oficial (HG-[carroceria][clase]-NNN) automaticamente por fila, a partir
+    // de Clase y Carroceria (HU-02-042). No se pide ni se acepta a mano.
+    ...COLUMNAS_BASE.filter((columna) => columna.clave !== "codigo"),
     ...COLUMNAS_VEHICULO_IDENTIDAD,
     ...COLUMNAS_VEHICULO_TECNICO,
     ...COLUMNAS_VEHICULO_REGISTRALES,
@@ -414,15 +424,15 @@ export const COLUMNAS_POR_TIPO: Record<number, ColumnaCarga[]> = {
 
 /**
  * Valores por defecto para el sub-objeto `vehiculo` cuando el tipo tiene datos
- * vehiculares pero el Excel no especifica clase de vehiculo / calibracion.
- * VEHICULO usa "Camion" como base generica; el resto usa "Equipo liviano".
+ * tecnicos pero el Excel no especifica clase de vehiculo / calibracion.
+ * VEHICULO no usa clase por defecto: Clase y Carroceria son obligatorias para
+ * calcular el correlativo correcto. Los otros tipos conservan Equipo liviano.
  * Calibracion por defecto: "Pendiente" (a la espera de revision).
  */
 export const VEHICULO_DEFECTO_POR_TIPO: Record<
   number,
   { claseVehiculo: string; estadoCalibracion: string }
 > = {
-  [TIPO_ACTIVO_VEHICULO_ID]: { claseVehiculo: "Camion", estadoCalibracion: "Pendiente" },
   [TIPO_ACTIVO_EQUIPO_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
   [TIPO_ACTIVO_DISPOSITIVO_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
   [TIPO_ACTIVO_HERRAMIENTA_ID]: { claseVehiculo: "Equipo liviano", estadoCalibracion: "Pendiente" },
@@ -445,6 +455,10 @@ export function opcionesCatalogo(
   if (columna.opciones) return columna.opciones;
   if (!columna.catalogo) return [];
   switch (columna.catalogo) {
+    case "CLASE_VEHICULO":
+      return catalogos.clasesVehiculo.map((opcion) => opcion.nombre);
+    case "CARROCERIA":
+      return catalogos.carrocerias.map((opcion) => opcion.nombre);
     case "CLASE_EURO":
       return catalogos.clasesEuro.map((opcion) => opcion.nombre);
     case "TIPO_TRANSMISION":
