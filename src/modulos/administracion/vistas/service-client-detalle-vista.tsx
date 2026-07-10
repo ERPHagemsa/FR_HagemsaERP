@@ -316,6 +316,23 @@ export function ServiceClientDetalleVista({ clienteId }: { clienteId: string }) 
     return m
   }, [rolesData])
 
+  const permisosPorRolId = useMemo(() => {
+    const m = new Map<string, ReadonlyArray<string>>()
+    for (const r of rolesData?.datos ?? []) m.set(r.id, r.permisos)
+    return m
+  }, [rolesData])
+
+  // Unión de los permisos de todos los roles del cliente — es lo que termina
+  // embebido en su token y lo que el guard del backend destino valida.
+  const permisosEfectivos = useMemo(() => {
+    if (!data) return []
+    const set = new Set<string>()
+    for (const r of data.roles) {
+      for (const p of permisosPorRolId.get(r.rolId) ?? []) set.add(p)
+    }
+    return Array.from(set).sort()
+  }, [data, permisosPorRolId])
+
   return (
     <>
       <SiteHeader
@@ -453,12 +470,50 @@ export function ServiceClientDetalleVista({ clienteId }: { clienteId: string }) 
                   <span className="font-mono">@RequirePermission</span>.
                 </p>
               ) : (
-                <div className="flex flex-wrap gap-2">
-                  {data.roles.map((r) => (
-                    <Badge key={r.rolId} variant="secondary" className="rounded-md">
-                      {nombrePorRolId.get(r.rolId) ?? r.rolId}
-                    </Badge>
-                  ))}
+                <div className="space-y-4">
+                  <div>
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">
+                      Roles asignados
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {data.roles.map((r) => (
+                        <Badge key={r.rolId} variant="secondary" className="rounded-md">
+                          {nombrePorRolId.get(r.rolId) ?? r.rolId}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">
+                      Permisos efectivos
+                      {permisosEfectivos.length > 0 ? ` (${permisosEfectivos.length})` : ""}
+                    </p>
+                    {permisosEfectivos.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        {rolesData
+                          ? "Los roles asignados no tienen permisos."
+                          : "Cargando permisos…"}
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {permisosEfectivos.map((p) => (
+                          <Badge
+                            key={p}
+                            variant="outline"
+                            className="rounded-md font-mono text-xs font-normal"
+                          >
+                            {p}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Unión de los permisos de sus roles — es lo que viaja embebido en el
+                      token y lo que valida el <span className="font-mono">@RequirePermission</span>{" "}
+                      del backend destino.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
