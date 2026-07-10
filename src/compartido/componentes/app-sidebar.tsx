@@ -67,6 +67,7 @@ const data = {
         { title: "Carga masiva documentos", url: "/activos/carga-masiva-documentos" },
         { title: "Inventario fisico", url: "/activos/inventario-fisico" },
         { title: "Administrador de maestros", url: "/activos/maestros" },
+        { title: "Etiquetas QR", url: "/activos/etiquetas" },
       ],
     },
     {
