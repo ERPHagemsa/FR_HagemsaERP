@@ -30,7 +30,7 @@ export function CotizacionTipoServicioModal({ abierto, onElegir, onCerrar }: Pro
         <DialogHeader>
           <DialogTitle>¿Qué vas a cotizar?</DialogTitle>
           <DialogDescription>
-            Elegí el tipo de servicio de esta cotización. Luego armás el resto del
+            Elige el tipo de servicio de esta cotización. Luego armas el resto del
             contenido.
           </DialogDescription>
         </DialogHeader>

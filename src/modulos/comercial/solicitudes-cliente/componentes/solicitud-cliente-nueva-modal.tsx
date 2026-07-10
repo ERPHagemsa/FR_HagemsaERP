@@ -53,7 +53,7 @@ export function SolicitudClienteNuevaModal({
         <DialogHeader className="border-b border-border px-6 py-4">
           <DialogTitle>Nueva solicitud de cliente</DialogTitle>
           <DialogDescription>
-            Registrá la solicitud a partir de un prospecto de Comercial o un
+            Registra la solicitud a partir de un prospecto de Comercial o un
             cliente existente en Socios de Negocio.
           </DialogDescription>
         </DialogHeader>

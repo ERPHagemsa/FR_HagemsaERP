@@ -148,8 +148,8 @@ export function LineaFormulario({
             <div className="grid gap-4 sm:grid-cols-2">
               <Campo label="Tipo de servicio" obligatorio={!tipoServicioFijo}>
                 {tipoServicioFijo ? (
-                  // Modo TRANSPORTE: tipo fijo, sin selector.
-                  <div className="flex h-9 items-center rounded-md border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
+                  // Modo TRANSPORTE: tipo fijo, sin selector (mismo look que el Select).
+                  <div className="flex h-9 items-center rounded-4xl border border-input bg-input/30 px-3 text-sm text-muted-foreground">
                     {etiquetaTipo(linea.tipoLinea)}
                   </div>
                 ) : (
@@ -286,7 +286,7 @@ export function LineaFormulario({
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Agregá el peso de la carga (columna Detalle) para ver el precio sugerido.
+                  Agrega el peso de la carga (columna Detalle) para ver el precio sugerido.
                 </p>
               )
             ) : null}

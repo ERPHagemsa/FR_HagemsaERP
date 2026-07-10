@@ -807,6 +807,19 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
     if (!s.esDefecto && s.nombre.trim() === "") {
       errores[`secciones.${i}.nombre`] = "El nombre de la seccion es obligatorio.";
     }
+    // Ruta obligatoria si la seccion tiene lineas de TRANSPORTE (heredan la ruta
+    // de la seccion). Los servicios no-transporte no llevan origen/destino.
+    const tieneTransporte = s.lineas.some((l) => l.tipoLinea === "TRANSPORTE");
+    if (tieneTransporte) {
+      if (s.origen.trim() === "") {
+        errores[`secciones.${i}.origen`] =
+          "El origen es obligatorio para transporte.";
+      }
+      if (s.destino.trim() === "") {
+        errores[`secciones.${i}.destino`] =
+          "El destino es obligatorio para transporte.";
+      }
+    }
     // Lineas: cantidad debe ser un entero >= 1; cargos de la linea
     s.lineas.forEach((l, k) => {
       // Modalidad: obligatoria. El backend la valida como UUID; si va vacia (linea

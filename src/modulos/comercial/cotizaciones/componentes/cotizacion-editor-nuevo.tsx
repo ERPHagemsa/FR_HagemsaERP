@@ -136,7 +136,7 @@ export function CotizacionEditorNuevo({ solicitudClienteId, clienteTipo, cliente
     }
 
     toast.error(
-      extraerMensajeError(err, "Error al crear la cotizacion. Revisá los datos ingresados.")
+      extraerMensajeError(err, "Error al crear la cotizacion. Revisa los datos ingresados.")
     );
   }
 
@@ -146,7 +146,7 @@ export function CotizacionEditorNuevo({ solicitudClienteId, clienteTipo, cliente
       <>
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            Elegí el tipo de servicio para comenzar a armar la cotización.
+            Elige el tipo de servicio para comenzar a armar la cotización.
           </p>
           <Button type="button" variant="outline" onClick={() => setGateAbierto(true)}>
             Elegir tipo de servicio

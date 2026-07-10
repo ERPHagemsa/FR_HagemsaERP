@@ -66,6 +66,7 @@ export function TablaCotizacion({
   moneda,
   conAcciones = false,
   conPrecios = false,
+  mostrarRuta = true,
 }: {
   seccion: SeccionVista;
   moneda: string;
@@ -73,31 +74,35 @@ export function TablaCotizacion({
   conAcciones?: boolean;
   // Muestra columnas de Cantidad, Precio base y Precio de venta (por unidad).
   conPrecios?: boolean;
+  // Muestra la columna Ruta. Se oculta en servicios no-transporte (sin origen/destino).
+  mostrarRuta?: boolean;
 }) {
   const filasDeLinea = (l: LineaVista) => 1 + l.cargos.length;
   const totalFilasLineas = seccion.lineas.reduce((s, l) => s + filasDeLinea(l), 0);
-  // Columnas base: Ruta, Unidad, Descripcion, Monto (+ Cant/P.base/Venta con precios,
-  // + Acciones). El grupo de precios se inserta entre Descripcion y Monto.
+  // Columnas base: (Ruta) + Unidad + Descripcion + Monto (+ Cant/P.base/Venta con
+  // precios, + Acciones). El grupo de precios se inserta entre Descripcion y Monto.
   const extraPrecios = conPrecios ? 3 : 0;
-  const numColumnas = 4 + extraPrecios + (conAcciones ? 1 : 0);
+  const numColumnas = (mostrarRuta ? 4 : 3) + extraPrecios + (conAcciones ? 1 : 0);
 
   // La celda Ruta (rowspan) cubre TODAS las filas de la seccion: sus lineas (con
   // cargos de linea) Y los cargos de la seccion, para que estos ultimos queden
-  // DENTRO de la ruta y no como un bloque aparte debajo.
+  // DENTRO de la ruta y no como un bloque aparte debajo. Null cuando no hay ruta.
   const filasRuta = totalFilasLineas + seccion.cargosSeccion.length;
-  const celdaRuta = (
+  const celdaRuta = mostrarRuta ? (
     <td
       rowSpan={filasRuta}
       className="px-3 py-2 text-center align-middle font-medium text-muted-foreground"
     >
       {seccion.ruta || "—"}
     </td>
-  );
+  ) : null;
 
   return (
     <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-border/60 [&_th]:border [&_th]:border-border/60">
       <colgroup>
-        <col style={{ width: conPrecios ? "15%" : conAcciones ? "19%" : "21%" }} />
+        {mostrarRuta ? (
+          <col style={{ width: conPrecios ? "15%" : conAcciones ? "19%" : "21%" }} />
+        ) : null}
         <col style={{ width: conPrecios ? "11%" : conAcciones ? "13%" : "14%" }} />
         <col style={{ width: conPrecios ? "31%" : conAcciones ? "45%" : "50%" }} />
         {conPrecios ? (
@@ -112,7 +117,9 @@ export function TablaCotizacion({
       </colgroup>
       <thead>
         <tr className="bg-muted/40 text-xs uppercase text-muted-foreground">
-          <th className="px-3 py-2 text-left font-medium">Ruta</th>
+          {mostrarRuta ? (
+            <th className="px-3 py-2 text-left font-medium">Ruta</th>
+          ) : null}
           <th className="px-3 py-2 text-left font-medium">Concepto</th>
           <th className="px-3 py-2 text-left font-medium">Descripcion</th>
           {conPrecios ? (

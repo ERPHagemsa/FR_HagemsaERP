@@ -121,8 +121,8 @@ export function BuscarOrigenPanel({ onIdentidadResuelta }: Props) {
         Buscar origen
       </FieldLegend>
       <p className="text-xs text-muted-foreground">
-        Buscá por nombre o documento el prospecto o cliente que origina la
-        solicitud, y usalo como origen.
+        Busca por nombre o documento el prospecto o cliente que origina la
+        solicitud, y úsalo como origen.
       </p>
 
       <div className="flex items-end gap-3">

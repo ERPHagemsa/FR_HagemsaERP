@@ -265,6 +265,7 @@ export function CotizacionSeccionesEditor({
         abierto={datosEditando !== null}
         seccion={datosEditando}
         disabled={disabled}
+        modoServicio={modoServicio}
         onCerrar={() => setDatosEditando(null)}
         onGuardar={(s) => {
           guardarSeccion(s);
@@ -457,6 +458,9 @@ function BloqueSeccion({
           moneda={moneda}
           conAcciones
           conPrecios
+          // La ruta solo aplica a transporte: se oculta si la seccion no tiene
+          // lineas de transporte (servicios "Otros" no llevan origen/destino).
+          mostrarRuta={seccion.lineas.some((l) => l.tipoLinea === "TRANSPORTE")}
         />
       )}
 
