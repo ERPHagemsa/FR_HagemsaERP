@@ -1,6 +1,6 @@
 "use client"
 
-import { type FormEvent, useEffect, useState } from "react"
+import { type FormEvent, useState } from "react"
 import { CircleCheck, CircleX, Pencil, Plus, Search } from "lucide-react"
 
 import { extraerMensajeError } from "@/compartido/api/formato-error"
@@ -306,12 +306,6 @@ function DialogEditar({
       setErrorEditar(extraerMensajeError(err))
     },
   })
-
-  useEffect(() => {
-    setCategoriaSeleccionada(item?.categoria ?? "")
-    setPorDefecto(item?.porDefecto ?? true)
-    setTexto(item?.texto ?? "")
-  }, [item])
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -756,6 +750,7 @@ export function CatalogoCondicionesListado({
         onCreado={handleRefetch}
       />
       <DialogEditar
+        key={itemEditando?.id ?? "sin-edicion"}
         item={itemEditando}
         onCerrar={() => setItemEditando(null)}
         onActualizado={handleRefetch}

@@ -1,36 +1,30 @@
 "use client";
 
 import * as React from "react";
-import {
-  ClipboardCheck,
-  FilePen,
-  Send,
-  Trophy,
-  XCircle,
-  type LucideIcon,
-} from "lucide-react";
+import { CircleCheck, CircleX, ClipboardCheck, type LucideIcon } from "lucide-react";
 
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { cn } from "@/compartido/utilidades";
 
-import { useResumenCotizacionesQuery } from "../servicios/cotizaciones-queries";
-import type {
-  BucketCotizacion,
-  FiltrosCotizaciones,
-} from "../tipos/cotizaciones.tipos";
+import { useResumenAprobacionesQuery } from "../servicios/aprobaciones-queries";
+import {
+  BUCKET_POR_ESTADO,
+  type BucketAprobacion,
+  type FiltrosAprobaciones,
+} from "../tipos/aprobaciones.tipos";
 
 type Props = {
-  // Contexto activo: de aca salen los filtros del resumen (origen/ejecutivo/busqueda)
-  // y el bucket resaltado.
-  filtros: FiltrosCotizaciones;
-  // null = deseleccionar (clic en el bucket ya activo → listado sin filtro de bucket).
-  onSeleccionar: (bucket: BucketCotizacion | null) => void;
+  // De aca salen los filtros de contexto del resumen (aprobador / n° cotizacion)
+  // y el bucket resaltado. El resumen NO acepta `estado`: filtrarlo dejaria
+  // tres tarjetas en cero.
+  filtros: FiltrosAprobaciones;
+  // null = deseleccionar (clic en el bucket ya activo → listado sin filtro de estado).
+  onSeleccionar: (bucket: BucketAprobacion | null) => void;
 };
 
-// Cada tarjeta es un filtro 1:1 con su KPI de /resumen. Clases de color
-// estaticas (Tailwind v4 no purga strings interpolados).
+// Clases de color estaticas (Tailwind v4 no purga strings interpolados).
 type DefTarjeta = {
-  bucket: BucketCotizacion;
+  bucket: BucketAprobacion;
   etiqueta: string;
   descripcion: string;
   icono: LucideIcon;
@@ -40,58 +34,41 @@ type DefTarjeta = {
 
 const TARJETAS: DefTarjeta[] = [
   {
-    bucket: "enPreparacion",
-    etiqueta: "En preparacion",
-    descripcion: "Borrador o en revision",
-    icono: FilePen,
-    claseIcono: "text-amber-500",
-    claseActiva: "ring-2 ring-amber-500/60 bg-amber-500/5",
-  },
-  {
-    bucket: "pendientesAprobacion",
-    etiqueta: "Pendientes de aprobación",
-    descripcion: "En espera de resolución",
+    bucket: "enAprobacion",
+    etiqueta: "En aprobación",
+    descripcion: "Esperando resolución",
     icono: ClipboardCheck,
     claseIcono: "text-indigo-500",
     claseActiva: "ring-2 ring-indigo-500/60 bg-indigo-500/5",
   },
   {
-    bucket: "enviadas",
-    etiqueta: "Enviadas",
-    descripcion: "Enviadas al cliente",
-    icono: Send,
-    claseIcono: "text-sky-500",
-    claseActiva: "ring-2 ring-sky-500/60 bg-sky-500/5",
-  },
-  {
-    bucket: "ganadas",
-    etiqueta: "Ganadas",
-    descripcion: "Cierre exitoso",
-    icono: Trophy,
+    bucket: "aprobadas",
+    etiqueta: "Aprobadas",
+    descripcion: "La cotización se envió",
+    icono: CircleCheck,
     claseIcono: "text-emerald-500",
     claseActiva: "ring-2 ring-emerald-500/60 bg-emerald-500/5",
   },
   {
-    bucket: "perdidas",
-    etiqueta: "Perdidas",
-    descripcion: "Perdida, vencida o cancelada",
-    icono: XCircle,
+    bucket: "rechazadas",
+    etiqueta: "Rechazadas",
+    descripcion: "Volvieron a borrador",
+    icono: CircleX,
     claseIcono: "text-rose-500",
     claseActiva: "ring-2 ring-rose-500/60 bg-rose-500/5",
   },
 ];
 
-export function CotizacionesKpis({ filtros, onSeleccionar }: Props) {
-  const { data, isLoading } = useResumenCotizacionesQuery({
-    origenTipo: filtros.origenTipo,
-    idEjecutivoResponsable: filtros.idEjecutivoResponsable,
-    busqueda: filtros.busqueda,
+export function AprobacionesKpis({ filtros, onSeleccionar }: Props) {
+  const { data, isLoading } = useResumenAprobacionesQuery({
+    usuarioResolucion: filtros.usuarioResolucion,
+    numeroCotizacion: filtros.numeroCotizacion,
   });
 
-  const bucketActivo = filtros.bucket;
+  const bucketActivo = filtros.estado ? BUCKET_POR_ESTADO[filtros.estado] : undefined;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {TARJETAS.map((tarjeta) => {
         const activo = bucketActivo === tarjeta.bucket;
         const valor = data == null ? null : data[tarjeta.bucket];

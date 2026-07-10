@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, GitBranch, CalendarClock, CalendarDays, CalendarX, Info } from "lucide-react";
@@ -19,6 +20,12 @@ import {
 import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
+import { HistorialAprobaciones } from "../../aprobaciones/componentes/historial-aprobaciones";
+import {
+  DialogoResolverSolicitud,
+  type AccionResolver,
+} from "../../aprobaciones/componentes/dialogo-resolver-solicitud";
+import { useHistorialAprobacionesQuery } from "../../aprobaciones/servicios/aprobaciones-queries";
 import { PanelUbicacionesPorCompletar } from "@/modulos/comercial/ubicaciones/componentes/panel-ubicaciones-por-completar";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
 import { CLAVE_COTIZACION_DETALLE } from "@/modulos/comercial/claves-consulta";
@@ -50,6 +57,17 @@ export function CotizacionDetalleVista({ id }: Props) {
     notFound();
   }
 
+  return <CotizacionDetalleContenido cotizacion={cotizacion} refetch={refetch} />;
+}
+
+function CotizacionDetalleContenido({
+  cotizacion,
+  refetch,
+}: {
+  cotizacion: Cotizacion;
+  refetch: () => Promise<{ data: Cotizacion | null; error: unknown }>;
+}) {
+
   const vigente =
     cotizacion.versiones.find((v) => v.numeroVersion === cotizacion.versionVigente) ??
     null;
@@ -58,6 +76,9 @@ export function CotizacionDetalleVista({ id }: Props) {
   // no esta congelada (misma regla que el antiguo editor de pagina completa).
   const editable =
     accionesPermitidas(cotizacion.estado).editar && vigente !== null && !vigente.congelada;
+  const historialQuery = useHistorialAprobacionesQuery(cotizacion.id);
+  const solicitudVigente =
+    historialQuery.data?.find((solicitud) => solicitud.estado === "EN_APROBACION") ?? null;
 
   // Origen/destino distintos de la ruta (para el panel de Ubicaciones tras ganar):
   // los que tengan temporal están por completar; el resto ya vive en el maestro.
@@ -101,6 +122,9 @@ export function CotizacionDetalleVista({ id }: Props) {
 
           <div className="flex flex-wrap items-center gap-2 xl:justify-self-end">
             <CotizacionAcciones cotizacion={cotizacion} />
+            {cotizacion.estado === "PENDIENTE_APROBACION" && solicitudVigente ? (
+              <AccionesResolverSolicitud idSolicitud={solicitudVigente.id} />
+            ) : null}
             <DialogDetalles cotizacion={cotizacion} />
           </div>
         </div>
@@ -138,6 +162,13 @@ export function CotizacionDetalleVista({ id }: Props) {
           clienteTipo={cotizacion.origenTipo}
           clienteId={cotizacion.origenId}
           onCondicionesActualizadas={refetch}
+        />
+
+        <HistorialAprobaciones
+          historial={historialQuery.data ?? []}
+          isLoading={historialQuery.isLoading}
+          isError={historialQuery.isError}
+          error={historialQuery.error}
         />
 
         {/* === Ubicaciones por completar (solo tras ganar) === */}
@@ -216,6 +247,44 @@ function DialogDetalles({ cotizacion }: { cotizacion: Cotizacion }) {
   );
 }
 
+const ACCIONES_RESOLVER: { accion: AccionResolver; etiqueta: string; destructiva?: boolean }[] = [
+  { accion: "aprobar", etiqueta: "Aprobar" },
+  { accion: "rechazar", etiqueta: "Rechazar", destructiva: true },
+];
+
+function AccionesResolverSolicitud({ idSolicitud }: { idSolicitud: string }) {
+  // El dialogo es controlado y no trae trigger propio: la vista decide desde
+  // donde se abre y lo monta solo cuando hay una accion elegida.
+  const [accionAbierta, setAccionAbierta] = useState<AccionResolver | null>(null);
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {ACCIONES_RESOLVER.map(({ accion, etiqueta, destructiva }) => (
+        <Button
+          key={accion}
+          type="button"
+          variant={destructiva ? "destructive" : "outline"}
+          onClick={() => setAccionAbierta(accion)}
+        >
+          {etiqueta}
+        </Button>
+      ))}
+
+      {accionAbierta ? (
+        <DialogoResolverSolicitud
+          key={accionAbierta}
+          idSolicitud={idSolicitud}
+          accion={accionAbierta}
+          abierto
+          onAbiertoChange={(abierto) => {
+            if (!abierto) setAccionAbierta(null);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Pipeline de estados (happy path, estado actual resaltado)
 // ---------------------------------------------------------------------------
@@ -228,6 +297,7 @@ function Pipeline({ estado }: { estado: EstadoCotizacion }) {
 
   const pasos: { clave: EstadoCotizacion; texto: string }[] = [
     { clave: "BORRADOR", texto: "Borrador" },
+    { clave: "PENDIENTE_APROBACION", texto: "Pendiente de aprobación" },
     { clave: "ENVIADA", texto: "Enviada" },
     {
       clave: estado === "PERDIDA" ? "PERDIDA" : "GANADA",

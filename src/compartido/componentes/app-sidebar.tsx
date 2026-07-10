@@ -106,6 +106,7 @@ const data = {
         // Listado global de cotizaciones: vista secundaria/reporte. El camino principal
         // para cotizar es Solicitudes de cliente (la cotizacion nace de una SC).
         { title: "Todas las cotizaciones", url: "/comercial/cotizaciones" },
+        { title: "Aprobación de cotizaciones", url: "/comercial/aprobaciones" },
       ],
     },
     {
