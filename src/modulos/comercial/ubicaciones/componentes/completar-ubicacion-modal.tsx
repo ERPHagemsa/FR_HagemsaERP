@@ -201,17 +201,16 @@ export function CompletarUbicacionModal({
     form.distrito.trim() !== "" &&
     form.direccion.trim() !== "";
 
+  // El contrato del backend es por NOMBRES: los códigos geográficos (codigo*/
+  // ubigeo) que trae la geo-peru-api se quedan en el form (selector/mapa) pero no
+  // viajan al backend (el ubigeo se descartó por diseño).
   function payloadBase(): PayloadCompletarUbicacion {
     return {
       tipoUbicacion: form.tipoUbicacion as TipoUbicacion,
       pais: form.pais.trim(),
       departamento: form.departamento.trim(),
-      codigoDepartamento: form.codigoDepartamento.trim() || null,
       provincia: form.provincia.trim(),
-      codigoProvincia: form.codigoProvincia.trim() || null,
       distrito: form.distrito.trim(),
-      codigoDistrito: form.codigoDistrito.trim() || null,
-      ubigeo: form.ubigeo.trim() || null,
       direccion: form.direccion.trim(),
       referenciaUbicacion: form.referenciaUbicacion.trim() || null,
       coordenadasGoogle: form.coordenadasGoogle.trim() || null,
