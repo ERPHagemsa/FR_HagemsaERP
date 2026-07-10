@@ -29,6 +29,23 @@ import type { CuentaResponse } from "../tipos/administracion.tipos"
 
 const FORMATO_CODIGO = /^[A-Za-z0-9]{1,20}$/
 
+// Normaliza un codigo: mayusculas, solo alfanumericos, max 20.
+function normalizarCodigo(valor: string): string {
+  return valor
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 20)
+}
+
+// Separa el codigo de cuenta guardado en prefijo (por defecto "TH", Transportes
+// Hagemsa) + sufijo. Si no empieza en "TH" se respeta tal cual en el sufijo.
+function separarCodigoCuenta(valor: string): { prefijo: string; sufijo: string } {
+  const v = normalizarCodigo(valor)
+  if (v === "") return { prefijo: "TH", sufijo: "" }
+  if (v.startsWith("TH")) return { prefijo: "TH", sufijo: v.slice(2) }
+  return { prefijo: "", sufijo: v }
+}
+
 interface Props {
   cuenta: CuentaResponse
   onActualizado?: () => unknown
@@ -37,14 +54,26 @@ interface Props {
 function DialogEditarCodigos({ cuenta, onActualizado }: Props) {
   const [abierto, setAbierto] = useState(false)
   const [codigoSocio, setCodigoSocio] = useState(cuenta.codigoSocio ?? "")
-  const [codigoCuenta, setCodigoCuenta] = useState(cuenta.codigoCuenta ?? "")
+  // "Codigo de cuenta" se edita en dos inputs (prefijo "TH" + sufijo) y se guarda
+  // como un solo codigo: la concatenacion normalizada de ambos.
+  const [codigoCuentaPrefijo, setCodigoCuentaPrefijo] = useState(
+    () => separarCodigoCuenta(cuenta.codigoCuenta ?? "").prefijo,
+  )
+  const [codigoCuentaSufijo, setCodigoCuentaSufijo] = useState(
+    () => separarCodigoCuenta(cuenta.codigoCuenta ?? "").sufijo,
+  )
+  const codigoCuenta = normalizarCodigo(
+    `${codigoCuentaPrefijo}${codigoCuentaSufijo}`,
+  )
   const [error, setError] = useState<string | null>(null)
   const mutation = useActualizarCodigos(cuenta.id, { onSuccess: onActualizado })
 
   function abrir(siguiente: boolean) {
     if (siguiente) {
       setCodigoSocio(cuenta.codigoSocio ?? "")
-      setCodigoCuenta(cuenta.codigoCuenta ?? "")
+      const { prefijo, sufijo } = separarCodigoCuenta(cuenta.codigoCuenta ?? "")
+      setCodigoCuentaPrefijo(prefijo)
+      setCodigoCuentaSufijo(sufijo)
       setError(null)
     }
     setAbierto(siguiente)
@@ -121,19 +150,38 @@ function DialogEditarCodigos({ cuenta, onActualizado }: Props) {
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="codigo-cuenta">Codigo de cuenta</FieldLabel>
-            <Input
-              id="codigo-cuenta"
-              className="rounded-md"
-              value={codigoCuenta}
-              onChange={(e) => setCodigoCuenta(e.target.value)}
-              placeholder="Ej. C1"
-              maxLength={20}
-              autoComplete="off"
-            />
+            <FieldLabel htmlFor="codigo-cuenta-sufijo">
+              Codigo de cuenta
+            </FieldLabel>
+            <div className="flex gap-2">
+              <Input
+                id="codigo-cuenta-prefijo"
+                aria-label="Prefijo del codigo de cuenta"
+                title="Prefijo (por defecto TH, Transportes Hagemsa)"
+                className="rounded-md uppercase w-16 shrink-0 text-center"
+                value={codigoCuentaPrefijo}
+                onChange={(e) =>
+                  setCodigoCuentaPrefijo(normalizarCodigo(e.target.value))
+                }
+                maxLength={4}
+                autoComplete="off"
+              />
+              <Input
+                id="codigo-cuenta-sufijo"
+                className="rounded-md uppercase"
+                value={codigoCuentaSufijo}
+                onChange={(e) =>
+                  setCodigoCuentaSufijo(normalizarCodigo(e.target.value))
+                }
+                placeholder="Ej. C1"
+                maxLength={16}
+                autoComplete="off"
+              />
+            </div>
             <FieldDescription>
-              El cambio se reflejara en el token del usuario en su proximo
-              inicio de sesion o refresco.
+              Se guarda como un solo codigo: {codigoCuenta || "—"}. El cambio se
+              reflejara en el token del usuario en su proximo inicio de sesion o
+              refresco.
             </FieldDescription>
           </Field>
           {error ? (
