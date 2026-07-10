@@ -190,6 +190,7 @@ export type AlmacenajeHijo = {
   id: string;
   areaM2: number | null;
   periodoDias: number | null;
+  descripcion: string | null;
 };
 
 export type PersonalHijo = {
@@ -561,6 +562,7 @@ export type PayloadEquipoHijo = {
 export type PayloadAlmacenajeHijo = {
   areaM2?: number;
   periodoDias?: number;
+  descripcion?: string;
 };
 
 export type PayloadPersonalHijo = {

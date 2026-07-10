@@ -431,6 +431,9 @@ export function LineaFormulario({
               <div className="grid gap-3 sm:grid-cols-2">
                 <CampoMini label="Area (m2)" tipo="number" value={linea.almacenaje.areaM2} disabled={disabled} onChange={(v) => set({ almacenaje: { ...linea.almacenaje, areaM2: v } })} />
                 <CampoMini label="Periodo (dias)" tipo="number" value={linea.almacenaje.periodoDias} disabled={disabled} onChange={(v) => set({ almacenaje: { ...linea.almacenaje, periodoDias: v } })} />
+                <div className="sm:col-span-2">
+                  <CampoMini label="Descripcion" value={linea.almacenaje.descripcion} disabled={disabled} onChange={(v) => set({ almacenaje: { ...linea.almacenaje, descripcion: v } })} />
+                </div>
               </div>
             ) : null}
 

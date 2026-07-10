@@ -91,6 +91,7 @@ export type DraftEquipoHijo = {
 export type DraftAlmacenajeHijo = {
   areaM2: string;
   periodoDias: string;
+  descripcion: string;
 };
 
 export type DraftPersonalHijo = {
@@ -195,7 +196,7 @@ function equipoVacio(): DraftEquipoHijo {
 }
 
 function almacenajeVacio(): DraftAlmacenajeHijo {
-  return { areaM2: "", periodoDias: "" };
+  return { areaM2: "", periodoDias: "", descripcion: "" };
 }
 
 function personalVacio(): DraftPersonalHijo {
@@ -402,6 +403,7 @@ function almacenajeReadADraft(a: AlmacenajeHijo): DraftAlmacenajeHijo {
   return {
     areaM2: a.areaM2 !== null ? String(a.areaM2) : "",
     periodoDias: a.periodoDias !== null ? String(a.periodoDias) : "",
+    descripcion: a.descripcion ?? "",
   };
 }
 
@@ -584,6 +586,7 @@ function almacenajeAPayload(a: DraftAlmacenajeHijo): PayloadAlmacenajeHijo {
   const payload: PayloadAlmacenajeHijo = {};
   if (a.areaM2 !== "") payload.areaM2 = parseNumero(a.areaM2);
   if (a.periodoDias !== "") payload.periodoDias = parseNumero(a.periodoDias);
+  if (a.descripcion.trim() !== "") payload.descripcion = a.descripcion.trim();
   return payload;
 }
 
