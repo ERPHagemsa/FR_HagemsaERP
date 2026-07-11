@@ -6,6 +6,7 @@ import { useState } from "react"
 import {
   BriefcaseBusiness,
   Building2,
+  CalendarClock,
   CheckCircle2,
   ClipboardList,
   Database,
@@ -71,18 +72,30 @@ const modulosRegistro: RegistroModulo[] = [
   },
   {
     orden: 4,
+    tipo: "ALMACEN",
+    icon: Building2,
+    dependencia: "Almacen vinculado a ubicacion y sede.",
+  },
+  {
+    orden: 5,
+    tipo: "REGIMEN",
+    icon: CalendarClock,
+    dependencia: "Regimen de trabajo y descanso.",
+  },
+  {
+    orden: 6,
     tipo: "CUENTA",
     icon: BriefcaseBusiness,
     dependencia: "Cuenta comercial.",
   },
   {
-    orden: 5,
+    orden: 7,
     tipo: "CONTRATO",
     icon: ClipboardList,
     dependencia: "Contrato asociado opcionalmente a una cuenta.",
   },
   {
-    orden: 6,
+    orden: 8,
     tipo: "CARGO",
     icon: ShieldCheck,
     dependencia: "Puesto de trabajo y a quien reporta.",
@@ -93,6 +106,8 @@ const rutasRegistroConfiguracion: Record<TipoDatoMaestro, string> = {
   UBICACION: "ubicacion",
   SEDE: "sede",
   AREA: "area",
+  ALMACEN: "almacen",
+  REGIMEN: "regimen",
   CUENTA: "cuenta",
   CONTRATO: "contrato",
   CARGO: "cargo",
@@ -103,9 +118,11 @@ const rutaListadoPorTipo: Record<TipoDatoMaestro, string> = {
   UBICACION: "/configuracion/ubicaciones",
   SEDE: "/configuracion/sedes-areas",
   AREA: "/configuracion/sedes-areas",
+  ALMACEN: "/configuracion/almacenes",
+  REGIMEN: "/configuracion/regimenes",
   CUENTA: "/configuracion/cuentas-contratos",
   CONTRATO: "/configuracion/cuentas-contratos",
-  CARGO: "/configuracion/sedes-areas",
+  CARGO: "/configuracion/cargos",
 }
 
 const detalleFormularioMaestro: Record<
@@ -134,6 +151,18 @@ const detalleFormularioMaestro: Record<
     descripcion: "Define una gerencia o un area dentro de una sede.",
     alcance: "Organizacion",
     seccion: "Sede y gerencia",
+  },
+  ALMACEN: {
+    titulo: "Configurar almacen",
+    descripcion: "Registra un almacen fisico o temporal vinculado a ubicacion y sede.",
+    alcance: "Logistica",
+    seccion: "Ubicacion y sede",
+  },
+  REGIMEN: {
+    titulo: "Configurar regimen",
+    descripcion: "Define dias de trabajo, descanso y horas por dia.",
+    alcance: "Operaciones",
+    seccion: "Patron de trabajo",
   },
   CUENTA: {
     titulo: "Configurar cuenta",
@@ -196,6 +225,14 @@ function ejemplosFormulario(tipo: TipoDatoMaestro) {
       nombre: "Gerencia de Operaciones",
       descripcion: "Area responsable de operaciones.",
     },
+    ALMACEN: {
+      nombre: "Almacen Central",
+      descripcion: "Almacen principal de operaciones.",
+    },
+    REGIMEN: {
+      nombre: "14x7",
+      descripcion: "14 dias trabajo y 7 descanso.",
+    },
     CUENTA: {
       nombre: "Cuenta Antamina",
       descripcion: "Cuenta comercial minera.",
@@ -215,6 +252,8 @@ function ejemplosFormulario(tipo: TipoDatoMaestro) {
 const seccionesRegistro: Array<{ titulo: string; tipos: TipoDatoMaestro[] }> = [
   { titulo: "Ubicaciones", tipos: ["UBICACION"] },
   { titulo: "Sedes y areas", tipos: ["SEDE", "AREA"] },
+  { titulo: "Logistica", tipos: ["ALMACEN"] },
+  { titulo: "Regimenes", tipos: ["REGIMEN"] },
   { titulo: "Cuentas y contratos", tipos: ["CUENTA", "CONTRATO"] },
   { titulo: "Cargos", tipos: ["CARGO"] },
 ]
@@ -282,7 +321,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
   const formId = `agregar-configuracion-${rutasRegistroConfiguracion[tipoNuevo]}`
   const [nombreNuevo, setNombreNuevo] = useState("")
   const ejemplos = ejemplosFormulario(tipoNuevo)
-  const tieneNodoPadre = tipoNuevo !== "UBICACION" && tipoNuevo !== "CUENTA"
+  const tieneNodoPadre = ["SEDE", "AREA", "ALMACEN", "CONTRATO", "CARGO"].includes(tipoNuevo)
 
   const queryCatalogo: ConsultarConfiguracionGeneralQuery = {
     estado: "ACTIVO",
@@ -296,13 +335,13 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
   const ubicacionesQuery = useListarPorTipoQuery(
     "UBICACION",
     queryCatalogo,
-    tipoNuevo === "SEDE",
+    tipoNuevo === "SEDE" || tipoNuevo === "ALMACEN",
   )
   const cargosQuery = useListarPorTipoQuery("CARGO", queryCatalogo, tipoNuevo === "CARGO")
   const sedesQuery = useListarPorTipoQuery(
     "SEDE",
     queryCatalogo,
-    tipoNuevo === "AREA",
+    tipoNuevo === "AREA" || tipoNuevo === "ALMACEN",
   )
   const areasQuery = useListarPorTipoQuery(
     "AREA",
@@ -325,13 +364,19 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
           accion: "Registrar ubicacion",
           tipoDestino: "UBICACION" as TipoDatoMaestro,
         }
-      : tipoNuevo === "AREA" && sedes.length === 0
+        : tipoNuevo === "AREA" && sedes.length === 0
         ? {
             mensaje: "Primero registra una sede para crear areas.",
             accion: "Registrar sede",
             tipoDestino: "SEDE" as TipoDatoMaestro,
           }
-        : tipoNuevo === "CONTRATO" && cuentas.length === 0 && contratos.length === 0
+        : tipoNuevo === "ALMACEN" && (ubicaciones.length === 0 || sedes.length === 0)
+          ? {
+              mensaje: "Primero registra una ubicacion y una sede para crear almacenes.",
+              accion: ubicaciones.length === 0 ? "Registrar ubicacion" : "Registrar sede",
+              tipoDestino: ubicaciones.length === 0 ? "UBICACION" as TipoDatoMaestro : "SEDE" as TipoDatoMaestro,
+            }
+          : tipoNuevo === "CONTRATO" && cuentas.length === 0 && contratos.length === 0
           ? {
               mensaje: "Primero registra una cuenta o contrato principal para crear contratos.",
               accion: "Registrar cuenta",
@@ -374,6 +419,11 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
 
     if (tipoNuevo === "SEDE" && !ubicacionId) {
       setError("Selecciona la ubicacion de la sede.")
+      return
+    }
+
+    if (tipoNuevo === "ALMACEN" && (!ubicacionId || !sedeId)) {
+      setError("Selecciona la ubicacion y sede del almacen.")
       return
     }
 

@@ -1,8 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ArrowRight, ClipboardList, Coins, Eye, Pencil, Plus, Trash2, Wallet } from "lucide-react"
+import { ArrowRight, ClipboardList, Coins, Pencil, Plus, Trash2, Wallet } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
 import { SiteHeader } from "@/compartido/componentes/site-header"
@@ -45,7 +45,6 @@ import {
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 import { useListarPorTipoQuery } from "../servicios/configuracion-general-queries"
 import { useCostoPeajesRutaQuery, useRutasQuery } from "../servicios/rutas-peajes-queries"
-import type { SentidoPeajeRuta, TipoCobroPeaje } from "../tipos/rutas-peajes"
 import {
   useAnularCostoOperativoMutation,
   useChecklistCostoOperativoQuery,
@@ -61,11 +60,14 @@ import type {
   BaseConteo,
   BaseImputacion,
   ChecklistItemCostoOperativo,
+  ComidaConcepto,
   ConceptoCostoResponse,
   CostoOperativoResponse,
+  FrecuenciaCosto,
+  LineaCostoOperativoResponse,
+  ModalidadEntrega,
   NaturalezaConcepto,
-  TipoServicio,
-  UnidadDevengo,
+  TipoComida,
 } from "../tipos/costos-operativos"
 
 function obtenerMensajeError(error: unknown) {
@@ -78,6 +80,13 @@ function obtenerMensajeError(error: unknown) {
   return "No se pudo completar la operacion."
 }
 
+const COMIDAS: TipoComida[] = ["DESAYUNO", "ALMUERZO", "CENA"]
+const etiquetaComida: Record<TipoComida, string> = {
+  DESAYUNO: "Desayuno",
+  ALMUERZO: "Almuerzo",
+  CENA: "Cena",
+}
+
 const etiquetaNaturaleza: Record<NaturalezaConcepto, string> = {
   FIJO: "Fijo",
   VARIABLE: "Variable",
@@ -87,26 +96,57 @@ const etiquetaBase: Record<BaseImputacion, string> = {
   PERSONA: "Por persona",
   SERVICIO: "Por servicio",
 }
-const etiquetaDevengo: Record<UnidadDevengo, string> = {
-  VIAJE: "Por viaje",
-  DIA_PERSONA: "Dia / persona",
-  DIA_UNIDAD: "Dia / unidad",
-  SERVICIO: "Por servicio",
+const etiquetaFrecuencia: Record<FrecuenciaCosto, string> = {
+  POR_VIAJE: "Por viaje",
+  POR_DIA: "Por dia",
+  POR_SERVICIO: "Por servicio",
 }
-const etiquetaBaseConteo: Record<BaseConteo, string> = {
-  DIA: "Por dia",
-  NOCHE: "Por noche",
+const baseConteoPorComida: Record<TipoComida, BaseConteo> = {
+  DESAYUNO: "DIA",
+  ALMUERZO: "DIA",
+  CENA: "NOCHE",
+}
+const etiquetaMultiplicadorComida: Record<TipoComida, string> = {
+  DESAYUNO: "x dias x personas",
+  ALMUERZO: "x dias x personas",
+  CENA: "x noches x personas",
+}
+const ayudaMultiplicadorComida: Record<TipoComida, string> = {
+  DESAYUNO: "Se reconoce cada dia del viaje.",
+  ALMUERZO: "Se reconoce cada dia del viaje.",
+  CENA: "Se reconoce solo si el viaje tiene pernocte.",
+}
+const formulaComida: Record<TipoComida, string> = {
+  DESAYUNO: "personas x dias x tarifa",
+  ALMUERZO: "personas x dias x tarifa",
+  CENA: "personas x noches x tarifa",
+}
+
+function distribuirMonto(total: number, partes: number): number[] {
+  if (!Number.isFinite(total) || partes <= 0) return []
+  const centimos = Math.round(total * 100)
+  const base = Math.floor(centimos / partes)
+  const resto = centimos % partes
+  return Array.from({ length: partes }, (_, index) => (base + (index < resto ? 1 : 0)) / 100)
+}
+
+function formatearMonto(valor: number) {
+  return valor.toFixed(2)
+}
+const ayudaFrecuencia: Record<FrecuenciaCosto, string> = {
+  POR_VIAJE: "Se paga 1 vez por cada viaje.",
+  POR_DIA: "Se paga por cada dia (o noche) del viaje.",
+  POR_SERVICIO: "Se paga 1 vez por todo el servicio, sin importar dias ni viajes.",
 }
 
 // --- Plantillas de concepto (UI en lenguaje simple) --------------------------
-//
-// Los 4 campos tecnicos (naturaleza, baseImputacion, unidadDevengo, baseConteo)
-// confunden a un usuario que solo quiere decir "esto se paga por persona cada
-// dia". Cada plantilla es UNA frase de negocio ya completa; elegirla llena los
-// 4 campos tecnicos por detras. No hay caja de resumen aparte: la frase de la
-// tarjeta elegida ES la unica fuente de verdad visible.
 
-type ClavePlantilla = "ALIMENTACION" | "ALOJAMIENTO" | "COCHERA" | "LAVADO" | "SERVICIO_FIJO"
+type ClavePlantilla =
+  | "ALIMENTACION"
+  | "ALOJAMIENTO"
+  | "COCHERA"
+  | "LAVADO"
+  | "SERVICIO_FIJO"
 
 interface DefinicionPlantilla {
   frase: string
@@ -114,85 +154,83 @@ interface DefinicionPlantilla {
   nota?: string
   naturaleza: NaturalezaConcepto
   baseImputacion: BaseImputacion
-  unidadDevengo: UnidadDevengo
+  frecuencia: FrecuenciaCosto
   baseConteo: BaseConteo
+  // La alimentacion se desglosa en comidas (desayuno/almuerzo/cena).
+  esAlimentacion?: boolean
 }
 
 const plantillasConcepto: Record<ClavePlantilla, DefinicionPlantilla> = {
   ALIMENTACION: {
-    frase: "Se paga por cada persona, cada dia de viaje",
-    ejemplo: "Alimentacion, viaticos diarios",
+    frase: "Alimentacion",
+    ejemplo: "PERSONA · POR_DIA",
     naturaleza: "VARIABLE",
     baseImputacion: "PERSONA",
-    unidadDevengo: "DIA_PERSONA",
+    frecuencia: "POR_DIA",
     baseConteo: "DIA",
+    esAlimentacion: true,
   },
   ALOJAMIENTO: {
-    frase: "Se paga por cada persona, cada noche",
-    ejemplo: "Alojamiento, hospedaje",
-    nota: "Las noches se escriben a mano al configurar la ruta + cuenta (no se calculan solas).",
+    frase: "Alojamiento",
+    ejemplo: "PERSONA · NOCHE",
     naturaleza: "VARIABLE",
     baseImputacion: "PERSONA",
-    unidadDevengo: "DIA_PERSONA",
+    frecuencia: "POR_DIA",
     baseConteo: "NOCHE",
   },
   COCHERA: {
-    frase: "Se paga por cada vehiculo, cada dia de viaje",
-    ejemplo: "Cochera, estacionamiento",
+    frase: "Cochera",
+    ejemplo: "UNIDAD · POR_DIA",
     naturaleza: "VARIABLE",
     baseImputacion: "UNIDAD",
-    unidadDevengo: "DIA_UNIDAD",
+    frecuencia: "POR_DIA",
     baseConteo: "DIA",
   },
   LAVADO: {
-    frase: "Se paga una sola vez por viaje",
-    ejemplo: "Lavado del vehiculo",
+    frase: "Lavado",
+    ejemplo: "UNIDAD · POR_VIAJE",
     naturaleza: "FIJO",
     baseImputacion: "UNIDAD",
-    unidadDevengo: "VIAJE",
+    frecuencia: "POR_VIAJE",
     baseConteo: "DIA",
   },
   SERVICIO_FIJO: {
-    frase: "Se paga una sola vez por todo el servicio",
-    ejemplo: "Gasto fijo del contrato, sin importar dias",
+    frase: "Servicio fijo",
+    ejemplo: "SERVICIO · POR_SERVICIO",
     naturaleza: "FIJO",
     baseImputacion: "SERVICIO",
-    unidadDevengo: "SERVICIO",
+    frecuencia: "POR_SERVICIO",
     baseConteo: "DIA",
   },
 }
 
-// Frase en lenguaje simple a partir de los 4 campos tecnicos actuales. Se usa
-// en la tarjeta de resumen del catalogo (no en el dialogo: ahi la frase vive
-// en la plantilla elegida).
-function fraseComportamientoConcepto(unidadDevengo: UnidadDevengo, baseConteo: BaseConteo): string {
-  if (unidadDevengo === "VIAJE") return "Se paga una sola vez por cada viaje."
-  if (unidadDevengo === "SERVICIO") return "Se paga una sola vez por todo el servicio contratado."
+function fraseComportamientoConcepto(
+  frecuencia: FrecuenciaCosto,
+  baseImputacion: BaseImputacion,
+  baseConteo: BaseConteo,
+  esAlimentacion: boolean,
+): string {
+  if (esAlimentacion) return "Alimentacion por persona, desglosada en desayuno, almuerzo y cena."
+  if (frecuencia === "POR_VIAJE") return "Se paga una sola vez por cada viaje."
+  if (frecuencia === "POR_SERVICIO") return "Se paga una sola vez por todo el servicio contratado."
   const unidadTiempo = baseConteo === "NOCHE" ? "noche" : "dia"
-  if (unidadDevengo === "DIA_PERSONA") return `Se paga por cada persona, en cada ${unidadTiempo} del viaje.`
-  if (unidadDevengo === "DIA_UNIDAD") return `Se paga por cada vehiculo, en cada ${unidadTiempo} del viaje.`
-  return ""
+  const quien =
+    baseImputacion === "PERSONA" ? "persona" : baseImputacion === "UNIDAD" ? "vehiculo" : "servicio"
+  return `Se paga por cada ${quien}, en cada ${unidadTiempo} del viaje.`
 }
 
-// Al editar un concepto existente, detecta que plantilla calza para dejarla
-// preseleccionada. null = ningun caso comun calza -> abrir modo manual.
 function detectarPlantilla(concepto?: ConceptoCostoResponse): ClavePlantilla | null {
   if (!concepto) return "ALIMENTACION"
+  if (concepto.esAlimentacion) return "ALIMENTACION"
   const entrada = Object.entries(plantillasConcepto).find(
     ([, def]) =>
+      !def.esAlimentacion &&
       def.naturaleza === concepto.naturaleza &&
       def.baseImputacion === concepto.baseImputacion &&
-      def.unidadDevengo === concepto.unidadDevengo &&
+      def.frecuencia === concepto.frecuencia &&
       def.baseConteo === concepto.baseConteo,
   )
   return (entrada?.[0] as ClavePlantilla) ?? null
-}
-// El devengo responde: "una sola vez, cada cuanto se paga este costo?".
-const ayudaDevengo: Record<UnidadDevengo, string> = {
-  VIAJE: "Se paga 1 vez por cada viaje.",
-  DIA_PERSONA: "Se paga 1 vez por persona por dia, aunque haga varios viajes ese dia.",
-  DIA_UNIDAD: "Se paga 1 vez por vehiculo por dia, aunque haga varios viajes ese dia.",
-  SERVICIO: "Se paga 1 vez por todo el servicio, sin importar dias ni viajes.",
 }
 
 // --- Selectores compartidos --------------------------------------------------
@@ -291,7 +329,53 @@ function SelectRuta({ value, onChange }: { value: string; onChange: (v: string) 
   )
 }
 
+const etiquetaModalidad: Record<ModalidadEntrega, string> = {
+  NORMAL: "Normal",
+  EXPRESS: "Express",
+}
+
+// Modalidad de entrega: enum fijo (no administrable). Solo diferencia el paquete.
+function SelectModalidad({
+  value,
+  onChange,
+}: {
+  value: ModalidadEntrega
+  onChange: (v: ModalidadEntrega) => void
+}) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as ModalidadEntrega)}>
+      <SelectTrigger className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="NORMAL">Normal</SelectItem>
+        <SelectItem value="EXPRESS">Express</SelectItem>
+      </SelectContent>
+    </Select>
+  )
+}
+
 // --- Dialogo crear/editar concepto (catalogo) --------------------------------
+
+type EstadoComida = { activa: boolean; monto: string; baseConteo: BaseConteo }
+
+function estadoComidasInicial(concepto?: ConceptoCostoResponse): Record<TipoComida, EstadoComida> {
+  const base: Record<TipoComida, EstadoComida> = {
+    DESAYUNO: { activa: !concepto, monto: "", baseConteo: baseConteoPorComida.DESAYUNO },
+    ALMUERZO: { activa: !concepto, monto: "", baseConteo: baseConteoPorComida.ALMUERZO },
+    CENA: { activa: !concepto, monto: "", baseConteo: baseConteoPorComida.CENA },
+  }
+  if (concepto?.esAlimentacion) {
+    concepto.comidas.forEach((c) => {
+      base[c.tipoComida] = {
+        activa: true,
+        monto: String(c.montoReferencial),
+        baseConteo: baseConteoPorComida[c.tipoComida],
+      }
+    })
+  }
+  return base
+}
 
 function ConceptoDialog({
   concepto,
@@ -310,12 +394,23 @@ function ConceptoDialog({
   const [baseImputacion, setBaseImputacion] = useState<BaseImputacion>(
     concepto?.baseImputacion ?? plantillasConcepto.ALIMENTACION.baseImputacion,
   )
-  const [unidadDevengo, setUnidadDevengo] = useState<UnidadDevengo>(
-    concepto?.unidadDevengo ?? plantillasConcepto.ALIMENTACION.unidadDevengo,
+  const [frecuencia, setFrecuencia] = useState<FrecuenciaCosto>(
+    concepto?.frecuencia ?? plantillasConcepto.ALIMENTACION.frecuencia,
   )
   const [baseConteo, setBaseConteo] = useState<BaseConteo>(
     concepto?.baseConteo ?? plantillasConcepto.ALIMENTACION.baseConteo,
   )
+  const [esAlimentacion, setEsAlimentacion] = useState<boolean>(
+    concepto?.esAlimentacion ?? false,
+  )
+  const [comidas, setComidas] = useState<Record<TipoComida, EstadoComida>>(() =>
+    estadoComidasInicial(concepto),
+  )
+  const [montoAlimentacion, setMontoAlimentacion] = useState(() => {
+    if (!concepto?.esAlimentacion) return ""
+    const total = concepto.comidas.reduce((suma, comida) => suma + comida.montoReferencial, 0)
+    return total > 0 ? formatearMonto(total) : ""
+  })
   const [plantilla, setPlantilla] = useState<ClavePlantilla | null>(() => detectarPlantilla(concepto))
   const [modoManual, setModoManual] = useState(() => detectarPlantilla(concepto) === null)
   const [montoReferencial, setMontoReferencial] = useState(
@@ -327,39 +422,76 @@ function ConceptoDialog({
   const crear = useRegistrarConceptoCostoMutation()
   const modificar = useModificarConceptoCostoMutation(concepto?.id ?? 0)
   const pendiente = crear.isPending || modificar.isPending
+  const nombreNormalizado = nombre
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+  const conceptoEsAlimentacion = esAlimentacion || nombreNormalizado.includes("aliment")
+
+  function aplicarPlantilla(clave: ClavePlantilla) {
+    const def = plantillasConcepto[clave]
+    setPlantilla(clave)
+    setNaturaleza(def.naturaleza)
+    setBaseImputacion(def.baseImputacion)
+    setFrecuencia(def.frecuencia)
+    setBaseConteo(def.baseConteo)
+    setEsAlimentacion(def.esAlimentacion ?? false)
+    if (def.esAlimentacion) {
+      setComidas((prev) => ({
+        DESAYUNO: { ...prev.DESAYUNO, activa: true, baseConteo: baseConteoPorComida.DESAYUNO },
+        ALMUERZO: { ...prev.ALMUERZO, activa: true, baseConteo: baseConteoPorComida.ALMUERZO },
+        CENA: { ...prev.CENA, activa: true, baseConteo: baseConteoPorComida.CENA },
+      }))
+    }
+  }
+
+  function comidasPayload(): ComidaConcepto[] {
+    const activas = COMIDAS.filter((t) => comidas[t].activa)
+    const montos = distribuirMonto(Number(montoAlimentacion), activas.length)
+    return activas.map((t, index) => ({
+      tipoComida: t,
+      montoReferencial: montos[index] ?? 0,
+      moneda,
+      baseConteo: baseConteoPorComida[t],
+    }))
+  }
 
   async function guardar() {
     if (!nombre.trim()) {
       setError("El nombre es obligatorio.")
       return
     }
+    if (conceptoEsAlimentacion) {
+      const activas = COMIDAS.filter((t) => comidas[t].activa)
+      if (activas.length === 0) {
+        setError("Marca al menos una comida (desayuno, almuerzo o cena).")
+        return
+      }
+      const totalAlimentacion = Number(montoAlimentacion)
+      if (!Number.isFinite(totalAlimentacion) || totalAlimentacion <= 0) {
+        setError("El monto total de alimentacion debe ser mayor que cero.")
+        return
+      }
+    }
     try {
       setError(null)
-      const montoRef = montoReferencial.trim() ? Number(montoReferencial) : null
+      const montoRef = !conceptoEsAlimentacion && montoReferencial.trim() ? Number(montoReferencial) : null
+      const comidasReq = conceptoEsAlimentacion ? comidasPayload() : []
+      const comun = {
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim() || null,
+        naturaleza,
+        baseImputacion: conceptoEsAlimentacion ? "PERSONA" : baseImputacion,
+        frecuencia: conceptoEsAlimentacion ? "POR_DIA" : frecuencia,
+        baseConteo: conceptoEsAlimentacion ? "DIA" : baseConteo,
+        montoReferencial: montoRef,
+        moneda,
+        comidas: comidasReq,
+      }
       if (concepto) {
-        await modificar.mutateAsync({
-          nombre: nombre.trim(),
-          descripcion: descripcion.trim() || null,
-          naturaleza,
-          baseImputacion,
-          unidadDevengo,
-          baseConteo,
-          montoReferencial: montoRef,
-          moneda,
-          usuarioModificacion: usuarioId,
-        })
+        await modificar.mutateAsync({ ...comun, usuarioModificacion: usuarioId })
       } else {
-        await crear.mutateAsync({
-          nombre: nombre.trim(),
-          descripcion: descripcion.trim() || null,
-          naturaleza,
-          baseImputacion,
-          unidadDevengo,
-          baseConteo,
-          montoReferencial: montoRef,
-          moneda,
-          usuarioCreacion: usuarioId,
-        })
+        await crear.mutateAsync({ ...comun, usuarioCreacion: usuarioId })
       }
       onClose(true)
     } catch (err) {
@@ -367,14 +499,18 @@ function ConceptoDialog({
     }
   }
 
+  const comidasActivas = COMIDAS.filter((t) => comidas[t].activa)
+  const montosCalculadosComidas = distribuirMonto(Number(montoAlimentacion), comidasActivas.length)
+  const montoCalculadoPorComida = new Map<TipoComida, number>(
+    comidasActivas.map((t, index) => [t, montosCalculadosComidas[index] ?? 0]),
+  )
+  const plantillaActiva = plantilla ? plantillasConcepto[plantilla] : null
+
   return (
-    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
       <DialogHeader>
         <DialogTitle>{concepto ? "Editar concepto" : "Nuevo concepto de costo"}</DialogTitle>
-        <DialogDescription>
-          Define el costo operativo y sus tres ejes. El precio se asigna despues en la pestana
-          &quot;Configuracion de costo&quot;, por ruta + cuenta/contrato.
-        </DialogDescription>
+        <DialogDescription>Define regla y tarifa referencial del concepto.</DialogDescription>
       </DialogHeader>
 
       {error ? (
@@ -387,11 +523,7 @@ function ConceptoDialog({
       <div className="flex flex-col gap-4">
         <Field>
           <FieldLabel>Nombre</FieldLabel>
-          <Input
-            value={nombre}
-            placeholder="Alimentacion"
-            onChange={(e) => setNombre(e.target.value)}
-          />
+          <Input value={nombre} placeholder="Alimentacion" onChange={(e) => setNombre(e.target.value)} />
         </Field>
         <Field>
           <FieldLabel>Descripcion</FieldLabel>
@@ -414,13 +546,7 @@ function ConceptoDialog({
                       <button
                         key={clave}
                         type="button"
-                        onClick={() => {
-                          setPlantilla(clave)
-                          setNaturaleza(def.naturaleza)
-                          setBaseImputacion(def.baseImputacion)
-                          setUnidadDevengo(def.unidadDevengo)
-                          setBaseConteo(def.baseConteo)
-                        }}
+                        onClick={() => aplicarPlantilla(clave)}
                         className={`rounded-lg border p-3 text-left transition-colors ${
                           seleccionado
                             ? "border-primary bg-primary/5 ring-1 ring-primary"
@@ -428,15 +554,24 @@ function ConceptoDialog({
                         }`}
                       >
                         <p className="text-sm font-medium">{def.frase}</p>
-                        <p className="text-xs text-muted-foreground">{def.ejemplo}</p>
-                        {def.nota ? (
-                          <p className="mt-1 text-[11px] text-amber-600">{def.nota}</p>
-                        ) : null}
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          <Badge variant="secondary" className="text-[10px] font-normal">
+                            {def.naturaleza}
+                          </Badge>
+                          <Badge variant="secondary" className="text-[10px] font-normal">
+                            {def.ejemplo}
+                          </Badge>
+                        </div>
                       </button>
                     )
                   },
                 )}
               </div>
+              {plantillaActiva ? (
+                <div className="mt-3 rounded-lg border border-border bg-muted/25 p-3 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">Regla:</span> {plantillaActiva.naturaleza} · {plantillaActiva.baseImputacion} · {plantillaActiva.frecuencia}
+                </div>
+              ) : null}
               <button
                 type="button"
                 className="mt-2 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
@@ -454,12 +589,7 @@ function ConceptoDialog({
                   className="text-xs text-primary underline underline-offset-2"
                   onClick={() => {
                     setModoManual(false)
-                    setPlantilla("ALIMENTACION")
-                    const def = plantillasConcepto.ALIMENTACION
-                    setNaturaleza(def.naturaleza)
-                    setBaseImputacion(def.baseImputacion)
-                    setUnidadDevengo(def.unidadDevengo)
-                    setBaseConteo(def.baseConteo)
+                    aplicarPlantilla("ALIMENTACION")
                   }}
                 >
                   Volver a las opciones comunes
@@ -480,10 +610,7 @@ function ConceptoDialog({
                 </Field>
                 <Field>
                   <FieldLabel>A quien o a que se le carga?</FieldLabel>
-                  <Select
-                    value={baseImputacion}
-                    onValueChange={(v) => setBaseImputacion(v as BaseImputacion)}
-                  >
+                  <Select value={baseImputacion} onValueChange={(v) => setBaseImputacion(v as BaseImputacion)}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
@@ -495,27 +622,23 @@ function ConceptoDialog({
                   </Select>
                 </Field>
                 <Field className="sm:col-span-2">
-                  <FieldLabel>Cada cuanto se paga (una sola vez)?</FieldLabel>
-                  <Select
-                    value={unidadDevengo}
-                    onValueChange={(v) => setUnidadDevengo(v as UnidadDevengo)}
-                  >
+                  <FieldLabel>Cada cuanto se genera?</FieldLabel>
+                  <Select value={frecuencia} onValueChange={(v) => setFrecuencia(v as FrecuenciaCosto)}>
                     <SelectTrigger className="w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="VIAJE">1 vez por viaje</SelectItem>
-                      <SelectItem value="DIA_PERSONA">1 vez por persona por dia</SelectItem>
-                      <SelectItem value="DIA_UNIDAD">1 vez por vehiculo por dia</SelectItem>
-                      <SelectItem value="SERVICIO">1 vez por todo el servicio</SelectItem>
+                      <SelectItem value="POR_VIAJE">1 vez por viaje</SelectItem>
+                      <SelectItem value="POR_DIA">Por cada dia (o noche) del viaje</SelectItem>
+                      <SelectItem value="POR_SERVICIO">1 vez por todo el servicio</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    {ayudaDevengo[unidadDevengo]} Evita pagar el mismo costo dos veces cuando hay
-                    varios viajes.
+                    {ayudaFrecuencia[frecuencia]} El &quot;a quien multiplica&quot; lo aporta &quot;A
+                    quien se le carga&quot;.
                   </p>
                 </Field>
-                {unidadDevengo === "DIA_PERSONA" || unidadDevengo === "DIA_UNIDAD" ? (
+                {frecuencia === "POR_DIA" && !conceptoEsAlimentacion ? (
                   <Field className="sm:col-span-2">
                     <FieldLabel>Se cuenta por dia o por noche?</FieldLabel>
                     <Select value={baseConteo} onValueChange={(v) => setBaseConteo(v as BaseConteo)}>
@@ -540,31 +663,119 @@ function ConceptoDialog({
           )}
         </div>
 
-        <div className="rounded-lg border border-border bg-muted/30 p-4">
-          <p className="text-sm font-medium">Tarifa referencial (opcional)</p>
-          <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
-            Precio unitario sugerido (por {etiquetaDevengo[unidadDevengo].toLowerCase()}), no el total
-            del viaje. Prellena el checklist cuando ruta + cuenta/contrato aun no tiene su propio monto;
-            el usuario puede sobrescribirlo ahi.
-          </p>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field>
-              <FieldLabel>Monto referencial</FieldLabel>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={montoReferencial}
-                placeholder="40.00"
-                onChange={(e) => setMontoReferencial(e.target.value)}
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Moneda</FieldLabel>
-              <Input value={moneda} onChange={(e) => setMoneda(e.target.value.toUpperCase())} />
-            </Field>
+        {conceptoEsAlimentacion ? (
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="border-b border-border bg-muted/30 px-4 py-3">
+              <div className="grid gap-3 sm:grid-cols-[1fr_160px_112px] sm:items-end">
+                <div>
+                  <p className="text-sm font-semibold">Comidas y tarifa referencial</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Monto total dividido entre comidas activas.
+                  </p>
+                </div>
+                <Field>
+                  <FieldLabel>Monto total</FieldLabel>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={montoAlimentacion}
+                    placeholder="60.00"
+                    className="text-right"
+                    onChange={(e) => setMontoAlimentacion(e.target.value)}
+                  />
+                </Field>
+                <Field className="w-28">
+                  <FieldLabel>Moneda</FieldLabel>
+                  <Input value={moneda} onChange={(e) => setMoneda(e.target.value.toUpperCase())} />
+                </Field>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-40">Comida</TableHead>
+                    <TableHead className="w-36 text-right">Tarifa asignada</TableHead>
+                    <TableHead>Se multiplica por</TableHead>
+                    <TableHead>Formula</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {COMIDAS.map((t) => (
+                    <TableRow key={t}>
+                      <TableCell>
+                        <label className="flex items-center gap-2 text-sm font-medium">
+                          <Checkbox
+                            checked={comidas[t].activa}
+                            onCheckedChange={(c) =>
+                              setComidas((prev) => ({
+                                ...prev,
+                                [t]: {
+                                  ...prev[t],
+                                  activa: c === true,
+                                  baseConteo: baseConteoPorComida[t],
+                                },
+                              }))
+                            }
+                          />
+                          {etiquetaComida[t]}
+                        </label>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        {comidas[t].activa ? `${moneda} ${formatearMonto(montoCalculadoPorComida.get(t) ?? 0)}` : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="secondary" className="w-fit">
+                            {etiquetaMultiplicadorComida[t]}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">{ayudaMultiplicadorComida[t]}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {formulaComida[t]}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="grid gap-2 border-t border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground sm:grid-cols-3">
+              <p><span className="font-semibold text-foreground">Ejemplo:</span> 50 / 2 comidas = 25 cada una.</p>
+              <p>Desayuno/almuerzo usan dias.</p>
+              <p>Cena usa noches.</p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-lg border border-border bg-muted/30 p-4">
+            <p className="text-sm font-medium">Tarifa referencial (opcional)</p>
+            <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
+              Precio unitario sugerido ({etiquetaFrecuencia[frecuencia].toLowerCase()}), no el total
+              del viaje. Prellena el checklist cuando ruta + cuenta/contrato aun no tiene su propio
+              monto; el usuario puede sobrescribirlo ahi.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel>Monto referencial</FieldLabel>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={montoReferencial}
+                  placeholder="40.00"
+                  onChange={(e) => setMontoReferencial(e.target.value)}
+                />
+              </Field>
+              <Field>
+                <FieldLabel>Moneda</FieldLabel>
+                <Input value={moneda} onChange={(e) => setMoneda(e.target.value.toUpperCase())} />
+              </Field>
+            </div>
+          </div>
+        )}
       </div>
 
       <DialogFooter>
@@ -599,11 +810,8 @@ function ConceptoCard({
   async function alternar() {
     try {
       setError(null)
-      if (activo) {
-        await inhabilitar.mutateAsync(undefined)
-      } else {
-        await habilitar.mutateAsync(undefined)
-      }
+      if (activo) await inhabilitar.mutateAsync(undefined)
+      else await habilitar.mutateAsync(undefined)
     } catch (err) {
       setError(obtenerMensajeError(err))
     }
@@ -623,13 +831,28 @@ function ConceptoCard({
           <h2 className="mt-1 line-clamp-2 text-base font-semibold">{concepto.nombre}</h2>
         </div>
         <p className="text-xs text-muted-foreground">
-          {fraseComportamientoConcepto(concepto.unidadDevengo, concepto.baseConteo)}
+          {fraseComportamientoConcepto(
+            concepto.frecuencia,
+            concepto.baseImputacion,
+            concepto.baseConteo,
+            concepto.esAlimentacion,
+          )}
         </p>
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="secondary">{etiquetaNaturaleza[concepto.naturaleza]}</Badge>
           <Badge variant="secondary">{etiquetaBase[concepto.baseImputacion]}</Badge>
+          {concepto.esAlimentacion ? <Badge variant="secondary">Alimentacion</Badge> : null}
         </div>
-        {concepto.montoReferencial != null ? (
+        {concepto.esAlimentacion && concepto.comidas.length > 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {concepto.comidas
+              .map(
+                (c) =>
+                  `${etiquetaComida[c.tipoComida]} ${c.moneda} ${c.montoReferencial.toFixed(2)} (${etiquetaMultiplicadorComida[c.tipoComida]})`,
+              )
+              .join(" · ")}
+          </p>
+        ) : concepto.montoReferencial != null ? (
           <p className="text-xs text-muted-foreground">
             Tarifa referencial: {concepto.moneda ?? "PEN"} {concepto.montoReferencial.toFixed(2)}
           </p>
@@ -749,23 +972,30 @@ function ConceptosTab() {
   )
 }
 
-// --- Pestana: configuracion de costo (checklist ruta + cuenta/contrato) -----
+// --- Pestana: configuracion de costo (checklist ruta + cuenta + modalidad) --
+
+type EstadoLinea = {
+  activo: boolean
+  monto: string
+  moneda: string
+  comidas: Record<TipoComida, string>
+}
 
 function ChecklistPanel({
   rutaId,
   cuentaContratoId,
-  tipoServicio,
+  modalidadEntrega,
+  moneda,
   onGuardado,
 }: {
   rutaId: number
   cuentaContratoId: number
-  tipoServicio: TipoServicio
+  modalidadEntrega: ModalidadEntrega
+  moneda: string
   onGuardado: () => void
 }) {
-  const checklistQuery = useChecklistCostoOperativoQuery(rutaId, cuentaContratoId, tipoServicio)
-  const [lineas, setLineas] = useState<Record<number, { activo: boolean; monto: string; moneda: string }>>(
-    {},
-  )
+  const checklistQuery = useChecklistCostoOperativoQuery(rutaId, cuentaContratoId, modalidadEntrega)
+  const [lineas, setLineas] = useState<Record<number, EstadoLinea>>({})
   const [diasViatico, setDiasViatico] = useState("")
   const [nochesViatico, setNochesViatico] = useState("")
   const [diasSynced, setDiasSynced] = useState(false)
@@ -776,25 +1006,34 @@ function ChecklistPanel({
   const items = checklistQuery.data?.items ?? []
 
   if (!diasSynced && checklistQuery.data) {
-    setDiasViatico(
-      checklistQuery.data.diasViatico != null ? String(checklistQuery.data.diasViatico) : "",
-    )
+    setDiasViatico(checklistQuery.data.diasViatico != null ? String(checklistQuery.data.diasViatico) : "")
     setNochesViatico(
       checklistQuery.data.nochesViatico != null ? String(checklistQuery.data.nochesViatico) : "",
     )
     setDiasSynced(true)
   }
 
-  // Sincroniza el estado editable cuando llega o cambia el checklist.
-  const itemsKey = items.map((i) => `${i.conceptoCostoOperativoId}:${i.activo}:${i.monto}`).join("|")
+  const itemsKey = items
+    .map(
+      (i) =>
+        `${i.conceptoCostoOperativoId}:${i.activo}:${i.monto}:${i.comidas
+          .map((c) => `${c.tipoComida}=${c.monto}`)
+          .join(",")}`,
+    )
+    .join("|")
   const [syncedKey, setSyncedKey] = useState<string | null>(null)
   if (itemsKey !== syncedKey && items.length > 0) {
-    const inicial: Record<number, { activo: boolean; monto: string; moneda: string }> = {}
+    const inicial: Record<number, EstadoLinea> = {}
     items.forEach((item) => {
+      const comidas: Record<TipoComida, string> = { DESAYUNO: "", ALMUERZO: "", CENA: "" }
+      item.comidas.forEach((c) => {
+        comidas[c.tipoComida] = String(c.monto)
+      })
       inicial[item.conceptoCostoOperativoId] = {
         activo: item.activo,
         monto: item.monto != null ? String(item.monto) : "",
-        moneda: item.moneda || "PEN",
+        moneda: item.moneda || moneda,
+        comidas,
       }
     })
     setLineas(inicial)
@@ -809,7 +1048,12 @@ function ChecklistPanel({
       [item.conceptoCostoOperativoId]: {
         activo: checked,
         monto: prev[item.conceptoCostoOperativoId]?.monto ?? "",
-        moneda: prev[item.conceptoCostoOperativoId]?.moneda ?? "PEN",
+        moneda: prev[item.conceptoCostoOperativoId]?.moneda ?? moneda,
+        comidas: prev[item.conceptoCostoOperativoId]?.comidas ?? {
+          DESAYUNO: "",
+          ALMUERZO: "",
+          CENA: "",
+        },
       },
     }))
   }
@@ -821,42 +1065,100 @@ function ChecklistPanel({
     }))
   }
 
-  const marcadosPorNoche = items.filter(
-    (item) => item.baseConteo === "NOCHE" && lineas[item.conceptoCostoOperativoId]?.activo,
-  )
+  function setMontoTotalComidas(item: ChecklistItemCostoOperativo, valor: string) {
+    const activas = item.comidas.map((comida) => comida.tipoComida)
+    const montos = distribuirMonto(Number(valor), activas.length)
+    setLineas((prev) => ({
+      ...prev,
+      [item.conceptoCostoOperativoId]: {
+        ...prev[item.conceptoCostoOperativoId],
+        comidas: {
+          ...prev[item.conceptoCostoOperativoId].comidas,
+          ...Object.fromEntries(activas.map((tipo, index) => [tipo, formatearMonto(montos[index] ?? 0)])),
+        },
+      },
+    }))
+  }
+
+  function totalComidas(item: ChecklistItemCostoOperativo, linea: EstadoLinea) {
+    return item.comidas.reduce((suma, comida) => suma + (Number(linea.comidas[comida.tipoComida]) || 0), 0)
+  }
+
+  // baseConteo por comida (para saber si algun concepto marcado cuenta por noche).
+  const comidaNochePorConcepto = new Map<number, TipoComida[]>()
+  items.forEach((i) => {
+    if (i.esAlimentacion) {
+      comidaNochePorConcepto.set(
+        i.conceptoCostoOperativoId,
+        i.comidas.filter((c) => c.baseConteo === "NOCHE").map((c) => c.tipoComida),
+      )
+    }
+  })
+
+  const marcadosPorNoche = items.filter((item) => {
+    const linea = lineas[item.conceptoCostoOperativoId]
+    if (!linea?.activo) return false
+    if (item.esAlimentacion) return (comidaNochePorConcepto.get(item.conceptoCostoOperativoId) ?? []).length > 0
+    return item.baseConteo === "NOCHE"
+  })
 
   async function guardarChecklist() {
-    const marcados = Object.entries(lineas).filter(([, v]) => v.activo)
-    for (const [, v] of marcados) {
-      const montoNum = Number(v.monto)
-      if (!Number.isFinite(montoNum) || montoNum <= 0) {
-        setError("Cada concepto marcado necesita un monto mayor que cero.")
-        return
+    for (const item of items) {
+      const linea = lineas[item.conceptoCostoOperativoId]
+      if (!linea?.activo) continue
+      if (item.esAlimentacion) {
+        for (const c of item.comidas) {
+          const m = Number(linea.comidas[c.tipoComida])
+          if (!Number.isFinite(m) || m <= 0) {
+            setError(`${item.conceptoNombre}: cada comida necesita un monto mayor que cero.`)
+            return
+          }
+        }
+      } else {
+        const m = Number(linea.monto)
+        if (!Number.isFinite(m) || m <= 0) {
+          setError("Cada concepto marcado necesita un monto mayor que cero.")
+          return
+        }
       }
-    }
-    if (marcadosPorNoche.length > 0 && !nochesViatico.trim()) {
-      setError(
-        `"Noches de viatico" es obligatorio: ${marcadosPorNoche
-          .map((i) => i.conceptoNombre)
-          .join(", ")} se paga por noche.`,
-      )
-      return
     }
     try {
       setError(null)
       await guardar.mutateAsync({
         rutaId,
         cuentaContratoId,
-        tipoServicio,
-        diasViatico: diasViatico.trim() ? Number(diasViatico) : null,
-        nochesViatico: nochesViatico.trim() ? Number(nochesViatico) : null,
+        modalidadEntrega,
+        moneda,
+        diasViatico: diasViatico.trim() ? Number(diasViatico) : 1,
+        nochesViatico: nochesViatico.trim() ? Number(nochesViatico) : marcadosPorNoche.length > 0 ? 0 : null,
         usuarioCreacion: usuarioId,
-        lineas: Object.entries(lineas).map(([conceptoId, v]) => ({
-          conceptoId: Number(conceptoId),
-          activo: v.activo,
-          monto: Number(v.monto) || 0,
-          moneda: v.moneda || "PEN",
-        })),
+        lineas: items.map((item) => {
+          const linea = lineas[item.conceptoCostoOperativoId] ?? {
+            activo: false,
+            monto: "",
+            moneda,
+            comidas: { DESAYUNO: "", ALMUERZO: "", CENA: "" },
+          }
+          if (item.esAlimentacion) {
+            return {
+              conceptoId: item.conceptoCostoOperativoId,
+              activo: linea.activo,
+              moneda: linea.moneda || moneda,
+              comidas: item.comidas.map((c) => ({
+                tipoComida: c.tipoComida,
+                activo: true,
+                monto: Number(linea.comidas[c.tipoComida]) || 0,
+                moneda: linea.moneda || moneda,
+              })),
+            }
+          }
+          return {
+            conceptoId: item.conceptoCostoOperativoId,
+            activo: linea.activo,
+            monto: Number(linea.monto) || 0,
+            moneda: linea.moneda || moneda,
+          }
+        }),
       })
     } catch (err) {
       setError(obtenerMensajeError(err))
@@ -898,17 +1200,32 @@ function ChecklistPanel({
     )
   }
 
+  const activos = items.filter((item) => lineas[item.conceptoCostoOperativoId]?.activo).length
+
   return (
-    <div className="flex flex-col gap-4">
-      <Alert>
-        <AlertTitle>Esto es tarifa, no el costo total del viaje</AlertTitle>
-        <AlertDescription>
-          Cada monto es precio por unidad (por día, por día-persona, por viaje, segun &quot;Como se
-          paga&quot;). Aca solo se fija el precio unitario para esta ruta + cuenta/contrato. Dias de
-          viaje, cantidad de personas y numero de ejes del peaje los aporta Operaciones al momento
-          real del viaje y multiplica desde ahi &mdash; no se configuran aca.
-        </AlertDescription>
-      </Alert>
+    <div className="flex flex-col gap-5">
+      <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+        <div>
+          <p className="text-sm font-semibold">Aplicar catalogo a esta ruta</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            El catalogo define que conceptos existen. Aqui solo eliges cuales aplican para esta ruta + cuenta y sus tarifas.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-md border border-border bg-background px-3 py-2">
+              <p className="text-[11px] text-muted-foreground">Conceptos seleccionados</p>
+              <p className="text-sm font-semibold">{activos} de {items.length}</p>
+            </div>
+            <div className="rounded-md border border-border bg-background px-3 py-2">
+              <p className="text-[11px] text-muted-foreground">Modalidad</p>
+              <p className="text-sm font-semibold">{modalidadEntrega}</p>
+            </div>
+            <div className="rounded-md border border-border bg-background px-3 py-2">
+              <p className="text-[11px] text-muted-foreground">Moneda</p>
+              <p className="text-sm font-semibold">{moneda}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {error ? (
         <Alert variant="destructive">
@@ -917,78 +1234,86 @@ function ChecklistPanel({
         </Alert>
       ) : null}
 
-      <div className="flex flex-wrap gap-3">
-        <Field className="w-40">
-          <FieldLabel>Dias de viatico</FieldLabel>
-          <Input
-            type="number"
-            min="1"
-            value={diasViatico}
-            placeholder="3"
-            onChange={(e) => setDiasViatico(e.target.value)}
-          />
-        </Field>
-        <Field className="w-48">
-          <FieldLabel>
-            Noches de viatico
-            {marcadosPorNoche.length > 0 ? (
-              <span className="ml-1 text-destructive">*</span>
-            ) : null}
-          </FieldLabel>
-          <Input
-            type="number"
-            min="0"
-            value={nochesViatico}
-            placeholder="2"
-            onChange={(e) => setNochesViatico(e.target.value)}
-          />
-          <p className="text-xs text-muted-foreground">
-            {marcadosPorNoche.length > 0
-              ? "Obligatorio: hay conceptos que se pagan por noche."
-              : "No se calcula solo (dias - 1). Se informa a mano si aplica."}
-          </p>
-        </Field>
-      </div>
+      <section className="grid gap-3 lg:grid-cols-2">
+        {items.map((item) => {
+          const linea = lineas[item.conceptoCostoOperativoId] ?? {
+            activo: false,
+            monto: "",
+            moneda,
+            comidas: { DESAYUNO: "", ALMUERZO: "", CENA: "" },
+          }
+          const totalAlimentacion = totalComidas(item, linea)
+          const cantidadTexto = item.esAlimentacion
+            ? "Desayuno/almuerzo usan dias; cena usa noches."
+            : item.frecuencia === "POR_DIA"
+              ? `Se multiplica por ${item.baseConteo === "NOCHE" ? "noches" : "dias"}.`
+              : item.frecuencia === "POR_VIAJE"
+                ? "Se cobra una vez por viaje."
+                : "Se cobra una vez por servicio."
 
-      <div className="overflow-hidden rounded-lg border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10" />
-              <TableHead>Concepto</TableHead>
-              <TableHead>Como se paga</TableHead>
-              <TableHead>Conteo</TableHead>
-              <TableHead className="w-44 text-right">Monto por unidad</TableHead>
-              <TableHead className="w-24">Moneda</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {items.map((item) => {
-              const linea = lineas[item.conceptoCostoOperativoId] ?? {
-                activo: false,
-                monto: "",
-                moneda: "PEN",
-              }
-              return (
-                <TableRow key={item.conceptoCostoOperativoId}>
-                  <TableCell>
-                    <Checkbox
-                      checked={linea.activo}
-                      onCheckedChange={(c) => toggle(item, c === true)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <p className="text-sm font-medium">{item.conceptoNombre}</p>
-                    <p className="font-mono text-xs text-muted-foreground">{item.conceptoCodigo}</p>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {etiquetaNaturaleza[item.naturaleza]} · {etiquetaBase[item.baseImputacion]} ·{" "}
-                    {etiquetaDevengo[item.unidadDevengo]}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {etiquetaBaseConteo[item.baseConteo]}
-                  </TableCell>
-                  <TableCell className="text-right">
+          return (
+            <article
+              key={item.conceptoCostoOperativoId}
+              className={`rounded-xl border p-4 shadow-sm transition-colors ${
+                linea.activo ? "border-primary bg-primary/5" : "border-border bg-card"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-base font-semibold">{item.conceptoNombre}</h3>
+                    {item.esAlimentacion ? <Badge>Alimentacion</Badge> : null}
+                  </div>
+                  <p className="mt-1 font-mono text-xs text-muted-foreground">{item.conceptoCodigo}</p>
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox checked={linea.activo} onCheckedChange={(c) => toggle(item, c === true)} />
+                  Activo
+                </label>
+              </div>
+
+              <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                <Badge variant="secondary" className="justify-center">{etiquetaNaturaleza[item.naturaleza]}</Badge>
+                <Badge variant="secondary" className="justify-center">{etiquetaBase[item.baseImputacion]}</Badge>
+                <Badge variant="secondary" className="justify-center">{item.esAlimentacion ? "Comidas" : etiquetaFrecuencia[item.frecuencia]}</Badge>
+              </div>
+
+              <p className="mt-3 rounded-md bg-background/80 px-3 py-2 text-xs text-muted-foreground">
+                {linea.activo ? cantidadTexto : "Disponible desde catalogo. Activalo si aplica a esta ruta."}
+              </p>
+
+              <div className="mt-4">
+                {item.esAlimentacion ? (
+                  <div className="grid gap-3">
+                    <Field>
+                      <FieldLabel>Monto total de alimentacion</FieldLabel>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={totalAlimentacion > 0 ? formatearMonto(totalAlimentacion) : ""}
+                        disabled={!linea.activo}
+                        placeholder="0.00"
+                        className="text-right"
+                        onChange={(e) => setMontoTotalComidas(item, e.target.value)}
+                      />
+                    </Field>
+                    <div className="flex flex-wrap gap-2">
+                      {item.comidas.map((c) => (
+                        <Badge key={c.tipoComida} variant="outline" className="gap-1 font-normal">
+                          {etiquetaComida[c.tipoComida]}: {moneda} {linea.comidas[c.tipoComida] || "0.00"}
+                        </Badge>
+                      ))}
+                    </div>
+                    {item.comidas.length < COMIDAS.length ? (
+                      <p className="text-xs text-amber-600 dark:text-amber-300">
+                        Catalogo activo con {item.comidas.length} comida{item.comidas.length === 1 ? "" : "s"}. Edita catalogo si faltan comidas.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <Field>
+                    <FieldLabel>Monto unitario</FieldLabel>
                     <Input
                       type="number"
                       step="0.01"
@@ -996,35 +1321,16 @@ function ChecklistPanel({
                       value={linea.monto}
                       disabled={!linea.activo}
                       placeholder="0.00"
-                      className="h-8 text-right"
+                      className="text-right"
                       onChange={(e) => setMonto(item.conceptoCostoOperativoId, e.target.value)}
                     />
-                    <p className="mt-1 text-right text-[11px] text-muted-foreground">
-                      {ayudaDevengo[item.unidadDevengo]}
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      value={linea.moneda}
-                      disabled={!linea.activo}
-                      className="h-8"
-                      onChange={(e) =>
-                        setLineas((prev) => ({
-                          ...prev,
-                          [item.conceptoCostoOperativoId]: {
-                            ...prev[item.conceptoCostoOperativoId],
-                            moneda: e.target.value.toUpperCase(),
-                          },
-                        }))
-                      }
-                    />
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </div>
+                  </Field>
+                )}
+              </div>
+            </article>
+          )
+        })}
+      </section>
 
       <div className="flex justify-end">
         <Button onClick={() => void guardarChecklist()} disabled={guardar.isPending}>
@@ -1035,46 +1341,68 @@ function ChecklistPanel({
   )
 }
 
-// Suma lineas activas agrupadas por moneda. Casi siempre una sola moneda por paquete.
-function sumarMontoConceptos(paquete: CostoOperativoResponse) {
-  const totales = new Map<string, number>()
-  paquete.lineas
-    .filter((l) => l.activo)
-    .forEach((l) => {
-      const moneda = l.moneda || "PEN"
-      totales.set(moneda, (totales.get(moneda) ?? 0) + l.monto)
+type DetalleCostoPaquete = {
+  clave: string
+  concepto: string
+  cobro: string
+  cantidad: number
+  tarifa: number
+  moneda: string
+  subtotal: number
+}
+
+function cantidadBaseLinea(linea: LineaCostoOperativoResponse, paquete: CostoOperativoResponse) {
+  if (linea.frecuencia !== "POR_DIA") return 1
+  return linea.baseConteo === "NOCHE" ? (paquete.nochesViatico ?? 0) : (paquete.diasViatico ?? 1)
+}
+
+function detalleConceptosPaquete(paquete: CostoOperativoResponse): DetalleCostoPaquete[] {
+  return paquete.lineas
+    .filter((linea) => linea.activo)
+    .flatMap((linea) => {
+      const concepto = linea.conceptoNombre ?? linea.conceptoCodigo ?? `Concepto ${linea.conceptoCostoOperativoId}`
+      if (linea.esAlimentacion) {
+        return linea.comidas
+          .filter((comida) => comida.activo !== false)
+          .map((comida) => {
+            const cantidad = comida.baseConteo === "NOCHE" ? (paquete.nochesViatico ?? 0) : (paquete.diasViatico ?? 1)
+            return {
+              clave: `${linea.id}-${comida.tipoComida}`,
+              concepto: `${concepto} - ${etiquetaComida[comida.tipoComida]}`,
+              cobro: comida.baseConteo === "NOCHE" ? "Por noche" : "Por dia",
+              cantidad,
+              tarifa: comida.monto,
+              moneda: comida.moneda || linea.moneda || paquete.moneda || "PEN",
+              subtotal: comida.monto * cantidad,
+            }
+          })
+      }
+      const cantidad = cantidadBaseLinea(linea, paquete)
+      const tarifa = linea.monto ?? 0
+      return [{
+        clave: String(linea.id),
+        concepto,
+        cobro: linea.frecuencia === "POR_DIA" ? (linea.baseConteo === "NOCHE" ? "Por noche" : "Por dia") : "Por viaje",
+        cantidad,
+        tarifa,
+        moneda: linea.moneda || paquete.moneda || "PEN",
+        subtotal: tarifa * cantidad,
+      }]
     })
+}
+
+function sumarPorMoneda(filas: Array<{ moneda: string; subtotal: number }>) {
+  const totales = new Map<string, number>()
+  filas.forEach((fila) => totales.set(fila.moneda, (totales.get(fila.moneda) ?? 0) + fila.subtotal))
   return Array.from(totales.entries())
 }
 
-// Simulacion visual: aplica el multiplicador de cada unidadDevengo (dias,
-// noches o personas dados por el usuario) sobre el monto unitario guardado.
-// Solo para ver un estimado aca; el calculo real lo hace Operaciones con los
-// datos reales del viaje. noches es un dato independiente, no se deriva de
-// dias - 1.
-function simularMontoConceptos(
-  paquete: CostoOperativoResponse,
-  dias: number,
-  noches: number,
-  personas: number,
-) {
-  const totales = new Map<string, number>()
-  paquete.lineas
-    .filter((l) => l.activo)
-    .forEach((l) => {
-      const moneda = l.moneda || "PEN"
-      const cantidad = l.baseConteo === "NOCHE" ? noches : dias
-      let factor = 1
-      if (l.unidadDevengo === "DIA_PERSONA") factor = cantidad * personas
-      else if (l.unidadDevengo === "DIA_UNIDAD") factor = cantidad
-      totales.set(moneda, (totales.get(moneda) ?? 0) + l.monto * factor)
-    })
-  return Array.from(totales.entries())
+function formatearTotales(totales: Array<[string, number]>) {
+  if (totales.length === 0) return "-"
+  return totales.map(([moneda, monto]) => `${moneda} ${formatearMonto(monto)}`).join(" + ")
 }
 
-// Fila expandible: calcula el peaje real (por ejes) y lo suma al monto de
-// conceptos ya guardado, para ver el total estimado de un viaje concreto.
-function PaqueteFilaViaje({
+function PaqueteConfiguradoCard({
   paquete,
   onEditar,
   onAnular,
@@ -1083,263 +1411,130 @@ function PaqueteFilaViaje({
   onEditar: () => void
   onAnular: () => void
 }) {
-  const [abierto, setAbierto] = useState(false)
-  const [verDetalle, setVerDetalle] = useState(false)
-  const [numeroEjes, setNumeroEjes] = useState("2")
-  const [tipoCobro, setTipoCobro] = useState<TipoCobroPeaje>("NORMAL")
-  const [sentido, setSentido] = useState<SentidoPeajeRuta>("IDA")
-  const [consultar, setConsultar] = useState(false)
-  const [dias, setDias] = useState(String(paquete.diasViatico ?? 1))
-  const [noches, setNoches] = useState(String(paquete.nochesViatico ?? 0))
-  const [personas, setPersonas] = useState("1")
-
-  const montosConceptos = sumarMontoConceptos(paquete)
-  const montosConceptosEstimado = simularMontoConceptos(
-    paquete,
-    Math.max(1, Number(dias) || 1),
-    Math.max(0, Number(noches) || 0),
-    Math.max(1, Number(personas) || 1),
-  )
-
-  const costoQuery = useCostoPeajesRutaQuery(
-    paquete.rutaId,
-    { tipoCobro, sentido, numeroEjes: Number(numeroEjes) },
-    consultar,
-  )
-
-  const peajeTotal = costoQuery.data?.total ?? null
-  const monedaPeaje = costoQuery.data?.moneda ?? "PEN"
-  const monedaConceptos =
-    montosConceptosEstimado[0]?.[1] !== undefined ? montosConceptosEstimado[0][0] : "PEN"
-  const totalConceptosEstimado = montosConceptosEstimado.reduce((acc, [, m]) => acc + m, 0)
-  const totalViaje = peajeTotal != null ? totalConceptosEstimado + peajeTotal : null
+  const detalleConceptos = detalleConceptosPaquete(paquete)
+  const totalConceptos = sumarPorMoneda(detalleConceptos)
+  const peajesQuery = useCostoPeajesRutaQuery(paquete.rutaId, { tipoCobro: "NORMAL", sentido: "IDA", numeroEjes: 2 }, true)
+  const peajeMoneda = peajesQuery.data?.moneda ?? paquete.moneda ?? "PEN"
+  const peajeTotal = peajesQuery.data?.total ?? 0
+  const totalEstimado = sumarPorMoneda([
+    ...detalleConceptos,
+    ...(peajesQuery.data ? [{ moneda: peajeMoneda, subtotal: peajeTotal }] : []),
+  ])
 
   return (
-    <>
-      <TableRow>
-        <TableCell className="text-sm">{paquete.rutaNombre ?? paquete.rutaId}</TableCell>
-        <TableCell className="text-sm">{paquete.cuentaContratoNombre ?? paquete.cuentaContratoId}</TableCell>
-        <TableCell className="text-sm">
-          <Badge variant={paquete.tipoServicio === "EXPRESS" ? "default" : "secondary"}>
-            {paquete.tipoServicio}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-sm">{paquete.lineas.filter((l) => l.activo).length}</TableCell>
-        <TableCell className="text-sm">
-          {montosConceptos.length === 0
-            ? "-"
-            : montosConceptos.map(([moneda, monto]) => `${moneda} ${monto.toFixed(2)}`).join(" + ")}
-        </TableCell>
-        <TableCell>
-          <Button size="sm" variant="outline" onClick={() => setAbierto((v) => !v)}>
-            {abierto ? "Ocultar" : "Calcular viaje"}
-          </Button>
-        </TableCell>
-        <TableCell className="text-right">
-          <div className="flex justify-end gap-1">
-            <Button size="sm" variant="ghost" onClick={() => setVerDetalle((v) => !v)}>
-              <Eye data-icon="inline-start" />
-              {verDetalle ? "Ocultar" : "Ver"}
-            </Button>
-            <Button size="sm" variant="ghost" onClick={onEditar}>
-              <Pencil data-icon="inline-start" />
-              Editar
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              onClick={onAnular}
-            >
-              <Trash2 data-icon="inline-start" />
-              Anular
-            </Button>
+    <article className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{paquete.rutaNombre ?? `Ruta ${paquete.rutaId}`}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {paquete.cuentaContratoNombre ?? `Cuenta/contrato ${paquete.cuentaContratoId}`}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Badge variant="secondary">{etiquetaModalidad[paquete.modalidadEntrega]}</Badge>
+            <Badge variant="outline">Dias {paquete.diasViatico ?? 1}</Badge>
+            <Badge variant="outline">Noches {paquete.nochesViatico ?? 0}</Badge>
           </div>
-        </TableCell>
-      </TableRow>
-      {verDetalle ? (
-        <TableRow>
-          <TableCell colSpan={7} className="bg-muted/20">
-            <div className="flex flex-col gap-2 p-2">
-              <p className="text-xs text-muted-foreground">
-                Ruta: {paquete.rutaNombre ?? paquete.rutaId} · Cuenta/contrato:{" "}
-                {paquete.cuentaContratoNombre ?? paquete.cuentaContratoId} · Estado: {paquete.estado}
-              </p>
-              {paquete.lineas.filter((l) => l.activo).length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sin conceptos marcados en este paquete.</p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={onEditar}>
+            <Pencil data-icon="inline-start" />
+            Editar
+          </Button>
+          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onAnular}>
+            <Trash2 data-icon="inline-start" />
+            Anular
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-4 p-4">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Concepto</TableHead>
+                <TableHead>Cobro</TableHead>
+                <TableHead className="text-right">Cant.</TableHead>
+                <TableHead className="text-right">Tarifa</TableHead>
+                <TableHead className="text-right">Subtotal</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {detalleConceptos.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                    Sin conceptos activos.
+                  </TableCell>
+                </TableRow>
               ) : (
-                <div className="overflow-hidden rounded-lg border border-border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Concepto</TableHead>
-                        <TableHead className="text-right">Monto</TableHead>
-                        <TableHead className="w-20">Moneda</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paquete.lineas
-                        .filter((l) => l.activo)
-                        .map((l) => (
-                          <TableRow key={l.id}>
-                            <TableCell className="text-sm">
-                              <p className="font-medium">{l.conceptoNombre ?? l.conceptoCostoOperativoId}</p>
-                              {l.conceptoCodigo ? (
-                                <p className="font-mono text-xs text-muted-foreground">{l.conceptoCodigo}</p>
-                              ) : null}
-                            </TableCell>
-                            <TableCell className="text-right text-sm">{l.monto.toFixed(2)}</TableCell>
-                            <TableCell className="text-sm">{l.moneda}</TableCell>
-                          </TableRow>
-                        ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                detalleConceptos.map((fila) => (
+                  <TableRow key={fila.clave}>
+                    <TableCell className="font-medium">{fila.concepto}</TableCell>
+                    <TableCell>{fila.cobro}</TableCell>
+                    <TableCell className="text-right">{fila.cantidad}</TableCell>
+                    <TableCell className="text-right">{fila.moneda} {formatearMonto(fila.tarifa)}</TableCell>
+                    <TableCell className="text-right font-medium">{fila.moneda} {formatearMonto(fila.subtotal)}</TableCell>
+                  </TableRow>
+                ))
               )}
+            </TableBody>
+          </Table>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
+          <div className="rounded-lg border border-border bg-muted/25 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold">Peajes referenciales</p>
+              <Badge variant="outline">NORMAL · IDA · 2 ejes</Badge>
             </div>
-          </TableCell>
-        </TableRow>
-      ) : null}
-      {abierto ? (
-        <TableRow>
-          <TableCell colSpan={7} className="bg-muted/20">
-            <div className="flex flex-col gap-3 p-2">
-              <p className="text-xs text-muted-foreground">
-                Simulador visual, no guarda nada. Ingresa dias, noches y personas del viaje para
-                estimar conceptos con `unidadDevengo` DIA_PERSONA/DIA_UNIDAD, y ejes/tipo/sentido
-                para el peaje. Noches no se calcula solo (no es dias - 1); se informa a mano igual
-                que en el paquete. Operaciones calcula el monto real con los datos reales del viaje.
-              </p>
-              <div className="flex flex-wrap items-end gap-3">
-                <Field className="w-24">
-                  <FieldLabel>Dias de viaje</FieldLabel>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={dias}
-                    onChange={(e) => setDias(e.target.value)}
-                  />
-                </Field>
-                <Field className="w-24">
-                  <FieldLabel>Noches</FieldLabel>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={noches}
-                    onChange={(e) => setNoches(e.target.value)}
-                  />
-                </Field>
-                <Field className="w-28">
-                  <FieldLabel>Personas</FieldLabel>
-                  <Input
-                    type="number"
-                    min="1"
-                    value={personas}
-                    onChange={(e) => setPersonas(e.target.value)}
-                  />
-                </Field>
-                <Field className="w-28">
-                  <FieldLabel>Numero de ejes</FieldLabel>
-                  <Input
-                    type="number"
-                    min="2"
-                    max="20"
-                    value={numeroEjes}
-                    onChange={(e) => {
-                      setNumeroEjes(e.target.value)
-                      setConsultar(false)
-                    }}
-                  />
-                </Field>
-                <Field className="w-36">
-                  <FieldLabel>Tipo de cobro</FieldLabel>
-                  <Select
-                    value={tipoCobro}
-                    onValueChange={(v) => {
-                      setTipoCobro(v as TipoCobroPeaje)
-                      setConsultar(false)
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NORMAL">Normal</SelectItem>
-                      <SelectItem value="PEX">PEX</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field className="w-32">
-                  <FieldLabel>Sentido</FieldLabel>
-                  <Select
-                    value={sentido}
-                    onValueChange={(v) => {
-                      setSentido(v as SentidoPeajeRuta)
-                      setConsultar(false)
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="IDA">Ida</SelectItem>
-                      <SelectItem value="REGRESO">Regreso</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Button
-                  size="sm"
-                  onClick={() => setConsultar(true)}
-                  disabled={costoQuery.isFetching || !numeroEjes}
-                >
-                  {costoQuery.isFetching ? "Calculando..." : "Calcular peaje"}
-                </Button>
+            {peajesQuery.isLoading ? (
+              <Skeleton className="h-8 w-full" />
+            ) : peajesQuery.error ? (
+              <p className="text-sm text-destructive">No se pudo calcular peajes.</p>
+            ) : peajesQuery.data?.detalle?.length ? (
+              <div className="grid gap-1 text-sm">
+                {peajesQuery.data.detalle.map((peaje) => (
+                  <div key={peaje.peajeId} className="flex items-center justify-between gap-3">
+                    <span className="truncate text-muted-foreground">{peaje.peajeNombre ?? `Peaje ${peaje.peajeId}`}</span>
+                    <span className="font-medium">{peajeMoneda} {formatearMonto(peaje.subtotal)}</span>
+                  </div>
+                ))}
               </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Ruta sin peajes cobrables para este calculo.</p>
+            )}
+          </div>
 
-              {costoQuery.error ? (
-                <Alert variant="destructive">
-                  <AlertTitle>No se pudo calcular</AlertTitle>
-                  <AlertDescription>{obtenerMensajeError(costoQuery.error)}</AlertDescription>
-                </Alert>
-              ) : null}
-
-              {peajeTotal != null ? (
-                <div className="grid gap-1 rounded-lg border border-border bg-background p-3 text-sm sm:grid-cols-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Conceptos ({dias} dia{Number(dias) === 1 ? "" : "s"}, {noches} noche
-                      {Number(noches) === 1 ? "" : "s"}, {personas} persona
-                      {Number(personas) === 1 ? "" : "s"}, estimado)
-                    </p>
-                    <p className="font-medium">{monedaConceptos} {totalConceptosEstimado.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Peaje (calculado real)</p>
-                    <p className="font-medium">{monedaPeaje} {peajeTotal.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Total estimado del viaje</p>
-                    <p className="font-semibold">{monedaPeaje} {(totalViaje ?? 0).toFixed(2)}</p>
-                  </div>
-                </div>
-              ) : null}
+          <div className="grid gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-muted-foreground">Conceptos</span>
+              <span className="font-semibold">{formatearTotales(totalConceptos)}</span>
             </div>
-          </TableCell>
-        </TableRow>
-      ) : null}
-    </>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-muted-foreground">Peajes</span>
+              <span className="font-semibold">{peajesQuery.data ? `${peajeMoneda} ${formatearMonto(peajeTotal)}` : "-"}</span>
+            </div>
+            <div className="border-t border-primary/20 pt-2">
+              <p className="text-xs text-muted-foreground">Total estimado</p>
+              <p className="text-lg font-semibold">{formatearTotales(totalEstimado)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
   )
 }
 
 function ConfiguracionCostoTab() {
+  const editorRef = useRef<HTMLDivElement | null>(null)
   const [rutaId, setRutaId] = useState("")
   const [cuentaContratoId, setCuentaContratoId] = useState("")
-  const [tipoServicio, setTipoServicio] = useState<TipoServicio>("NORMAL")
+  const [modalidadEntrega, setModalidadEntrega] = useState<ModalidadEntrega>("NORMAL")
+  const [moneda, setMoneda] = useState("PEN")
   const [guardadoOk, setGuardadoOk] = useState(false)
+  const [editandoId, setEditandoId] = useState<number | null>(null)
 
-  const paquetesQuery = useCostosOperativosQuery(
-    { estadoRegistro: "ACTIVO", page: 1, pageSize: 50 },
-  )
+  const paquetesQuery = useCostosOperativosQuery({ estadoRegistro: "ACTIVO", page: 1, pageSize: 50 })
   const paquetes = paquetesQuery.data?.datos ?? []
   const [anularId, setAnularId] = useState<number | null>(null)
   const anular = useAnularCostoOperativoMutation(anularId ?? 0, {
@@ -1353,81 +1548,122 @@ function ConfiguracionCostoTab() {
   const cuentaSeleccionada = cuentaContratoId ? Number(cuentaContratoId) : null
 
   return (
-    <div className="flex flex-col gap-5">
-      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <p className="mb-3 text-sm font-medium">Elige ruta y cuenta/contrato</p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field>
-            <FieldLabel>Ruta</FieldLabel>
-            <SelectRuta
-              value={rutaId}
-              onChange={(v) => {
-                setRutaId(v)
-                setGuardadoOk(false)
-              }}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>Cuenta o contrato</FieldLabel>
-            <SelectCuentaContrato
-              value={cuentaContratoId}
-              onChange={(v) => {
-                setCuentaContratoId(v)
-                setGuardadoOk(false)
-              }}
-            />
-          </Field>
-          <Field>
-            <FieldLabel>Tipo de servicio</FieldLabel>
-            <Select
-              value={tipoServicio}
-              onValueChange={(v) => {
-                setTipoServicio(v as TipoServicio)
-                setGuardadoOk(false)
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NORMAL">Normal</SelectItem>
-                <SelectItem value="EXPRESS">Express</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+    <div className="flex flex-col gap-6">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        <div className="border-b border-border bg-gradient-to-r from-primary/10 via-background to-background px-5 py-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">Paso 1</p>
+              <h2 className="text-lg font-semibold">Define contexto del paquete</h2>
+              <p className="text-sm text-muted-foreground">
+                Escoge ruta, cliente/contrato y modalidad. Luego arma conceptos y tarifas abajo.
+              </p>
+            </div>
+            <Badge variant={rutaSeleccionada && cuentaSeleccionada ? "default" : "secondary"}>
+              {rutaSeleccionada && cuentaSeleccionada ? "Listo para configurar" : "Falta contexto"}
+            </Badge>
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_260px]">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-border bg-background p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ruta</span>
+                <Badge variant={rutaSeleccionada ? "default" : "outline"}>1</Badge>
+              </div>
+              <SelectRuta
+                value={rutaId}
+                onChange={(v) => {
+                  setRutaId(v)
+                  setGuardadoOk(false)
+                  setEditandoId(null)
+                }}
+              />
+            </div>
+            <div className="rounded-xl border border-border bg-background p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cuenta/contrato</span>
+                <Badge variant={cuentaSeleccionada ? "default" : "outline"}>2</Badge>
+              </div>
+              <SelectCuentaContrato
+                value={cuentaContratoId}
+                onChange={(v) => {
+                  setCuentaContratoId(v)
+                  setGuardadoOk(false)
+                  setEditandoId(null)
+                }}
+              />
+            </div>
+            <div className="rounded-xl border border-border bg-background p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Modalidad</span>
+                <Badge variant="outline">3</Badge>
+              </div>
+              <SelectModalidad
+                value={modalidadEntrega}
+                onChange={(v) => {
+                  setModalidadEntrega(v)
+                  setGuardadoOk(false)
+                  setEditandoId(null)
+                }}
+              />
+            </div>
+          </div>
+
+          <aside className="rounded-xl border border-border bg-muted/25 p-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Moneda base</p>
+            <Input className="mt-2" value={moneda} onChange={(e) => setMoneda(e.target.value.toUpperCase())} />
+            <p className="mt-2 text-xs text-muted-foreground">Se usa para montos nuevos del paquete.</p>
+          </aside>
         </div>
 
         {guardadoOk ? (
-          <Alert className="mt-4">
+          <Alert className="mx-5 mb-5">
             <AlertTitle>Configuracion guardada</AlertTitle>
             <AlertDescription>El paquete de costo quedo actualizado para este par.</AlertDescription>
           </Alert>
         ) : null}
 
         {rutaSeleccionada && cuentaSeleccionada ? (
-          <div className="mt-4">
+          <div ref={editorRef} className="border-t border-border bg-muted/20 p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">Paso 2</p>
+                <h3 className="text-base font-semibold">Activa conceptos y tarifas</h3>
+              </div>
+              {editandoId ? <Badge variant="secondary">Editando paquete #{editandoId}</Badge> : null}
+            </div>
             <ChecklistPanel
-              key={`${rutaSeleccionada}-${cuentaSeleccionada}-${tipoServicio}`}
+              key={`${rutaSeleccionada}-${cuentaSeleccionada}-${modalidadEntrega}`}
               rutaId={rutaSeleccionada}
               cuentaContratoId={cuentaSeleccionada}
-              tipoServicio={tipoServicio}
+              modalidadEntrega={modalidadEntrega}
+              moneda={moneda || "PEN"}
               onGuardado={() => {
                 setGuardadoOk(true)
+                setEditandoId(null)
                 void paquetesQuery.refetch()
               }}
             />
           </div>
         ) : (
-          <p className="mt-4 text-sm text-muted-foreground">
-            Selecciona ruta y cuenta/contrato para ver el checklist de conceptos.
-          </p>
+          <div className="border-t border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            Selecciona ruta y cuenta/contrato para abrir tablero de conceptos.
+          </div>
         )}
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-        <div className="flex items-center gap-2 border-b border-border p-4">
-          <ClipboardList className="size-4 text-muted-foreground" />
-          <p className="text-sm font-medium">Paquetes configurados</p>
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <ClipboardList className="size-4 text-muted-foreground" />
+            <div>
+              <p className="text-base font-semibold">Paquetes configurados</p>
+              <p className="text-sm text-muted-foreground">Historial vigente para editar, simular o anular.</p>
+            </div>
+          </div>
+          <Badge variant="secondary">{paquetes.length} paquete{paquetes.length === 1 ? "" : "s"}</Badge>
         </div>
 
         {paquetesQuery.isLoading ? (
@@ -1436,36 +1672,28 @@ function ConfiguracionCostoTab() {
             <Skeleton className="h-8 w-full" />
           </div>
         ) : paquetes.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">Aun no hay paquetes de costo configurados.</p>
+          <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Aun no hay paquetes de costo configurados.
+          </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ruta</TableHead>
-                <TableHead>Cuenta / contrato</TableHead>
-                <TableHead>Servicio</TableHead>
-                <TableHead>Lineas activas</TableHead>
-                <TableHead>Monto conceptos</TableHead>
-                <TableHead>Viaje</TableHead>
-                <TableHead className="text-right">Accion</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paquetes.map((p: CostoOperativoResponse) => (
-                <PaqueteFilaViaje
-                  key={p.id}
-                  paquete={p}
-                  onEditar={() => {
-                    setRutaId(String(p.rutaId))
-                    setCuentaContratoId(String(p.cuentaContratoId))
-                    setTipoServicio(p.tipoServicio)
-                    setGuardadoOk(false)
-                  }}
-                  onAnular={() => setAnularId(p.id)}
-                />
-              ))}
-            </TableBody>
-          </Table>
+          <div className="grid gap-3">
+            {paquetes.map((p: CostoOperativoResponse) => (
+              <PaqueteConfiguradoCard
+                key={p.id}
+                paquete={p}
+                onEditar={() => {
+                  setRutaId(String(p.rutaId))
+                  setCuentaContratoId(String(p.cuentaContratoId))
+                  setModalidadEntrega(p.modalidadEntrega)
+                  setMoneda(p.moneda || "PEN")
+                  setGuardadoOk(false)
+                  setEditandoId(p.id)
+                  window.setTimeout(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0)
+                }}
+                onAnular={() => setAnularId(p.id)}
+              />
+            ))}
+          </div>
         )}
       </section>
 
@@ -1520,9 +1748,9 @@ export function CostosOperativosVista() {
                   </p>
                   <h1 className="text-xl font-semibold tracking-normal">Costos operativos del viaje</h1>
                   <p className="mt-0.5 text-sm text-muted-foreground">
-                    Catalogo de conceptos (alimentacion, alojamiento, cochera, lavado, etc.) y
-                    paquetes de costo por ruta + cuenta/contrato. El peaje se calcula aparte, por
-                    ejes, en el modulo Peajes. El calculo real lo hacen Operaciones y Caja.
+                    Catalogo de conceptos (alimentacion desglosada por comida, alojamiento, cochera...)
+                    y paquetes de costo por ruta + cuenta/contrato + modalidad, con vigencia. La config
+                    calcula el total; el peaje se calcula aparte por ejes.
                   </p>
                 </div>
               </div>

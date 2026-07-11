@@ -10,7 +10,6 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/compartido/componentes/ui/field"
-import { Input } from "@/compartido/componentes/ui/input"
 import {
   Select,
   SelectContent,
@@ -163,13 +162,7 @@ export function FormularioOrganizacion({
   // General filtrando por la sede seleccionada. Sin sede el combo se deshabilita.
   const areasQuery = useAreasPorSedeQuery(valores.sedeId)
   const areasDeSede = areasQuery.data ?? []
-  // Al editar puede venir un area precargada que no este en la lista (otra sede o
-  // aun no llego la respuesta); la conservamos para no perder la seleccion.
-  const areaActual = catalogos.areas.find((area) => String(area.id) === valores.areaId)
-  const areasFiltradas =
-    areaActual && !areasDeSede.some((area) => String(area.id) === String(areaActual.id))
-      ? [areaActual, ...areasDeSede]
-      : areasDeSede
+  const areasFiltradas = areasDeSede
   return (
     <FieldSet className="rounded-lg border border-border p-4">
       <FieldLegend>Datos laborales</FieldLegend>
@@ -286,9 +279,8 @@ export function EditorRelacionContractual({
     <div className="flex flex-col gap-3">
       {filas.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-          Todavia no agregaste cuentas ni contratos. Agrega una <strong>cuenta</strong> (puede
-          llevar un contrato hijo) o un <strong>contrato</strong> por separado: el sistema ubica
-          solo su cuenta.
+          Todavia no agregaste cuentas ni contratos. Agrega una <strong>cuenta</strong> o un
+          <strong>contrato</strong> por separado: el sistema ubica solo su cuenta.
         </div>
       ) : null}
 
@@ -297,14 +289,6 @@ export function EditorRelacionContractual({
         const opcionesCuenta = agregarOpcionActual(
           cuentasCatalogo.map(aOpcionCatalogo),
           fila.cuenta,
-        )
-        // En bloque CUENTA, el contrato hijo se filtra por la cuenta elegida
-        // (solo hijos directos del primer nivel).
-        const opcionesContratoHijo = agregarOpcionActual(
-          contratosCatalogo
-            .filter((item) => String(item.contratoPadreId ?? "") === fila.cuenta?.id)
-            .map(aOpcionContrato),
-          fila.contrato,
         )
         // En bloque CONTRATO, la cuenta es solo filtro de ubicacion: si se elige,
         // se muestran todos los contratos de su arbol (con subniveles); si no, todos.
@@ -357,11 +341,11 @@ export function EditorRelacionContractual({
                   <span className="text-sm font-semibold">
                     {esCuenta ? "Cuenta" : "Contrato"}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">
+                    <span className="text-[11px] text-muted-foreground">
                     {esCuenta
-                      ? "Cuenta principal, con contrato hijo opcional"
+                      ? "Cuenta principal; el contrato no se usa aqui"
                       : "Contrato independiente; su cuenta se resuelve sola"}
-                  </span>
+                    </span>
                 </div>
               </div>
               <Button
@@ -377,7 +361,7 @@ export function EditorRelacionContractual({
 
             <div className="p-4">
               {esCuenta ? (
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 md:grid-cols-1">
                   <Field>
                     <FieldLabel>Cuenta *</FieldLabel>
                     <SelectOpcionesCatalogo
@@ -390,24 +374,6 @@ export function EditorRelacionContractual({
                       includeNone={false}
                       placeholder="Selecciona una cuenta"
                     />
-                  </Field>
-
-                  <Field>
-                    <FieldLabel>Contrato de la cuenta</FieldLabel>
-                    <SelectOpcionesCatalogo
-                      opciones={opcionesContratoHijo}
-                      value={fila.contrato?.id ?? ""}
-                      onChange={(item) => actualizarFila(fila.key, { contrato: item })}
-                      enabled={Boolean(fila.cuenta)}
-                      placeholder={
-                        fila.cuenta
-                          ? "Opcional: contrato de la cuenta"
-                          : "Primero selecciona una cuenta"
-                      }
-                    />
-                    <FieldDescription>
-                      Opcional. Solo se muestran contratos de la cuenta elegida.
-                    </FieldDescription>
                   </Field>
                 </div>
               ) : (

@@ -95,6 +95,7 @@ export const tiposUbicacion: Array<{ value: TipoUbicacion; label: string }> = [
   { value: "PUERTO", label: "Puerto" },
   { value: "PEAJE", label: "Peaje" },
   { value: "ESTACIONAMIENTO", label: "Estacionamiento" },
+  { value: "ALMACEN", label: "Almacen" },
   { value: "PATIO", label: "Patio" },
   { value: "TERMINAL", label: "Terminal" },
   { value: "OTRO", label: "Otro" },
@@ -467,7 +468,7 @@ export function CamposMaestro({
   onRelacionChange?: (cambios: Partial<RelacionVistaPreviaMaestro>) => void
   seccion?: "detalle" | "relacion" | "todos"
 }) {
-  const { areas, cargos, contratos, cuentas, ubicaciones } = catalogos
+  const { areas, cargos, contratos, cuentas, sedes, ubicaciones } = catalogos
   const [nivelArea, setNivelArea] = useState<NivelArea>(valoresIniciales?.nivelArea ?? "AREA")
   // CARGO: area elegida (filtra los posibles cargos superiores) y cargo superior
   // en curso (para la etiqueta raiz/dependiente en vivo y la ayuda textual).
@@ -1067,9 +1068,38 @@ export function CamposMaestro({
     return (
       <>
         <p className="text-xs text-muted-foreground md:col-span-2">
-          El area es un catalogo global (no pertenece a una sede). Su
-          disponibilidad por sede se gestiona aparte (habilitar area en sede).
+          El area cuelga de una sede. Si eliges area superior, se arma la jerarquia dentro de esa sede.
         </p>
+        <div className="grid gap-2 md:col-span-2">
+          <label className="text-sm font-medium" htmlFor="sedeIdArea">Sede</label>
+          <Select
+            name="sedeId"
+            defaultValue={valoresIniciales?.sedeId != null ? String(valoresIniciales.sedeId) : undefined}
+            onValueChange={(value) =>
+              onRelacionChange?.({
+                sede: sedes.find((sede) => String(sede.id) === value),
+              })
+            }
+            required
+          >
+            <SelectTrigger id="sedeIdArea" className="w-full">
+              <SelectValue placeholder="Selecciona una sede" />
+            </SelectTrigger>
+            <SelectContent>
+              {sedes.length > 0 ? (
+                sedes.map((sede) => (
+                  <SelectItem key={sede.id} value={String(sede.id)}>
+                    {sede.codigo} - {sede.nombre}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="__sin_sedes" disabled>
+                  No hay sedes activas
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="grid gap-2">
           <label className="text-sm font-medium" htmlFor="nivelArea">Nivel (etiqueta)</label>
           <Select
@@ -1130,6 +1160,94 @@ export function CamposMaestro({
             Si la dejas vacia, sera un area raiz. Si no, colgara del area elegida
             (jerarquia sin limite de niveles).
           </p>
+        </div>
+      </>
+    )
+  }
+
+  if (tipo === "ALMACEN") {
+    if (seccion === "detalle") {
+      return (
+        <>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium" htmlFor="esTemporal">Temporal</label>
+            <Select name="esTemporal" defaultValue={valoresIniciales?.esTemporal ? "true" : "false"}>
+              <SelectTrigger id="esTemporal" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="false">No</SelectItem>
+                <SelectItem value="true">Si</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium" htmlFor="fechaInicio">Fecha inicio</label>
+            <Input id="fechaInicio" name="fechaInicio" type="date" defaultValue={valoresIniciales?.fechaInicio?.slice(0, 10) ?? ""} />
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium" htmlFor="fechaFin">Fecha fin</label>
+            <Input id="fechaFin" name="fechaFin" type="date" defaultValue={valoresIniciales?.fechaFin?.slice(0, 10) ?? ""} />
+          </div>
+        </>
+      )
+    }
+
+    return (
+      <>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="ubicacionIdAlmacen">Ubicacion</label>
+          <Select name="ubicacionId" defaultValue={valoresIniciales?.ubicacionId != null ? String(valoresIniciales.ubicacionId) : undefined} required>
+            <SelectTrigger id="ubicacionIdAlmacen" className="w-full">
+              <SelectValue placeholder="Selecciona una ubicacion" />
+            </SelectTrigger>
+            <SelectContent>
+              {ubicaciones.map((ubicacion) => (
+                <SelectItem key={ubicacion.id} value={String(ubicacion.id)}>
+                  {ubicacion.codigo} - {ubicacion.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="sedeIdAlmacen">Sede</label>
+          <Select name="sedeId" defaultValue={valoresIniciales?.sedeId != null ? String(valoresIniciales.sedeId) : undefined} required>
+            <SelectTrigger id="sedeIdAlmacen" className="w-full">
+              <SelectValue placeholder="Selecciona una sede" />
+            </SelectTrigger>
+            <SelectContent>
+              {sedes.map((sede) => (
+                <SelectItem key={sede.id} value={String(sede.id)}>
+                  {sede.codigo} - {sede.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </>
+    )
+  }
+
+  if (tipo === "REGIMEN") {
+    if (seccion === "relacion") return null
+    return (
+      <>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="regimenCodigo">Codigo regimen</label>
+          <Input id="regimenCodigo" name="regimenCodigo" defaultValue={valoresIniciales?.regimenCodigo ?? ""} placeholder="14X7" required />
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="diasTrabajo">Dias trabajo</label>
+          <Input id="diasTrabajo" name="diasTrabajo" type="number" min={1} defaultValue={valoresIniciales?.diasTrabajo ?? ""} required />
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="diasDescanso">Dias descanso</label>
+          <Input id="diasDescanso" name="diasDescanso" type="number" min={0} defaultValue={valoresIniciales?.diasDescanso ?? ""} required />
+        </div>
+        <div className="grid gap-2">
+          <label className="text-sm font-medium" htmlFor="horasPorDia">Horas por dia</label>
+          <Input id="horasPorDia" name="horasPorDia" type="number" min={1} step="0.5" defaultValue={valoresIniciales?.horasPorDia ?? ""} required />
         </div>
       </>
     )
@@ -1296,13 +1414,30 @@ export function construirPayloadRegistro<T extends TipoDatoMaestro>(
       const nivelArea = (texto(formData, "nivelArea") as NivelArea | undefined) ?? "AREA"
       return {
         ...comun,
-        // Area es catalogo global: ya no lleva sedeId.
+        sedeId: numero(formData, "sedeId"),
         nivelArea,
         // gerenciaId es independiente de nivelArea: cualquier area (incluida una
         // gerencia) puede colgar de otra. null = area raiz.
         gerenciaId: numero(formData, "gerenciaId") ?? null,
       } as RegistrarRequestPorTipo[T]
     }
+    case "ALMACEN":
+      return {
+        ...comun,
+        ubicacionId: numero(formData, "ubicacionId"),
+        sedeId: numero(formData, "sedeId"),
+        esTemporal: texto(formData, "esTemporal") === "true",
+        fechaInicio: texto(formData, "fechaInicio") ?? null,
+        fechaFin: texto(formData, "fechaFin") ?? null,
+      } as RegistrarRequestPorTipo[T]
+    case "REGIMEN":
+      return {
+        ...comun,
+        regimenCodigo: texto(formData, "regimenCodigo") ?? "",
+        diasTrabajo: numero(formData, "diasTrabajo"),
+        diasDescanso: numero(formData, "diasDescanso"),
+        horasPorDia: numero(formData, "horasPorDia"),
+      } as RegistrarRequestPorTipo[T]
     case "CUENTA":
       // La cuenta solo envia nombre + descripcion; el backend asigna el nivel.
       return { ...comun } as RegistrarRequestPorTipo[T]
@@ -1362,12 +1497,29 @@ export function construirPayloadModificacion<T extends TipoDatoMaestro>(
       const nivelArea = texto(formData, "nivelArea") as NivelArea | undefined
       return {
         ...comun,
-        // Area es catalogo global: ya no lleva sedeId.
+        sedeId: numero(formData, "sedeId"),
         nivelArea,
         // gerenciaId independiente de nivelArea (jerarquia recursiva). null = raiz.
         gerenciaId: numero(formData, "gerenciaId") ?? null,
       } as ModificarRequestPorTipo[T]
     }
+    case "ALMACEN":
+      return {
+        ...comun,
+        ubicacionId: numero(formData, "ubicacionId"),
+        sedeId: numero(formData, "sedeId"),
+        esTemporal: texto(formData, "esTemporal") === "true",
+        fechaInicio: texto(formData, "fechaInicio") ?? null,
+        fechaFin: texto(formData, "fechaFin") ?? null,
+      } as ModificarRequestPorTipo[T]
+    case "REGIMEN":
+      return {
+        ...comun,
+        regimenCodigo: texto(formData, "regimenCodigo"),
+        diasTrabajo: numero(formData, "diasTrabajo"),
+        diasDescanso: numero(formData, "diasDescanso"),
+        horasPorDia: numero(formData, "horasPorDia"),
+      } as ModificarRequestPorTipo[T]
     // CUENTA y CONTRATO solo modifican nombre/descripcion.
     default:
       return { ...comun } as ModificarRequestPorTipo[T]

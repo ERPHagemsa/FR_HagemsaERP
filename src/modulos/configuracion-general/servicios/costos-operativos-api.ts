@@ -2,6 +2,8 @@ import { clienteConfiguracionGeneral } from "@/compartido/api/clientes-backend"
 
 import type {
   AnularCostoOperativoRequest,
+  CalcularCostoQuery,
+  CalculoCostoResponse,
   ChecklistCostoOperativoResponse,
   ConceptoCostoResponse,
   ConsultarConceptosCostoQuery,
@@ -11,10 +13,10 @@ import type {
   GuardarCostoOperativoRequest,
   HabilitarConceptoCostoRequest,
   InhabilitarConceptoCostoRequest,
+  ModalidadEntrega,
   ModificarConceptoCostoRequest,
   PaginatedResponse,
   RegistrarConceptoCostoRequest,
-  TipoServicio,
 } from "../tipos/costos-operativos"
 
 const BASE = "/configuracion-general"
@@ -121,20 +123,24 @@ export async function habilitarConceptoCosto(
   return extraerDatos(data)
 }
 
-// --- Checklist / paquete (ruta + cuenta/contrato) --------------------------
+// --- Checklist / paquete (ruta + cuenta/contrato + modalidad) --------------
 
 export async function obtenerChecklistCostoOperativo(
   rutaId: number,
   cuentaContratoId: number,
-  tipoServicio?: TipoServicio,
+  modalidadEntrega: ModalidadEntrega,
+  fecha?: string,
 ): Promise<ChecklistCostoOperativoResponse> {
   const { data } = await clienteConfiguracionGeneral.get<
     ChecklistCostoOperativoResponse | RespuestaConDatos<ChecklistCostoOperativoResponse>
-  >(`${BASE}/costos-operativos/checklist${qs({ rutaId, cuentaContratoId, tipoServicio })}`)
+  >(
+    `${BASE}/costos-operativos/checklist${qs({ rutaId, cuentaContratoId, modalidadEntrega, fecha })}`,
+  )
   return extraerDatos(data)
 }
 
-// Crea el paquete si no existe, o reemplaza todas sus lineas si ya existe.
+// Crea el paquete si no existe; si cambia la tarifa, cierra el vigente y crea
+// una nueva version (vigencia). Correccion del mismo dia reescribe en sitio.
 export async function guardarCostoOperativo(
   payload: GuardarCostoOperativoRequest,
 ): Promise<CostoOperativoResponse> {
@@ -172,15 +178,28 @@ export async function anularCostoOperativo(
   return extraerDatos(data)
 }
 
-// --- Consumo (Operaciones / Caja) ------------------------------------------
+// --- Consumo / calculo (Operaciones / Caja) --------------------------------
 
 export async function obtenerCostoVigente(
   rutaId: number,
   cuentaContratoId: number,
-  tipoServicio?: TipoServicio,
+  modalidadEntrega: ModalidadEntrega,
+  fecha?: string,
 ): Promise<CostoVigenteResponse> {
   const { data } = await clienteConfiguracionGeneral.get<
     CostoVigenteResponse | RespuestaConDatos<CostoVigenteResponse>
-  >(`${BASE}/costos-operativos/vigente${qs({ rutaId, cuentaContratoId, tipoServicio })}`)
+  >(
+    `${BASE}/costos-operativos/vigente${qs({ rutaId, cuentaContratoId, modalidadEntrega, fecha })}`,
+  )
+  return extraerDatos(data)
+}
+
+// La config aplica la formula y devuelve el total por concepto y global.
+export async function calcularCostoOperativo(
+  query: CalcularCostoQuery,
+): Promise<CalculoCostoResponse> {
+  const { data } = await clienteConfiguracionGeneral.get<
+    CalculoCostoResponse | RespuestaConDatos<CalculoCostoResponse>
+  >(`${BASE}/costos-operativos/calcular${qs(query)}`)
   return extraerDatos(data)
 }

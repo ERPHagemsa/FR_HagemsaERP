@@ -29,7 +29,7 @@ export function esTipoJerarquico(tipo: TipoListado): tipo is TipoJerarquico {
 export const detalleListado: Record<TipoListado, { descripcion: string; titulo: string }> = {
   TODOS: {
     titulo: "Todas las configuraciones",
-    descripcion: "Vista general de ubicaciones, sedes, areas, cargos, cuentas y contratos.",
+    descripcion: "Vista general de maestros de configuracion.",
   },
   UBICACION: {
     titulo: "Ubicaciones",
@@ -42,6 +42,14 @@ export const detalleListado: Record<TipoListado, { descripcion: string; titulo: 
   AREA: {
     titulo: "Areas",
     descripcion: "Gerencias y areas que pertenecen a cada sede.",
+  },
+  ALMACEN: {
+    titulo: "Almacenes",
+    descripcion: "Almacenes fisicos o temporales vinculados a ubicaciones y sedes.",
+  },
+  REGIMEN: {
+    titulo: "Regimenes",
+    descripcion: "Regimenes de trabajo y descanso usados por operaciones.",
   },
   CUENTA: {
     titulo: "Cuentas",
@@ -64,6 +72,8 @@ const catalogosRequeridos: Record<TipoListado, TipoDatoMaestro[]> = {
   UBICACION: [],
   SEDE: ["UBICACION"],
   AREA: ["SEDE", "AREA"],
+  ALMACEN: ["UBICACION", "SEDE"],
+  REGIMEN: [],
   CUENTA: [],
   CONTRATO: ["CUENTA", "CONTRATO"],
   CARGO: ["CARGO", "AREA"],
@@ -178,6 +188,35 @@ export const columnasPorTipo: Record<TipoListado, ColumnaTipo[]> = {
       // nivel es AREA. Sin padre = area raiz.
       header: "Area superior",
       render: (dato) => referenciaTexto(dato.gerenciaNombre, dato.gerenciaId),
+    },
+  ],
+  ALMACEN: [
+    {
+      header: "Ubicacion",
+      render: (dato) => referenciaTexto(dato.ubicacionNombre, dato.ubicacionId),
+    },
+    {
+      header: "Sede",
+      render: (dato) => referenciaTexto(dato.sedeNombre, dato.sedeId),
+    },
+    {
+      header: "Temporal",
+      render: (dato) => (dato.esTemporal ? "Si" : "No"),
+    },
+  ],
+  REGIMEN: [
+    {
+      header: "Codigo regimen",
+      render: (dato) => dato.regimenCodigo ?? "-",
+    },
+    {
+      header: "Trabajo / descanso",
+      render: (dato) => `${dato.diasTrabajo ?? "-"} / ${dato.diasDescanso ?? "-"}`,
+    },
+    {
+      header: "Horas dia",
+      className: "text-right",
+      render: (dato) => <span className="tabular-nums">{dato.horasPorDia ?? "-"}</span>,
     },
   ],
   CUENTA: [

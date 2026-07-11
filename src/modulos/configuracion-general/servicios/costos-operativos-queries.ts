@@ -5,6 +5,7 @@ import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
   anularCostoOperativo,
+  calcularCostoOperativo,
   guardarCostoOperativo,
   habilitarConceptoCosto,
   inhabilitarConceptoCosto,
@@ -18,9 +19,10 @@ import {
   registrarConceptoCosto,
 } from "./costos-operativos-api"
 import type {
+  CalcularCostoQuery,
   ConsultarConceptosCostoQuery,
   ConsultarCostosOperativosQuery,
-  TipoServicio,
+  ModalidadEntrega,
 } from "../tipos/costos-operativos"
 
 interface OpcionesMutacion {
@@ -76,13 +78,22 @@ export function useHabilitarConceptoCostoMutation(id: number, opciones: Opciones
 export function useChecklistCostoOperativoQuery(
   rutaId: number | null,
   cuentaContratoId: number | null,
-  tipoServicio: TipoServicio = "NORMAL",
+  modalidadEntrega: ModalidadEntrega,
+  fecha?: string,
   enabled = true,
 ) {
   return useConsulta(
-    () => obtenerChecklistCostoOperativo(rutaId ?? 0, cuentaContratoId ?? 0, tipoServicio),
-    [rutaId, cuentaContratoId, tipoServicio],
-    { enabled: enabled && rutaId != null && cuentaContratoId != null },
+    () =>
+      obtenerChecklistCostoOperativo(
+        rutaId ?? 0,
+        cuentaContratoId ?? 0,
+        modalidadEntrega,
+        fecha,
+      ),
+    [rutaId, cuentaContratoId, modalidadEntrega, fecha],
+    {
+      enabled: enabled && rutaId != null && cuentaContratoId != null,
+    },
   )
 }
 
@@ -111,17 +122,29 @@ export function useAnularCostoOperativoMutation(id: number, opciones: OpcionesMu
   })
 }
 
-// --- Consumo -----------------------------------------------------------------
+// --- Consumo / calculo -------------------------------------------------------
 
 export function useCostoVigenteQuery(
   rutaId: number | null,
   cuentaContratoId: number | null,
-  tipoServicio: TipoServicio = "NORMAL",
+  modalidadEntrega: ModalidadEntrega,
+  fecha?: string,
   enabled = true,
 ) {
   return useConsulta(
-    () => obtenerCostoVigente(rutaId ?? 0, cuentaContratoId ?? 0, tipoServicio),
-    [rutaId, cuentaContratoId, tipoServicio],
-    { enabled: enabled && rutaId != null && cuentaContratoId != null },
+    () =>
+      obtenerCostoVigente(rutaId ?? 0, cuentaContratoId ?? 0, modalidadEntrega, fecha),
+    [rutaId, cuentaContratoId, modalidadEntrega, fecha],
+    {
+      enabled: enabled && rutaId != null && cuentaContratoId != null,
+    },
+  )
+}
+
+export function useCalcularCostoQuery(query: CalcularCostoQuery | null, enabled = true) {
+  return useConsulta(
+    () => calcularCostoOperativo(query as CalcularCostoQuery),
+    [JSON.stringify(query ?? {})],
+    { enabled: enabled && query != null },
   )
 }
