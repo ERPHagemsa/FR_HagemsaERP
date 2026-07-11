@@ -48,10 +48,14 @@ export function LectorQrEtiqueta({
   abierto,
   onCerrar,
   onTokenLeido,
+  titulo = "Vincular etiqueta QR",
+  descripcion = "Toma una foto clara del QR impreso. La etiqueta se analizara antes de vincularla al activo.",
 }: {
   abierto: boolean;
   onCerrar: () => void;
   onTokenLeido: (token: string) => void;
+  titulo?: string;
+  descripcion?: string;
 }) {
   const inputGaleriaRef = useRef<HTMLInputElement>(null);
   const inputCamaraRef = useRef<HTMLInputElement>(null);
@@ -98,11 +102,8 @@ export function LectorQrEtiqueta({
     <Dialog open={abierto} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Vincular etiqueta QR</DialogTitle>
-          <DialogDescription>
-            Toma una foto clara del QR impreso. La etiqueta se analizara antes
-            de vincularla al activo.
-          </DialogDescription>
+          <DialogTitle>{titulo}</DialogTitle>
+          <DialogDescription>{descripcion}</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-3">
