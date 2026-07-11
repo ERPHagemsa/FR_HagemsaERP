@@ -81,31 +81,61 @@ export function LectorQrEtiqueta({
 
     const video = videoRef.current;
     if (!video) return;
+    const videoElement = video;
 
     setError(null);
+    setCamaraDisponible(null);
     let scanner: QrScanner | null = null;
     let cancelado = false;
 
-    scanner = new QrScanner(
-      video,
-      (resultado) => procesarContenido(resultado.data),
-      {
-        returnDetailedScanResult: true,
-        highlightScanRegion: true,
-        highlightCodeOutline: true,
-        preferredCamera: "environment",
+    async function iniciarCamara() {
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        if (!cancelado) {
+          setCamaraDisponible(false);
+          setError(
+            "La camara requiere abrir la aplicacion con HTTPS. En el celular no funciona desde una URL http://192.168..."
+          );
+        }
+        return;
       }
-    );
 
-    scanner
-      .start()
-      .then(() => {
+      try {
+        // Esta llamada muestra de forma explicita el dialogo nativo de permiso.
+        // Se libera de inmediato: qr-scanner abre su propio stream sobre el video.
+        const permiso = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+        });
+        permiso.getTracks().forEach((track) => track.stop());
+        if (cancelado) return;
+
+        scanner = new QrScanner(
+          videoElement,
+          (resultado) => procesarContenido(resultado.data),
+          {
+            returnDetailedScanResult: true,
+            highlightScanRegion: true,
+            highlightCodeOutline: true,
+            preferredCamera: "environment",
+          }
+        );
+        await scanner.start();
         if (!cancelado) setCamaraDisponible(true);
-      })
-      .catch(() => {
-        // Sin camara o sin permiso: queda disponible la subida de foto.
-        if (!cancelado) setCamaraDisponible(false);
-      });
+      } catch (causa) {
+        if (cancelado) return;
+        const nombre =
+          causa instanceof DOMException ? causa.name : "Error de camara";
+        setCamaraDisponible(false);
+        setError(
+          nombre === "NotAllowedError"
+            ? "No se concedio permiso para usar la camara. Permitelo en los ajustes del navegador y vuelve a intentar."
+            : nombre === "NotFoundError"
+              ? "No se encontro una camara disponible en este dispositivo."
+              : "No se pudo iniciar la camara. Puedes subir una foto del QR."
+        );
+      }
+    }
+
+    void iniciarCamara();
 
     return () => {
       cancelado = true;
@@ -157,11 +187,19 @@ export function LectorQrEtiqueta({
           <div className="relative overflow-hidden rounded-lg border border-border bg-black">
             {/* qr-scanner pinta el stream y el recuadro de deteccion aqui */}
             <video ref={videoRef} className="h-64 w-full object-cover" />
+            {camaraDisponible === null ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/95 p-4 text-center">
+                <Camera className="size-8 animate-pulse text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Solicitando permiso para usar la camara...
+                </p>
+              </div>
+            ) : null}
             {camaraDisponible === false ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/95 p-4 text-center">
                 <Camera className="size-8 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
-                  No hay camara disponible o no se dio permiso. Usa la opcion
+                  No se pudo usar la camara. Revisa el mensaje o usa la opcion
                   de subir foto.
                 </p>
               </div>
