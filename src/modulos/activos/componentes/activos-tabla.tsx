@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   CircleAlert,
   CircleDashed,
+  QrCode,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -68,7 +69,9 @@ import {
   useCrearActivoMutation,
 } from "../servicios/activos-queries";
 import { obtenerActivos } from "../servicios/activos-api";
+import { resolverEtiquetaPorToken } from "../servicios/etiquetas-api";
 import { exportarMaestroActivosExcel } from "../servicios/activos-maestro-excel";
+import { LectorQrEtiqueta } from "./lector-qr-etiqueta";
 import type {
   Activo,
   CrearActivoPayload,
@@ -157,6 +160,7 @@ export function ActivosTabla({
     React.useState<Activo | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isReintegrating, setIsReintegrating] = React.useState(false);
+  const [lectorQrAbierto, setLectorQrAbierto] = React.useState(false);
   const cambiarEstadoRegistroMutation = useCambiarEstadoRegistroMutation();
   const crearActivoMutation = useCrearActivoMutation();
 
@@ -443,6 +447,21 @@ export function ActivosTabla({
     }
   }
 
+  async function buscarActivoPorQr(token: string) {
+    setLectorQrAbierto(false);
+    try {
+      const etiqueta = await resolverEtiquetaPorToken(token);
+      if (!etiqueta.activo) {
+        toast.error("La etiqueta fue encontrada, pero aun no esta vinculada a un activo.");
+        return;
+      }
+      toast.success(`Activo encontrado: ${etiqueta.activo.codigo}`);
+      router.push(`/activos/${etiqueta.activo.codigo}`);
+    } catch (error) {
+      toast.error(extraerMensajeError(error, "No se pudo buscar el activo por QR."));
+    }
+  }
+
   return (
     <section className="flex flex-col gap-3">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -504,6 +523,15 @@ export function ActivosTabla({
                   onChange={(event) => actualizarQuery(event.target.value)}
                 />
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9"
+                onClick={() => setLectorQrAbierto(true)}
+              >
+                <QrCode className="size-4" />
+                Buscar QR
+              </Button>
               <FiltroSelect
                 ariaLabel="Tipo de activo"
                 value={filtrosFormulario.tipoActivo}
@@ -730,6 +758,18 @@ export function ActivosTabla({
                       <span className={cn("truncate", esAnulado && "line-through")}>
                         {activo.codigo}
                       </span>
+                      <Badge
+                        className={cn(
+                          "w-fit gap-1 text-[11px]",
+                          activo.etiquetaActual
+                            ? "border-primary/30 bg-primary/10 text-primary"
+                            : "text-muted-foreground"
+                        )}
+                        variant="outline"
+                      >
+                        <QrCode className="size-3" />
+                        {activo.etiquetaActual?.codigo ?? "Sin etiqueta"}
+                      </Badge>
                       {!esAnulado && activo.activoOrigenId ? (
                         <Badge
                           className="w-fit border-primary/30 bg-primary/10 text-[11px] text-primary"
@@ -935,6 +975,14 @@ export function ActivosTabla({
         ) : null}
         </CardContent>
       </Card>
+
+      <LectorQrEtiqueta
+        abierto={lectorQrAbierto}
+        onCerrar={() => setLectorQrAbierto(false)}
+        onTokenLeido={(token) => void buscarActivoPorQr(token)}
+        titulo="Buscar activo por QR"
+        descripcion="Toma una foto del QR de la unidad para abrir su ficha de consulta."
+      />
     </section>
   );
 }

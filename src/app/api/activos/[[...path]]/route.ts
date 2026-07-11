@@ -6,4 +6,6 @@ import { URLS_SERVIDOR } from "@/compartido/api/config-servidor"
 export const { GET, POST, PUT, PATCH, DELETE } = crearProxyBackend({
   destino: () => URLS_SERVIDOR.activos,
   nombre: "activos",
+  esRutaPublica: (metodo, segmentos) =>
+    metodo === "GET" && segmentos[0] === "etiquetas" && segmentos[1] === "token",
 })

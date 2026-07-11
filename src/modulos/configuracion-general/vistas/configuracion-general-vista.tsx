@@ -64,6 +64,8 @@ const tipos: Array<{ value: "TODOS" | TipoDatoMaestro; label: string }> = [
   { value: "UBICACION", label: "Ubicacion" },
   { value: "SEDE", label: "Sede" },
   { value: "AREA", label: "Area" },
+  { value: "ALMACEN", label: "Almacen" },
+  { value: "REGIMEN", label: "Regimen" },
   { value: "CUENTA", label: "Cuenta" },
   { value: "CONTRATO", label: "Contrato" },
 ]
@@ -73,6 +75,8 @@ const rutaNuevoPorTipo: Record<TipoDatoMaestro, string> = {
   UBICACION: "ubicacion",
   SEDE: "sede",
   AREA: "area",
+  ALMACEN: "almacen",
+  REGIMEN: "regimen",
   CUENTA: "cuenta",
   CONTRATO: "contrato",
   CARGO: "cargo",
@@ -84,9 +88,11 @@ const rutaListadoPorTipo: Record<TipoDatoMaestro, string> = {
   UBICACION: "/configuracion/ubicaciones",
   SEDE: "/configuracion/sedes-areas",
   AREA: "/configuracion/sedes-areas",
+  ALMACEN: "/configuracion/almacenes",
+  REGIMEN: "/configuracion/regimenes",
   CUENTA: "/configuracion/cuentas-contratos",
   CONTRATO: "/configuracion/cuentas-contratos",
-  CARGO: "/configuracion/sedes-areas",
+  CARGO: "/configuracion/cargos",
 }
 
 // Secciones del menu de configuracion. Algunas agrupan dos tipos relacionados en
@@ -104,9 +110,24 @@ export const seccionesConfiguracion = {
     tipos: ["UBICACION"],
   },
   "sedes-areas": {
-    titulo: "Sedes, areas y cargos",
-    descripcion: "Centros de trabajo, las areas dentro de cada uno y los cargos que pertenecen a esas areas.",
-    tipos: ["SEDE", "AREA", "CARGO"],
+    titulo: "Sedes y areas",
+    descripcion: "Centros de trabajo y estructura organizacional por sede.",
+    tipos: ["SEDE", "AREA"],
+  },
+  cargos: {
+    titulo: "Cargos",
+    descripcion: "Puestos de trabajo y cadena de mando por cargo superior.",
+    tipos: ["CARGO"],
+  },
+  almacenes: {
+    titulo: "Almacenes",
+    descripcion: "Almacenes fisicos o temporales vinculados a ubicaciones y sedes.",
+    tipos: ["ALMACEN"],
+  },
+  regimenes: {
+    titulo: "Regimenes",
+    descripcion: "Regimenes de trabajo, descanso y horas por dia.",
+    tipos: ["REGIMEN"],
   },
   "cuentas-contratos": {
     titulo: "Cuentas y contratos",
@@ -122,6 +143,8 @@ const tituloMaestro: Record<TipoDatoMaestro, string> = {
   UBICACION: "Ubicaciones",
   SEDE: "Sedes",
   AREA: "Areas",
+  ALMACEN: "Almacenes",
+  REGIMEN: "Regimenes",
   CUENTA: "Cuentas",
   CONTRATO: "Contratos",
   CARGO: "Cargos",
@@ -163,6 +186,8 @@ function detalleEspecifico(dato: ConfiguracionGeneralResponse) {
   if (dato.tipoDatoMaestro === "CARGO") return dato.cargoSuperiorNombre || "-"
   if (dato.tipoDatoMaestro === "SEDE") return dato.ubicacionNombre || "-"
   if (dato.tipoDatoMaestro === "AREA") return dato.gerenciaNombre || dato.sedeNombre || "-"
+  if (dato.tipoDatoMaestro === "ALMACEN") return dato.sedeNombre || dato.ubicacionNombre || "-"
+  if (dato.tipoDatoMaestro === "REGIMEN") return dato.regimenCodigo || "-"
   if (dato.tipoDatoMaestro === "CONTRATO") return dato.contratoPadreNombre || "-"
   return "-"
 }
@@ -172,6 +197,8 @@ function etiquetaDetalleEspecifico(tipo: TipoDatoMaestro) {
   if (tipo === "CARGO") return "Reporta a"
   if (tipo === "SEDE") return "Ubicacion"
   if (tipo === "AREA") return "Gerencia / sede"
+  if (tipo === "ALMACEN") return "Sede / ubicacion"
+  if (tipo === "REGIMEN") return "Codigo regimen"
   if (tipo === "CONTRATO") return "Pertenece a"
   return "Detalle"
 }
@@ -507,11 +534,11 @@ function FlujosConfiguracionGeneral() {
       icon: Layers3,
     },
     {
-      titulo: "Registrar maestro",
-      descripcion: "Crear cada maestro siguiendo el orden operativo recomendado.",
-      href: "/configuracion/nuevo/ubicacion",
-      accion: "Nuevo",
-      icon: Plus,
+      titulo: "Estructura logistica",
+      descripcion: "Ubicaciones, sedes, areas y almacenes sin requests N+1.",
+      href: "/configuracion/sedes-areas",
+      accion: "Organizar",
+      icon: Network,
     },
     {
       titulo: "Reportes",
@@ -557,7 +584,7 @@ function OrdenRegistroConfiguracionGeneral() {
     },
     {
       titulo: "2. Sede, area y almacen",
-      descripcion: "Sede usa ubicacion; area usa sede; almacen usa ubicacion y sede opcional.",
+      descripcion: "Sede usa ubicacion; area usa sede; almacen usa ubicacion y sede.",
     },
     {
       titulo: "3. Cuenta",
@@ -802,6 +829,10 @@ function IconoMaestro({ tipo, className }: { tipo: TipoDatoMaestro; className?: 
       return <Building2 className={className} />
     case "AREA":
       return <Network className={className} />
+    case "ALMACEN":
+      return <Layers3 className={className} />
+    case "REGIMEN":
+      return <CalendarClock className={className} />
     case "CARGO":
       return <ShieldCheck className={className} />
     case "CUENTA":
@@ -1007,7 +1038,7 @@ export function ConfiguracionGeneralReportesVista() {
                 <div>
                   <h2 className="text-base font-semibold">Configuraciones para revisar</h2>
                   <p className="text-sm text-muted-foreground">
-                    Vista consolidada de ubicaciones, sedes, areas, cargos, cuentas y contratos.
+                    Vista consolidada de maestros administrados por Configuracion General.
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => void exportacion.refetch()}>

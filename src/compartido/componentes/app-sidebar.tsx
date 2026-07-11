@@ -196,7 +196,10 @@ const data = {
       items: [
         { title: "Inicio", url: "/configuracion" },
         { title: "Ubicaciones", url: "/configuracion/ubicaciones" },
-        { title: "Sedes, áreas y cargos", url: "/configuracion/sedes-areas" },
+        { title: "Sedes y áreas", url: "/configuracion/sedes-areas" },
+        { title: "Cargos", url: "/configuracion/cargos" },
+        { title: "Almacenes", url: "/configuracion/almacenes" },
+        { title: "Regímenes", url: "/configuracion/regimenes" },
         { title: "Cuentas y contratos", url: "/configuracion/cuentas-contratos" },
         { title: "Peajes", url: "/configuracion/peajes" },
         { title: "Rutas", url: "/configuracion/rutas" },
@@ -217,6 +220,7 @@ const navAdmin = {
     { title: "Cuentas", url: "/admin/cuentas" },
     { title: "Roles", url: "/admin/roles" },
     { title: "Permisos", url: "/admin/permisos" },
+    { title: "Clientes de servicio", url: "/admin/service-clients" },
     { title: "Auditoria", url: "/admin/auditoria" },
   ],
 }

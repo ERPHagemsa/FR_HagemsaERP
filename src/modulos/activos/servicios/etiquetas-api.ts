@@ -1,5 +1,6 @@
 import { clienteActivos } from "@/compartido/api/clientes-backend";
 import type {
+  AsignarEtiquetaPayload,
   Etiqueta,
   FiltrosEtiquetas,
   GenerarEtiquetasPayload,
@@ -22,4 +23,22 @@ export async function generarEtiquetas(
 ): Promise<Etiqueta[]> {
   const { data } = await clienteActivos.post<Etiqueta[]>("/activos/etiquetas", payload);
   return Array.isArray(data) ? data : [];
+}
+
+export async function resolverEtiquetaPorToken(token: string): Promise<Etiqueta> {
+  const { data } = await clienteActivos.get<Etiqueta>(
+    `/activos/etiquetas/token/${encodeURIComponent(token)}`
+  );
+  return data;
+}
+
+export async function asignarEtiqueta(
+  id: number,
+  payload: AsignarEtiquetaPayload
+): Promise<Etiqueta> {
+  const { data } = await clienteActivos.patch<Etiqueta>(
+    `/activos/etiquetas/${id}/asignar`,
+    payload
+  );
+  return data;
 }

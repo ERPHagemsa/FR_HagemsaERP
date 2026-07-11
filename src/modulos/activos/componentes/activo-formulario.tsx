@@ -32,6 +32,7 @@ import {
   TabsTrigger,
 } from "@/compartido/componentes/ui/tabs";
 import { DocumentosActivo } from "./documentos-activo";
+import { EtiquetaActivoSeccion } from "./etiqueta-activo-seccion";
 import { ImagenesActivo } from "./imagenes-activo";
 import { TanquesActivo } from "./tanques-activo";
 import {
@@ -1414,12 +1415,19 @@ export function ActivoFormulario({
       </Card>
       {renderImagenesSection()}
       </div>
-      <ResumenRegistro
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        resumen={resumen}
-        tabsDisponibles={tabsDisponibles}
-      />
+      <aside className="flex min-w-0 flex-col gap-4">
+        {/* La etiqueta es un identificador operativo: se consulta antes del
+            resumen y solo existe cuando el activo ya fue creado. */}
+        {isEdit && activo?.id ? (
+          <EtiquetaActivoSeccion activoId={activo.id} />
+        ) : null}
+        <ResumenRegistro
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          resumen={resumen}
+          tabsDisponibles={tabsDisponibles}
+        />
+      </aside>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type React from "react";
+import { QrCode } from "lucide-react";
 
 import { useConsulta } from "@/compartido/api/use-consulta";
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -90,6 +91,17 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
             <p className="mt-2 max-w-full truncate font-mono text-xs text-muted-foreground" title={String(activo.id)}>
               ID inventario: {activo.id}
             </p>
+            <Badge
+              className={
+                activo.etiquetaActual
+                  ? "mt-2 w-fit gap-1 border-primary/30 bg-primary/10 text-primary"
+                  : "mt-2 w-fit gap-1 text-muted-foreground"
+              }
+              variant="outline"
+            >
+              <QrCode className="size-3" />
+              {activo.etiquetaActual?.codigo ?? "Sin etiqueta"}
+            </Badge>
             {ultimaConfiguracionHistorica ? (
               <Badge className="mt-2 w-fit border-primary/30 bg-primary/10 text-primary" variant="outline">
                 {formatearTipoConfiguracion(ultimaConfiguracionHistorica.tipoCambio)}:{" "}

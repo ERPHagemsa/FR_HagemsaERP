@@ -512,6 +512,7 @@ function AlmacenajeDetalle({ almacenaje }: { almacenaje: AlmacenajeHijo }) {
         label="Periodo"
         valor={almacenaje.periodoDias !== null ? `${almacenaje.periodoDias} dias` : null}
       />
+      <DetalleFila label="Descripcion" valor={almacenaje.descripcion} />
     </div>
   );
 }

@@ -3,11 +3,13 @@
 import { invalidarConsulta, useConsulta } from "@/compartido/api/use-consulta";
 import { useMutar } from "@/compartido/api/use-mutar";
 import {
+  asignarEtiqueta,
   generarEtiquetas,
   obtenerEtiquetaPorId,
   obtenerEtiquetas,
 } from "./etiquetas-api";
 import type {
+  AsignarEtiquetaPayload,
   Etiqueta,
   FiltrosEtiquetas,
   GenerarEtiquetasPayload,
@@ -36,6 +38,20 @@ export interface OpcionesMutacionEtiquetas {
 export function useGenerarEtiquetasMutation(opciones: OpcionesMutacionEtiquetas = {}) {
   return useMutar<GenerarEtiquetasPayload, Etiqueta[]>({
     fn: (payload) => generarEtiquetas(payload),
+    onSuccess: (data) => {
+      invalidarConsulta(CLAVE_ETIQUETAS);
+      opciones.onSuccess?.(data);
+    },
+    onError: (err) => opciones.onError?.(err),
+  });
+}
+
+export function useAsignarEtiquetaMutation(opciones: {
+  onSuccess?: (data: Etiqueta) => unknown;
+  onError?: (err: unknown) => unknown;
+} = {}) {
+  return useMutar<{ id: number; payload: AsignarEtiquetaPayload }, Etiqueta>({
+    fn: ({ id, payload }) => asignarEtiqueta(id, payload),
     onSuccess: (data) => {
       invalidarConsulta(CLAVE_ETIQUETAS);
       opciones.onSuccess?.(data);

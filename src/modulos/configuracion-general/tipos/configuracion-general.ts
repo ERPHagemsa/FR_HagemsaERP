@@ -3,6 +3,8 @@ export type TipoDatoMaestro =
   | "UBICACION"
   | "SEDE"
   | "AREA"
+  | "ALMACEN"
+  | "REGIMEN"
   | "CUENTA"
   | "CONTRATO"
 
@@ -112,6 +114,10 @@ export interface ConfiguracionGeneralResponse {
   esTemporal?: boolean | null
   fechaInicio?: string | null
   fechaFin?: string | null
+  regimenCodigo?: string | null
+  diasTrabajo?: number | null
+  diasDescanso?: number | null
+  horasPorDia?: number | null
   // Asignado por el backend (profundidad en la jerarquia). Solo lectura.
   nivelCuentaContrato?: number | null
   contratoPadreId?: number | null
@@ -183,10 +189,12 @@ export interface ConsultarConfiguracionGeneralQuery {
 
 export interface SedeJerarquiaResponse extends ConfiguracionGeneralResponse {
   areas?: ConfiguracionGeneralResponse[]
+  almacenes?: ConfiguracionGeneralResponse[]
 }
 
 export interface UbicacionJerarquiaResponse extends ConfiguracionGeneralResponse {
   sedes?: SedeJerarquiaResponse[]
+  almacenes?: ConfiguracionGeneralResponse[]
 }
 
 export type FormatoExportacionConfiguracionGeneral = "EXCEL" | "PDF"
@@ -210,6 +218,8 @@ export const RUTA_POR_TIPO: Record<TipoDatoMaestro, string> = {
   UBICACION: "ubicaciones",
   SEDE: "sedes",
   AREA: "areas",
+  ALMACEN: "almacenes",
+  REGIMEN: "regimenes",
   CUENTA: "cuentas",
   CONTRATO: "contratos",
 }
@@ -291,6 +301,34 @@ export interface ModificarAreaRequest extends ModificarBaseRequest {
   gerenciaId?: number | null
 }
 
+export interface RegistrarAlmacenRequest extends RegistrarBaseRequest {
+  ubicacionId: number
+  sedeId: number
+  esTemporal?: boolean
+  fechaInicio?: string | null
+  fechaFin?: string | null
+}
+export interface ModificarAlmacenRequest extends ModificarBaseRequest {
+  ubicacionId?: number
+  sedeId?: number
+  esTemporal?: boolean
+  fechaInicio?: string | null
+  fechaFin?: string | null
+}
+
+export interface RegistrarRegimenRequest extends RegistrarBaseRequest {
+  regimenCodigo: string
+  diasTrabajo: number
+  diasDescanso: number
+  horasPorDia: number
+}
+export interface ModificarRegimenRequest extends ModificarBaseRequest {
+  regimenCodigo?: string
+  diasTrabajo?: number
+  diasDescanso?: number
+  horasPorDia?: number
+}
+
 // Cuenta no tiene campos propios al crear/editar: nombre + descripcion. El
 // backend asigna nivelCuentaContrato.
 export type RegistrarCuentaRequest = RegistrarBaseRequest
@@ -309,6 +347,8 @@ export interface RegistrarRequestPorTipo {
   UBICACION: RegistrarUbicacionRequest
   SEDE: RegistrarSedeRequest
   AREA: RegistrarAreaRequest
+  ALMACEN: RegistrarAlmacenRequest
+  REGIMEN: RegistrarRegimenRequest
   CUENTA: RegistrarCuentaRequest
   CONTRATO: RegistrarContratoRequest
 }
@@ -319,6 +359,8 @@ export interface ModificarRequestPorTipo {
   UBICACION: ModificarUbicacionRequest
   SEDE: ModificarSedeRequest
   AREA: ModificarAreaRequest
+  ALMACEN: ModificarAlmacenRequest
+  REGIMEN: ModificarRegimenRequest
   CUENTA: ModificarCuentaRequest
   CONTRATO: ModificarContratoRequest
 }

@@ -10,7 +10,7 @@ import {
 import { refrescarSiNecesario } from "@/compartido/autenticacion/refrescar-sesion"
 import { validarSesionRemota } from "@/compartido/autenticacion/validar-sesion"
 
-const rutasPublicas = ["/login"]
+const rutasPublicas = ["/login", "/e"]
 const prefijosPublicos = ["/api/auth"]
 
 function esRutaPublica(pathname: string): boolean {

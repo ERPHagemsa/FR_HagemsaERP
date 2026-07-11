@@ -106,46 +106,47 @@ export type SugerenciaCarga = {
   unidadPeso: UnidadPeso | null;
 };
 
-// Precio sugerido para una linea de TRANSPORTE (API §5.3.2). Lectura: a partir del
-// historico de cotizaciones que salieron al cliente y matchean modalidad + ruta + carga,
-// devuelve la mediana (monto) y el rango tipico p25-p75 (montoMin-montoMax).
-// Sin comparables: monto/montoMin/montoMax = null y muestras = 0 (NO es error).
+// Precio sugerido para una linea/tarifa de TRANSPORTE (API-Tarifarios.md §4.2). Lectura
+// sobre las tarifas GANADAS (las que viven en un tarifario VIGENTE): devuelve la mediana
+// (precioSugerido) y el rango tipico p25-p75 (precioMinimo-precioMaximo). La ruta se compara
+// por ID DE UBICACION (maestro BC-14), no por texto. Sin comparables: precios = null y
+// muestras = 0 (NO es error, nunca 404).
 export type ParamsPrecioSugerido = {
-  modalidadId: string;   // UUID de la modalidad (implica el tipo de linea)
-  origen: string;        // texto plano; el backend normaliza para el match
-  destino: string;       // texto plano; el backend normaliza para el match
-  moneda: Moneda;        // PEN | USD — no se mezclan, cada moneda tiene su estadistica
-  pesoTotal: number;     // TN, > 0 — REQUERIDO (no se cotiza transporte sin saber el peso).
-                         // Define el rango de peso de los comparables (±15% default)
-  toleranciaPeso?: number; // fraccion (0, 1); fuera de rango el backend usa 0.15
-  // Alcance por cliente (opcional, ambos juntos): acota la sugerencia al historial de ese
-  // cliente; si no tiene historial cae a mercado (alcance "mercado"). Sin estos, siempre mercado.
-  clienteTipo?: OrigenTipo; // PROSPECTO | CLIENTE
-  clienteId?: string;       // UUID del cliente/prospecto a acotar
+  origenUbicacionId: string;  // UUID de la ubicacion de origen (maestro BC-14)
+  destinoUbicacionId: string; // UUID de la ubicacion de destino (maestro BC-14)
+  modalidadId: string;        // UUID de la modalidad (implica el tipo de linea)
+  idTipoUnidad: string;       // id opaco del tipo de unidad (numerico ACTIVOS / UUID TERCERO)
+  moneda: Moneda;             // PEN | USD — no se mezclan, cada moneda tiene su estadistica
+  pesoTotal: number;          // TN, >= 0. Define el rango de peso de los comparables (±15% default).
+                              // 0 o negativo lo trata el backend como "sin dato".
+  toleranciaPeso?: number;    // fraccion (0, 1); fuera de rango el backend usa 0.15
+  // Alcance por cliente (opcional): acota la sugerencia a las tarifas de ese cliente externo
+  // (Socios de Negocio); si no tiene, cae a mercado. Sin este, siempre mercado.
+  idClienteExterno?: string;
 };
 
-// Evidencia: una cotizacion historica que alimento la estadistica. El backend la capea a 10
+// Evidencia: una tarifa ganada que alimento la estadistica. El backend la capea a 10
 // (ordenadas por fecha desc), pero la estadistica usa TODAS las `muestras`, no solo estas.
 export type ComparablePrecioSugerido = {
-  cotizacionId: string;
-  tipoUnidadNombre: string | null; // nombre congelado del tipo de unidad (solo display)
-  precioVenta: number;      // precio de venta cotizado historicamente (lo que se cobro)
-  margenPct: number;        // margen sobre venta con el que se cotizo ese comparable
-  fecha: string;            // ISO
-  estado: EstadoCotizacion; // nunca BORRADOR ni CANCELADA (solo las que salieron al cliente)
-  ejecutivo: string;
+  tarifarioId: string;
+  cotizacionOrigenId: string | null; // null en tarifarios MANUAL (sin cotizacion de origen)
+  tipoUnidadNombre: string | null;   // nombre congelado del tipo de unidad (solo display)
+  precio: number;                    // precio de la tarifa comparable
+  fecha: string;                     // ISO
+  esDelCliente: boolean;             // true si la tarifa es del cliente pedido
+  dentroRangoPeso: boolean;          // true si el comparable cae dentro del rango de peso
 };
 
 export type AlcancePrecioSugerido = "cliente" | "mercado";
 
 export type PrecioSugerido = {
-  monto: number | null;    // mediana del precio de venta historico; null sin comparables
-  montoMin: number | null; // percentil 25 (piso del rango tipico)
-  montoMax: number | null; // percentil 75 (techo del rango tipico)
-  muestras: number;        // cantidad de lineas historicas que respaldan la estadistica; 0 = sin sugerencia
-  moneda: Moneda;          // espeja la del query
-  alcance: AlcancePrecioSugerido; // "cliente" si salio del historial del cliente; "mercado" si general/fallback
-  ajustadoPorPeso: boolean; // true = solo comparables dentro del rango de peso; false = referencia aproximada de la ruta
+  precioSugerido: number | null; // mediana (P50) del precio; null sin muestras
+  precioMinimo: number | null;   // percentil 25 (piso del rango tipico)
+  precioMaximo: number | null;   // percentil 75 (techo del rango tipico)
+  muestras: number;              // cantidad de tarifas que respaldan la estadistica; 0 = sin sugerencia
+  moneda: Moneda;                // espeja la del query
+  alcance: AlcancePrecioSugerido; // "cliente" si salio de las tarifas del cliente; "mercado" si general/fallback
+  ajustadoPorPeso: boolean;      // true = solo comparables dentro del rango de peso; false = referencia aproximada
   comparables: ComparablePrecioSugerido[]; // evidencia (capeada a 10); [] sin comparables
 };
 
@@ -170,6 +171,11 @@ export type CargaHijo = {
   id: string;
   origen: string | null;
   destino: string | null;
+  // IDs de ubicacion del maestro (BC-14) que el backend RESUELVE desde origen/destino al
+  // guardar. Solo lectura: NO se envian en el borrador (el write acepta solo texto). El
+  // front los usa para el precio sugerido (comparacion por id) al editar una cotizacion.
+  origenUbicacionId: string | null;
+  destinoUbicacionId: string | null;
   fuenteTipoUnidad: FuenteTipoUnidad;
   idTipoUnidad: string;      // referencia opaca al maestro (idActivos numerico o UUID de tercero)
   tipoUnidadNombre: string;  // nombre congelado al elegir (lo devuelve el backend, solo lectura)
@@ -190,6 +196,7 @@ export type AlmacenajeHijo = {
   id: string;
   areaM2: number | null;
   periodoDias: number | null;
+  descripcion: string | null;
 };
 
 export type PersonalHijo = {
@@ -561,6 +568,7 @@ export type PayloadEquipoHijo = {
 export type PayloadAlmacenajeHijo = {
   areaM2?: number;
   periodoDias?: number;
+  descripcion?: string;
 };
 
 export type PayloadPersonalHijo = {

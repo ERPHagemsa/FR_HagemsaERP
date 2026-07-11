@@ -253,6 +253,7 @@ export const TIPOS_EVENTO_AUTH = [
   "asignacion_revocada",
   "sesion_revocada_admin",
   "token_reusado",
+  "service_token_emitido",
 ] as const
 
 export type TipoEventoAuth = (typeof TIPOS_EVENTO_AUTH)[number]
@@ -279,4 +280,81 @@ export interface ListarEventosAuditoriaQuery {
   hasta?: string
   pagina?: number
   limite?: number
+}
+
+// ===== Clientes de servicio (M2M) =====================================
+
+export type EstadoServiceClient = "activo" | "suspendido"
+
+// Metadata de un secreto — nunca el hash ni el valor en claro.
+export interface SecretoServiceClient {
+  readonly id: string
+  readonly etiqueta: string | null
+  readonly activo: boolean
+  readonly createdAt: string
+  readonly expiraEn: string | null
+  readonly revocadoEn: string | null
+}
+
+export interface RolServiceClient {
+  readonly rolId: string
+  readonly scope: Record<string, unknown>
+}
+
+export interface ServiceClientResponse {
+  readonly id: string
+  readonly clientId: string
+  readonly nombre: string
+  readonly descripcion: string | null
+  readonly estado: EstadoServiceClient
+  readonly roles: ReadonlyArray<RolServiceClient>
+  readonly secretos: ReadonlyArray<SecretoServiceClient>
+  readonly createdAt: string
+  readonly updatedAt: string
+}
+
+export interface ListaServiceClientsResponse {
+  readonly datos: ReadonlyArray<ServiceClientResponse>
+  readonly paginacion: Paginacion
+}
+
+export interface ListarServiceClientsQuery {
+  estado?: EstadoServiceClient
+  busqueda?: string
+  pagina?: number
+  limite?: number
+}
+
+// Un rol asignado al cliente (scope opcional; {} = global).
+export interface RolAsignadoInput {
+  rolId: string
+  scope?: Record<string, unknown>
+}
+
+export interface CrearServiceClientPayload {
+  clientId: string
+  nombre: string
+  descripcion?: string
+  roles?: RolAsignadoInput[]
+}
+
+// El `secret` viaja UNA sola vez, al crear. No se puede recuperar despues.
+export interface CrearServiceClientResponse {
+  readonly id: string
+  readonly clientId: string
+  readonly secret: string
+}
+
+export interface RotarSecretoPayload {
+  // Segundos de gracia antes de expirar el secreto viejo (si se omite, queda
+  // activo hasta revocarlo a mano). Permite rotacion con solapamiento.
+  graciaSegundos?: number
+}
+
+export interface RotarSecretoResponse {
+  readonly secret: string
+}
+
+export interface AsignarRolesServiceClientPayload {
+  roles: RolAsignadoInput[]
 }

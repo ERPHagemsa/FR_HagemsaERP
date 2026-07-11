@@ -489,7 +489,7 @@ export function validarYConstruirCuentasContratos(
   }
 
   // Cada tipo de bloque solo exige su propio dato:
-  // - CUENTA: la cuenta es obligatoria; el contrato hijo es opcional.
+  // - CUENTA: la cuenta es obligatoria; el contrato hijo no se usa aqui.
   // - CONTRATO: solo el contrato es obligatorio. No requiere cuenta: el backend
   //   resuelve la jerarquia (cuenta raiz) a partir del contrato.
   const cuentaSinSeleccion = filas.find((fila) => fila.tipo === "CUENTA" && !fila.cuenta)
@@ -519,22 +519,6 @@ export function validarYConstruirCuentasContratos(
     return {
       ok: false,
       error: "No puedes repetir el mismo contrato en dos bloques distintos.",
-    }
-  }
-
-  // Solo en bloques CUENTA con contrato hijo validamos que el contrato pertenezca
-  // a esa cuenta (relacion explicita del front). En bloques CONTRATO sueltos no
-  // se valida cuenta: la jerarquia la resuelve el backend.
-  const contratoInvalido = filas.find((fila) => {
-    if (fila.tipo !== "CUENTA" || !fila.cuenta || !fila.contrato) return false
-    const contrato = contratosCatalogo.find((item) => String(item.id) === fila.contrato?.id)
-    if (!contrato) return false
-    return String(contrato?.contratoPadreId ?? "") !== fila.cuenta.id
-  })
-  if (contratoInvalido) {
-    return {
-      ok: false,
-      error: "El contrato seleccionado no pertenece a la cuenta elegida.",
     }
   }
 
@@ -578,7 +562,6 @@ export function validarYConstruirCuentasContratos(
   filas.forEach((fila) => {
     if (fila.tipo === "CUENTA" && fila.cuenta) {
       emitirCuenta(fila.cuenta.id)
-      if (fila.contrato) emitirContrato(fila.contrato.id)
     } else if (fila.tipo === "CONTRATO" && fila.contrato) {
       // Contrato suelto: el backend resuelve su cuenta raiz.
       emitirContrato(fila.contrato.id)

@@ -92,9 +92,11 @@ export function SeccionDatosModal({
     const nombrada: DraftSeccion = {
       ...borrador!,
       esDefecto: borrador!.nombre.trim() !== "" ? false : borrador!.esDefecto,
-      // En "Otros" no hay ruta: se limpia cualquier origen/destino residual.
+      // En "Otros" no hay ruta: se limpia cualquier origen/destino (y sus ids) residual.
       origen: mostrarRuta ? borrador!.origen : "",
       destino: mostrarRuta ? borrador!.destino : "",
+      origenUbicacionId: mostrarRuta ? borrador!.origenUbicacionId : "",
+      destinoUbicacionId: mostrarRuta ? borrador!.destinoUbicacionId : "",
     };
     onGuardar(sincronizarRutaSeccion(nombrada));
   }
@@ -131,11 +133,12 @@ export function SeccionDatosModal({
                 disabled={disabled}
                 placeholder="Buscá o escribí (ej: Lima)"
                 onTexto={(v) => {
-                  set({ origen: v });
+                  // Texto a mano: sin id del maestro → el precio sugerido no aplica.
+                  set({ origen: v, origenUbicacionId: "" });
                   setOrigenSel(null);
                 }}
                 onSeleccionar={(u) => {
-                  set({ origen: u.nombre });
+                  set({ origen: u.nombre, origenUbicacionId: u.id });
                   setOrigenSel(u);
                 }}
               />
@@ -147,11 +150,12 @@ export function SeccionDatosModal({
                 disabled={disabled}
                 placeholder="Buscá o escribí (ej: Mina)"
                 onTexto={(v) => {
-                  set({ destino: v });
+                  // Texto a mano: sin id del maestro → el precio sugerido no aplica.
+                  set({ destino: v, destinoUbicacionId: "" });
                   setDestinoSel(null);
                 }}
                 onSeleccionar={(u) => {
-                  set({ destino: u.nombre });
+                  set({ destino: u.nombre, destinoUbicacionId: u.id });
                   setDestinoSel(u);
                 }}
               />

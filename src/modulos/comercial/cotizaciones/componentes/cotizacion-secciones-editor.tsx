@@ -12,6 +12,7 @@ import type {
   DraftLinea,
   DraftSeccion,
   ModoServicio,
+  RutaSeccion,
 } from "../servicios/cotizaciones-editor.utils";
 import {
   cargoAdicionalVacio,
@@ -84,9 +85,13 @@ export function CotizacionSeccionesEditor({
   const [lineaEditando, setLineaEditando] = React.useState<{
     seccionClave: string;
     seccionNombre: string;
-    rutaSeccion: { origen: string; destino: string };
+    rutaSeccion: RutaSeccion;
     linea: DraftLinea;
   } | null>(null);
+
+  // Alcance del precio sugerido: solo un CLIENTE real (Socios de Negocio) tiene tarifas
+  // ganadas bajo su idClienteExterno; un PROSPECTO no, asi que cae a mercado (omitido).
+  const idClienteExterno = clienteTipo === "CLIENTE" ? clienteId : undefined;
 
   const ordenadas = secciones
     .slice()
@@ -125,7 +130,12 @@ export function CotizacionSeccionesEditor({
     setLineaEditando({
       seccionClave: seccion.claveCliente,
       seccionNombre: nombreVisibleSeccion(seccion),
-      rutaSeccion: { origen: seccion.origen, destino: seccion.destino },
+      rutaSeccion: {
+        origen: seccion.origen,
+        destino: seccion.destino,
+        origenUbicacionId: seccion.origenUbicacionId,
+        destinoUbicacionId: seccion.destinoUbicacionId,
+      },
       linea,
     });
   }
@@ -141,7 +151,12 @@ export function CotizacionSeccionesEditor({
     setLineaEditando({
       seccionClave: seccion.claveCliente,
       seccionNombre: nombreVisibleSeccion(seccion),
-      rutaSeccion: { origen: seccion.origen, destino: seccion.destino },
+      rutaSeccion: {
+        origen: seccion.origen,
+        destino: seccion.destino,
+        origenUbicacionId: seccion.origenUbicacionId,
+        destinoUbicacionId: seccion.destinoUbicacionId,
+      },
       linea: nueva,
     });
   }
@@ -282,8 +297,7 @@ export function CotizacionSeccionesEditor({
         moneda={moneda}
         opcionesCatalogo={opcionesCatalogo}
         disabled={disabled}
-        clienteTipo={clienteTipo}
-        clienteId={clienteId}
+        idClienteExterno={idClienteExterno}
         modoServicio={modoServicio}
         onCerrar={() => setLineaEditando(null)}
         onGuardar={guardarLinea}

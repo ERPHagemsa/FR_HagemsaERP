@@ -70,6 +70,12 @@ export type DraftCargaItem = {
 export type DraftCargaHijo = {
   origen: string;
   destino: string;
+  // IDs de ubicacion del maestro (BC-14) de la ruta. En lectura los resuelve el backend
+  // (GET cotizacion); en sesion los siembra el picker de la seccion. SOLO alimentan el
+  // precio sugerido: NUNCA se envian en el borrador (cargaAPayload manda solo texto). "" =
+  // sin id (ruta a mano o cotizacion sin resolver aun) → el precio sugerido degrada.
+  origenUbicacionId: string;
+  destinoUbicacionId: string;
   // Snapshot del tipo de unidad elegido del maestro (select). fuenteTipoUnidad "" e
   // idTipoUnidad "" = sin seleccion (bloqueado por validarBorrador en TRANSPORTE). El
   // nombre se conserva para display; el backend lo recongela al guardar.
@@ -91,6 +97,7 @@ export type DraftEquipoHijo = {
 export type DraftAlmacenajeHijo = {
   areaM2: string;
   periodoDias: string;
+  descripcion: string;
 };
 
 export type DraftPersonalHijo = {
@@ -128,6 +135,12 @@ export type DraftSeccion = {
   // Vacio = sin ruta (secciones de servicios no-transporte).
   origen: string;
   destino: string;
+  // IDs del maestro de ubicaciones (BC-14) de la ruta, cuando se eligio del maestro.
+  // SOLO alimentan el precio sugerido (lectura): NUNCA entran a armarPayloadBorrador. "" =
+  // ruta escrita a mano o cotizacion vieja (sin id) → el precio sugerido degrada a "sin
+  // sugerencia". No sobreviven al guardar/refetch (el write-model no los persiste).
+  origenUbicacionId: string;
+  destinoUbicacionId: string;
   orden: number;
   lineas: DraftLinea[];
   cargosAdicionales: DraftCargoAdicional[];
@@ -136,6 +149,16 @@ export type DraftSeccion = {
 export type DraftBorrador = {
   moneda: Moneda;            // nivel version
   secciones: DraftSeccion[]; // incluye la seccion por defecto (esDefecto:true) si existe
+};
+
+// Ruta de la seccion que heredan sus lineas de transporte. Lleva el texto (origen/destino)
+// y los ids del maestro de ubicaciones para el precio sugerido; los ids son "" cuando la
+// ruta se escribio a mano o viene de una cotizacion guardada (sin id).
+export type RutaSeccion = {
+  origen: string;
+  destino: string;
+  origenUbicacionId: string;
+  destinoUbicacionId: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -163,6 +186,8 @@ function cargaVacia(): DraftCargaHijo {
   return {
     origen: "",
     destino: "",
+    origenUbicacionId: "",
+    destinoUbicacionId: "",
     fuenteTipoUnidad: "",
     idTipoUnidad: "",
     tipoUnidadNombre: "",
@@ -195,7 +220,7 @@ function equipoVacio(): DraftEquipoHijo {
 }
 
 function almacenajeVacio(): DraftAlmacenajeHijo {
-  return { areaM2: "", periodoDias: "" };
+  return { areaM2: "", periodoDias: "", descripcion: "" };
 }
 
 function personalVacio(): DraftPersonalHijo {
@@ -274,6 +299,8 @@ export function seccionVacia(esDefecto = false): DraftSeccion {
     nombre: "",
     origen: "",
     destino: "",
+    origenUbicacionId: "",
+    destinoUbicacionId: "",
     orden: 0,
     lineas: [],
     cargosAdicionales: [],
@@ -295,7 +322,17 @@ export function sincronizarRutaSeccion(seccion: DraftSeccion): DraftSeccion {
     ...seccion,
     lineas: seccion.lineas.map((l) =>
       l.tipoLinea === "TRANSPORTE"
-        ? { ...l, carga: { ...l.carga, origen: seccion.origen, destino: seccion.destino } }
+        ? {
+            ...l,
+            carga: {
+              ...l.carga,
+              origen: seccion.origen,
+              destino: seccion.destino,
+              // Los ids acompañan al texto (solo para el precio sugerido; no se persisten).
+              origenUbicacionId: seccion.origenUbicacionId,
+              destinoUbicacionId: seccion.destinoUbicacionId,
+            },
+          }
         : l
     ),
   };
@@ -380,6 +417,8 @@ function cargaReadADraft(c: CargaHijoCompat): DraftCargaHijo {
   return {
     origen: c.origen ?? "",
     destino: c.destino ?? "",
+    origenUbicacionId: c.origenUbicacionId ?? "",
+    destinoUbicacionId: c.destinoUbicacionId ?? "",
     fuenteTipoUnidad: c.fuenteTipoUnidad ?? "",
     idTipoUnidad: c.idTipoUnidad ?? "",
     tipoUnidadNombre: c.tipoUnidadNombre ?? "",
@@ -402,6 +441,7 @@ function almacenajeReadADraft(a: AlmacenajeHijo): DraftAlmacenajeHijo {
   return {
     areaM2: a.areaM2 !== null ? String(a.areaM2) : "",
     periodoDias: a.periodoDias !== null ? String(a.periodoDias) : "",
+    descripcion: a.descripcion ?? "",
   };
 }
 
@@ -489,6 +529,10 @@ export function derivarDraft(version: Version): DraftBorrador {
         nombre: s.nombre,
         origen: "",
         destino: "",
+        // El write-model no persiste los ids de ubicacion: al cargar una cotizacion
+        // guardada la ruta viene solo como texto → sin id, el precio sugerido degrada.
+        origenUbicacionId: "",
+        destinoUbicacionId: "",
         orden: s.orden,
         lineas: [],
         cargosAdicionales: cargos,
@@ -523,6 +567,9 @@ export function derivarDraft(version: Version): DraftBorrador {
     if (conRuta) {
       s.origen = conRuta.carga.origen;
       s.destino = conRuta.carga.destino;
+      // Ids resueltos por el backend (read-model): habilitan el precio sugerido al editar.
+      s.origenUbicacionId = conRuta.carga.origenUbicacionId;
+      s.destinoUbicacionId = conRuta.carga.destinoUbicacionId;
     }
   }
 
@@ -584,6 +631,7 @@ function almacenajeAPayload(a: DraftAlmacenajeHijo): PayloadAlmacenajeHijo {
   const payload: PayloadAlmacenajeHijo = {};
   if (a.areaM2 !== "") payload.areaM2 = parseNumero(a.areaM2);
   if (a.periodoDias !== "") payload.periodoDias = parseNumero(a.periodoDias);
+  if (a.descripcion.trim() !== "") payload.descripcion = a.descripcion.trim();
   return payload;
 }
 

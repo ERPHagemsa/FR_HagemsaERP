@@ -78,20 +78,21 @@ export async function obtenerEjecutivosCotizaciones(): Promise<EjecutivoResponsa
   return data;
 }
 
-// GET /cotizaciones/precio-sugerido (API §5.3.2)
-// Sugiere un precio de referencia para una linea de TRANSPORTE a partir del historico
-// (modalidad + ruta + carga). Solo lectura: no crea ni modifica nada. Es SOLO una
-// referencia — el ejecutivo puede aceptarla o cotizar a criterio.
-// `pesoTotal` (TN, > 0) es REQUERIDO: el backend exige saber el peso para cotizar transporte.
-// Con clienteTipo + clienteId acota al historial de ese cliente (alcance "cliente"),
-// con fallback a mercado si no tiene historial. La respuesta trae `alcance`, `ajustadoPorPeso`
-// y `comparables`. SIN comparables: 200 con montos = null, muestras = 0, comparables [] y
-// ajustadoPorPeso false (NO es error). axios omite del query string los params undefined.
+// GET /tarifarios/precio-sugerido (API-Tarifarios.md §4.2)
+// Sugiere un precio de referencia para una linea/tarifa de TRANSPORTE a partir de las
+// tarifas GANADAS (las de un tarifario VIGENTE). REEMPLAZA al viejo
+// GET /cotizaciones/precio-sugerido: la fuente pasa del historial de cotizaciones al
+// tarifario, y la ruta se compara por ID DE UBICACION (indexable) en vez de texto.
+// Solo lectura: no crea ni modifica nada. Es SOLO una referencia.
+// Requeridos: origenUbicacionId, destinoUbicacionId, modalidadId, idTipoUnidad, moneda,
+// pesoTotal. Con idClienteExterno acota al cliente (fallback a mercado). SIN comparables:
+// 200 con precios = null, muestras = 0, comparables [] (NO es error, nunca 404).
+// axios omite del query string los params undefined.
 export async function obtenerPrecioSugerido(
   params: ParamsPrecioSugerido
 ): Promise<PrecioSugerido> {
   const { data } = await clienteComercial.get<PrecioSugerido>(
-    "/cotizaciones/precio-sugerido",
+    "/tarifarios/precio-sugerido",
     { params }
   );
   return data;
