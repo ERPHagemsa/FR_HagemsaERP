@@ -2,14 +2,22 @@ import { clienteFlota } from "@/compartido/api/clientes-backend";
 import type {
   ColorRotulacion,
   CrearColorRotulacionPayload,
+  CrearPlantillaPayload,
   CrearTipoChecklistPayload,
   CrearTipoKitPayload,
+  CrearVersionPayload,
   EditarColorRotulacionPayload,
+  EditarPlantillaPayload,
   EditarTipoChecklistPayload,
   EditarTipoKitPayload,
   FiltrosColoresRotulacion,
+  FiltrosPlantillas,
   FiltrosTiposChecklist,
   FiltrosTiposKit,
+  FiltrosVersionesPlantilla,
+  Plantilla,
+  PlantillaVersion,
+  RedefinirEstructuraPayload,
   RespuestaPaginada,
   TipoChecklist,
   TipoKit,
@@ -151,4 +159,97 @@ export async function consultarDisponibilidadAcido(clase: string): Promise<boole
     { params: { clase } },
   );
   return data.disponible;
+}
+
+export async function listarPlantillas(
+  filtros: FiltrosPlantillas = {},
+): Promise<RespuestaPaginada<Plantilla>> {
+  const { data } = await clienteFlota.get<RespuestaPaginada<Plantilla>>(
+    "/flota/plantillas",
+    { params: filtros },
+  );
+  return data;
+}
+
+export async function crearPlantilla(payload: CrearPlantillaPayload): Promise<Plantilla> {
+  const { data } = await clienteFlota.post<{ datos: Plantilla; mensaje: string }>(
+    "/flota/plantillas",
+    payload,
+  );
+  return data.datos;
+}
+
+export async function editarPlantilla(
+  id: string,
+  payload: EditarPlantillaPayload,
+): Promise<Plantilla> {
+  const { data } = await clienteFlota.patch<{ datos: Plantilla; mensaje: string }>(
+    `/flota/plantillas/${encodeURIComponent(id)}`,
+    payload,
+  );
+  return data.datos;
+}
+
+export async function anularPlantilla(id: string): Promise<Plantilla> {
+  const { data } = await clienteFlota.patch<{ datos: Plantilla; mensaje: string }>(
+    `/flota/plantillas/${encodeURIComponent(id)}/anular`,
+    {},
+  );
+  return data.datos;
+}
+
+export async function listarVersionesPlantilla(
+  plantillaId: string,
+  filtros: FiltrosVersionesPlantilla = {},
+): Promise<RespuestaPaginada<PlantillaVersion>> {
+  const { data } = await clienteFlota.get<RespuestaPaginada<PlantillaVersion>>(
+    `/flota/plantillas/${encodeURIComponent(plantillaId)}/versiones`,
+    { params: filtros },
+  );
+  return data;
+}
+
+export async function crearVersionPlantilla(
+  plantillaId: string,
+  payload: CrearVersionPayload,
+): Promise<PlantillaVersion> {
+  const { data } = await clienteFlota.post<{ datos: PlantillaVersion; mensaje: string }>(
+    `/flota/plantillas/${encodeURIComponent(plantillaId)}/versiones`,
+    payload,
+  );
+  return data.datos;
+}
+
+export async function obtenerVersionPlantilla(versionId: string): Promise<PlantillaVersion> {
+  const { data } = await clienteFlota.get<{ datos: PlantillaVersion; mensaje: string }>(
+    `/flota/plantillas-versiones/${encodeURIComponent(versionId)}`,
+  );
+  return data.datos;
+}
+
+export async function redefinirEstructuraVersion(
+  versionId: string,
+  payload: RedefinirEstructuraPayload,
+): Promise<PlantillaVersion> {
+  const { data } = await clienteFlota.patch<{ datos: PlantillaVersion; mensaje: string }>(
+    `/flota/plantillas-versiones/${encodeURIComponent(versionId)}/estructura`,
+    payload,
+  );
+  return data.datos;
+}
+
+export async function publicarVersionPlantilla(versionId: string): Promise<PlantillaVersion> {
+  const { data } = await clienteFlota.patch<{ datos: PlantillaVersion; mensaje: string }>(
+    `/flota/plantillas-versiones/${encodeURIComponent(versionId)}/publicar`,
+    {},
+  );
+  return data.datos;
+}
+
+export async function anularVersionPlantilla(versionId: string): Promise<PlantillaVersion> {
+  const { data } = await clienteFlota.patch<{ datos: PlantillaVersion; mensaje: string }>(
+    `/flota/plantillas-versiones/${encodeURIComponent(versionId)}/anular`,
+    {},
+  );
+  return data.datos;
 }
