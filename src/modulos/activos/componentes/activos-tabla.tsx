@@ -758,6 +758,18 @@ export function ActivosTabla({
                       <span className={cn("truncate", esAnulado && "line-through")}>
                         {activo.codigo}
                       </span>
+                      <Badge
+                        className={cn(
+                          "w-fit gap-1 text-[11px]",
+                          activo.etiquetaActual
+                            ? "border-primary/30 bg-primary/10 text-primary"
+                            : "text-muted-foreground"
+                        )}
+                        variant="outline"
+                      >
+                        <QrCode className="size-3" />
+                        {activo.etiquetaActual?.codigo ?? "Sin etiqueta"}
+                      </Badge>
                       {!esAnulado && activo.activoOrigenId ? (
                         <Badge
                           className="w-fit border-primary/30 bg-primary/10 text-[11px] text-primary"

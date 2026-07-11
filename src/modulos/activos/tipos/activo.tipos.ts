@@ -97,6 +97,11 @@ export type Activo = {
   numeroFactura: string | null;
   fechaFactura: string | null;
   vehiculo: VehiculoDetalle | null;
+  /** Etiqueta QR fisica vigente. Las reemplazadas no se exponen aqui. */
+  etiquetaActual?: {
+    codigo: string;
+    token: string;
+  } | null;
   fechaCreacion: string;
   fechaModificacion: string;
 };
