@@ -40,6 +40,7 @@ import {
 } from "@/compartido/componentes/ui/select";
 import { Separator } from "@/compartido/componentes/ui/separator";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
+import { PdfReferenciaPreview } from "./pdf-referencia-preview";
 import {
   useAnularVersionMutation,
   usePublicarVersionMutation,
@@ -761,7 +762,7 @@ export function PlantillaVersionEditor({
   }
 
   return (
-    <div className={archivoPdf ? "grid gap-5 lg:grid-cols-[1fr_320px]" : "grid gap-5"}>
+    <div className={archivoPdf ? "grid gap-5 lg:grid-cols-[1fr_280px]" : "grid gap-5"}>
       <div className="flex min-w-0 flex-col gap-5">
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-border">
@@ -888,30 +889,7 @@ export function PlantillaVersionEditor({
 
       {archivoPdf ? (
         <aside className="hidden lg:block">
-          <div className="sticky top-20 flex flex-col gap-2">
-            <a
-              href={`/checklist-referencia/${archivoPdf}`}
-              target="_blank"
-              rel="noreferrer"
-              className="group block overflow-hidden rounded-lg border border-border bg-card transition-colors hover:border-primary/40"
-            >
-              <div className="relative aspect-[3/4] w-full overflow-hidden bg-muted">
-                {/* `view=Fit` calza la página entera (sin scroll) y el embed se
-                    dibuja unos px más ancho que el contenedor, recortado por
-                    `overflow-hidden`, para tapar la scrollbar nativa del
-                    visor de PDF del navegador (no respeta `scrollbar=0`). */}
-                <embed
-                  src={`/checklist-referencia/${archivoPdf}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
-                  type="application/pdf"
-                  className="pointer-events-none absolute inset-y-0 left-0 h-full w-[calc(100%+24px)]"
-                />
-              </div>
-              <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground group-hover:text-foreground">
-                <span>Formato impreso de referencia</span>
-                <ExternalLink className="size-3.5" />
-              </div>
-            </a>
-          </div>
+          <PdfReferenciaPreview archivo={archivoPdf} />
         </aside>
       ) : null}
     </div>

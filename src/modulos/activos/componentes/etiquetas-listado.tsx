@@ -46,6 +46,7 @@ import {
 } from "@/compartido/componentes/ui/table";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
 import type { Etiqueta, EstadoEtiqueta } from "../tipos/etiquetas.tipos";
+import { urlEtiquetaQr } from "../utilidades/etiqueta-qr";
 import {
   useEtiquetasQuery,
   useGenerarEtiquetasMutation,
@@ -220,12 +221,12 @@ function DialogLoteGenerado({
               <Card key={etiqueta.id}>
                 <CardContent className="flex items-center gap-4 pt-5">
                   <div className="rounded-lg border border-border bg-white p-2">
-                    <QRCodeSVG value={etiqueta.contenidoQr} size={64} />
+                    <QRCodeSVG value={urlEtiquetaQr(etiqueta.token)} size={64} />
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-sm font-semibold">{etiqueta.codigo}</span>
                     <span className="text-xs text-muted-foreground break-all">
-                      {etiqueta.contenidoQr}
+                      {urlEtiquetaQr(etiqueta.token)}
                     </span>
                   </div>
                 </CardContent>

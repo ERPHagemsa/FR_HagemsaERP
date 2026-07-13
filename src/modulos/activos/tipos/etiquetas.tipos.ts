@@ -10,7 +10,6 @@ export interface Etiqueta {
   id: number;
   codigo: string;
   token: string;
-  contenidoQr: string;
   estado: EstadoEtiqueta;
   estadoRegistro: boolean;
   asignada: boolean;
@@ -38,4 +37,35 @@ export interface FiltrosEtiquetas {
   estado?: EstadoEtiqueta;
   estadoRegistro?: boolean;
   activoId?: number;
+}
+
+export type MotivoSinVinculacion = "SIN_ASIGNAR" | "REEMPLAZADA";
+
+export interface EtiquetaPublicaActivo {
+  codigo: string;
+  descripcion: string;
+  tipoActivo: string;
+  placa: string | null;
+  marca: string | null;
+  modelo: string | null;
+  color: string | null;
+  anioFabricacion: number | null;
+  clase: string | null;
+  carroceria: string | null;
+  categoria: string | null;
+  ejes: number | null;
+  cantidadRuedas: number | null;
+  serieChasis: string | null;
+  serieMotor: string | null;
+  zonaRegistral: string | null;
+  ubicacion: string | null;
+  estadoActivo: string;
+  estadoOperativo: string | null;
+}
+
+export interface EtiquetaConsultaPublica {
+  vinculado: boolean;
+  motivo?: MotivoSinVinculacion;
+  etiquetaCodigo: string;
+  activo?: EtiquetaPublicaActivo;
 }

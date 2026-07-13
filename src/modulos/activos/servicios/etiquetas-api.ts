@@ -2,6 +2,7 @@ import { clienteActivos } from "@/compartido/api/clientes-backend";
 import type {
   AsignarEtiquetaPayload,
   Etiqueta,
+  EtiquetaConsultaPublica,
   FiltrosEtiquetas,
   GenerarEtiquetasPayload,
 } from "../tipos/etiquetas.tipos";
@@ -28,6 +29,17 @@ export async function generarEtiquetas(
 export async function resolverEtiquetaPorToken(token: string): Promise<Etiqueta> {
   const { data } = await clienteActivos.get<Etiqueta>(
     `/activos/etiquetas/token/${encodeURIComponent(token)}`
+  );
+  return data;
+}
+
+// Consulta PUBLICA (sin sesion): usada por /e/[token], la pagina que abre el
+// QR fisico. Ruta marcada como publica en el BFF (src/app/api/activos/[[...path]]/route.ts).
+export async function consultarEtiquetaPublica(
+  token: string
+): Promise<EtiquetaConsultaPublica> {
+  const { data } = await clienteActivos.get<EtiquetaConsultaPublica>(
+    `/activos/etiquetas/token/${encodeURIComponent(token)}/publico`
   );
   return data;
 }

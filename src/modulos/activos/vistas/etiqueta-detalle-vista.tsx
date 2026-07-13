@@ -13,6 +13,7 @@ import { Separator } from "@/compartido/componentes/ui/separator";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import type { EstadoEtiqueta } from "../tipos/etiquetas.tipos";
 import { useEtiquetaQuery } from "../servicios/etiquetas-queries";
+import { urlEtiquetaQr } from "../utilidades/etiqueta-qr";
 
 const ETIQUETAS_BADGE_VARIANTE: Record<
   EstadoEtiqueta,
@@ -72,7 +73,7 @@ export function EtiquetaDetalleVista({ id }: { id: number }) {
             <CardContent className="flex flex-col gap-5 pt-5">
               <div className="flex flex-col items-start gap-5 sm:flex-row">
                 <div className="rounded-lg border border-border bg-white p-3">
-                  <QRCodeSVG value={etiqueta.contenidoQr} size={160} />
+                  <QRCodeSVG value={urlEtiquetaQr(etiqueta.token)} size={160} />
                 </div>
                 <div className="flex flex-1 flex-col gap-3">
                   <div className="flex items-center gap-2">
@@ -82,7 +83,7 @@ export function EtiquetaDetalleVista({ id }: { id: number }) {
                     </Badge>
                   </div>
                   <span className="text-xs break-all text-muted-foreground">
-                    {etiqueta.contenidoQr}
+                    {urlEtiquetaQr(etiqueta.token)}
                   </span>
                   {etiqueta.activo ? (
                     <div className="rounded-lg border border-border bg-muted/40 p-3">

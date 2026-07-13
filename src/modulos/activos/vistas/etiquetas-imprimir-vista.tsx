@@ -16,13 +16,15 @@ import { Button } from "@/compartido/componentes/ui/button";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { useEtiquetasQuery } from "../servicios/etiquetas-queries";
 import type { Etiqueta } from "../tipos/etiquetas.tipos";
+import { urlEtiquetaQr } from "../utilidades/etiqueta-qr";
 
 /**
  * Hoja de impresion de etiquetas QR. Recibe `?ids=1,2,3` (ids de etiqueta) y
  * renderiza una cuadricula de rotulos listos para imprimir/recortar. El QR se
- * genera en el navegador a partir de `contenidoQr` (no se guarda imagen en BD).
- * Sirve tanto para la impresion inicial del lote como para reimprimir una
- * etiqueta puntual (mismo token = mismo QR, la reimpresion no cambia datos).
+ * genera en el navegador a partir del `token` (el dominio lo pone el front, no
+ * el back; ver `urlEtiquetaQr`). No se guarda imagen en BD. Sirve tanto para la
+ * impresion inicial del lote como para reimprimir una etiqueta puntual (mismo
+ * token = mismo QR, la reimpresion no cambia datos).
  */
 export function EtiquetasImprimirVista() {
   const searchParams = useSearchParams();
@@ -126,7 +128,7 @@ export function EtiquetasImprimirVista() {
                   HAGEMSA · Activos
                 </span>
                 <QRCodeSVG
-                  value={item.contenidoQr}
+                  value={urlEtiquetaQr(item.token)}
                   size={140}
                   level="M"
                   marginSize={1}
