@@ -64,7 +64,7 @@ function DialogPublicar({
 }) {
   const [errorPublicar, setErrorPublicar] = useState<string | null>(null);
 
-  const publicar = usePublicarVersionMutation(version?.id ?? "", {
+  const publicar = usePublicarVersionMutation(version?.id ?? 0, {
     onSuccess: () => {
       setErrorPublicar(null);
       onPublicada();
@@ -121,13 +121,13 @@ function DialogAnularVersion({
   onAnulada,
 }: {
   version: PlantillaVersion | null;
-  plantillaId: string;
+  plantillaId: number;
   onCerrar: () => void;
   onAnulada: () => void;
 }) {
   const [errorAnular, setErrorAnular] = useState<string | null>(null);
 
-  const anular = useAnularVersionMutation(version?.id ?? "", plantillaId, {
+  const anular = useAnularVersionMutation(version?.id ?? 0, plantillaId, {
     onSuccess: () => {
       setErrorAnular(null);
       onAnulada();
@@ -201,7 +201,7 @@ function fechaCorta(valor: string | null): string {
 // Componente principal
 // ---------------------------------------------------------------------------
 
-export function PlantillaVersionesListado({ plantillaId }: { plantillaId: string }) {
+export function PlantillaVersionesListado({ plantillaId }: { plantillaId: number }) {
   const router = useRouter();
   const [pagina, setPagina] = useState(1);
 

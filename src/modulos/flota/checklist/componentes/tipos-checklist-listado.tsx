@@ -98,7 +98,7 @@ function SheetFormulario({
     onError: (err) => setErrorForm(extraerMensajeError(err)),
   });
 
-  const editar = useEditarTipoChecklistMutation(item?.id ?? "", {
+  const editar = useEditarTipoChecklistMutation(item?.id ?? 0, {
     onSuccess: () => {
       setErrorForm(null);
       onGuardado();
@@ -215,7 +215,7 @@ function DialogAnular({
 }) {
   const [errorAnular, setErrorAnular] = useState<string | null>(null);
 
-  const anular = useAnularTipoChecklistMutation(item?.id ?? "", {
+  const anular = useAnularTipoChecklistMutation(item?.id ?? 0, {
     onSuccess: () => {
       setErrorAnular(null);
       onAnulado();

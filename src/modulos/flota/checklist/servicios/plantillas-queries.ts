@@ -26,7 +26,7 @@ import type {
 } from "../tipos/checklist.tipos";
 
 const CLAVE_PLANTILLAS = "flota:checklist:plantillas";
-const claveVersionesPlantilla = (plantillaId: string) =>
+const claveVersionesPlantilla = (plantillaId: number) =>
   `flota:checklist:plantillas:${plantillaId}:versiones`;
 
 export interface OpcionesMutacion {
@@ -53,7 +53,7 @@ export function useCrearPlantillaMutation(opciones: OpcionesMutacion = {}) {
   });
 }
 
-export function useEditarPlantillaMutation(id: string, opciones: OpcionesMutacion = {}) {
+export function useEditarPlantillaMutation(id: number, opciones: OpcionesMutacion = {}) {
   return useMutar<EditarPlantillaPayload, Plantilla>({
     fn: (payload) => editarPlantilla(id, payload),
     onSuccess: () => {
@@ -64,7 +64,7 @@ export function useEditarPlantillaMutation(id: string, opciones: OpcionesMutacio
   });
 }
 
-export function useAnularPlantillaMutation(id: string, opciones: OpcionesMutacion = {}) {
+export function useAnularPlantillaMutation(id: number, opciones: OpcionesMutacion = {}) {
   return useMutar<void, Plantilla>({
     fn: () => anularPlantilla(id),
     onSuccess: () => {
@@ -78,7 +78,7 @@ export function useAnularPlantillaMutation(id: string, opciones: OpcionesMutacio
 // ── Versiones de una plantilla ────────────────────────────────────────────────
 
 export function useVersionesPlantillaQuery(
-  plantillaId: string,
+  plantillaId: number,
   filtros: FiltrosVersionesPlantilla = {},
 ) {
   return useConsulta(
@@ -88,7 +88,7 @@ export function useVersionesPlantillaQuery(
   );
 }
 
-export function useCrearVersionMutation(plantillaId: string, opciones: OpcionesMutacion = {}) {
+export function useCrearVersionMutation(plantillaId: number, opciones: OpcionesMutacion = {}) {
   return useMutar<CrearVersionPayload, PlantillaVersion>({
     fn: (payload) => crearVersionPlantilla(plantillaId, payload),
     onSuccess: () => {
@@ -101,13 +101,13 @@ export function useCrearVersionMutation(plantillaId: string, opciones: OpcionesM
 
 // ── Una versión puntual (editor de estructura) ────────────────────────────────
 
-export function useVersionPlantillaQuery(versionId: string) {
+export function useVersionPlantillaQuery(versionId: number) {
   return useConsulta(() => obtenerVersionPlantilla(versionId), [versionId], {
     enabled: Boolean(versionId),
   });
 }
 
-export function useRedefinirEstructuraMutation(versionId: string, opciones: OpcionesMutacion = {}) {
+export function useRedefinirEstructuraMutation(versionId: number, opciones: OpcionesMutacion = {}) {
   return useMutar<RedefinirEstructuraPayload, PlantillaVersion>({
     fn: (payload) => redefinirEstructuraVersion(versionId, payload),
     onSuccess: () => opciones.onSuccess?.(),
@@ -115,7 +115,7 @@ export function useRedefinirEstructuraMutation(versionId: string, opciones: Opci
   });
 }
 
-export function usePublicarVersionMutation(versionId: string, opciones: OpcionesMutacion = {}) {
+export function usePublicarVersionMutation(versionId: number, opciones: OpcionesMutacion = {}) {
   return useMutar<void, PlantillaVersion>({
     fn: () => publicarVersionPlantilla(versionId),
     onSuccess: () => opciones.onSuccess?.(),
@@ -124,8 +124,8 @@ export function usePublicarVersionMutation(versionId: string, opciones: Opciones
 }
 
 export function useAnularVersionMutation(
-  versionId: string,
-  plantillaId: string,
+  versionId: number,
+  plantillaId: number,
   opciones: OpcionesMutacion = {},
 ) {
   return useMutar<void, PlantillaVersion>({

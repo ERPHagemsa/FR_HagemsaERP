@@ -17,7 +17,7 @@ export type RespuestaPaginada<T> = {
 // ── Tipos de checklist (HU-04-005) ────────────────────────────────────────────
 
 export type TipoChecklist = {
-  id: string;
+  id: number;
   nombre: string;
   operadoresRequeridos: number;
   // Clases de vehículo a las que aplica (p.ej. ["Camión","Remolcador"]).
@@ -50,14 +50,14 @@ export type EditarTipoChecklistPayload = {
 // ── Tipos de kit (HU-04-006) ──────────────────────────────────────────────────
 
 export type TipoKitItem = {
-  id: string;
+  id: number;
   nombre: string;
   orden: number;
   estadoRegistro: EstadoRegistroChecklist;
 };
 
 export type TipoKit = {
-  id: string;
+  id: number;
   nombre: string;
   estadoRegistro: EstadoRegistroChecklist;
   items: TipoKitItem[];
@@ -87,7 +87,7 @@ export type EditarTipoKitPayload = {
 // ── Colores de rotulación (HU-04-007) ─────────────────────────────────────────
 
 export type ColorRotulacion = {
-  id: string;
+  id: number;
   nombre: string;
   valorHex: string;
   estadoRegistro: EstadoRegistroChecklist;
@@ -112,7 +112,8 @@ export type EditarColorRotulacionPayload = {
 // ── Plantillas ─────────────────────────────────────────────────────────────────
 
 export type Plantilla = {
-  id: string;
+  id: number;
+  codigo: number | null;
   nombre: string;
   descripcion: string | null;
   estadoRegistro: EstadoRegistroChecklist;
@@ -161,7 +162,7 @@ export type PresentacionVersion = {
 // ── Ítems / secciones tal como los devuelve el GET (ItemResponseDto/SeccionResponseDto) ──
 
 export type ItemVersion = {
-  id: string;
+  id: number;
   etiqueta: string;
   etiquetaImpresa: string | null;
   tipoRespuesta: TipoRespuestaItem;
@@ -175,7 +176,7 @@ export type ItemVersion = {
 };
 
 export type SeccionVersion = {
-  id: string;
+  id: number;
   nombre: string;
   orden: number;
   ambito: AmbitoSeccion;
@@ -183,8 +184,8 @@ export type SeccionVersion = {
 };
 
 export type PlantillaVersion = {
-  id: string;
-  plantillaId: string;
+  id: number;
+  plantillaId: number;
   numeroVersion: number;
   publicada: boolean;
   criterioAplicabilidad: unknown;

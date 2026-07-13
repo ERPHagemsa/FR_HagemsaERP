@@ -8,8 +8,8 @@ export function PlantillaVersionVista({
   plantillaId,
   versionId,
 }: {
-  plantillaId: string;
-  versionId: string;
+  plantillaId: number;
+  versionId: number;
 }) {
   const consulta = usePlantillasQuery({ limite: 100 });
   const plantilla = consulta.data?.datos.find((p) => p.id === plantillaId);

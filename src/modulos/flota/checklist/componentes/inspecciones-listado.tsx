@@ -91,7 +91,7 @@ function DialogAnular({
 }) {
   const [errorAnular, setErrorAnular] = useState<string | null>(null);
 
-  const anular = useAnularInspeccionMutation(item?.id ?? "", {
+  const anular = useAnularInspeccionMutation(item?.id ?? 0, {
     onSuccess: () => {
       setErrorAnular(null);
       toast.success("Inspección anulada");
@@ -186,7 +186,7 @@ export function InspeccionesListado() {
     setFiltros((actual) => ({ ...actual, pagina }));
   }
 
-  function abrirDetalle(id: string) {
+  function abrirDetalle(id: number) {
     router.push(`/flota/checklist/inspecciones/${id}`);
   }
 

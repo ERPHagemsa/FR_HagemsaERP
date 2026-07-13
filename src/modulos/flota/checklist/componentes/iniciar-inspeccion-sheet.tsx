@@ -149,7 +149,10 @@ export function IniciarInspeccionSheet({
   const coloresConsulta = useColoresRotulacionQuery({ estadoRegistro: "ACTIVO", limite: 100 });
   const colores = coloresConsulta.data?.datos ?? [];
 
-  const tipoSel = useMemo(() => tipos.find((t) => t.id === tipoId) ?? null, [tipos, tipoId]);
+  const tipoSel = useMemo(
+    () => tipos.find((t) => String(t.id) === tipoId) ?? null,
+    [tipos, tipoId],
+  );
   const operadoresRequeridos = tipoSel?.operadoresRequeridos ?? 1;
 
   // El tipo elegido decide cuántos operadores se piden (1 normal, 2 relevo);
@@ -157,7 +160,7 @@ export function IniciarInspeccionSheet({
   // handler de selección, no en un efecto separado.
   function seleccionarTipo(id: string) {
     setTipoId(id);
-    const requeridos = tipos.find((t) => t.id === id)?.operadoresRequeridos ?? 1;
+    const requeridos = tipos.find((t) => String(t.id) === id)?.operadoresRequeridos ?? 1;
     setOperadoresSel((actual) => {
       if (actual.length === requeridos) return actual;
       const nuevo = actual.slice(0, requeridos);
@@ -212,7 +215,7 @@ export function IniciarInspeccionSheet({
 
     setErrorForm(null);
     iniciar.mutate({
-      tipoChecklistId: tipoId,
+      tipoChecklistId: Number(tipoId),
       unidadId: unidad.id,
       unidadAcopleId: acopleId || null,
       acido: mostrarCheckAcido ? acido : false,
@@ -220,7 +223,7 @@ export function IniciarInspeccionSheet({
       hubodometro: aNumeroONull(formData.get("hubodometro")),
       kilometraje: aNumeroONull(formData.get("kilometraje")),
       destino: aTextoONull(formData.get("destino")),
-      colorRotulacionId: colorId || null,
+      colorRotulacionId: colorId ? Number(colorId) : null,
       // El inspector es el usuario logueado; la asociación usuario->empleado
       // (que dará el documento real) todavía no existe, así que por ahora no
       // se envía documento — el backend lo deja sin snapshot de inspector.
@@ -362,7 +365,7 @@ export function IniciarInspeccionSheet({
                   </SelectTrigger>
                   <SelectContent>
                     {tipos.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
+                      <SelectItem key={t.id} value={String(t.id)}>
                         {t.nombre} · {t.operadoresRequeridos === 2 ? "Relevo" : "Normal"}
                       </SelectItem>
                     ))}
@@ -414,7 +417,7 @@ export function IniciarInspeccionSheet({
                     </SelectTrigger>
                     <SelectContent>
                       {colores.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
+                        <SelectItem key={c.id} value={String(c.id)}>
                           <span
                             className="mr-2 inline-block size-3 rounded-sm border border-border/50 align-middle"
                             style={{ backgroundColor: c.valorHex }}

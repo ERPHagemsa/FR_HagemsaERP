@@ -4,7 +4,7 @@ import { SiteHeader } from "@/compartido/componentes/site-header";
 import { PlantillaVersionesListado } from "../componentes/plantilla-versiones-listado";
 import { usePlantillasQuery } from "../servicios/plantillas-queries";
 
-export function PlantillaDetalleVista({ plantillaId }: { plantillaId: string }) {
+export function PlantillaDetalleVista({ plantillaId }: { plantillaId: number }) {
   // No existe GET /flota/plantillas/:id en el backend (ver plantilla.controller.ts).
   // El volumen de plantillas es chico (un puñado de tipos de checklist), así que
   // se busca en el listado en vez de justificar un endpoint nuevo solo para esto.

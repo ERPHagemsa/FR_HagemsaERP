@@ -176,7 +176,7 @@ function DatoOperacion({ etiqueta, valor }: { etiqueta: string; valor: React.Rea
   );
 }
 
-export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
+export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
   const router = useRouter();
   const consulta = useInspeccionQuery(inspeccionId);
   const inspeccion = consulta.data;
@@ -186,14 +186,14 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
   const [respuestas, setRespuestas] = useState<Record<string, RespuestaLocal>>({});
   const [neumaticosLocal, setNeumaticosLocal] = useState<Record<string, NeumaticoLocal>>({});
   const [estadoActual, setEstadoActual] = useState<Inspeccion["estado"] | null>(null);
-  const seededRef = useRef<string | null>(null);
+  const seededRef = useRef<number | null>(null);
   // Secciones CERRADAS por el usuario (set vacío = todo abierto por defecto).
   // Plegable simple (mostrar/ocultar), sin animación de altura: el Accordion
   // compartido (Radix, h-(--radix-accordion-content-height)) mide mal el alto
   // con una tabla grande de inputs interactivos y deja el contenido recortado.
-  const [seccionesCerradas, setSeccionesCerradas] = useState<Set<string>>(new Set());
+  const [seccionesCerradas, setSeccionesCerradas] = useState<Set<number>>(new Set());
 
-  function alternarSeccion(id: string) {
+  function alternarSeccion(id: number) {
     setSeccionesCerradas((actual) => {
       const siguiente = new Set(actual);
       if (siguiente.has(id)) siguiente.delete(id);
@@ -279,7 +279,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
     setAutoguardadoEstado("guardando");
 
     const respuestasPayload: RespuestaItemPayload[] = entradasItems.map(([itemId, r]) => ({
-      itemId,
+      itemId: Number(itemId),
       estadoItem: r.estadoItem !== "SIN_RESPONDER" ? r.estadoItem : undefined,
       cantidad: r.cantidad,
       valorNumerico: r.valorNumerico,
@@ -289,7 +289,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
     }));
 
     const neumaticosPayload: LecturaNeumaticoPayload[] = entradasNeumaticos.map(
-      ([neumaticoId, n]) => ({ neumaticoId, cocadaMm: n.cocadaMm, otro: n.otro }),
+      ([neumaticoId, n]) => ({ neumaticoId: Number(neumaticoId), cocadaMm: n.cocadaMm, otro: n.otro }),
     );
 
     autoguardar
@@ -321,14 +321,14 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: string }) {
     };
   }, []);
 
-  function actualizarRespuesta(itemId: string, patch: Partial<RespuestaLocal>) {
+  function actualizarRespuesta(itemId: number, patch: Partial<RespuestaLocal>) {
     const nuevo: RespuestaLocal = { ...respuestas[itemId], ...patch };
     dirtyItemsRef.current[itemId] = nuevo;
     setRespuestas((actual) => ({ ...actual, [itemId]: nuevo }));
     programarGuardado();
   }
 
-  function actualizarNeumatico(neumaticoId: string, patch: Partial<NeumaticoLocal>) {
+  function actualizarNeumatico(neumaticoId: number, patch: Partial<NeumaticoLocal>) {
     const nuevo: NeumaticoLocal = { ...neumaticosLocal[neumaticoId], ...patch };
     dirtyNeumaticosRef.current[neumaticoId] = nuevo;
     setNeumaticosLocal((actual) => ({ ...actual, [neumaticoId]: nuevo }));

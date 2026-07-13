@@ -41,7 +41,7 @@ export function useCrearTipoKitMutation(opciones: OpcionesMutacionTipoKit = {}) 
   });
 }
 
-export function useEditarTipoKitMutation(id: string, opciones: OpcionesMutacionTipoKit = {}) {
+export function useEditarTipoKitMutation(id: number, opciones: OpcionesMutacionTipoKit = {}) {
   return useMutar<EditarTipoKitPayload, TipoKit>({
     fn: (payload) => editarTipoKit(id, payload),
     onSuccess: () => {
@@ -52,7 +52,7 @@ export function useEditarTipoKitMutation(id: string, opciones: OpcionesMutacionT
   });
 }
 
-export function useAnularTipoKitMutation(id: string, opciones: OpcionesMutacionTipoKit = {}) {
+export function useAnularTipoKitMutation(id: number, opciones: OpcionesMutacionTipoKit = {}) {
   return useMutar<void, TipoKit>({
     fn: () => anularTipoKit(id),
     onSuccess: () => {

@@ -663,8 +663,8 @@ export function PlantillaVersionEditor({
   plantillaId,
   versionId,
 }: {
-  plantillaId: string;
-  versionId: string;
+  plantillaId: number;
+  versionId: number;
 }) {
   const router = useRouter();
   const consulta = useVersionPlantillaQuery(versionId);
@@ -674,7 +674,7 @@ export function PlantillaVersionEditor({
   // Sembrado inicial del form a partir del GET. Ajustar estado en el cuerpo del
   // render (no en un efecto) evita el re-render en cascada post-commit — mismo
   // patrón que React recomienda para "resetear estado cuando cambia una prop".
-  const [seededVersionId, setSeededVersionId] = useState<string | null>(null);
+  const [seededVersionId, setSeededVersionId] = useState<number | null>(null);
   if (version && seededVersionId !== version.id) {
     dispatch({ tipo: "seed", secciones: mapearASeccionesForm(version.secciones) });
     setSeededVersionId(version.id);
