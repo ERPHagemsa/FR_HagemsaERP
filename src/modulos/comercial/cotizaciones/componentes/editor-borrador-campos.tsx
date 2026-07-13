@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
   Select,
@@ -99,6 +100,30 @@ export function EditorBorradorCampos({
         {erroresCampo["moneda"] ? (
           <span className="text-xs text-destructive">{erroresCampo["moneda"]}</span>
         ) : null}
+
+        <span className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
+
+        <Label
+          htmlFor="validez-editor"
+          className="text-xs font-medium text-muted-foreground"
+        >
+          Validez (días)
+        </Label>
+        <Input
+          id="validez-editor"
+          type="number"
+          min={1}
+          className="w-24"
+          value={draft.validezDias}
+          disabled={guardando}
+          onChange={(e) => {
+            const n = parseInt(e.target.value, 10);
+            setDraft((d) => ({
+              ...d,
+              validezDias: Number.isNaN(n) || n < 1 ? d.validezDias : n,
+            }));
+          }}
+        />
       </div>
 
       {/* Contenido de la cotizacion: lineas + secciones + cargos + totales */}

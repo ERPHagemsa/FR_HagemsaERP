@@ -32,7 +32,6 @@ import { Textarea } from "@/compartido/componentes/ui/textarea";
 import type { Cotizacion } from "../tipos/cotizaciones.tipos";
 import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
 import {
-  schemaEnviar,
   schemaNuevaVersion,
   schemaPerdida,
   schemaGanada,
@@ -84,7 +83,7 @@ export function CotizacionAcciones({ cotizacion }: Props) {
       {estado === "GANADA" ? <BotonTarifario idCotizacion={id} /> : null}
 
       {acciones.enviar ? (
-        <DialogSolicitarAprobacion
+        <BotonSolicitarAprobacion
           idCotizacion={id}
           onExito={() => alExito("Solicitud de aprobación enviada")}
         />
@@ -177,128 +176,49 @@ function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Dialog: Solicitar aprobacion
-// validezDias opcional (integer >= 1, default 10 en el backend si se omite)
+// Boton: Solicitar aprobacion (envio directo)
+// Los dias de validez ya se fijan en el borrador (junto a la moneda) y quedan
+// persistidos en la version; aqui el backend usa ese valor almacenado (fallback
+// a version.validezDias). Por eso el envio es directo: ya no hay formulario que
+// bloquee la accion.
 // ---------------------------------------------------------------------------
 
-type DialogSolicitarAprobacionProps = {
+type BotonSolicitarAprobacionProps = {
   idCotizacion: string;
   onExito: () => void;
 };
 
-function DialogSolicitarAprobacion({ idCotizacion, onExito }: DialogSolicitarAprobacionProps) {
-  const [abierto, setAbierto] = React.useState(false);
-  const [validezDiasRaw, setValidezDiasRaw] = React.useState("");
-  const [errorValidez, setErrorValidez] = React.useState<string | null>(null);
-  const [errorForm, setErrorForm] = React.useState<string | null>(null);
+function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprobacionProps) {
   const [isPending, setIsPending] = React.useState(false);
-
   const mutation = useSolicitarAprobacionMutation(idCotizacion);
 
-  function handleOpenChange(open: boolean) {
-    if (!open) {
-      setValidezDiasRaw("");
-      setErrorValidez(null);
-      setErrorForm(null);
-      setIsPending(false);
-    }
-    setAbierto(open);
-  }
-
-  async function onConfirmar(event: React.FormEvent) {
-    event.preventDefault();
-    setErrorValidez(null);
-    setErrorForm(null);
-
-    const payload: { validezDias?: number } = {};
-
-    if (validezDiasRaw.trim() !== "") {
-      const num = Number(validezDiasRaw.trim());
-      const resultado = schemaEnviar.safeParse({ validezDias: num });
-      if (!resultado.success) {
-        setErrorValidez(resultado.error.issues[0]?.message ?? "Valor invalido");
-        return;
-      }
-      payload.validezDias = resultado.data.validezDias;
-    }
-
+  async function onSolicitar() {
     setIsPending(true);
     try {
-      await mutation.mutateAsync(payload);
-      setAbierto(false);
+      // Sin validezDias: el backend usa el valor guardado en la version.
+      await mutation.mutateAsync({});
       onExito();
     } catch (err) {
-      const { mensaje } = normalizarErrorAccion(err, "No se pudo solicitar la aprobación");
-      setErrorForm(mensaje);
+      const { mensaje } = normalizarErrorAccion(
+        err,
+        "No se pudo solicitar la aprobación",
+      );
+      toast.error(mensaje);
     } finally {
       setIsPending(false);
     }
   }
 
   return (
-    <Dialog open={abierto} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="default">
-          <Send data-icon="inline-start" />
-          Solicitar aprobación
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Solicitar aprobación</DialogTitle>
-          <DialogDescription>
-            Se abrirá una solicitud de aprobación; la cotización quedará pendiente
-            hasta que se resuelva. Opcionalmente indica los dias de validez
-            (por defecto 10 dias).
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={onConfirmar} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="validez-dias">
-              Dias de validez{" "}
-              <span className="text-muted-foreground">(opcional, default 10)</span>
-            </Label>
-            <Input
-              id="validez-dias"
-              type="number"
-              min={1}
-              placeholder="10"
-              value={validezDiasRaw}
-              onChange={(e) => {
-                setValidezDiasRaw(e.target.value);
-                if (errorValidez) setErrorValidez(null);
-              }}
-              disabled={isPending}
-              aria-invalid={Boolean(errorValidez)}
-            />
-            {errorValidez ? (
-              <p className="text-xs text-destructive">{errorValidez}</p>
-            ) : null}
-          </div>
-
-          {errorForm ? (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {errorForm}
-            </p>
-          ) : null}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setAbierto(false)}
-              disabled={isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Solicitando..." : "Confirmar solicitud"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <Button
+      type="button"
+      variant="default"
+      onClick={onSolicitar}
+      disabled={isPending}
+    >
+      <Send data-icon="inline-start" />
+      {isPending ? "Solicitando..." : "Solicitar aprobación"}
+    </Button>
   );
 }
 

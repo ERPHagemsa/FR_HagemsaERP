@@ -148,6 +148,7 @@ export type DraftSeccion = {
 
 export type DraftBorrador = {
   moneda: Moneda;            // nivel version
+  validezDias: number;       // dias de validez de la cotizacion (default 10)
   secciones: DraftSeccion[]; // incluye la seccion por defecto (esDefecto:true) si existe
 };
 
@@ -575,7 +576,7 @@ export function derivarDraft(version: Version): DraftBorrador {
 
   // El stand-by y el lead time ya no son arrays de version: viven como atributos
   // de cada linea (standbyDia y leadTimeDiasMin/leadTimeDiasMax).
-  return { moneda, secciones };
+  return { moneda, validezDias: version.validezDias ?? 10, secciones };
 }
 
 // ---------------------------------------------------------------------------
@@ -960,8 +961,9 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
 export function armarPayloadBorrador(draft: DraftBorrador): PayloadBorrador {
   const payload: PayloadBorrador = {};
 
-  // Moneda nivel version
+  // Moneda y dias de validez a nivel version
   payload.moneda = draft.moneda;
+  payload.validezDias = draft.validezDias;
 
   // Solo secciones[] — toda linea va anidada en su seccion (no hay lineas raiz).
   const seccionesPayload = draft.secciones

@@ -614,6 +614,7 @@ export type PayloadSeccion = {
 // de version): standbyDia y leadTimeDiasMin/leadTimeDiasMax.
 export type PayloadBorrador = {
   moneda?: Moneda;       // default PEN en el backend
+  validezDias?: number;  // dias de validez; default 10 en el backend si se omite
   secciones?: PayloadSeccion[];
 };
 
