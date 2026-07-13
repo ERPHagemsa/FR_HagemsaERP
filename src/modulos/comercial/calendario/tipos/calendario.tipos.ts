@@ -15,6 +15,10 @@ export type EventoCalendario = {
   inicio: string;
   fin: string | null;
   enlace: string;
+  /** Ejecutivo responsable: el calendario colorea cada evento por este id. */
+  idEjecutivoResponsable: string;
+  /** Nombre del ejecutivo, para la leyenda de colores. */
+  nombreEjecutivoResponsable: string;
 };
 
 /** Rango de fechas (ISO date, `yyyy-MM-dd`) pedido al feed del calendario. */

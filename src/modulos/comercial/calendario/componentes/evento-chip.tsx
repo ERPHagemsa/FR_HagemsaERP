@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowUpRight, CalendarDays } from "lucide-react";
+import { ArrowUpRight, CalendarDays, User } from "lucide-react";
 
 import { cn } from "@/compartido/utilidades/utils";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/compartido/componentes/ui/popover";
 
 import type { EventoCalendario } from "../tipos/calendario.tipos";
+import { colorEvento } from "../utilidades/colores-evento";
 
 type Props = {
   evento: EventoCalendario;
@@ -42,6 +43,8 @@ export function EventoChip({ evento, className }: Props) {
     ? `${inicioLabel} — ${fechaLarga(evento.fin!)}`
     : inicioLabel;
 
+  const color = colorEvento(evento.idEjecutivoResponsable);
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -49,7 +52,8 @@ export function EventoChip({ evento, className }: Props) {
           type="button"
           title={evento.titulo}
           className={cn(
-            "w-full truncate rounded-md bg-primary/10 px-1.5 py-0.5 text-left text-xs font-medium text-primary transition-colors hover:bg-primary/20 dark:bg-primary/20 dark:hover:bg-primary/30",
+            "w-full truncate rounded-md px-1.5 py-0.5 text-left text-xs font-medium transition-colors",
+            color.chip,
             className
           )}
         >
@@ -60,7 +64,7 @@ export function EventoChip({ evento, className }: Props) {
         <div className="flex flex-col gap-3">
           <div className="flex items-start gap-2">
             <span
-              className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-primary"
+              className={cn("mt-1 h-2.5 w-2.5 shrink-0 rounded-full", color.punto)}
               aria-hidden
             />
             <p className="text-sm leading-snug font-semibold">{evento.titulo}</p>
@@ -69,6 +73,11 @@ export function EventoChip({ evento, className }: Props) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
             <span>{fechaLabel}</span>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <User className="h-4 w-4 shrink-0" aria-hidden />
+            <span>{evento.nombreEjecutivoResponsable}</span>
           </div>
 
           <Link

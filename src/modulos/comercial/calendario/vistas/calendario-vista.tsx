@@ -19,6 +19,7 @@ import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
 import { PaginaListado } from "../../componentes/pagina-listado";
 import { CalendarioCabecera } from "../componentes/calendario-cabecera";
+import { CalendarioLeyenda } from "../componentes/calendario-leyenda";
 import { calcularRangoGrilla, claveDia, CalendarioMensual } from "../componentes/calendario-mensual";
 import { useEventosCalendarioQuery } from "../servicios/calendario-queries";
 import type { EventoCalendario } from "../tipos/calendario.tipos";
@@ -92,6 +93,7 @@ export function CalendarioVista() {
         alSiguiente={() => setMesVisible((mes) => addMonths(mes, 1))}
         alHoy={() => setMesVisible(new Date())}
       />
+      <CalendarioLeyenda eventos={data ?? []} />
       {isError ? (
         <Alert variant="destructive">
           <AlertTitle>Error al cargar el calendario</AlertTitle>
