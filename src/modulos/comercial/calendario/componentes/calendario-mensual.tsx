@@ -75,7 +75,7 @@ export function CalendarioMensual({ mesVisible, eventosPorDia }: Props) {
             <div
               key={clave}
               className={cn(
-                "flex min-h-24 flex-col gap-1 border-border p-1.5",
+                "flex min-h-36 flex-col gap-1 border-border p-2",
                 !esUltimaColumna && "border-r",
                 !esUltimaFila && "border-b",
                 !dentroDelMes && "bg-muted/20 text-muted-foreground"
