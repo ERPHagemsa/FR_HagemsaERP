@@ -17,7 +17,7 @@ export function PlantillaDetalleVista({ plantillaId }: { plantillaId: string }) 
         title={plantilla?.nombre ?? "Plantilla"}
         breadcrumbs={[
           { title: "Flota y Disponibilidad", href: "/flota" },
-          { title: "Plantillas", href: "/flota/checklist/plantillas" },
+          { title: "Mantenedores de checklist", href: "/flota/checklist/mantenedores" },
           { title: plantilla?.nombre ?? "Detalle" },
         ]}
       />

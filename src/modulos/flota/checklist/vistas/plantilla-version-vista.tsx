@@ -20,7 +20,7 @@ export function PlantillaVersionVista({
         title="Estructura de checklist"
         breadcrumbs={[
           { title: "Flota y Disponibilidad", href: "/flota" },
-          { title: "Plantillas", href: "/flota/checklist/plantillas" },
+          { title: "Mantenedores de checklist", href: "/flota/checklist/mantenedores" },
           {
             title: plantilla?.nombre ?? "Plantilla",
             href: `/flota/checklist/plantillas/${plantillaId}`,

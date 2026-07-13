@@ -9,6 +9,7 @@ import {
   TabsTrigger,
 } from "@/compartido/componentes/ui/tabs";
 import { ColoresRotulacionListado } from "../componentes/colores-rotulacion-listado";
+import { PlantillasListado } from "../componentes/plantillas-listado";
 import { TiposChecklistListado } from "../componentes/tipos-checklist-listado";
 import { TiposKitListado } from "../componentes/tipos-kit-listado";
 
@@ -33,9 +34,7 @@ export function ChecklistMantenedoresVista() {
                 Mantenedores de checklist
               </h1>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-                Catálogos chicos que se usan al armar tipos de checklist e inspecciones. La
-                estructura de secciones e ítems de cada checklist se administra desde
-                &ldquo;Plantillas&rdquo;.
+                Catálogos y plantillas que se usan al armar tipos de checklist e inspecciones.
               </p>
             </div>
           </section>
@@ -61,6 +60,12 @@ export function ChecklistMantenedoresVista() {
                 >
                   Colores de rotulación
                 </TabsTrigger>
+                <TabsTrigger
+                  value="plantillas"
+                  className="flex-none rounded-md border border-transparent px-3 py-2 text-sm data-[state=active]:border-primary/30 data-[state=active]:bg-primary/10 data-[state=active]:text-foreground"
+                >
+                  Plantillas
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -72,6 +77,9 @@ export function ChecklistMantenedoresVista() {
             </TabsContent>
             <TabsContent value="colores-rotulacion" className="mt-0">
               <ColoresRotulacionListado />
+            </TabsContent>
+            <TabsContent value="plantillas" className="mt-0">
+              <PlantillasListado />
             </TabsContent>
           </Tabs>
         </div>

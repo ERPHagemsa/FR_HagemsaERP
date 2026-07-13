@@ -131,7 +131,6 @@ const data = {
         { title: "Prestamos", url: "#" },
         { title: "Inspecciones", url: "/flota/checklist/inspecciones" },
         { title: "Mantenedores de checklist", url: "/flota/checklist/mantenedores" },
-        { title: "Plantillas de checklist", url: "/flota/checklist/plantillas" },
       ],
     },
     {
