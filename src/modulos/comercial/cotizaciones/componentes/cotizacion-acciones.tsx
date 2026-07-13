@@ -28,6 +28,11 @@ import {
 import { Label } from "@/compartido/componentes/ui/label";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/compartido/componentes/ui/tooltip";
 
 import type { Cotizacion } from "../tipos/cotizaciones.tipos";
 import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
@@ -78,8 +83,6 @@ export function CotizacionAcciones({ cotizacion }: Props) {
 
   return (
     <div className="flex flex-wrap gap-2">
-      <BotonImprimirPdf idCotizacion={id} version={versionVigente} />
-
       {estado === "GANADA" ? <BotonTarifario idCotizacion={id} /> : null}
 
       {acciones.enviar ? (
@@ -159,19 +162,25 @@ type BotonImprimirPdfProps = {
   version: number | null;
 };
 
-function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
+export function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
   const { imprimir, generando } = useImprimirPdf(idCotizacion);
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      onClick={() => imprimir(version ?? undefined)}
-      disabled={generando}
-    >
-      <Printer data-icon="inline-start" />
-      {generando ? "Generando..." : "PDF"}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => imprimir(version ?? undefined)}
+          disabled={generando}
+          aria-label={generando ? "Generando PDF" : "Descargar PDF"}
+        >
+          <Printer />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{generando ? "Generando…" : "Descargar PDF"}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -405,12 +414,17 @@ function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
 
   return (
     <Dialog open={abierto} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="outline">
-          <Trophy data-icon="inline-start" />
-          Marcar ganada
-        </Button>
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <Button type="button" variant="outline">
+              <Trophy data-icon="inline-start" />
+              Ganada
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Marcar cotización como ganada</TooltipContent>
+      </Tooltip>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Marcar cotizacion como ganada</DialogTitle>
@@ -541,12 +555,17 @@ function DialogPerdida({ idCotizacion, onExito }: DialogPerdidaProps) {
 
   return (
     <Dialog open={abierto} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="destructive">
-          <XCircle data-icon="inline-start" />
-          Marcar perdida
-        </Button>
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <Button type="button" variant="destructive">
+              <XCircle data-icon="inline-start" />
+              Perdida
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Marcar cotización como perdida</TooltipContent>
+      </Tooltip>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Marcar cotizacion como perdida</DialogTitle>

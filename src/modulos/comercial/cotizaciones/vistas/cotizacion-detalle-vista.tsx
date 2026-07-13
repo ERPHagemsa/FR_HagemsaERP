@@ -26,8 +26,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/compartido/componentes/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/compartido/componentes/ui/tooltip";
 
-import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
+import {
+  CotizacionAcciones,
+  BotonImprimirPdf,
+} from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
 import { HistorialAprobaciones } from "../../aprobaciones/componentes/historial-aprobaciones";
@@ -117,19 +125,24 @@ function CotizacionDetalleContenido({
         <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-center">
           <div className="flex min-w-0 items-center gap-3">
             {cotizacion.solicitudClienteId ? (
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="shrink-0 text-xs"
-              >
-                <Link
-                  href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}
-                >
-                  <ArrowLeft />
-                  Volver a la solicitud
-                </Link>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                  >
+                    <Link
+                      href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}
+                      aria-label="Regresar a la solicitud"
+                    >
+                      <ArrowLeft />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Regresar a la solicitud</TooltipContent>
+              </Tooltip>
             ) : null}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -160,6 +173,10 @@ function CotizacionDetalleContenido({
               <AccionesResolverSolicitud idSolicitud={solicitudVigente.id} />
             ) : null}
             <DialogDetalles cotizacion={cotizacion} />
+            <BotonImprimirPdf
+              idCotizacion={cotizacion.id}
+              version={cotizacion.versionVigente}
+            />
           </div>
         </div>
 
@@ -246,12 +263,21 @@ function rutasDeVersion(version: Version | null): string[] {
 function DialogDetalles({ cotizacion }: { cotizacion: Cotizacion }) {
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button type="button" variant="outline">
-          <Info data-icon="inline-start" />
-          Detalles
-        </Button>
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Ver detalles"
+            >
+              <Info />
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Ver detalles</TooltipContent>
+      </Tooltip>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Detalles de la cotizacion</DialogTitle>
