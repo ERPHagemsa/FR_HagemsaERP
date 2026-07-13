@@ -12,6 +12,7 @@ import type {
   PayloadFijarNumeracion,
   PayloadNuevaVersion,
   PayloadPerdida,
+  PayloadGanada,
   PrecioSugerido,
   RespuestaNumeracion,
   ResumenCotizaciones,
@@ -147,9 +148,12 @@ export async function nuevaVersion(
   await clienteComercial.post(`/cotizaciones/${id}/nueva-version`, payload);
 }
 
-// PATCH /cotizaciones/:id/ganada → 204 (sin body)
-export async function marcarGanada(id: string): Promise<void> {
-  await clienteComercial.patch(`/cotizaciones/${id}/ganada`);
+// PATCH /cotizaciones/:id/ganada → 204 (body: fechas de servicio)
+export async function marcarGanada(
+  id: string,
+  payload: PayloadGanada
+): Promise<void> {
+  await clienteComercial.patch(`/cotizaciones/${id}/ganada`, payload);
 }
 
 // PATCH /cotizaciones/:id/perdida → 204

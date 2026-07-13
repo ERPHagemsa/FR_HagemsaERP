@@ -48,6 +48,7 @@ export function CotizacionEditorNuevo({ solicitudClienteId, clienteTipo, cliente
   const router = useRouter();
   const [draft, setDraft] = React.useState<DraftBorrador>({
     moneda: "PEN",
+    validezDias: 10,
     secciones: [],
   });
   const [erroresCampo, setErroresCampo] = React.useState<Record<string, string>>({});

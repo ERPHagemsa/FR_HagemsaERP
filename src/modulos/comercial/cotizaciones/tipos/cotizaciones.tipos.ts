@@ -614,6 +614,7 @@ export type PayloadSeccion = {
 // de version): standbyDia y leadTimeDiasMin/leadTimeDiasMax.
 export type PayloadBorrador = {
   moneda?: Moneda;       // default PEN en el backend
+  validezDias?: number;  // dias de validez; default 10 en el backend si se omite
   secciones?: PayloadSeccion[];
 };
 
@@ -655,6 +656,13 @@ export type PayloadNuevaVersion = {
 
 export type PayloadPerdida = {
   motivoPerdida: string;
+};
+
+// PATCH /cotizaciones/:id/ganada — fecha de inicio de servicio obligatoria,
+// fin opcional (ISO date "YYYY-MM-DD"). Alimenta el calendario de ganadas.
+export type PayloadGanada = {
+  fechaInicioServicio: string;
+  fechaFinServicio?: string;
 };
 
 // PUT /cotizaciones/numeracion (API §5.5.1) — fija desde que numero correlativo

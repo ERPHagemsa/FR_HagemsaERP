@@ -28,13 +28,18 @@ import {
 import { Label } from "@/compartido/componentes/ui/label";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/compartido/componentes/ui/tooltip";
 
 import type { Cotizacion } from "../tipos/cotizaciones.tipos";
 import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
 import {
-  schemaEnviar,
   schemaNuevaVersion,
   schemaPerdida,
+  schemaGanada,
 } from "../tipos/cotizaciones.schemas";
 import {
   useSolicitarAprobacionMutation,
@@ -78,12 +83,10 @@ export function CotizacionAcciones({ cotizacion }: Props) {
 
   return (
     <div className="flex flex-wrap gap-2">
-      <BotonImprimirPdf idCotizacion={id} version={versionVigente} />
-
       {estado === "GANADA" ? <BotonTarifario idCotizacion={id} /> : null}
 
       {acciones.enviar ? (
-        <DialogSolicitarAprobacion
+        <BotonSolicitarAprobacion
           idCotizacion={id}
           onExito={() => alExito("Solicitud de aprobación enviada")}
         />
@@ -159,145 +162,72 @@ type BotonImprimirPdfProps = {
   version: number | null;
 };
 
-function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
+export function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
   const { imprimir, generando } = useImprimirPdf(idCotizacion);
 
   return (
-    <Button
-      type="button"
-      variant="outline"
-      onClick={() => imprimir(version ?? undefined)}
-      disabled={generando}
-    >
-      <Printer data-icon="inline-start" />
-      {generando ? "Generando..." : "PDF"}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => imprimir(version ?? undefined)}
+          disabled={generando}
+          aria-label={generando ? "Generando PDF" : "Descargar PDF"}
+        >
+          <Printer />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>{generando ? "Generando…" : "Descargar PDF"}</TooltipContent>
+    </Tooltip>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Dialog: Solicitar aprobacion
-// validezDias opcional (integer >= 1, default 10 en el backend si se omite)
+// Boton: Solicitar aprobacion (envio directo)
+// Los dias de validez ya se fijan en el borrador (junto a la moneda) y quedan
+// persistidos en la version; aqui el backend usa ese valor almacenado (fallback
+// a version.validezDias). Por eso el envio es directo: ya no hay formulario que
+// bloquee la accion.
 // ---------------------------------------------------------------------------
 
-type DialogSolicitarAprobacionProps = {
+type BotonSolicitarAprobacionProps = {
   idCotizacion: string;
   onExito: () => void;
 };
 
-function DialogSolicitarAprobacion({ idCotizacion, onExito }: DialogSolicitarAprobacionProps) {
-  const [abierto, setAbierto] = React.useState(false);
-  const [validezDiasRaw, setValidezDiasRaw] = React.useState("");
-  const [errorValidez, setErrorValidez] = React.useState<string | null>(null);
-  const [errorForm, setErrorForm] = React.useState<string | null>(null);
+function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprobacionProps) {
   const [isPending, setIsPending] = React.useState(false);
-
   const mutation = useSolicitarAprobacionMutation(idCotizacion);
 
-  function handleOpenChange(open: boolean) {
-    if (!open) {
-      setValidezDiasRaw("");
-      setErrorValidez(null);
-      setErrorForm(null);
-      setIsPending(false);
-    }
-    setAbierto(open);
-  }
-
-  async function onConfirmar(event: React.FormEvent) {
-    event.preventDefault();
-    setErrorValidez(null);
-    setErrorForm(null);
-
-    const payload: { validezDias?: number } = {};
-
-    if (validezDiasRaw.trim() !== "") {
-      const num = Number(validezDiasRaw.trim());
-      const resultado = schemaEnviar.safeParse({ validezDias: num });
-      if (!resultado.success) {
-        setErrorValidez(resultado.error.issues[0]?.message ?? "Valor invalido");
-        return;
-      }
-      payload.validezDias = resultado.data.validezDias;
-    }
-
+  async function onSolicitar() {
     setIsPending(true);
     try {
-      await mutation.mutateAsync(payload);
-      setAbierto(false);
+      // Sin validezDias: el backend usa el valor guardado en la version.
+      await mutation.mutateAsync({});
       onExito();
     } catch (err) {
-      const { mensaje } = normalizarErrorAccion(err, "No se pudo solicitar la aprobación");
-      setErrorForm(mensaje);
+      const { mensaje } = normalizarErrorAccion(
+        err,
+        "No se pudo solicitar la aprobación",
+      );
+      toast.error(mensaje);
     } finally {
       setIsPending(false);
     }
   }
 
   return (
-    <Dialog open={abierto} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="default">
-          <Send data-icon="inline-start" />
-          Solicitar aprobación
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Solicitar aprobación</DialogTitle>
-          <DialogDescription>
-            Se abrirá una solicitud de aprobación; la cotización quedará pendiente
-            hasta que se resuelva. Opcionalmente indica los dias de validez
-            (por defecto 10 dias).
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={onConfirmar} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="validez-dias">
-              Dias de validez{" "}
-              <span className="text-muted-foreground">(opcional, default 10)</span>
-            </Label>
-            <Input
-              id="validez-dias"
-              type="number"
-              min={1}
-              placeholder="10"
-              value={validezDiasRaw}
-              onChange={(e) => {
-                setValidezDiasRaw(e.target.value);
-                if (errorValidez) setErrorValidez(null);
-              }}
-              disabled={isPending}
-              aria-invalid={Boolean(errorValidez)}
-            />
-            {errorValidez ? (
-              <p className="text-xs text-destructive">{errorValidez}</p>
-            ) : null}
-          </div>
-
-          {errorForm ? (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {errorForm}
-            </p>
-          ) : null}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setAbierto(false)}
-              disabled={isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Solicitando..." : "Confirmar solicitud"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <Button
+      type="button"
+      variant="default"
+      onClick={onSolicitar}
+      disabled={isPending}
+    >
+      <Send data-icon="inline-start" />
+      {isPending ? "Solicitando..." : "Solicitar aprobación"}
+    </Button>
   );
 }
 
@@ -420,7 +350,8 @@ function DialogNuevaVersion({ idCotizacion, onExito }: DialogNuevaVersionProps) 
 
 // ---------------------------------------------------------------------------
 // Dialog: Marcar ganada
-// Sin body — solo confirmacion
+// Formulario: fecha de inicio de servicio (requerida) + fin (opcional).
+// Estas fechas alimentan el calendario de Cotizaciones Ganadas.
 // ---------------------------------------------------------------------------
 
 type DialogGanadaProps = {
@@ -430,6 +361,9 @@ type DialogGanadaProps = {
 
 function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
   const [abierto, setAbierto] = React.useState(false);
+  const [fechaInicioServicio, setFechaInicioServicio] = React.useState("");
+  const [fechaFinServicio, setFechaFinServicio] = React.useState("");
+  const [errorFechas, setErrorFechas] = React.useState<string | null>(null);
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
 
@@ -437,18 +371,37 @@ function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
 
   function handleOpenChange(open: boolean) {
     if (!open) {
+      setFechaInicioServicio("");
+      setFechaFinServicio("");
+      setErrorFechas(null);
       setErrorForm(null);
       setIsPending(false);
     }
     setAbierto(open);
   }
 
-  async function onConfirmar(event: React.MouseEvent) {
+  async function onConfirmar(event: React.FormEvent) {
     event.preventDefault();
+    setErrorFechas(null);
     setErrorForm(null);
+
+    const resultado = schemaGanada.safeParse({
+      fechaInicioServicio,
+      fechaFinServicio: fechaFinServicio.trim() === "" ? undefined : fechaFinServicio,
+    });
+    if (!resultado.success) {
+      setErrorFechas(resultado.error.issues[0]?.message ?? "Fechas invalidas");
+      return;
+    }
+
     setIsPending(true);
     try {
-      await mutation.mutateAsync(undefined);
+      await mutation.mutateAsync({
+        fechaInicioServicio: resultado.data.fechaInicioServicio,
+        ...(resultado.data.fechaFinServicio
+          ? { fechaFinServicio: resultado.data.fechaFinServicio }
+          : {}),
+      });
       setAbierto(false);
       onExito();
     } catch (err) {
@@ -460,41 +413,90 @@ function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
   }
 
   return (
-    <AlertDialog open={abierto} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>
-        <Button type="button" variant="outline">
-          <Trophy data-icon="inline-start" />
-          Marcar ganada
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Marcar cotizacion como ganada</AlertDialogTitle>
-          <AlertDialogDescription>
+    <Dialog open={abierto} onOpenChange={handleOpenChange}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <Button type="button" variant="outline">
+              <Trophy data-icon="inline-start" />
+              Ganada
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Marcar cotización como ganada</TooltipContent>
+      </Tooltip>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Marcar cotizacion como ganada</DialogTitle>
+          <DialogDescription>
             La cotizacion pasara a estado GANADA. Si el origen es un prospecto, quedara
-            registrado como convertido. Esta accion no se puede deshacer.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+            registrado como convertido. Indica la fecha de inicio del servicio (y la
+            de fin, si aplica). Esta accion no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
 
-        {errorForm ? (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {errorForm}
-          </p>
-        ) : null}
+        <form onSubmit={onConfirmar} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="fecha-inicio-servicio">
+              Fecha de inicio de servicio <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="fecha-inicio-servicio"
+              type="date"
+              value={fechaInicioServicio}
+              onChange={(e) => {
+                setFechaInicioServicio(e.target.value);
+                if (errorFechas) setErrorFechas(null);
+              }}
+              disabled={isPending}
+              aria-invalid={Boolean(errorFechas)}
+            />
+          </div>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <Button
-            type="button"
-            variant="default"
-            onClick={onConfirmar}
-            disabled={isPending}
-          >
-            {isPending ? "Procesando..." : "Confirmar"}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="fecha-fin-servicio">
+              Fecha de fin de servicio{" "}
+              <span className="text-muted-foreground">(opcional)</span>
+            </Label>
+            <Input
+              id="fecha-fin-servicio"
+              type="date"
+              min={fechaInicioServicio || undefined}
+              value={fechaFinServicio}
+              onChange={(e) => {
+                setFechaFinServicio(e.target.value);
+                if (errorFechas) setErrorFechas(null);
+              }}
+              disabled={isPending}
+              aria-invalid={Boolean(errorFechas)}
+            />
+            {errorFechas ? (
+              <p className="text-xs text-destructive">{errorFechas}</p>
+            ) : null}
+          </div>
+
+          {errorForm ? (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {errorForm}
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAbierto(false)}
+              disabled={isPending}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Procesando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -553,12 +555,17 @@ function DialogPerdida({ idCotizacion, onExito }: DialogPerdidaProps) {
 
   return (
     <Dialog open={abierto} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="destructive">
-          <XCircle data-icon="inline-start" />
-          Marcar perdida
-        </Button>
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <Button type="button" variant="destructive">
+              <XCircle data-icon="inline-start" />
+              Perdida
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Marcar cotización como perdida</TooltipContent>
+      </Tooltip>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Marcar cotizacion como perdida</DialogTitle>

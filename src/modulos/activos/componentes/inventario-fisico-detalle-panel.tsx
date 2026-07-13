@@ -62,6 +62,7 @@ import { exportarInventarioFisicoExcel } from "../servicios/inventario-fisico-ex
 import {
   useDocumentosActivoQuery,
   useImagenesActivoQuery,
+  useSnapshotDetalleInventarioQuery,
   useTanquesActivoQuery,
 } from "../servicios/activos-queries";
 import { DocumentosActivo } from "./documentos-activo";
@@ -1607,13 +1608,32 @@ function SnapshotInventario({
   activo?: Activo;
 }) {
   const catalogos = useCatalogosActivos();
-  const snapshot = detalle.snapshotActivo ?? null;
+  // El snapshot ya no viaja dentro del detalle (pesaba hasta 1 MB por activo);
+  // se pide bajo demanda al abrir esta seccion. Los candidatos de bandeja
+  // (id null) traen un snapshot sintetico local y no consultan al backend.
+  const snapshotLocal = detalle.snapshotActivo ?? null;
+  const snapshotQuery = useSnapshotDetalleInventarioQuery(
+    detalle.inventarioId,
+    snapshotLocal ? null : detalle.id
+  );
+  const snapshot =
+    snapshotLocal ??
+    (snapshotQuery.data?.snapshotActivo as Record<string, unknown> | null) ??
+    null;
   const vehiculo = obtenerObjetoSnapshot(snapshot, "vehiculo");
   const documentos = obtenerListaSnapshot(snapshot, "documentos");
   const imagenes = obtenerListaSnapshot(snapshot, "imagenes");
   const tanques = obtenerListaSnapshot(snapshot, "tanques");
   const equipamiento = obtenerListaSnapshot(snapshot, "equipamiento");
   const cambiosMaestro = contarCambiosMaestro(snapshot, activo, catalogos);
+
+  if (snapshotQuery.isLoading) {
+    return (
+      <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+        Cargando foto de apertura...
+      </div>
+    );
+  }
 
   if (!snapshot) {
     return (
@@ -1844,6 +1864,12 @@ function ComparativoHistoricoInventario({
   error: string | null;
 }) {
   const [snapshotId, setSnapshotId] = React.useState<string>("");
+  // Snapshot ACTUAL del detalle, bajo demanda (ya no viaja en el detalle).
+  // Candidatos de bandeja (snapshot sintetico local) no consultan al backend.
+  const snapshotActualQuery = useSnapshotDetalleInventarioQuery(
+    detalle.inventarioId,
+    detalle.snapshotActivo ? null : detalle.id
+  );
 
   React.useEffect(() => {
     setSnapshotId((actual) => {
@@ -1884,7 +1910,12 @@ function ComparativoHistoricoInventario({
     snapshots[0];
   const filas = construirFilasComparativo(
     seleccionado.snapshotActivo,
-    detalle.snapshotActivo
+    detalle.snapshotActivo ??
+      (snapshotActualQuery.data?.snapshotActivo as Record<
+        string,
+        unknown
+      > | null) ??
+      null
   );
 
   return (

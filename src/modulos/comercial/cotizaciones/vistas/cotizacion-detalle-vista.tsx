@@ -3,7 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, GitBranch, CalendarClock, CalendarDays, CalendarX, Info } from "lucide-react";
+import {
+  ArrowLeft,
+  GitBranch,
+  CalendarClock,
+  CalendarDays,
+  CalendarX,
+  ChevronRight,
+  Info,
+  Stamp,
+} from "lucide-react";
 
 import { useConsulta } from "@/compartido/api/use-consulta";
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -12,12 +21,21 @@ import { Button } from "@/compartido/componentes/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/compartido/componentes/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/compartido/componentes/ui/tooltip";
 
-import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
+import {
+  CotizacionAcciones,
+  BotonImprimirPdf,
+} from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
 import { HistorialAprobaciones } from "../../aprobaciones/componentes/historial-aprobaciones";
@@ -26,11 +44,19 @@ import {
   type AccionResolver,
 } from "../../aprobaciones/componentes/dialogo-resolver-solicitud";
 import { useHistorialAprobacionesQuery } from "../../aprobaciones/servicios/aprobaciones-queries";
+import type { SolicitudAprobacion } from "../../aprobaciones/tipos/aprobaciones.tipos";
 import { PanelUbicacionesPorCompletar } from "@/modulos/comercial/ubicaciones/componentes/panel-ubicaciones-por-completar";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
 import { CLAVE_COTIZACION_DETALLE } from "@/modulos/comercial/claves-consulta";
-import { accionesPermitidas, etiquetaCodigoCotizacion } from "../tipos/cotizaciones.tipos";
-import type { Cotizacion, EstadoCotizacion, Version } from "../tipos/cotizaciones.tipos";
+import {
+  accionesPermitidas,
+  etiquetaCodigoCotizacion,
+} from "../tipos/cotizaciones.tipos";
+import type {
+  Cotizacion,
+  EstadoCotizacion,
+  Version,
+} from "../tipos/cotizaciones.tipos";
 
 type Props = {
   id: string;
@@ -43,11 +69,13 @@ export function CotizacionDetalleVista({ id }: Props) {
   // ganar / perder / cancelar (que llaman invalidarConsulta(CLAVE_COTIZACION_DETALLE))
   // la pagina refetchea sola, sin necesidad de refrescar a mano. `refetch` se usa
   // ademas para refrescar tras actualizar las condiciones de la version.
-  const { data: cotizacion, isLoading, refetch } = useConsulta(
-    () => consultarCotizacion(id).catch(() => null),
-    [id],
-    { clave: CLAVE_COTIZACION_DETALLE },
-  );
+  const {
+    data: cotizacion,
+    isLoading,
+    refetch,
+  } = useConsulta(() => consultarCotizacion(id).catch(() => null), [id], {
+    clave: CLAVE_COTIZACION_DETALLE,
+  });
 
   if (isLoading) {
     return <Skeleton className="h-96 w-full" />;
@@ -57,7 +85,9 @@ export function CotizacionDetalleVista({ id }: Props) {
     notFound();
   }
 
-  return <CotizacionDetalleContenido cotizacion={cotizacion} refetch={refetch} />;
+  return (
+    <CotizacionDetalleContenido cotizacion={cotizacion} refetch={refetch} />
+  );
 }
 
 function CotizacionDetalleContenido({
@@ -67,18 +97,22 @@ function CotizacionDetalleContenido({
   cotizacion: Cotizacion;
   refetch: () => Promise<{ data: Cotizacion | null; error: unknown }>;
 }) {
-
   const vigente =
-    cotizacion.versiones.find((v) => v.numeroVersion === cotizacion.versionVigente) ??
-    null;
+    cotizacion.versiones.find(
+      (v) => v.numeroVersion === cotizacion.versionVigente,
+    ) ?? null;
 
   // La cotizacion es editable inline si el estado lo permite y la version vigente
   // no esta congelada (misma regla que el antiguo editor de pagina completa).
   const editable =
-    accionesPermitidas(cotizacion.estado).editar && vigente !== null && !vigente.congelada;
+    accionesPermitidas(cotizacion.estado).editar &&
+    vigente !== null &&
+    !vigente.congelada;
   const historialQuery = useHistorialAprobacionesQuery(cotizacion.id);
   const solicitudVigente =
-    historialQuery.data?.find((solicitud) => solicitud.estado === "EN_APROBACION") ?? null;
+    historialQuery.data?.find(
+      (solicitud) => solicitud.estado === "EN_APROBACION",
+    ) ?? null;
 
   // Origen/destino distintos de la ruta (para el panel de Ubicaciones tras ganar):
   // los que tengan temporal están por completar; el resto ya vive en el maestro.
@@ -91,12 +125,24 @@ function CotizacionDetalleContenido({
         <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-center">
           <div className="flex min-w-0 items-center gap-3">
             {cotizacion.solicitudClienteId ? (
-              <Button asChild variant="outline" size="sm" className="shrink-0 text-xs">
-                <Link href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}>
-                  <ArrowLeft />
-                  Volver a la solicitud
-                </Link>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                  >
+                    <Link
+                      href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}
+                      aria-label="Regresar a la solicitud"
+                    >
+                      <ArrowLeft />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Regresar a la solicitud</TooltipContent>
+              </Tooltip>
             ) : null}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -122,15 +168,20 @@ function CotizacionDetalleContenido({
 
           <div className="flex flex-wrap items-center gap-2 xl:justify-self-end">
             <CotizacionAcciones cotizacion={cotizacion} />
-            {cotizacion.estado === "PENDIENTE_APROBACION" && solicitudVigente ? (
+            {cotizacion.estado === "PENDIENTE_APROBACION" &&
+            solicitudVigente ? (
               <AccionesResolverSolicitud idSolicitud={solicitudVigente.id} />
             ) : null}
             <DialogDetalles cotizacion={cotizacion} />
+            <BotonImprimirPdf
+              idCotizacion={cotizacion.id}
+              version={cotizacion.versionVigente}
+            />
           </div>
         </div>
 
         {/* === Smart buttons: cifras clave de la version vigente === */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           <SmartButton
             icono={<GitBranch className="size-4" />}
             label="Versiones"
@@ -139,17 +190,31 @@ function CotizacionDetalleContenido({
           <SmartButton
             icono={<CalendarClock className="size-4" />}
             label="Validez (dias)"
-            valor={vigente?.validezDias != null ? String(vigente.validezDias) : "—"}
+            valor={
+              vigente?.validezDias != null ? String(vigente.validezDias) : "—"
+            }
           />
           <SmartButton
             icono={<CalendarDays className="size-4" />}
             label="Fecha envio"
-            valor={vigente?.fechaEnvio ? formatearFecha(vigente.fechaEnvio) : "—"}
+            valor={
+              vigente?.fechaEnvio ? formatearFecha(vigente.fechaEnvio) : "—"
+            }
           />
           <SmartButton
             icono={<CalendarX className="size-4" />}
             label="Fecha vencimiento"
-            valor={vigente?.fechaVencimiento ? formatearFecha(vigente.fechaVencimiento) : "—"}
+            valor={
+              vigente?.fechaVencimiento
+                ? formatearFecha(vigente.fechaVencimiento)
+                : "—"
+            }
+          />
+          <DialogHistorialAprobaciones
+            historial={historialQuery.data ?? []}
+            isLoading={historialQuery.isLoading}
+            isError={historialQuery.isError}
+            error={historialQuery.error}
           />
         </div>
 
@@ -162,13 +227,6 @@ function CotizacionDetalleContenido({
           clienteTipo={cotizacion.origenTipo}
           clienteId={cotizacion.origenId}
           onCondicionesActualizadas={refetch}
-        />
-
-        <HistorialAprobaciones
-          historial={historialQuery.data ?? []}
-          isLoading={historialQuery.isLoading}
-          isError={historialQuery.isError}
-          error={historialQuery.error}
         />
 
         {/* === Ubicaciones por completar (solo tras ganar) === */}
@@ -205,12 +263,21 @@ function rutasDeVersion(version: Version | null): string[] {
 function DialogDetalles({ cotizacion }: { cotizacion: Cotizacion }) {
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button type="button" variant="outline">
-          <Info data-icon="inline-start" />
-          Detalles
-        </Button>
-      </DialogTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              aria-label="Ver detalles"
+            >
+              <Info />
+            </Button>
+          </DialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Ver detalles</TooltipContent>
+      </Tooltip>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Detalles de la cotizacion</DialogTitle>
@@ -218,14 +285,23 @@ function DialogDetalles({ cotizacion }: { cotizacion: Cotizacion }) {
 
         <div className="grid gap-x-10 gap-y-6 md:grid-cols-2">
           <Grupo titulo="Origen">
-            <Campo label="Tipo de origen" value={formatearOrigenTipo(cotizacion.origenTipo)} />
+            <Campo
+              label="Tipo de origen"
+              value={formatearOrigenTipo(cotizacion.origenTipo)}
+            />
             <Campo label="Razon social" value={cotizacion.origenNombre} />
             <CampoSC cotizacion={cotizacion} />
           </Grupo>
 
           <Grupo titulo="Trazabilidad">
-            <Campo label="Ejecutivo responsable" value={cotizacion.ejecutivoResponsable.nombre} />
-            <Campo label="Fecha de creacion" value={formatearFechaHora(cotizacion.fechaCreacion)} />
+            <Campo
+              label="Ejecutivo responsable"
+              value={cotizacion.ejecutivoResponsable.nombre}
+            />
+            <Campo
+              label="Fecha de creacion"
+              value={formatearFechaHora(cotizacion.fechaCreacion)}
+            />
             <Campo
               label="Ultima modificacion"
               value={
@@ -238,7 +314,10 @@ function DialogDetalles({ cotizacion }: { cotizacion: Cotizacion }) {
 
           {cotizacion.estado === "PERDIDA" && cotizacion.motivoPerdida ? (
             <div className="md:col-span-2">
-              <Campo label="Motivo de perdida" value={cotizacion.motivoPerdida} />
+              <Campo
+                label="Motivo de perdida"
+                value={cotizacion.motivoPerdida}
+              />
             </div>
           ) : null}
         </div>
@@ -247,7 +326,65 @@ function DialogDetalles({ cotizacion }: { cotizacion: Cotizacion }) {
   );
 }
 
-const ACCIONES_RESOLVER: { accion: AccionResolver; etiqueta: string; destructiva?: boolean }[] = [
+// ---------------------------------------------------------------------------
+// Smart button "Aprobaciones": contador clickeable que abre el historial
+// ---------------------------------------------------------------------------
+
+function DialogHistorialAprobaciones({
+  historial,
+  isLoading,
+  isError,
+  error,
+}: {
+  historial: SolicitudAprobacion[];
+  isLoading: boolean;
+  isError: boolean;
+  error: unknown;
+}) {
+  // Mientras carga el conteo no es fiable; se muestra "—" hasta tener datos.
+  const valor = isLoading ? "—" : String(historial.length);
+
+  return (
+    <Dialog>
+      <DialogTrigger className="group flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-primary/50 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          <Stamp className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs uppercase text-muted-foreground">
+            Aprobaciones
+          </p>
+          <p className="truncate text-base font-semibold tabular-nums">
+            {valor}
+          </p>
+        </div>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Historial de aprobaciones</DialogTitle>
+          <DialogDescription>
+            Solicitudes de aprobación de esta cotización.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[70vh] overflow-y-auto pr-1">
+          <HistorialAprobaciones
+            historial={historial}
+            isLoading={isLoading}
+            isError={isError}
+            error={error}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const ACCIONES_RESOLVER: {
+  accion: AccionResolver;
+  etiqueta: string;
+  destructiva?: boolean;
+}[] = [
   { accion: "aprobar", etiqueta: "Aprobar" },
   { accion: "rechazar", etiqueta: "Rechazar", destructiva: true },
 ];
@@ -255,7 +392,9 @@ const ACCIONES_RESOLVER: { accion: AccionResolver; etiqueta: string; destructiva
 function AccionesResolverSolicitud({ idSolicitud }: { idSolicitud: string }) {
   // El dialogo es controlado y no trae trigger propio: la vista decide desde
   // donde se abre y lo monta solo cuando hay una accion elegida.
-  const [accionAbierta, setAccionAbierta] = useState<AccionResolver | null>(null);
+  const [accionAbierta, setAccionAbierta] = useState<AccionResolver | null>(
+    null,
+  );
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -291,7 +430,11 @@ function AccionesResolverSolicitud({ idSolicitud }: { idSolicitud: string }) {
 
 function Pipeline({ estado }: { estado: EstadoCotizacion }) {
   // Fuera del happy path no hay progresion que mostrar: cae al badge de estado.
-  if (estado === "CANCELADA" || estado === "VENCIDA" || estado === "EN_REVISION") {
+  if (
+    estado === "CANCELADA" ||
+    estado === "VENCIDA" ||
+    estado === "EN_REVISION"
+  ) {
     return <EstadoCotizacionBadge estado={estado} />;
   }
 
@@ -379,7 +522,13 @@ function SmartButton({
   );
 }
 
-function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function Grupo({
+  titulo,
+  children,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm font-semibold">{titulo}</p>
@@ -399,8 +548,12 @@ function Campo({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-border/40 py-1.5 last:border-0">
-      <span className="shrink-0 text-xs uppercase text-muted-foreground">{label}</span>
-      <span className={mono ? "truncate font-mono text-sm" : "text-sm font-medium"}>
+      <span className="shrink-0 text-xs uppercase text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className={mono ? "truncate font-mono text-sm" : "text-sm font-medium"}
+      >
         {value ?? "—"}
       </span>
     </div>
@@ -410,10 +563,14 @@ function Campo({
 function CampoSC({ cotizacion }: { cotizacion: Cotizacion }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-border/40 py-1.5 last:border-0">
-      <span className="shrink-0 text-xs uppercase text-muted-foreground">Solicitud de cliente</span>
+      <span className="shrink-0 text-xs uppercase text-muted-foreground">
+        Solicitud de cliente
+      </span>
       {cotizacion.solicitudClienteId ? (
         <Button asChild variant="link" size="sm" className="h-auto p-0">
-          <Link href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}>
+          <Link
+            href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}
+          >
             Ver SC de origen
           </Link>
         </Button>
@@ -429,7 +586,11 @@ function CampoSC({ cotizacion }: { cotizacion: Cotizacion }) {
 // ---------------------------------------------------------------------------
 
 function formatearOrigenTipo(tipo: string) {
-  return tipo === "PROSPECTO" ? "Prospecto" : tipo === "CLIENTE" ? "Cliente" : tipo;
+  return tipo === "PROSPECTO"
+    ? "Prospecto"
+    : tipo === "CLIENTE"
+      ? "Cliente"
+      : tipo;
 }
 
 function formatearFecha(value: string) {

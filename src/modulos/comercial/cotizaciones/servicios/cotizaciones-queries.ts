@@ -15,6 +15,7 @@ import type {
   PayloadFijarNumeracion,
   PayloadNuevaVersion,
   PayloadPerdida,
+  PayloadGanada,
 } from "../tipos/cotizaciones.tipos";
 import {
   actualizarBorrador,
@@ -185,8 +186,8 @@ export function useNuevaVersionMutation(id: string) {
 }
 
 export function useMarcarGanadaMutation(id: string) {
-  return useMutar<undefined, Awaited<ReturnType<typeof marcarGanada>>>({
-    fn: () => marcarGanada(id),
+  return useMutar<PayloadGanada, Awaited<ReturnType<typeof marcarGanada>>>({
+    fn: (payload) => marcarGanada(id, payload),
     onSuccess: () => {
       invalidarConsulta(CLAVE_COTIZACIONES);
       invalidarConsulta(CLAVE_COTIZACIONES_RESUMEN);

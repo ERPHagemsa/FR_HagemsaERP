@@ -26,6 +26,7 @@ import {
   obtenerActivos,
   obtenerDocumentosPorCodigo,
   obtenerImagenesPorCodigo,
+  obtenerSnapshotDetalleInventario,
   obtenerTanquesPorCodigo,
   quitarCoberturaDocumentoCompartidoPorCodigo,
   siniestrarActivo,
@@ -51,6 +52,21 @@ export function useDocumentosActivoQuery(codigo: string) {
   return useConsulta(() => obtenerDocumentosPorCodigo(codigo), [codigo], {
     enabled: Boolean(codigo),
   });
+}
+
+// Snapshot de un detalle de inventario, bajo demanda: solo se descarga al
+// abrir la ficha "Revisar" (el listado y la bandeja ya no lo traen).
+export function useSnapshotDetalleInventarioQuery(
+  inventarioId: number,
+  detalleId: number | null
+) {
+  return useConsulta(
+    () => obtenerSnapshotDetalleInventario(inventarioId, detalleId ?? 0),
+    [inventarioId, detalleId],
+    {
+      enabled: Boolean(inventarioId) && Boolean(detalleId),
+    }
+  );
 }
 
 export function useTanquesActivoQuery(codigo: string) {

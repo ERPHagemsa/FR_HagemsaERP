@@ -100,6 +100,7 @@ const data = {
         { title: "Tarifarios", url: "/comercial/tarifarios" },
         { title: "Contratos", url: "/comercial/contratos" },
         { title: "Ubicaciones", url: "/comercial/ubicaciones" },
+        { title: "Calendario de ganadas", url: "/comercial/calendario" },
         { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
         { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
         { title: "Condiciones", url: "/comercial/catalogos/condiciones" },

@@ -8,6 +8,12 @@ import type { ErrorCampo, RespuestaError } from "./contrato"
 const TIMEOUT_DEFAULT_MS = 5000
 const MENSAJE_ERROR_DEFAULT = "No se pudo completar la operacion."
 
+// Presupuesto de rendimiento (solo desarrollo): avisa en consola cuando una
+// llamada excede estos umbrales. El backend tiene su propio monitoreo con
+// umbrales por env; estos son fijos porque solo aplican al entorno local.
+const UMBRAL_LATENCIA_MS = 1000
+const UMBRAL_TAMANO_KB = 500
+
 // Error normalizado para cualquier llamada HTTP del frontend. Guarda intacto
 // el payload del error tal como viene del backend, para que el UI
 // pueda mostrar `detalle`, `errores[]` por campo y `trazaId` para soporte.
@@ -75,6 +81,10 @@ export function crearClienteHttp(opciones: OpcionesCliente = {}): AxiosInstance 
     headers: { Accept: "application/json" },
   })
 
+  if (process.env.NODE_ENV !== "production") {
+    registrarMonitoreoRendimiento(instancia)
+  }
+
   const { obtenerAuthHeader } = opciones
   if (obtenerAuthHeader) {
     instancia.interceptors.request.use((config) => {
@@ -119,6 +129,50 @@ export function crearClienteHttp(opciones: OpcionesCliente = {}): AxiosInstance 
   )
 
   return instancia
+}
+
+type ConfigConInicio = AxiosRequestConfig & { _inicioMs?: number }
+
+// Mide duracion y tamano de cada respuesta y avisa en consola si exceden el
+// presupuesto. Solo se registra en desarrollo: en produccion no agrega nada.
+function registrarMonitoreoRendimiento(instancia: AxiosInstance): void {
+  instancia.interceptors.request.use((config) => {
+    ;(config as ConfigConInicio)._inicioMs = Date.now()
+    return config
+  })
+
+  instancia.interceptors.response.use((response) => {
+    const inicioMs = (response.config as ConfigConInicio)._inicioMs
+    const duracionMs = inicioMs ? Date.now() - inicioMs : 0
+
+    // content-length puede faltar (gzip/chunked); en ese caso se estima desde
+    // el JSON ya parseado, que ademas refleja el tamano real descomprimido.
+    const contentLength = Number(response.headers?.["content-length"] ?? 0)
+    const tamanoKb = Math.round(
+      (contentLength || estimarTamanoBytes(response.data)) / 1024,
+    )
+
+    if (duracionMs > UMBRAL_LATENCIA_MS || tamanoKb > UMBRAL_TAMANO_KB) {
+      const metodo = response.config.method?.toUpperCase() ?? "GET"
+      console.warn(
+        `[rendimiento] ${metodo} ${response.config.url} -> ` +
+          `${duracionMs} ms (umbral ${UMBRAL_LATENCIA_MS} ms) | ` +
+          `~${tamanoKb} KB (umbral ${UMBRAL_TAMANO_KB} KB)`,
+      )
+    }
+
+    return response
+  })
+}
+
+function estimarTamanoBytes(data: unknown): number {
+  if (data == null) return 0
+  if (typeof data === "string") return data.length
+  try {
+    return JSON.stringify(data).length
+  } catch {
+    return 0
+  }
 }
 
 function transformarError(error: unknown, fallback: string): ApiError {

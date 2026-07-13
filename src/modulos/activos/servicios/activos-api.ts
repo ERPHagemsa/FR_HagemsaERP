@@ -29,9 +29,11 @@ import type {
   EstadoRegistro,
   ImagenActivo,
   InventarioFisico,
+  InventarioFisicoResumen,
   PerfilCombustible,
   PerfilFlota,
   RegistrarRevisionInventarioFisicoPayload,
+  SnapshotDetalleInventario,
   SnapshotHistoricoActivoInventario,
   TanqueActivo,
 } from "../tipos/activo.tipos";
@@ -527,13 +529,15 @@ export async function eliminarTanquePorCodigo(
   await clienteActivos.delete(`/activos/codigo/${codigo}/tanques/${tanqueId}`);
 }
 
-export async function obtenerInventariosFisicos(): Promise<InventarioFisico[]> {
+export async function obtenerInventariosFisicos(): Promise<
+  InventarioFisicoResumen[]
+> {
   const { data } = await clienteActivos.get<unknown>(
     "/activos/inventarios-fisicos"
   );
 
   if (Array.isArray(data)) {
-    return data as InventarioFisico[];
+    return data as InventarioFisicoResumen[];
   }
 
   if (
@@ -541,10 +545,20 @@ export async function obtenerInventariosFisicos(): Promise<InventarioFisico[]> {
     typeof data === "object" &&
     Array.isArray((data as { inventarios?: unknown }).inventarios)
   ) {
-    return (data as { inventarios: InventarioFisico[] }).inventarios;
+    return (data as { inventarios: InventarioFisicoResumen[] }).inventarios;
   }
 
   throw new Error("La API de inventario fisico no devolvio una lista.");
+}
+
+export async function obtenerSnapshotDetalleInventario(
+  inventarioId: number,
+  detalleId: number
+): Promise<SnapshotDetalleInventario> {
+  const { data } = await clienteActivos.get<SnapshotDetalleInventario>(
+    `/activos/inventarios-fisicos/${inventarioId}/detalles/${detalleId}/snapshot`
+  );
+  return data;
 }
 
 export async function obtenerInventarioFisicoPorId(
