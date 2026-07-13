@@ -10,8 +10,10 @@ import {
   CalendarDays,
   CalendarX,
   ChevronRight,
-  Info,
+  CircleCheck,
+  CircleX,
   Stamp,
+  type LucideIcon,
 } from "lucide-react";
 
 import { useConsulta } from "@/compartido/api/use-consulta";
@@ -32,10 +34,7 @@ import {
   TooltipTrigger,
 } from "@/compartido/componentes/ui/tooltip";
 
-import {
-  CotizacionAcciones,
-  BotonImprimirPdf,
-} from "../componentes/cotizacion-acciones";
+import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
 import { HistorialAprobaciones } from "../../aprobaciones/componentes/historial-aprobaciones";
@@ -57,6 +56,10 @@ import type {
   EstadoCotizacion,
   Version,
 } from "../tipos/cotizaciones.tipos";
+import {
+  formatearFecha,
+  formatearOrigenTipo,
+} from "../utilidades/formato";
 
 type Props = {
   id: string;
@@ -167,15 +170,16 @@ function CotizacionDetalleContenido({
           </div>
 
           <div className="flex flex-wrap items-center gap-2 xl:justify-self-end">
-            <CotizacionAcciones cotizacion={cotizacion} />
-            {cotizacion.estado === "PENDIENTE_APROBACION" &&
-            solicitudVigente ? (
-              <AccionesResolverSolicitud idSolicitud={solicitudVigente.id} />
-            ) : null}
-            <DialogDetalles cotizacion={cotizacion} />
-            <BotonImprimirPdf
-              idCotizacion={cotizacion.id}
-              version={cotizacion.versionVigente}
+            <CotizacionAcciones
+              cotizacion={cotizacion}
+              accionesExtra={
+                cotizacion.estado === "PENDIENTE_APROBACION" &&
+                solicitudVigente ? (
+                  <AccionesResolverSolicitud
+                    idSolicitud={solicitudVigente.id}
+                  />
+                ) : null
+              }
             />
           </div>
         </div>
@@ -257,76 +261,6 @@ function rutasDeVersion(version: Version | null): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// Dialog: detalles (origen + trazabilidad) en label:valor inline
-// ---------------------------------------------------------------------------
-
-function DialogDetalles({ cotizacion }: { cotizacion: Cotizacion }) {
-  return (
-    <Dialog>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              aria-label="Ver detalles"
-            >
-              <Info />
-            </Button>
-          </DialogTrigger>
-        </TooltipTrigger>
-        <TooltipContent>Ver detalles</TooltipContent>
-      </Tooltip>
-      <DialogContent className="sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>Detalles de la cotizacion</DialogTitle>
-        </DialogHeader>
-
-        <div className="grid gap-x-10 gap-y-6 md:grid-cols-2">
-          <Grupo titulo="Origen">
-            <Campo
-              label="Tipo de origen"
-              value={formatearOrigenTipo(cotizacion.origenTipo)}
-            />
-            <Campo label="Razon social" value={cotizacion.origenNombre} />
-            <CampoSC cotizacion={cotizacion} />
-          </Grupo>
-
-          <Grupo titulo="Trazabilidad">
-            <Campo
-              label="Ejecutivo responsable"
-              value={cotizacion.ejecutivoResponsable.nombre}
-            />
-            <Campo
-              label="Fecha de creacion"
-              value={formatearFechaHora(cotizacion.fechaCreacion)}
-            />
-            <Campo
-              label="Ultima modificacion"
-              value={
-                cotizacion.fechaModificacion
-                  ? formatearFechaHora(cotizacion.fechaModificacion)
-                  : "—"
-              }
-            />
-          </Grupo>
-
-          {cotizacion.estado === "PERDIDA" && cotizacion.motivoPerdida ? (
-            <div className="md:col-span-2">
-              <Campo
-                label="Motivo de perdida"
-                value={cotizacion.motivoPerdida}
-              />
-            </div>
-          ) : null}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Smart button "Aprobaciones": contador clickeable que abre el historial
 // ---------------------------------------------------------------------------
 
@@ -383,10 +317,11 @@ function DialogHistorialAprobaciones({
 const ACCIONES_RESOLVER: {
   accion: AccionResolver;
   etiqueta: string;
+  icono: LucideIcon;
   destructiva?: boolean;
 }[] = [
-  { accion: "aprobar", etiqueta: "Aprobar" },
-  { accion: "rechazar", etiqueta: "Rechazar", destructiva: true },
+  { accion: "aprobar", etiqueta: "Aprobar", icono: CircleCheck },
+  { accion: "rechazar", etiqueta: "Rechazar", icono: CircleX, destructiva: true },
 ];
 
 function AccionesResolverSolicitud({ idSolicitud }: { idSolicitud: string }) {
@@ -398,13 +333,14 @@ function AccionesResolverSolicitud({ idSolicitud }: { idSolicitud: string }) {
 
   return (
     <div className="flex flex-wrap gap-2">
-      {ACCIONES_RESOLVER.map(({ accion, etiqueta, destructiva }) => (
+      {ACCIONES_RESOLVER.map(({ accion, etiqueta, icono: Icono, destructiva }) => (
         <Button
           key={accion}
           type="button"
           variant={destructiva ? "destructive" : "outline"}
           onClick={() => setAccionAbierta(accion)}
         >
+          <Icono data-icon="inline-start" />
           {etiqueta}
         </Button>
       ))}
@@ -522,91 +458,3 @@ function SmartButton({
   );
 }
 
-function Grupo({
-  titulo,
-  children,
-}: {
-  titulo: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm font-semibold">{titulo}</p>
-      <div className="flex flex-col">{children}</div>
-    </div>
-  );
-}
-
-function Campo({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string | null | undefined;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-border/40 py-1.5 last:border-0">
-      <span className="shrink-0 text-xs uppercase text-muted-foreground">
-        {label}
-      </span>
-      <span
-        className={mono ? "truncate font-mono text-sm" : "text-sm font-medium"}
-      >
-        {value ?? "—"}
-      </span>
-    </div>
-  );
-}
-
-function CampoSC({ cotizacion }: { cotizacion: Cotizacion }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-border/40 py-1.5 last:border-0">
-      <span className="shrink-0 text-xs uppercase text-muted-foreground">
-        Solicitud de cliente
-      </span>
-      {cotizacion.solicitudClienteId ? (
-        <Button asChild variant="link" size="sm" className="h-auto p-0">
-          <Link
-            href={`/comercial/solicitudes-cliente/${cotizacion.solicitudClienteId}`}
-          >
-            Ver SC de origen
-          </Link>
-        </Button>
-      ) : (
-        <span className="text-sm text-muted-foreground">—</span>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Formato
-// ---------------------------------------------------------------------------
-
-function formatearOrigenTipo(tipo: string) {
-  return tipo === "PROSPECTO"
-    ? "Prospecto"
-    : tipo === "CLIENTE"
-      ? "Cliente"
-      : tipo;
-}
-
-function formatearFecha(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function formatearFechaHora(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
