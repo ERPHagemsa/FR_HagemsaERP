@@ -362,7 +362,10 @@ export type InventarioFisicoDetalle = {
   placa: string | null;
   ubicacionEsperada: string | null;
   ubicacionEncontrada: string | null;
-  snapshotActivo: Record<string, unknown> | null;
+  // El backend YA NO envia este campo (pesaba hasta 1 MB por activo); se pide
+  // bajo demanda con obtenerSnapshotDetalleInventario. Solo la bandeja de
+  // candidatos lo fabrica localmente para pseudo-detalles con id null.
+  snapshotActivo?: Record<string, unknown> | null;
   snapshotFecha: string | null;
   observacion: string | null;
   usuarioRevision: string | null;
@@ -452,6 +455,27 @@ export type InventarioFisico = {
   fechaModificacion: string;
   detalles: InventarioFisicoDetalle[];
   historial: InventarioFisicoHistorial[];
+};
+
+// Fila del listado de inventarios: cabecera + conteos, sin detalles.
+export type InventarioFisicoResumen = Omit<
+  InventarioFisico,
+  "detalles" | "historial"
+> & {
+  totalDetalles: number;
+  inventariados: number;
+  pendientes: number;
+  faltantes: number;
+};
+
+// Snapshot de un detalle puntual, pedido al abrir la ficha "Revisar".
+export type SnapshotDetalleInventario = {
+  detalleId: number;
+  inventarioId: number;
+  activoId: number;
+  codigoActivo: string;
+  snapshotActivo: Record<string, unknown> | null;
+  snapshotFecha: string | null;
 };
 
 export type CrearInventarioFisicoPayload = {

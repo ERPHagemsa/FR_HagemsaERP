@@ -27,11 +27,33 @@ import {
 } from "@/compartido/componentes/ui/table";
 
 import { aperturarInventarioFisico } from "../servicios/activos-api";
-import type { InventarioFisico } from "../tipos/activo.tipos";
+import type {
+  InventarioFisico,
+  InventarioFisicoResumen,
+} from "../tipos/activo.tipos";
 
 type Props = {
-  inventariosIniciales: InventarioFisico[];
+  inventariosIniciales: InventarioFisicoResumen[];
 };
+
+// La apertura devuelve el inventario completo; el listado trabaja con el
+// resumen liviano, asi que se derivan los conteos localmente.
+function aResumen(inventario: InventarioFisico): InventarioFisicoResumen {
+  const { detalles, historial: _historial, ...cabecera } = inventario;
+  const pendientes = detalles.filter(
+    (detalle) => detalle.estadoRevision === "PENDIENTE"
+  ).length;
+
+  return {
+    ...cabecera,
+    totalDetalles: detalles.length,
+    inventariados: detalles.length - pendientes,
+    pendientes,
+    faltantes: detalles.filter(
+      (detalle) => detalle.estadoRevision === "FALTANTE"
+    ).length,
+  };
+}
 
 export function InventariosFisicosListado({ inventariosIniciales }: Props) {
   const router = useRouter();
@@ -87,7 +109,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
         observacion: formulario.observacion.trim() || undefined,
         usuarioApertura: "activos.web",
       });
-      setInventarios((actual) => [inventario, ...actual]);
+      setInventarios((actual) => [aResumen(inventario), ...actual]);
       router.push(`/activos/inventario-fisico/${inventario.id}`);
     } catch (err) {
       mostrarError(
@@ -129,11 +151,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
         <ResumenCard
           titulo="Activos revisados"
           valor={inventarios.reduce(
-            (total, item) =>
-              total +
-              item.detalles.filter(
-                (detalle) => detalle.estadoRevision !== "PENDIENTE"
-              ).length,
+            (total, item) => total + item.inventariados,
             0
           )}
           detalle="Con estado fisico registrado"
@@ -187,15 +205,7 @@ export function InventariosFisicosListado({ inventariosIniciales }: Props) {
               </TableHeader>
               <TableBody>
                 {inventariosVisibles.map((inventario) => {
-                  const inventariados = inventario.detalles.filter(
-                    (detalle) => detalle.estadoRevision !== "PENDIENTE"
-                  ).length;
-                  const pendientes = inventario.detalles.filter(
-                    (detalle) => detalle.estadoRevision === "PENDIENTE"
-                  ).length;
-                  const faltantes = inventario.detalles.filter(
-                    (detalle) => detalle.estadoRevision === "FALTANTE"
-                  ).length;
+                  const { inventariados, pendientes, faltantes } = inventario;
 
                   return (
                     <TableRow key={inventario.id}>
@@ -450,7 +460,7 @@ function formatear(value?: string | null) {
     .join(" ");
 }
 
-function estadoInventarioClassName(estado: InventarioFisico["estado"]) {
+function estadoInventarioClassName(estado: InventarioFisicoResumen["estado"]) {
   switch (estado) {
     case "CREADO":
       return "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300";
