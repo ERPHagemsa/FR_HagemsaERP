@@ -1,30 +1,46 @@
-"use client";
+'use client';
 
-import * as React from "react";
+import * as React from 'react';
 
-import { Button } from "@/compartido/componentes/ui/button";
-import { Checkbox } from "@/compartido/componentes/ui/checkbox";
-import { Input } from "@/compartido/componentes/ui/input";
-import { Label } from "@/compartido/componentes/ui/label";
+import { Button } from '@/compartido/componentes/ui/button';
+import { Checkbox } from '@/compartido/componentes/ui/checkbox';
+import { Input } from '@/compartido/componentes/ui/input';
+import { Label } from '@/compartido/componentes/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/compartido/componentes/ui/select";
-import { LightbulbIcon } from "lucide-react";
+} from '@/compartido/componentes/ui/select';
+import { LightbulbIcon } from 'lucide-react';
 
-import type { Moneda, PrecioSugerido, TipoLinea } from "../tipos/cotizaciones.tipos";
-import type { CatalogoCargoAdicional } from "../tipos/cotizaciones.tipos";
-import type { DraftLinea, ModoServicio, RutaSeccion } from "../servicios/cotizaciones-editor.utils";
-import { montoCargo, precioVentaLinea, totalVentaLinea } from "../servicios/cotizaciones-editor.utils";
-import { usePrecioSugerido } from "../servicios/cotizaciones-queries";
-import { ListaCargos } from "./lista-cargos";
-import { EditorCargasFisicas } from "./editor-cargas-fisicas";
-import { ModalidadSelector } from "./modalidad-selector";
-import { TipoUnidadCombobox } from "./tipo-unidad-combobox";
-import { TIPOS_LINEA, etiquetaTipo, formatearMoneda } from "./lineas-grid.utils";
+import type {
+  Moneda,
+  PrecioSugerido,
+  TipoLinea,
+} from '../tipos/cotizaciones.tipos';
+import type { CatalogoCargoAdicional } from '../tipos/cotizaciones.tipos';
+import type {
+  DraftLinea,
+  ModoServicio,
+  RutaSeccion,
+} from '../servicios/cotizaciones-editor.utils';
+import {
+  montoCargo,
+  precioVentaLinea,
+  totalVentaLinea,
+} from '../servicios/cotizaciones-editor.utils';
+import { usePrecioSugerido } from '../servicios/cotizaciones-queries';
+import { ListaCargos } from './lista-cargos';
+import { EditorCargasFisicas } from './editor-cargas-fisicas';
+import { ModalidadSelector } from './modalidad-selector';
+import { TipoUnidadCombobox } from './tipo-unidad-combobox';
+import {
+  TIPOS_LINEA,
+  etiquetaTipo,
+  formatearMoneda,
+} from './lineas-grid.utils';
 
 type Props = {
   linea: DraftLinea;
@@ -65,14 +81,14 @@ export function LineaFormulario({
 
   const set = (patch: Partial<DraftLinea>) => onChange({ ...linea, ...patch });
 
-  const esTransporte = linea.tipoLinea === "TRANSPORTE";
+  const esTransporte = linea.tipoLinea === 'TRANSPORTE';
 
   // Modo TRANSPORTE: el tipo de servicio queda fijo (sin selector). Modo OTROS:
   // el selector solo ofrece los tipos no-transporte. En edicion (sin modo) van todos.
-  const tipoServicioFijo = modoServicio === "TRANSPORTE";
+  const tipoServicioFijo = modoServicio === 'TRANSPORTE';
   const tiposServicioDisponibles =
-    modoServicio === "OTROS"
-      ? TIPOS_LINEA.filter((t) => t.valor !== "TRANSPORTE")
+    modoServicio === 'OTROS'
+      ? TIPOS_LINEA.filter((t) => t.valor !== 'TRANSPORTE')
       : TIPOS_LINEA;
 
   // Precio sugerido (solo TRANSPORTE): tarifas ganadas por modalidad + ruta (por id) +
@@ -81,11 +97,11 @@ export function LineaFormulario({
   const pesoTotalTn = linea.carga.cargas.reduce((acc, it) => {
     const p = parseFloat(it.peso);
     if (isNaN(p) || p <= 0) return acc;
-    return acc + (it.unidadPeso === "KG" ? p / 1000 : p);
+    return acc + (it.unidadPeso === 'KG' ? p / 1000 : p);
   }, 0);
-  const origenUbicacionId = rutaSeccion?.origenUbicacionId ?? "";
-  const destinoUbicacionId = rutaSeccion?.destinoUbicacionId ?? "";
-  const rutaConId = origenUbicacionId !== "" && destinoUbicacionId !== "";
+  const origenUbicacionId = rutaSeccion?.origenUbicacionId ?? '';
+  const destinoUbicacionId = rutaSeccion?.destinoUbicacionId ?? '';
+  const rutaConId = origenUbicacionId !== '' && destinoUbicacionId !== '';
   const sugerenciaPrecio = usePrecioSugerido(
     {
       origenUbicacionId,
@@ -97,17 +113,18 @@ export function LineaFormulario({
       toleranciaPeso,
       idClienteExterno,
     },
-    esTransporte && !disabled
+    esTransporte && !disabled,
   );
 
   const aporteLinea =
-    totalVentaLinea(linea) + linea.cargosAdicionales.reduce((acc, c) => acc + montoCargo(c), 0);
+    totalVentaLinea(linea) +
+    linea.cargosAdicionales.reduce((acc, c) => acc + montoCargo(c), 0);
 
   const tieneDetalle =
     esTransporte ||
-    linea.tipoLinea === "ALQUILER_EQUIPO" ||
-    linea.tipoLinea === "ALMACENAJE" ||
-    linea.tipoLinea === "PERSONAL";
+    linea.tipoLinea === 'ALQUILER_EQUIPO' ||
+    linea.tipoLinea === 'ALMACENAJE' ||
+    linea.tipoLinea === 'PERSONAL';
 
   return (
     <div className="flex flex-col gap-5">
@@ -118,7 +135,7 @@ export function LineaFormulario({
             Ruta (de la seccion)
           </span>
           <span className="text-sm font-medium">
-            {(rutaSeccion.origen || "—") + " → " + (rutaSeccion.destino || "—")}
+            {(rutaSeccion.origen || '—') + ' → ' + (rutaSeccion.destino || '—')}
           </span>
         </div>
       ) : null}
@@ -126,13 +143,15 @@ export function LineaFormulario({
       {/* Resumen siempre visible: aporte + precio de venta por unidad */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
         <div className="flex items-baseline gap-2">
-          <span className="text-xs text-muted-foreground">Aporte de la linea</span>
+          <span className="text-xs text-muted-foreground">
+            Aporte de la linea
+          </span>
           <span className="font-mono text-base font-semibold tabular-nums">
             {formatearMoneda(aporteLinea, moneda)}
           </span>
         </div>
         <span className="text-xs text-muted-foreground">
-          P. Venta:{" "}
+          P. Venta:{' '}
           <span className="font-mono font-medium text-foreground tabular-nums">
             {formatearMoneda(precioVentaLinea(linea), moneda)}
           </span>
@@ -141,7 +160,9 @@ export function LineaFormulario({
 
       {/* Columnas: Servicio + Precio | Detalle de la carga | Cargos adicionales.
           Sin detalle son 2 columnas (Servicio+Precio | Cargos). */}
-      <div className={`grid gap-5 ${tieneDetalle ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+      <div
+        className={`grid gap-5 ${tieneDetalle ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}
+      >
         {/* --- Columna izquierda --- */}
         <div className="flex flex-col gap-5">
           {/* Servicio: que se cotiza */}
@@ -157,7 +178,9 @@ export function LineaFormulario({
                   <Select
                     value={linea.tipoLinea}
                     disabled={disabled}
-                    onValueChange={(v) => set({ tipoLinea: v as TipoLinea, idModalidad: "" })}
+                    onValueChange={(v) =>
+                      set({ tipoLinea: v as TipoLinea, idModalidad: '' })
+                    }
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue />
@@ -173,7 +196,11 @@ export function LineaFormulario({
                 )}
               </Campo>
 
-              <Campo label="Modalidad" obligatorio error={erroresCampo.idModalidad}>
+              <Campo
+                label="Modalidad"
+                obligatorio
+                error={erroresCampo.idModalidad}
+              >
                 <ModalidadSelector
                   name="__modalidad__"
                   value={linea.idModalidad}
@@ -182,8 +209,11 @@ export function LineaFormulario({
                   onValueChange={(id, modalidad) =>
                     set(
                       modalidad?.margenPct != null
-                        ? { idModalidad: id, margenPct: String(modalidad.margenPct) }
-                        : { idModalidad: id }
+                        ? {
+                            idModalidad: id,
+                            margenPct: String(modalidad.margenPct),
+                          }
+                        : { idModalidad: id },
                     )
                   }
                 />
@@ -215,7 +245,11 @@ export function LineaFormulario({
                   onChange={(e) => set({ cantidad: e.target.value })}
                 />
               </Campo>
-              <Campo label="Precio base" obligatorio error={erroresCampo.precioBase}>
+              <Campo
+                label="Precio base"
+                obligatorio
+                error={erroresCampo.precioBase}
+              >
                 <Input
                   type="number"
                   min={0}
@@ -226,7 +260,11 @@ export function LineaFormulario({
                   onChange={(e) => set({ precioBase: e.target.value })}
                 />
               </Campo>
-              <Campo label="Margen %" obligatorio error={erroresCampo.margenPct}>
+              <Campo
+                label="Margen %"
+                obligatorio
+                error={erroresCampo.margenPct}
+              >
                 <Input
                   type="number"
                   min={0}
@@ -241,18 +279,23 @@ export function LineaFormulario({
             </div>
 
             <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
-              <span className="text-xs text-muted-foreground">Precio de venta (calculado)</span>
+              <span className="text-xs text-muted-foreground">
+                Precio de venta (calculado)
+              </span>
               <span className="font-mono text-sm font-semibold tabular-nums">
                 {formatearMoneda(precioVentaLinea(linea), moneda)}
-                <span className="ml-1 text-xs font-normal text-muted-foreground">/ unidad</span>
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  / unidad
+                </span>
               </span>
             </div>
 
             {esTransporte && linea.idModalidad && linea.carga.idTipoUnidad ? (
               !rutaConId ? (
                 <p className="text-xs text-muted-foreground">
-                  Selecciona el origen y el destino desde el maestro de ubicaciones (en
-                  Datos de la sección) para ver el precio sugerido.
+                  Selecciona el origen y el destino desde el maestro de
+                  ubicaciones (en Datos de la sección) para ver el precio
+                  sugerido.
                 </p>
               ) : pesoTotalTn > 0 ? (
                 <div className="flex flex-col gap-2">
@@ -282,21 +325,25 @@ export function LineaFormulario({
                     disabled={disabled}
                     onUsar={(monto) => {
                       const margen = parseFloat(linea.margenPct) || 0;
-                      const base = margen >= 100 ? monto : monto * (1 - margen / 100);
+                      const base =
+                        margen >= 100 ? monto : monto * (1 - margen / 100);
                       set({ precioBase: String(Math.round(base * 100) / 100) });
                     }}
                   />
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Agrega el peso de la carga (columna Detalle) para ver el precio sugerido.
+                  Agrega el peso de la carga (columna Detalle) para ver el
+                  precio sugerido.
                 </p>
               )
             ) : null}
 
-            
             {esTransporte ? (
-              <Campo label="Stand by / dia" error={erroresCampo.standbyDia}>
+              <Campo
+                label="Precio de Stand by por dia"
+                error={erroresCampo.standbyDia}
+              >
                 <Input
                   type="number"
                   min={0}
@@ -315,7 +362,9 @@ export function LineaFormulario({
             {esTransporte ? (
               <Campo
                 label="Lead time (dias)"
-                error={erroresCampo.leadTimeDiasMin ?? erroresCampo.leadTimeDiasMax}
+                error={
+                  erroresCampo.leadTimeDiasMin ?? erroresCampo.leadTimeDiasMax
+                }
               >
                 <div className="flex items-center gap-2">
                   <Input
@@ -336,7 +385,7 @@ export function LineaFormulario({
                       onCheckedChange={(checked) =>
                         set({
                           leadTimeEsRango: Boolean(checked),
-                          leadTimeDiasMax: checked ? linea.leadTimeDiasMax : "",
+                          leadTimeDiasMax: checked ? linea.leadTimeDiasMax : '',
                         })
                       }
                     />
@@ -346,7 +395,7 @@ export function LineaFormulario({
                     type="number"
                     min={1}
                     step="1"
-                    placeholder={linea.leadTimeEsRango ? "max" : "—"}
+                    placeholder={linea.leadTimeEsRango ? 'max' : '—'}
                     className="w-24"
                     value={linea.leadTimeDiasMax}
                     disabled={disabled || !linea.leadTimeEsRango}
@@ -361,25 +410,25 @@ export function LineaFormulario({
 
         {/* --- Columna derecha: Detalle de la carga (varios datos) --- */}
         {tieneDetalle ? (
-          <Seccion titulo={esTransporte ? "Detalle de la carga" : "Detalle"}>
+          <Seccion titulo={esTransporte ? 'Detalle de la carga' : 'Detalle'}>
             {esTransporte ? (
               <>
                 <Campo
                   label="Tipo de unidad"
                   obligatorio
-                  error={erroresCampo["carga.idTipoUnidad"]}
+                  error={erroresCampo['carga.idTipoUnidad']}
                 >
                   <TipoUnidadCombobox
                     value={linea.carga.idTipoUnidad}
                     disabled={disabled}
-                    invalid={Boolean(erroresCampo["carga.idTipoUnidad"])}
+                    invalid={Boolean(erroresCampo['carga.idTipoUnidad'])}
                     onValueChange={(id, opcion) =>
                       set({
                         carga: {
                           ...linea.carga,
                           idTipoUnidad: id,
-                          fuenteTipoUnidad: opcion?.fuente ?? "",
-                          tipoUnidadNombre: opcion?.nombre ?? "",
+                          fuenteTipoUnidad: opcion?.fuente ?? '',
+                          tipoUnidadNombre: opcion?.nombre ?? '',
                         },
                       })
                     }
@@ -392,7 +441,11 @@ export function LineaFormulario({
                         value={linea.carga.origen}
                         disabled={disabled}
                         placeholder="Ej: Lima"
-                        onChange={(e) => set({ carga: { ...linea.carga, origen: e.target.value } })}
+                        onChange={(e) =>
+                          set({
+                            carga: { ...linea.carga, origen: e.target.value },
+                          })
+                        }
                       />
                     </Campo>
                     <Campo label="Destino">
@@ -400,49 +453,134 @@ export function LineaFormulario({
                         value={linea.carga.destino}
                         disabled={disabled}
                         placeholder="Ej: Mina"
-                        onChange={(e) => set({ carga: { ...linea.carga, destino: e.target.value } })}
+                        onChange={(e) =>
+                          set({
+                            carga: { ...linea.carga, destino: e.target.value },
+                          })
+                        }
                       />
                     </Campo>
                   </div>
                 ) : null}
                 <div>
                   <p className="mb-2 text-xs font-medium text-muted-foreground">
-                    Cargas{linea.carga.cargas.length ? ` (${linea.carga.cargas.length})` : ""}
+                    Cargas
+                    {linea.carga.cargas.length
+                      ? ` (${linea.carga.cargas.length})`
+                      : ''}
                   </p>
                   <EditorCargasFisicas
                     cargas={linea.carga.cargas}
                     erroresCampo={erroresCampo}
                     disabled={disabled}
-                    onChange={(cargas) => set({ carga: { ...linea.carga, cargas } })}
+                    onChange={(cargas) =>
+                      set({ carga: { ...linea.carga, cargas } })
+                    }
                   />
                 </div>
               </>
             ) : null}
 
-            {linea.tipoLinea === "ALQUILER_EQUIPO" ? (
+            {linea.tipoLinea === 'ALQUILER_EQUIPO' ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <CampoMini label="Tipo de equipo" value={linea.equipo.equipoTipo} disabled={disabled} onChange={(v) => set({ equipo: { ...linea.equipo, equipoTipo: v } })} />
-                <CampoMini label="Marca" value={linea.equipo.marca} disabled={disabled} onChange={(v) => set({ equipo: { ...linea.equipo, marca: v } })} />
-                <CampoMini label="Modelo" value={linea.equipo.modelo} disabled={disabled} onChange={(v) => set({ equipo: { ...linea.equipo, modelo: v } })} />
-                <CampoMini label="Capacidad" value={linea.equipo.capacidad} disabled={disabled} onChange={(v) => set({ equipo: { ...linea.equipo, capacidad: v } })} />
-                <CampoMini label="Horas minimas" tipo="number" value={linea.equipo.horasMinimas} disabled={disabled} onChange={(v) => set({ equipo: { ...linea.equipo, horasMinimas: v } })} />
-                <CampoMini label="Dias contrato min." tipo="number" value={linea.equipo.diasContratoMin} disabled={disabled} onChange={(v) => set({ equipo: { ...linea.equipo, diasContratoMin: v } })} />
+                <CampoMini
+                  label="Tipo de equipo"
+                  value={linea.equipo.equipoTipo}
+                  disabled={disabled}
+                  onChange={(v) =>
+                    set({ equipo: { ...linea.equipo, equipoTipo: v } })
+                  }
+                />
+                <CampoMini
+                  label="Marca"
+                  value={linea.equipo.marca}
+                  disabled={disabled}
+                  onChange={(v) =>
+                    set({ equipo: { ...linea.equipo, marca: v } })
+                  }
+                />
+                <CampoMini
+                  label="Modelo"
+                  value={linea.equipo.modelo}
+                  disabled={disabled}
+                  onChange={(v) =>
+                    set({ equipo: { ...linea.equipo, modelo: v } })
+                  }
+                />
+                <CampoMini
+                  label="Capacidad"
+                  value={linea.equipo.capacidad}
+                  disabled={disabled}
+                  onChange={(v) =>
+                    set({ equipo: { ...linea.equipo, capacidad: v } })
+                  }
+                />
+                <CampoMini
+                  label="Horas minimas"
+                  tipo="number"
+                  value={linea.equipo.horasMinimas}
+                  disabled={disabled}
+                  onChange={(v) =>
+                    set({ equipo: { ...linea.equipo, horasMinimas: v } })
+                  }
+                />
+                <CampoMini
+                  label="Dias contrato min."
+                  tipo="number"
+                  value={linea.equipo.diasContratoMin}
+                  disabled={disabled}
+                  onChange={(v) =>
+                    set({ equipo: { ...linea.equipo, diasContratoMin: v } })
+                  }
+                />
               </div>
             ) : null}
 
-            {linea.tipoLinea === "ALMACENAJE" ? (
+            {linea.tipoLinea === 'ALMACENAJE' ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <CampoMini label="Area (m2)" tipo="number" value={linea.almacenaje.areaM2} disabled={disabled} onChange={(v) => set({ almacenaje: { ...linea.almacenaje, areaM2: v } })} />
-                <CampoMini label="Periodo (dias)" tipo="number" value={linea.almacenaje.periodoDias} disabled={disabled} onChange={(v) => set({ almacenaje: { ...linea.almacenaje, periodoDias: v } })} />
+                <CampoMini
+                  label="Area (m2)"
+                  tipo="number"
+                  value={linea.almacenaje.areaM2}
+                  disabled={disabled}
+                  onChange={(v) =>
+                    set({ almacenaje: { ...linea.almacenaje, areaM2: v } })
+                  }
+                />
+                <CampoMini
+                  label="Periodo (dias)"
+                  tipo="number"
+                  value={linea.almacenaje.periodoDias}
+                  disabled={disabled}
+                  onChange={(v) =>
+                    set({ almacenaje: { ...linea.almacenaje, periodoDias: v } })
+                  }
+                />
                 <div className="sm:col-span-2">
-                  <CampoMini label="Descripcion" value={linea.almacenaje.descripcion} disabled={disabled} onChange={(v) => set({ almacenaje: { ...linea.almacenaje, descripcion: v } })} />
+                  <CampoMini
+                    label="Descripcion"
+                    value={linea.almacenaje.descripcion}
+                    disabled={disabled}
+                    onChange={(v) =>
+                      set({
+                        almacenaje: { ...linea.almacenaje, descripcion: v },
+                      })
+                    }
+                  />
                 </div>
               </div>
             ) : null}
 
-            {linea.tipoLinea === "PERSONAL" ? (
+            {linea.tipoLinea === 'PERSONAL' ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <CampoMini label="Rol" value={linea.personal.rol} disabled={disabled} onChange={(v) => set({ personal: { ...linea.personal, rol: v } })} />
+                <CampoMini
+                  label="Rol"
+                  value={linea.personal.rol}
+                  disabled={disabled}
+                  onChange={(v) =>
+                    set({ personal: { ...linea.personal, rol: v } })
+                  }
+                />
               </div>
             ) : null}
           </Seccion>
@@ -451,7 +589,9 @@ export function LineaFormulario({
         {/* --- Columna: Cargos adicionales de la linea (tarjetas, columna angosta) --- */}
         <Seccion
           titulo={`Cargos adicionales${
-            linea.cargosAdicionales.length ? ` (${linea.cargosAdicionales.length})` : ""
+            linea.cargosAdicionales.length
+              ? ` (${linea.cargosAdicionales.length})`
+              : ''
           }`}
         >
           <ListaCargos
@@ -486,7 +626,9 @@ function SugerenciaPrecio({
   const { data, isLoading, error } = estado;
 
   if (isLoading) {
-    return <p className="text-xs text-muted-foreground">Buscando precio sugerido…</p>;
+    return (
+      <p className="text-xs text-muted-foreground">Buscando precio sugerido…</p>
+    );
   }
   if (error || !data) return null;
   if (data.muestras === 0 || data.precioSugerido === null) {
@@ -499,7 +641,8 @@ function SugerenciaPrecio({
 
   const monto = data.precioSugerido;
   const hayRango = data.precioMinimo !== null && data.precioMaximo !== null;
-  const alcanceEtiqueta = data.alcance === "cliente" ? "de este cliente" : "de mercado";
+  const alcanceEtiqueta =
+    data.alcance === 'cliente' ? 'de este cliente' : 'de mercado';
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
@@ -511,7 +654,9 @@ function SugerenciaPrecio({
             <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
               {alcanceEtiqueta}
             </span>
-            <span className="text-muted-foreground/70">· {data.muestras} muestras</span>
+            <span className="text-muted-foreground/70">
+              · {data.muestras} muestras
+            </span>
           </span>
           <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
             {formatearMoneda(monto, moneda)}
@@ -552,9 +697,9 @@ function SugerenciaPrecio({
                 className="flex items-center justify-between gap-3 border-t border-border/60 pt-1"
               >
                 <span className="truncate text-muted-foreground">
-                  {c.tipoUnidadNombre || "Sin unidad"}
-                  {c.esDelCliente ? " · del cliente" : ""}
-                  {!c.dentroRangoPeso ? " · fuera de rango de peso" : ""}
+                  {c.tipoUnidadNombre || 'Sin unidad'}
+                  {c.esDelCliente ? ' · del cliente' : ''}
+                  {!c.dentroRangoPeso ? ' · fuera de rango de peso' : ''}
                 </span>
                 <span className="shrink-0 font-mono tabular-nums text-foreground">
                   {formatearMoneda(c.precio, moneda)}
@@ -601,7 +746,8 @@ function Campo({
   return (
     <div className="grid gap-1.5">
       <Label className="text-xs text-muted-foreground">
-        {label} {obligatorio ? <span className="text-destructive">*</span> : null}
+        {label}{' '}
+        {obligatorio ? <span className="text-destructive">*</span> : null}
       </Label>
       {children}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
@@ -612,13 +758,13 @@ function Campo({
 function CampoMini({
   label,
   value,
-  tipo = "text",
+  tipo = 'text',
   disabled,
   onChange,
 }: {
   label: string;
   value: string;
-  tipo?: "text" | "number";
+  tipo?: 'text' | 'number';
   disabled?: boolean;
   onChange: (v: string) => void;
 }) {
@@ -628,8 +774,8 @@ function CampoMini({
       <Input
         className="h-8 text-xs"
         type={tipo}
-        min={tipo === "number" ? 0 : undefined}
-        step={tipo === "number" ? "any" : undefined}
+        min={tipo === 'number' ? 0 : undefined}
+        step={tipo === 'number' ? 'any' : undefined}
         value={value}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}

@@ -27,3 +27,4 @@ export const CLAVE_TARIFARIO_CONSOLIDADO = "comercial/contratos/tarifario-consol
 export const CLAVE_CONDICIONES = "comercial/condiciones";
 export const CLAVE_UBICACIONES_TEMPORALES = "comercial/ubicaciones/temporales";
 export const CLAVE_UBICACIONES_MAESTRA = "comercial/ubicaciones/maestra";
+export const CLAVE_CALENDARIO_GANADAS = "comercial/cotizaciones/calendario-ganadas";

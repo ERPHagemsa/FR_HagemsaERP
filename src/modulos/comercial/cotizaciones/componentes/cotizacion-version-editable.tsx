@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { CheckIcon, LoaderIcon, TriangleAlertIcon } from "lucide-react";
 
 import { esErrorValidacion, extraerMensajeError, obtenerErroresPorCampo } from "@/compartido/api";
+import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
   Select,
@@ -103,6 +104,32 @@ export function CotizacionVersionEditable({ idCotizacion, version, clienteTipo, 
             <SelectItem value="USD">USD — Dolar</SelectItem>
           </SelectContent>
         </Select>
+
+        <span className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
+
+        <Label
+          htmlFor="validez-inline"
+          className="text-xs font-medium text-muted-foreground"
+        >
+          Validez (días)
+        </Label>
+        <Input
+          id="validez-inline"
+          type="number"
+          min={1}
+          className="w-24"
+          value={draft.validezDias}
+          disabled={estado === "guardando"}
+          onChange={(e) => {
+            const n = parseInt(e.target.value, 10);
+            setDraft((d) => ({
+              ...d,
+              validezDias: Number.isNaN(n) || n < 1 ? d.validezDias : n,
+            }));
+          }}
+          onBlur={() => void persistir(draft)}
+        />
+
         <div className="ml-auto">
           <IndicadorGuardado estado={estado} />
         </div>

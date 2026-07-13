@@ -83,3 +83,26 @@ export const schemaPerdida = z.object({
 });
 
 export type DatosPerdida = z.infer<typeof schemaPerdida>;
+
+// PATCH /cotizaciones/:id/ganada — fecha de inicio de servicio requerida,
+// fin opcional; si hay fin, no puede ser anterior al inicio (comparacion lexica
+// de fechas ISO "YYYY-MM-DD", que respeta el orden cronologico).
+export const schemaGanada = z
+  .object({
+    fechaInicioServicio: z
+      .string()
+      .min(1, "La fecha de inicio de servicio es requerida"),
+    fechaFinServicio: z.string().optional(),
+  })
+  .refine(
+    (d) =>
+      !d.fechaFinServicio ||
+      d.fechaFinServicio.trim() === "" ||
+      d.fechaFinServicio >= d.fechaInicioServicio,
+    {
+      message: "La fecha de fin no puede ser anterior a la de inicio",
+      path: ["fechaFinServicio"],
+    },
+  );
+
+export type DatosGanada = z.infer<typeof schemaGanada>;
