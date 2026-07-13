@@ -7,6 +7,7 @@ import {
   isBefore,
   max,
   min,
+  parseISO,
   subMonths,
 } from "date-fns";
 import { useMemo, useState } from "react";
@@ -38,8 +39,15 @@ function agruparEventosPorDia(
   const mapa = new Map<string, EventoCalendario[]>();
 
   for (const evento of eventos) {
-    const inicio = max([new Date(evento.inicio), inicioGrilla]);
-    const fin = evento.fin ? min([new Date(evento.fin), finGrilla]) : inicio;
+    // Las fechas de servicio son fechas de calendario (sin hora): tomamos solo
+    // la parte `YYYY-MM-DD` y la parseamos como fecha LOCAL. Usar `new Date(iso)`
+    // la interpretaria como instante UTC y, en zonas negativas (ej. Peru UTC-5),
+    // la medianoche UTC cae el dia anterior — desfasando el evento una celda.
+    const inicioEvento = parseISO(evento.inicio.slice(0, 10));
+    const finEvento = evento.fin ? parseISO(evento.fin.slice(0, 10)) : inicioEvento;
+
+    const inicio = max([inicioEvento, inicioGrilla]);
+    const fin = min([finEvento, finGrilla]);
 
     if (isBefore(fin, inicio)) continue;
 
