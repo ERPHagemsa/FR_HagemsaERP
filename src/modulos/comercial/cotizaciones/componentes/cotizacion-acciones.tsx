@@ -35,6 +35,7 @@ import {
   schemaEnviar,
   schemaNuevaVersion,
   schemaPerdida,
+  schemaGanada,
 } from "../tipos/cotizaciones.schemas";
 import {
   useSolicitarAprobacionMutation,
@@ -420,7 +421,8 @@ function DialogNuevaVersion({ idCotizacion, onExito }: DialogNuevaVersionProps) 
 
 // ---------------------------------------------------------------------------
 // Dialog: Marcar ganada
-// Sin body — solo confirmacion
+// Formulario: fecha de inicio de servicio (requerida) + fin (opcional).
+// Estas fechas alimentan el calendario de Cotizaciones Ganadas.
 // ---------------------------------------------------------------------------
 
 type DialogGanadaProps = {
@@ -430,6 +432,9 @@ type DialogGanadaProps = {
 
 function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
   const [abierto, setAbierto] = React.useState(false);
+  const [fechaInicioServicio, setFechaInicioServicio] = React.useState("");
+  const [fechaFinServicio, setFechaFinServicio] = React.useState("");
+  const [errorFechas, setErrorFechas] = React.useState<string | null>(null);
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
 
@@ -437,18 +442,37 @@ function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
 
   function handleOpenChange(open: boolean) {
     if (!open) {
+      setFechaInicioServicio("");
+      setFechaFinServicio("");
+      setErrorFechas(null);
       setErrorForm(null);
       setIsPending(false);
     }
     setAbierto(open);
   }
 
-  async function onConfirmar(event: React.MouseEvent) {
+  async function onConfirmar(event: React.FormEvent) {
     event.preventDefault();
+    setErrorFechas(null);
     setErrorForm(null);
+
+    const resultado = schemaGanada.safeParse({
+      fechaInicioServicio,
+      fechaFinServicio: fechaFinServicio.trim() === "" ? undefined : fechaFinServicio,
+    });
+    if (!resultado.success) {
+      setErrorFechas(resultado.error.issues[0]?.message ?? "Fechas invalidas");
+      return;
+    }
+
     setIsPending(true);
     try {
-      await mutation.mutateAsync(undefined);
+      await mutation.mutateAsync({
+        fechaInicioServicio: resultado.data.fechaInicioServicio,
+        ...(resultado.data.fechaFinServicio
+          ? { fechaFinServicio: resultado.data.fechaFinServicio }
+          : {}),
+      });
       setAbierto(false);
       onExito();
     } catch (err) {
@@ -460,41 +484,85 @@ function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
   }
 
   return (
-    <AlertDialog open={abierto} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>
+    <Dialog open={abierto} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
         <Button type="button" variant="outline">
           <Trophy data-icon="inline-start" />
           Marcar ganada
         </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Marcar cotizacion como ganada</AlertDialogTitle>
-          <AlertDialogDescription>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Marcar cotizacion como ganada</DialogTitle>
+          <DialogDescription>
             La cotizacion pasara a estado GANADA. Si el origen es un prospecto, quedara
-            registrado como convertido. Esta accion no se puede deshacer.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
+            registrado como convertido. Indica la fecha de inicio del servicio (y la
+            de fin, si aplica). Esta accion no se puede deshacer.
+          </DialogDescription>
+        </DialogHeader>
 
-        {errorForm ? (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {errorForm}
-          </p>
-        ) : null}
+        <form onSubmit={onConfirmar} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="fecha-inicio-servicio">
+              Fecha de inicio de servicio <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="fecha-inicio-servicio"
+              type="date"
+              value={fechaInicioServicio}
+              onChange={(e) => {
+                setFechaInicioServicio(e.target.value);
+                if (errorFechas) setErrorFechas(null);
+              }}
+              disabled={isPending}
+              aria-invalid={Boolean(errorFechas)}
+            />
+          </div>
 
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isPending}>Cancelar</AlertDialogCancel>
-          <Button
-            type="button"
-            variant="default"
-            onClick={onConfirmar}
-            disabled={isPending}
-          >
-            {isPending ? "Procesando..." : "Confirmar"}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="fecha-fin-servicio">
+              Fecha de fin de servicio{" "}
+              <span className="text-muted-foreground">(opcional)</span>
+            </Label>
+            <Input
+              id="fecha-fin-servicio"
+              type="date"
+              min={fechaInicioServicio || undefined}
+              value={fechaFinServicio}
+              onChange={(e) => {
+                setFechaFinServicio(e.target.value);
+                if (errorFechas) setErrorFechas(null);
+              }}
+              disabled={isPending}
+              aria-invalid={Boolean(errorFechas)}
+            />
+            {errorFechas ? (
+              <p className="text-xs text-destructive">{errorFechas}</p>
+            ) : null}
+          </div>
+
+          {errorForm ? (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {errorForm}
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAbierto(false)}
+              disabled={isPending}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Procesando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

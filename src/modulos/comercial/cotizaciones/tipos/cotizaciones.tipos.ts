@@ -657,6 +657,13 @@ export type PayloadPerdida = {
   motivoPerdida: string;
 };
 
+// PATCH /cotizaciones/:id/ganada — fecha de inicio de servicio obligatoria,
+// fin opcional (ISO date "YYYY-MM-DD"). Alimenta el calendario de ganadas.
+export type PayloadGanada = {
+  fechaInicioServicio: string;
+  fechaFinServicio?: string;
+};
+
 // PUT /cotizaciones/numeracion (API §5.5.1) — fija desde que numero correlativo
 // continua la numeracion del año en curso. El backend resuelve el año; el cliente
 // solo envia proximoNumero (entero >= 1). Regla forward-only: no se puede fijar un
