@@ -17,6 +17,7 @@ import { Label } from "@/compartido/componentes/ui/label";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
 import { EntradaCorreos } from "@/compartido/componentes/entrada-correos";
 import { normalizarErrorAccion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-error-handler";
+import { useConsultarCotizacion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries";
 
 import { invalidarAprobaciones, useAprobarMutation, useRechazarMutation } from "../servicios/aprobaciones-queries";
 import { schemaAprobar, schemaRechazar } from "../tipos/aprobaciones.schemas";
@@ -32,6 +33,8 @@ export type AccionResolver = "aprobar" | "rechazar";
  */
 type Props = {
   idSolicitud: string;
+  /** Cotización de la solicitud; se usa para precargar el correo del cliente al aprobar. */
+  idCotizacion: string;
   accion: AccionResolver;
   abierto: boolean;
   onAbiertoChange: (abierto: boolean) => void;
@@ -73,6 +76,7 @@ const CONFIG: Record<AccionResolver, {
 
 export function DialogoResolverSolicitud({
   idSolicitud,
+  idCotizacion,
   accion,
   abierto,
   onAbiertoChange,
@@ -81,8 +85,18 @@ export function DialogoResolverSolicitud({
   const aprobar = useAprobarMutation(idSolicitud);
   const rechazar = useRechazarMutation(idSolicitud);
 
+  // Solo al aprobar se consulta el detalle para precargar el correo del cliente;
+  // con id vacío la query queda deshabilitada (enabled: Boolean(id)).
+  const { data: cotizacion } = useConsultarCotizacion(
+    accion === "aprobar" ? idCotizacion : "",
+  );
+  const correoClienteSugerido = cotizacion?.correoClienteSugerido ?? "";
+
   const [texto, setTexto] = React.useState("");
-  const [correoCliente, setCorreoCliente] = React.useState("");
+  // El correo mostrado es lo que editó el usuario o, si no tocó nada (null), el
+  // sugerido. Así se precarga sin pisar una edición manual y sin efectos.
+  const [correoEditado, setCorreoEditado] = React.useState<string | null>(null);
+  const correoCliente = correoEditado ?? correoClienteSugerido;
   const [correosComercial, setCorreosComercial] = React.useState<string[]>([]);
   const [errorCampo, setErrorCampo] = React.useState<string | null>(null);
   const [errorCorreoCliente, setErrorCorreoCliente] = React.useState<string | null>(null);
@@ -160,7 +174,7 @@ export function DialogoResolverSolicitud({
                   type="email"
                   value={correoCliente}
                   onChange={(event) => {
-                    setCorreoCliente(event.target.value);
+                    setCorreoEditado(event.target.value);
                     if (errorCorreoCliente) setErrorCorreoCliente(null);
                   }}
                   placeholder="contacto@cliente.com"
