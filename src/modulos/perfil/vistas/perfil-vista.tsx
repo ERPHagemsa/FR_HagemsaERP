@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { toast } from 'sonner';
 
 import { extraerMensajeError } from '@/compartido/api';
@@ -68,6 +68,7 @@ export function PerfilVista() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <SeccionCodigos
+            key={`${usuario?.codigoSocio ?? ''}-${usuario?.codigoCuenta ?? ''}`}
             codigoSocioInicial={usuario?.codigoSocio ?? ''}
             codigoCuentaInicial={usuario?.codigoCuenta ?? ''}
             cargando={estaCargando}
@@ -197,13 +198,9 @@ function SeccionCodigos({
   const muestraCuenta = codigoCuenta || 'XX';
   const muestraSocio = codigoSocio || 'XX';
 
-  // Sincroniza con la sesión cuando termina de cargar o cambia tras guardar.
-  useEffect(() => {
-    setCodigoSocio(codigoSocioInicial);
-    const { prefijo, sufijo } = separarCodigoCuenta(codigoCuentaInicial);
-    setCodigoCuentaPrefijo(prefijo);
-    setCodigoCuentaSufijo(sufijo);
-  }, [codigoSocioInicial, codigoCuentaInicial]);
+  // El reseteo tras cargar/guardar lo maneja el padre remontando este componente
+  // vía `key` (ver PerfilVista). Así el estado local se re-inicializa solo, sin
+  // copiar props al estado dentro de un efecto (evita renders en cascada).
 
   const mutacion = useMutar<
     { codigoSocio: string | null; codigoCuenta: string | null },
