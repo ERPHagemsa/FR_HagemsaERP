@@ -12,8 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/compartido/componentes/ui/dialog";
+import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
+import { EntradaCorreos } from "@/compartido/componentes/entrada-correos";
 import { normalizarErrorAccion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-error-handler";
 
 import { invalidarAprobaciones, useAprobarMutation, useRechazarMutation } from "../servicios/aprobaciones-queries";
@@ -80,22 +82,39 @@ export function DialogoResolverSolicitud({
   const rechazar = useRechazarMutation(idSolicitud);
 
   const [texto, setTexto] = React.useState("");
+  const [correoCliente, setCorreoCliente] = React.useState("");
+  const [correosComercial, setCorreosComercial] = React.useState<string[]>([]);
   const [errorCampo, setErrorCampo] = React.useState<string | null>(null);
+  const [errorCorreoCliente, setErrorCorreoCliente] = React.useState<string | null>(null);
+  const [errorCorreosComercial, setErrorCorreosComercial] = React.useState<string | null>(null);
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
 
   async function onConfirmar(event: React.FormEvent) {
     event.preventDefault();
     setErrorCampo(null);
+    setErrorCorreoCliente(null);
+    setErrorCorreosComercial(null);
     setErrorForm(null);
 
     setIsPending(true);
     try {
       const valor = texto.trim();
       if (accion === "aprobar") {
-        const resultado = schemaAprobar.safeParse({ comentario: valor || undefined });
+        const resultado = schemaAprobar.safeParse({
+          comentario: valor || undefined,
+          correoCliente: correoCliente.trim(),
+          correosComercial,
+        });
         if (!resultado.success) {
-          setErrorCampo(resultado.error.issues[0]?.message ?? "Valor inválido");
+          // Encamina cada error a su campo (correoCliente / correosComercial /
+          // comentario) para mostrarlo junto al control correspondiente.
+          for (const issue of resultado.error.issues) {
+            const campo = issue.path[0];
+            if (campo === "correoCliente") setErrorCorreoCliente(issue.message);
+            else if (campo === "correosComercial") setErrorCorreosComercial(issue.message);
+            else setErrorCampo(issue.message);
+          }
           return;
         }
         await aprobar.mutateAsync(resultado.data);
@@ -130,6 +149,54 @@ export function DialogoResolverSolicitud({
         </DialogHeader>
 
         <form onSubmit={onConfirmar} className="flex flex-col gap-4">
+          {accion === "aprobar" ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`correo-cliente-${idSolicitud}`}>
+                  Correo del cliente <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id={`correo-cliente-${idSolicitud}`}
+                  type="email"
+                  value={correoCliente}
+                  onChange={(event) => {
+                    setCorreoCliente(event.target.value);
+                    if (errorCorreoCliente) setErrorCorreoCliente(null);
+                  }}
+                  placeholder="contacto@cliente.com"
+                  disabled={isPending}
+                  aria-invalid={Boolean(errorCorreoCliente)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Recibe la cotización aprobada con el PDF adjunto.
+                </p>
+                {errorCorreoCliente ? (
+                  <p className="text-xs text-destructive">{errorCorreoCliente}</p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`correos-comercial-${idSolicitud}`}>
+                  Correos del área comercial <span className="text-destructive">*</span>
+                </Label>
+                <EntradaCorreos
+                  id={`correos-comercial-${idSolicitud}`}
+                  value={correosComercial}
+                  onChange={(nuevos) => {
+                    setCorreosComercial(nuevos);
+                    if (errorCorreosComercial) setErrorCorreosComercial(null);
+                  }}
+                  disabled={isPending}
+                  aria-invalid={Boolean(errorCorreosComercial)}
+                  placeholder="comercial@hagemsa.com"
+                />
+                {errorCorreosComercial ? (
+                  <p className="text-xs text-destructive">{errorCorreosComercial}</p>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+
           <div className="flex flex-col gap-2">
             <Label htmlFor={`resolver-${accion}-${idSolicitud}`}>
               {config.label}{" "}

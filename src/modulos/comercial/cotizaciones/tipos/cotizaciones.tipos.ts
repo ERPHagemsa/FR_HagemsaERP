@@ -648,6 +648,7 @@ export type PayloadRegistrarSC = PayloadRegistrarSCProspecto | PayloadRegistrarS
 
 export type PayloadEnviar = {
   validezDias?: number; // default 10 (DELTA 3)
+  correos: string[]; // aprobadores que reciben la cotizacion por correo (1..20)
 };
 
 export type PayloadNuevaVersion = {

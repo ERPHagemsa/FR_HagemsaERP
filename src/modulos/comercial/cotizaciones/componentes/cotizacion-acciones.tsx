@@ -37,10 +37,12 @@ import {
 import type { Cotizacion } from "../tipos/cotizaciones.tipos";
 import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
 import {
+  schemaEnviar,
   schemaNuevaVersion,
   schemaPerdida,
   schemaGanada,
 } from "../tipos/cotizaciones.schemas";
+import { EntradaCorreos } from "@/compartido/componentes/entrada-correos";
 import {
   useSolicitarAprobacionMutation,
   useNuevaVersionMutation,
@@ -185,11 +187,11 @@ export function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProp
 }
 
 // ---------------------------------------------------------------------------
-// Boton: Solicitar aprobacion (envio directo)
+// Dialog: Solicitar aprobacion (HU-03-036)
 // Los dias de validez ya se fijan en el borrador (junto a la moneda) y quedan
-// persistidos en la version; aqui el backend usa ese valor almacenado (fallback
-// a version.validezDias). Por eso el envio es directo: ya no hay formulario que
-// bloquee la accion.
+// persistidos en la version; el backend usa ese valor almacenado. Lo que se pide
+// aqui son los correos de los aprobadores, a quienes se les envia la cotizacion
+// (con el PDF adjunto) al solicitar la aprobacion.
 // ---------------------------------------------------------------------------
 
 type BotonSolicitarAprobacionProps = {
@@ -198,36 +200,111 @@ type BotonSolicitarAprobacionProps = {
 };
 
 function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprobacionProps) {
+  const [abierto, setAbierto] = React.useState(false);
+  const [correos, setCorreos] = React.useState<string[]>([]);
+  const [errorCorreos, setErrorCorreos] = React.useState<string | null>(null);
+  const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
   const mutation = useSolicitarAprobacionMutation(idCotizacion);
 
-  async function onSolicitar() {
+  function handleOpenChange(open: boolean) {
+    if (!open) {
+      setCorreos([]);
+      setErrorCorreos(null);
+      setErrorForm(null);
+      setIsPending(false);
+    }
+    setAbierto(open);
+  }
+
+  async function onConfirmar(event: React.FormEvent) {
+    event.preventDefault();
+    setErrorCorreos(null);
+    setErrorForm(null);
+
+    const resultado = schemaEnviar.safeParse({ correos });
+    if (!resultado.success) {
+      setErrorCorreos(resultado.error.issues[0]?.message ?? "Correos invalidos");
+      return;
+    }
+
     setIsPending(true);
     try {
       // Sin validezDias: el backend usa el valor guardado en la version.
-      await mutation.mutateAsync({});
+      await mutation.mutateAsync({ correos: resultado.data.correos });
+      setAbierto(false);
       onExito();
     } catch (err) {
       const { mensaje } = normalizarErrorAccion(
         err,
         "No se pudo solicitar la aprobación",
       );
-      toast.error(mensaje);
+      setErrorForm(mensaje);
     } finally {
       setIsPending(false);
     }
   }
 
   return (
-    <Button
-      type="button"
-      variant="default"
-      onClick={onSolicitar}
-      disabled={isPending}
-    >
-      <Send data-icon="inline-start" />
-      {isPending ? "Solicitando..." : "Solicitar aprobación"}
-    </Button>
+    <Dialog open={abierto} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button type="button" variant="default">
+          <Send data-icon="inline-start" />
+          Solicitar aprobación
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Solicitar aprobación</DialogTitle>
+          <DialogDescription>
+            La cotización se enviará a los aprobadores por correo, con el PDF adjunto.
+            Indica a quiénes se les envía.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={onConfirmar} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="correos-aprobadores">
+              Correos de aprobadores <span className="text-destructive">*</span>
+            </Label>
+            <EntradaCorreos
+              id="correos-aprobadores"
+              value={correos}
+              onChange={(nuevos) => {
+                setCorreos(nuevos);
+                if (errorCorreos) setErrorCorreos(null);
+              }}
+              disabled={isPending}
+              aria-invalid={Boolean(errorCorreos)}
+              placeholder="aprobador@hagemsa.com"
+            />
+            {errorCorreos ? (
+              <p className="text-xs text-destructive">{errorCorreos}</p>
+            ) : null}
+          </div>
+
+          {errorForm ? (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {errorForm}
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAbierto(false)}
+              disabled={isPending}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Solicitando..." : "Enviar a aprobación"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
