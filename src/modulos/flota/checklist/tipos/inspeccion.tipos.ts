@@ -20,8 +20,8 @@ export type TipoRespuesta =
 // ── Estructura resuelta de la inspección (snapshot de la versión) ─────────────
 
 export type InspeccionItem = {
-  id: string;
-  plantillaItemId: string | null;
+  id: number;
+  plantillaItemId: number | null;
   etiqueta: string;
   tipoRespuesta: TipoRespuesta;
   requerido: boolean;
@@ -40,14 +40,14 @@ export type InspeccionItem = {
 };
 
 export type InspeccionSeccion = {
-  id: string;
+  id: number;
   nombre: string;
   orden: number;
   items: InspeccionItem[];
 };
 
 export type InspeccionNeumatico = {
-  id: string;
+  id: number;
   grupo: string;
   posicion: string;
   orden: number;
@@ -60,10 +60,10 @@ export type InspeccionNeumatico = {
 // ── Resumen (fila de listado) ─────────────────────────────────────────────────
 
 export type InspeccionResumen = {
-  id: string;
+  id: number;
   codigo: number | null;
   estado: EstadoInspeccion;
-  plantillaVersionId: string;
+  plantillaVersionId: number;
   unidadId: string;
   vehiculoPlaca: string | null;
   unidadAcopleId: string | null;
@@ -89,7 +89,7 @@ export type VehiculoSnapshot = {
 };
 
 export type Inspeccion = InspeccionResumen & {
-  tipoChecklist: { id?: string; nombre?: string } | null;
+  tipoChecklist: { id?: number; nombre?: string } | null;
   vehiculo: VehiculoSnapshot | null;
   vehiculoAcople: VehiculoSnapshot | null;
   contrato: Record<string, unknown> | null;
@@ -98,8 +98,8 @@ export type Inspeccion = InspeccionResumen & {
   hubodometro: number | null;
   kilometraje: number | null;
   destino: string | null;
-  colorRotulacionId: string | null;
-  colorRotulacion: { id?: string; nombre?: string; valorHex?: string } | null;
+  colorRotulacionId: number | null;
+  colorRotulacion: { id?: number; nombre?: string; valorHex?: string } | null;
   operadores: unknown | null;
   inspectorId: string | null;
   inspector: unknown | null;
@@ -130,7 +130,7 @@ export type RespuestaPaginadaInspecciones = {
 };
 
 export type IniciarInspeccionPayload = {
-  tipoChecklistId: string;
+  tipoChecklistId: number;
   unidadId: string;
   // Unidad complementaria (remolcador <-> semirremolque). Obligatoria cuando
   // la unidad principal es de clase Remolcador o Semirremolque.
@@ -144,7 +144,7 @@ export type IniciarInspeccionPayload = {
   hubodometro?: number | null;
   kilometraje?: number | null;
   destino?: string | null;
-  colorRotulacionId?: string | null;
+  colorRotulacionId?: number | null;
   inspectorDocumento?: string | null;
   operadoresDocumentos?: string[] | null;
   observaciones?: string | null;
@@ -153,7 +153,7 @@ export type IniciarInspeccionPayload = {
 // ── Captura de respuestas (HU-04-010) ─────────────────────────────────────────
 
 export type RespuestaItemPayload = {
-  itemId: string;
+  itemId: number;
   estadoItem?: EstadoItem;
   cantidad?: number | null;
   valorNumerico?: number | null;
@@ -163,7 +163,7 @@ export type RespuestaItemPayload = {
 };
 
 export type LecturaNeumaticoPayload = {
-  neumaticoId: string;
+  neumaticoId: number;
   cocadaMm?: number | null;
   otro?: string | null;
   fecha?: string | null;

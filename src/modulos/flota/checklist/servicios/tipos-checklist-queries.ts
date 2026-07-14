@@ -44,7 +44,7 @@ export function useCrearTipoChecklistMutation(
 }
 
 export function useEditarTipoChecklistMutation(
-  id: string,
+  id: number,
   opciones: OpcionesMutacionTipoChecklist = {},
 ) {
   return useMutar<EditarTipoChecklistPayload, TipoChecklist>({
@@ -58,7 +58,7 @@ export function useEditarTipoChecklistMutation(
 }
 
 export function useAnularTipoChecklistMutation(
-  id: string,
+  id: number,
   opciones: OpcionesMutacionTipoChecklist = {},
 ) {
   return useMutar<void, TipoChecklist>({

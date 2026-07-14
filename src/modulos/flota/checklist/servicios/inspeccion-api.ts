@@ -21,9 +21,9 @@ export async function listarInspecciones(
   return data;
 }
 
-export async function obtenerInspeccion(id: string): Promise<Inspeccion> {
+export async function obtenerInspeccion(id: number): Promise<Inspeccion> {
   const { data } = await clienteFlota.get<{ datos: Inspeccion }>(
-    `/flota/inspecciones/${encodeURIComponent(id)}`,
+    `/flota/inspecciones/${id}`,
   );
   return data.datos;
 }
@@ -38,9 +38,9 @@ export async function iniciarInspeccion(
   return data.datos;
 }
 
-export async function anularInspeccion(id: string): Promise<Inspeccion> {
+export async function anularInspeccion(id: number): Promise<Inspeccion> {
   const { data } = await clienteFlota.patch<{ datos: Inspeccion; mensaje: string }>(
-    `/flota/inspecciones/${encodeURIComponent(id)}/anular`,
+    `/flota/inspecciones/${id}/anular`,
     {},
   );
   return data.datos;
@@ -49,11 +49,11 @@ export async function anularInspeccion(id: string): Promise<Inspeccion> {
 // Guardado EXPLÍCITO (deja evento de auditoría). Usar en acciones deliberadas
 // del usuario (p. ej. un botón "Guardar"), no en el autoguardado por debounce.
 export async function registrarRespuestas(
-  id: string,
+  id: number,
   payload: RegistrarRespuestasPayload,
 ): Promise<Inspeccion> {
   const { data } = await clienteFlota.patch<{ datos: Inspeccion; mensaje: string }>(
-    `/flota/inspecciones/${encodeURIComponent(id)}/respuestas`,
+    `/flota/inspecciones/${id}/respuestas`,
     payload,
   );
   return data.datos;
@@ -61,19 +61,19 @@ export async function registrarRespuestas(
 
 // Autoguardado idempotente por debounce: no deja evento de auditoría de rutina.
 export async function autoguardarRespuestas(
-  id: string,
+  id: number,
   payload: RegistrarRespuestasPayload,
 ): Promise<Inspeccion> {
   const { data } = await clienteFlota.patch<{ datos: Inspeccion; mensaje: string }>(
-    `/flota/inspecciones/${encodeURIComponent(id)}/respuestas/autoguardar`,
+    `/flota/inspecciones/${id}/respuestas/autoguardar`,
     payload,
   );
   return data.datos;
 }
 
-export async function cerrarInspeccion(id: string): Promise<Inspeccion> {
+export async function cerrarInspeccion(id: number): Promise<Inspeccion> {
   const { data } = await clienteFlota.patch<{ datos: Inspeccion; mensaje: string }>(
-    `/flota/inspecciones/${encodeURIComponent(id)}/cerrar`,
+    `/flota/inspecciones/${id}/cerrar`,
     {},
   );
   return data.datos;
@@ -82,9 +82,9 @@ export async function cerrarInspeccion(id: string): Promise<Inspeccion> {
 // Descarga el PDF (HU-04-013): el backend arma el HTML y lo convierte vía
 // Gotenberg. `responseType: "blob"` para no intentar parsear bytes de PDF
 // como JSON.
-export async function descargarPdfInspeccion(id: string): Promise<Blob> {
+export async function descargarPdfInspeccion(id: number): Promise<Blob> {
   const { data } = await clienteFlota.get<Blob>(
-    `/flota/inspecciones/${encodeURIComponent(id)}/pdf`,
+    `/flota/inspecciones/${id}/pdf`,
     { responseType: "blob" },
   );
   return data;

@@ -99,7 +99,7 @@ function SheetFormulario({
     onError: (err) => setErrorForm(extraerMensajeError(err)),
   });
 
-  const editar = useEditarTipoKitMutation(item?.id ?? "", {
+  const editar = useEditarTipoKitMutation(item?.id ?? 0, {
     onSuccess: () => { setErrorForm(null); onGuardado(); onCerrar(); },
     onError: (err) => setErrorForm(extraerMensajeError(err)),
   });
@@ -251,7 +251,7 @@ function DialogAnular({
 }) {
   const [errorAnular, setErrorAnular] = useState<string | null>(null);
 
-  const anular = useAnularTipoKitMutation(item?.id ?? "", {
+  const anular = useAnularTipoKitMutation(item?.id ?? 0, {
     onSuccess: () => { setErrorAnular(null); onAnulado(); onCerrar(); },
     onError: (err) => setErrorAnular(extraerMensajeError(err)),
   });

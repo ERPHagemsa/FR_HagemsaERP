@@ -97,7 +97,7 @@ function SheetFormulario({
     onError: (err) => setErrorForm(extraerMensajeError(err)),
   });
 
-  const editar = useEditarPlantillaMutation(item?.id ?? "", {
+  const editar = useEditarPlantillaMutation(item?.id ?? 0, {
     onSuccess: () => {
       setErrorForm(null);
       onGuardado();
@@ -210,7 +210,7 @@ function DialogAnular({
 }) {
   const [errorAnular, setErrorAnular] = useState<string | null>(null);
 
-  const anular = useAnularPlantillaMutation(item?.id ?? "", {
+  const anular = useAnularPlantillaMutation(item?.id ?? 0, {
     onSuccess: () => {
       setErrorAnular(null);
       onAnulado();

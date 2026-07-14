@@ -7,5 +7,5 @@ type Params = {
 export default async function Page({ params }: Params) {
   const { id, versionId } = (await params) as { id: string; versionId: string };
 
-  return <PlantillaVersionVista plantillaId={id} versionId={versionId} />;
+  return <PlantillaVersionVista plantillaId={Number(id)} versionId={Number(versionId)} />;
 }

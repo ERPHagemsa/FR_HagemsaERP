@@ -28,10 +28,10 @@ export function useInspeccionesQuery(filtros: FiltrosInspecciones = {}) {
   );
 }
 
-export function useInspeccionQuery(id: string | null) {
+export function useInspeccionQuery(id: number | null) {
   return useConsulta(
     () => (id ? obtenerInspeccion(id) : Promise.resolve(null)),
-    [id ?? ""],
+    [id ?? 0],
     { clave: id ? `${CLAVE_INSPECCIONES}:${id}` : CLAVE_INSPECCIONES, enabled: Boolean(id) },
   );
 }
@@ -55,7 +55,7 @@ export function useIniciarInspeccionMutation(
 }
 
 export function useAnularInspeccionMutation(
-  id: string,
+  id: number,
   opciones: OpcionesMutacionInspeccion = {},
 ) {
   return useMutar<void, Inspeccion>({
@@ -72,7 +72,7 @@ export function useAnularInspeccionMutation(
 // el usuario sigue escribiendo). El componente de captura fusiona la respuesta
 // del servidor en su propio estado local.
 export function useAutoguardarRespuestasMutation(
-  id: string,
+  id: number,
   opciones: OpcionesMutacionInspeccion = {},
 ) {
   return useMutar<RegistrarRespuestasPayload, Inspeccion>({
@@ -83,7 +83,7 @@ export function useAutoguardarRespuestasMutation(
 }
 
 export function useRegistrarRespuestasMutation(
-  id: string,
+  id: number,
   opciones: OpcionesMutacionInspeccion = {},
 ) {
   return useMutar<RegistrarRespuestasPayload, Inspeccion>({
@@ -94,7 +94,7 @@ export function useRegistrarRespuestasMutation(
 }
 
 export function useCerrarInspeccionMutation(
-  id: string,
+  id: number,
   opciones: OpcionesMutacionInspeccion = {},
 ) {
   return useMutar<void, Inspeccion>({

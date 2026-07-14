@@ -7,5 +7,5 @@ type Params = {
 export default async function Page({ params }: Params) {
   const { id } = (await params) as { id: string };
 
-  return <InspeccionDetalleVista inspeccionId={id} />;
+  return <InspeccionDetalleVista inspeccionId={Number(id)} />;
 }

@@ -104,7 +104,7 @@ function SheetFormulario({
     onError: (err) => setErrorForm(extraerMensajeError(err)),
   });
 
-  const editar = useEditarColorRotulacionMutation(item?.id ?? "", {
+  const editar = useEditarColorRotulacionMutation(item?.id ?? 0, {
     onSuccess: () => { setErrorForm(null); onGuardado(); onCerrar(); },
     onError: (err) => setErrorForm(extraerMensajeError(err)),
   });
@@ -248,7 +248,7 @@ function DialogAnular({
 }) {
   const [errorAnular, setErrorAnular] = useState<string | null>(null);
 
-  const anular = useAnularColorRotulacionMutation(item?.id ?? "", {
+  const anular = useAnularColorRotulacionMutation(item?.id ?? 0, {
     onSuccess: () => { setErrorAnular(null); onAnulado(); onCerrar(); },
     onError: (err) => setErrorAnular(extraerMensajeError(err)),
   });

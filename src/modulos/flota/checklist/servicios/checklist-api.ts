@@ -50,19 +50,19 @@ export async function crearTipoChecklist(
 }
 
 export async function editarTipoChecklist(
-  id: string,
+  id: number,
   payload: EditarTipoChecklistPayload,
 ): Promise<TipoChecklist> {
   const { data } = await clienteFlota.patch<{ datos: TipoChecklist; mensaje: string }>(
-    `/flota/tipos-checklist/${encodeURIComponent(id)}`,
+    `/flota/tipos-checklist/${id}`,
     payload,
   );
   return data.datos;
 }
 
-export async function anularTipoChecklist(id: string): Promise<TipoChecklist> {
+export async function anularTipoChecklist(id: number): Promise<TipoChecklist> {
   const { data } = await clienteFlota.patch<{ datos: TipoChecklist; mensaje: string }>(
-    `/flota/tipos-checklist/${encodeURIComponent(id)}/anular`,
+    `/flota/tipos-checklist/${id}/anular`,
     {},
   );
   return data.datos;
@@ -89,19 +89,19 @@ export async function crearTipoKit(payload: CrearTipoKitPayload): Promise<TipoKi
 }
 
 export async function editarTipoKit(
-  id: string,
+  id: number,
   payload: EditarTipoKitPayload,
 ): Promise<TipoKit> {
   const { data } = await clienteFlota.patch<{ datos: TipoKit; mensaje: string }>(
-    `/flota/tipos-kit/${encodeURIComponent(id)}`,
+    `/flota/tipos-kit/${id}`,
     payload,
   );
   return data.datos;
 }
 
-export async function anularTipoKit(id: string): Promise<TipoKit> {
+export async function anularTipoKit(id: number): Promise<TipoKit> {
   const { data } = await clienteFlota.patch<{ datos: TipoKit; mensaje: string }>(
-    `/flota/tipos-kit/${encodeURIComponent(id)}/anular`,
+    `/flota/tipos-kit/${id}/anular`,
     {},
   );
   return data.datos;
@@ -130,19 +130,19 @@ export async function crearColorRotulacion(
 }
 
 export async function editarColorRotulacion(
-  id: string,
+  id: number,
   payload: EditarColorRotulacionPayload,
 ): Promise<ColorRotulacion> {
   const { data } = await clienteFlota.patch<{ datos: ColorRotulacion; mensaje: string }>(
-    `/flota/colores-rotulacion/${encodeURIComponent(id)}`,
+    `/flota/colores-rotulacion/${id}`,
     payload,
   );
   return data.datos;
 }
 
-export async function anularColorRotulacion(id: string): Promise<ColorRotulacion> {
+export async function anularColorRotulacion(id: number): Promise<ColorRotulacion> {
   const { data } = await clienteFlota.patch<{ datos: ColorRotulacion; mensaje: string }>(
-    `/flota/colores-rotulacion/${encodeURIComponent(id)}/anular`,
+    `/flota/colores-rotulacion/${id}/anular`,
     {},
   );
   return data.datos;
@@ -180,75 +180,75 @@ export async function crearPlantilla(payload: CrearPlantillaPayload): Promise<Pl
 }
 
 export async function editarPlantilla(
-  id: string,
+  id: number,
   payload: EditarPlantillaPayload,
 ): Promise<Plantilla> {
   const { data } = await clienteFlota.patch<{ datos: Plantilla; mensaje: string }>(
-    `/flota/plantillas/${encodeURIComponent(id)}`,
+    `/flota/plantillas/${id}`,
     payload,
   );
   return data.datos;
 }
 
-export async function anularPlantilla(id: string): Promise<Plantilla> {
+export async function anularPlantilla(id: number): Promise<Plantilla> {
   const { data } = await clienteFlota.patch<{ datos: Plantilla; mensaje: string }>(
-    `/flota/plantillas/${encodeURIComponent(id)}/anular`,
+    `/flota/plantillas/${id}/anular`,
     {},
   );
   return data.datos;
 }
 
 export async function listarVersionesPlantilla(
-  plantillaId: string,
+  plantillaId: number,
   filtros: FiltrosVersionesPlantilla = {},
 ): Promise<RespuestaPaginada<PlantillaVersion>> {
   const { data } = await clienteFlota.get<RespuestaPaginada<PlantillaVersion>>(
-    `/flota/plantillas/${encodeURIComponent(plantillaId)}/versiones`,
+    `/flota/plantillas/${plantillaId}/versiones`,
     { params: filtros },
   );
   return data;
 }
 
 export async function crearVersionPlantilla(
-  plantillaId: string,
+  plantillaId: number,
   payload: CrearVersionPayload,
 ): Promise<PlantillaVersion> {
   const { data } = await clienteFlota.post<{ datos: PlantillaVersion; mensaje: string }>(
-    `/flota/plantillas/${encodeURIComponent(plantillaId)}/versiones`,
+    `/flota/plantillas/${plantillaId}/versiones`,
     payload,
   );
   return data.datos;
 }
 
-export async function obtenerVersionPlantilla(versionId: string): Promise<PlantillaVersion> {
+export async function obtenerVersionPlantilla(versionId: number): Promise<PlantillaVersion> {
   const { data } = await clienteFlota.get<{ datos: PlantillaVersion; mensaje: string }>(
-    `/flota/plantillas-versiones/${encodeURIComponent(versionId)}`,
+    `/flota/plantillas-versiones/${versionId}`,
   );
   return data.datos;
 }
 
 export async function redefinirEstructuraVersion(
-  versionId: string,
+  versionId: number,
   payload: RedefinirEstructuraPayload,
 ): Promise<PlantillaVersion> {
   const { data } = await clienteFlota.patch<{ datos: PlantillaVersion; mensaje: string }>(
-    `/flota/plantillas-versiones/${encodeURIComponent(versionId)}/estructura`,
+    `/flota/plantillas-versiones/${versionId}/estructura`,
     payload,
   );
   return data.datos;
 }
 
-export async function publicarVersionPlantilla(versionId: string): Promise<PlantillaVersion> {
+export async function publicarVersionPlantilla(versionId: number): Promise<PlantillaVersion> {
   const { data } = await clienteFlota.patch<{ datos: PlantillaVersion; mensaje: string }>(
-    `/flota/plantillas-versiones/${encodeURIComponent(versionId)}/publicar`,
+    `/flota/plantillas-versiones/${versionId}/publicar`,
     {},
   );
   return data.datos;
 }
 
-export async function anularVersionPlantilla(versionId: string): Promise<PlantillaVersion> {
+export async function anularVersionPlantilla(versionId: number): Promise<PlantillaVersion> {
   const { data } = await clienteFlota.patch<{ datos: PlantillaVersion; mensaje: string }>(
-    `/flota/plantillas-versiones/${encodeURIComponent(versionId)}/anular`,
+    `/flota/plantillas-versiones/${versionId}/anular`,
     {},
   );
   return data.datos;

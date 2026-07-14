@@ -44,7 +44,7 @@ export function useCrearColorRotulacionMutation(
 }
 
 export function useEditarColorRotulacionMutation(
-  id: string,
+  id: number,
   opciones: OpcionesMutacionColorRotulacion = {},
 ) {
   return useMutar<EditarColorRotulacionPayload, ColorRotulacion>({
@@ -58,7 +58,7 @@ export function useEditarColorRotulacionMutation(
 }
 
 export function useAnularColorRotulacionMutation(
-  id: string,
+  id: number,
   opciones: OpcionesMutacionColorRotulacion = {},
 ) {
   return useMutar<void, ColorRotulacion>({

@@ -34,6 +34,7 @@ import {
   TooltipTrigger,
 } from "@/compartido/componentes/ui/tooltip";
 
+import { DialogDetalles } from "./cotizacion-detalles-dialog";
 import type { Cotizacion } from "../tipos/cotizaciones.tipos";
 import { accionesPermitidas } from "../tipos/cotizaciones.tipos";
 import {
@@ -62,9 +63,13 @@ import {
 
 type Props = {
   cotizacion: Cotizacion;
+  // Acciones contextuales que la vista inyecta (p. ej. resolver una solicitud de
+  // aprobación). Se renderizan tras las acciones de ciclo de vida y ANTES de las
+  // utilidades de lectura (PDF/Detalles), que siempre cierran la fila.
+  accionesExtra?: React.ReactNode;
 };
 
-export function CotizacionAcciones({ cotizacion }: Props) {
+export function CotizacionAcciones({ cotizacion, accionesExtra }: Props) {
   const { id, estado, versionVigente, versiones } = cotizacion;
   const acciones = accionesPermitidas(estado);
 
@@ -124,6 +129,12 @@ export function CotizacionAcciones({ cotizacion }: Props) {
           onExito={() => alExito("Cotizacion cancelada")}
         />
       ) : null}
+
+      {accionesExtra}
+
+      {/* Utilidades de lectura al final: exportar e inspeccionar la cotización. */}
+      <BotonImprimirPdf idCotizacion={id} version={versionVigente} />
+      <DialogDetalles cotizacion={cotizacion} />
     </div>
   );
 }
@@ -164,7 +175,7 @@ type BotonImprimirPdfProps = {
   version: number | null;
 };
 
-export function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
+function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
   const { imprimir, generando } = useImprimirPdf(idCotizacion);
 
   return (

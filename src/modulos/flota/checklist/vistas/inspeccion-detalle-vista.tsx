@@ -3,7 +3,7 @@
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import { InspeccionCaptura } from "../componentes/inspeccion-captura";
 
-export function InspeccionDetalleVista({ inspeccionId }: { inspeccionId: string }) {
+export function InspeccionDetalleVista({ inspeccionId }: { inspeccionId: number }) {
   return (
     <>
       <SiteHeader
