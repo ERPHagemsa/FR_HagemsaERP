@@ -2,9 +2,13 @@
 // Pura UI: etiquetas, colores de badge, resumen de detalle, formateo de moneda
 // y mapeo de errores por path → linea/seccion. Sin React.
 
+import { formatearMoneda } from "@/compartido/utilidades/formato-moneda";
+
 import type { TipoLinea } from "../tipos/cotizaciones.tipos";
 import type { DraftLinea, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
 import { totalVentaLinea } from "../servicios/cotizaciones-editor.utils";
+
+export { formatearMoneda };
 
 export const TIPOS_LINEA: { valor: TipoLinea; etiqueta: string }[] = [
   { valor: "TRANSPORTE", etiqueta: "Transporte" },
@@ -67,16 +71,6 @@ export function resumenDetalle(linea: DraftLinea): string {
 // Total de venta de la linea (precioVenta × cantidad), espejo de precioVentaTotal del backend.
 export function totalLinea(linea: DraftLinea): number {
   return totalVentaLinea(linea);
-}
-
-const SIMBOLO: Record<string, string> = { PEN: "S/", USD: "US$" };
-
-export function formatearMoneda(monto: number, moneda: string): string {
-  const simbolo = SIMBOLO[moneda] ?? "";
-  return `${simbolo} ${monto.toLocaleString("es-PE", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
 }
 
 // ---------------------------------------------------------------------------
