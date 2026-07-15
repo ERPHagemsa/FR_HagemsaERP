@@ -1,13 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { IconPhotoPlus, IconTrash } from "@tabler/icons-react";
+import { IconPhotoPlus, IconTrash, IconX } from "@tabler/icons-react";
+import { Camera, ImageUp } from "lucide-react";
 import { toast } from "sonner";
 
 import { extraerMensajeError } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Input } from "@/compartido/componentes/ui/input";
-import { Label } from "@/compartido/componentes/ui/label";
 
 import {
   agregarImagenInspeccion,
@@ -20,6 +20,7 @@ type Props = {
   detalleId: number;
   imagenes: InspeccionImagen[];
   editable: boolean;
+  usuarioActual: string;
   onCambio: (inspeccionActualizada: Inspeccion) => void;
 };
 
@@ -36,9 +37,11 @@ export function InspeccionImagenes({
   detalleId,
   imagenes,
   editable,
+  usuarioActual,
   onCambio,
 }: Props) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const [guardando, setGuardando] = React.useState(false);
   const [eliminandoId, setEliminandoId] = React.useState<number | null>(null);
   const [selectedFileName, setSelectedFileName] = React.useState<string | null>(
@@ -47,20 +50,20 @@ export function InspeccionImagenes({
   const [localImageUrl, setLocalImageUrl] = React.useState<string | null>(null);
   const [descripcion, setDescripcion] = React.useState("");
 
+  function limpiarSeleccion() {
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    setSelectedFileName(null);
+    setLocalImageUrl(null);
+  }
+
   function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-
-    if (!file) {
-      setSelectedFileName(null);
-      setLocalImageUrl(null);
-      return;
-    }
+    if (!file) return;
 
     if (!file.type.startsWith("image/")) {
       toast.error("Selecciona una imagen valida.");
       event.target.value = "";
-      setSelectedFileName(null);
-      setLocalImageUrl(null);
       return;
     }
 
@@ -71,8 +74,7 @@ export function InspeccionImagenes({
     };
     reader.onerror = () => {
       toast.error("No se pudo leer la imagen seleccionada.");
-      setSelectedFileName(null);
-      setLocalImageUrl(null);
+      limpiarSeleccion();
     };
     reader.readAsDataURL(file);
   }
@@ -80,7 +82,7 @@ export function InspeccionImagenes({
   async function agregar(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!localImageUrl) {
-      toast.error("Selecciona una imagen desde tu equipo.");
+      toast.error("Toma o selecciona una foto primero.");
       return;
     }
 
@@ -90,11 +92,9 @@ export function InspeccionImagenes({
         url: localImageUrl,
         nombreArchivo: selectedFileName ?? undefined,
         descripcion: descripcion.trim() || undefined,
-        usuario: "activos.web",
+        usuario: usuarioActual,
       });
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setSelectedFileName(null);
-      setLocalImageUrl(null);
+      limpiarSeleccion();
       setDescripcion("");
       toast.success("Imagen agregada correctamente.");
       onCambio(actualizado);
@@ -129,78 +129,96 @@ export function InspeccionImagenes({
 
   return (
     <section className="mt-6 border-t border-border pt-5">
-      <h3 className="mb-4 flex items-center gap-2 text-base font-semibold">
+      <h3 className="mb-3 flex items-center gap-2 text-base font-semibold">
         <IconPhotoPlus className="size-5 text-primary" />
         Imagenes de la inspeccion
       </h3>
 
       {editable ? (
-        <form onSubmit={agregar} className="mb-5 grid gap-4">
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
-            <div className="grid gap-2">
-              <Label htmlFor="inspeccion-imagen-archivo">
-                Imagen desde equipo
-              </Label>
-              <input
-                ref={fileInputRef}
-                id="inspeccion-imagen-archivo"
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={onFileChange}
-              />
-              <div className="flex gap-2">
+        <form onSubmit={agregar} className="mb-4 grid gap-2">
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="sr-only"
+            onChange={onFileChange}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={onFileChange}
+          />
+
+          <div className="flex flex-wrap items-center gap-2">
+            {localImageUrl ? (
+              <div className="relative shrink-0">
+                <img
+                  src={localImageUrl}
+                  alt={selectedFileName ?? "Imagen seleccionada"}
+                  className="size-11 rounded-lg border border-border object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={limpiarSeleccion}
+                  aria-label="Quitar imagen seleccionada"
+                  className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground"
+                >
+                  <IconX className="size-3" />
+                </button>
+              </div>
+            ) : (
+              <>
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="size-4" />
+                  Tomar foto
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  Seleccionar imagen
+                  <ImageUp className="size-4" />
+                  Galeria
                 </Button>
-                <Input
-                  value={selectedFileName ?? "Ninguna imagen seleccionada"}
-                  readOnly
-                  aria-label="Imagen seleccionada"
-                />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="inspeccion-imagen-descripcion">
-                Descripcion
-              </Label>
-              <Input
-                id="inspeccion-imagen-descripcion"
-                value={descripcion}
-                onChange={(event) => setDescripcion(event.target.value)}
-                placeholder="Golpe en parachoques delantero"
-              />
-            </div>
-            <Button type="submit" disabled={guardando}>
-              {guardando ? "Guardando..." : "Agregar"}
-            </Button>
-          </div>
+              </>
+            )}
 
-          {localImageUrl ? (
-            <div className="grid gap-2 rounded-xl border border-border bg-muted/20 p-3 sm:max-w-sm">
-              <span className="text-sm font-medium">Vista previa</span>
-              <img
-                src={localImageUrl}
-                alt={selectedFileName ?? "Imagen seleccionada"}
-                className="aspect-[4/3] w-full rounded-lg border border-border object-cover"
-              />
-            </div>
-          ) : null}
+            <Input
+              value={descripcion}
+              onChange={(event) => setDescripcion(event.target.value)}
+              placeholder="Descripcion (opcional)"
+              className="h-9 min-w-0 flex-1"
+            />
+
+            {localImageUrl ? (
+              <Button type="submit" size="sm" disabled={guardando}>
+                {guardando ? "Guardando..." : "Agregar"}
+              </Button>
+            ) : null}
+          </div>
         </form>
       ) : null}
 
       {imagenes.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div
+          className="grid gap-3"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))" }}
+        >
           {imagenes.map((imagen) => (
             <figure
               key={imagen.id}
-              className="overflow-hidden rounded-xl border border-border bg-muted/20"
+              className="relative overflow-hidden rounded-lg border border-border bg-muted/20"
             >
-              <div className="aspect-[4/3] bg-background">
+              <div className="aspect-square bg-background">
                 {isRenderableImageUrl(imagen.url) ? (
                   <img
                     src={imagen.url}
@@ -208,35 +226,32 @@ export function InspeccionImagenes({
                     className="size-full object-cover"
                   />
                 ) : (
-                  <div className="flex size-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
-                    Imagen no disponible para previsualizar
+                  <div className="flex size-full items-center justify-center px-2 text-center text-xs text-muted-foreground">
+                    No disponible
                   </div>
                 )}
               </div>
-              <figcaption className="grid gap-2 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm text-muted-foreground">
-                    {imagen.descripcion || imagen.nombreArchivo || "Sin descripcion"}
-                  </p>
-                  {editable ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => eliminar(imagen)}
-                      disabled={eliminandoId === imagen.id}
-                    >
-                      <IconTrash className="size-4" />
-                      {eliminandoId === imagen.id ? "Eliminando..." : "Eliminar"}
-                    </Button>
-                  ) : null}
-                </div>
-              </figcaption>
+              {imagen.descripcion ? (
+                <figcaption className="truncate px-1.5 py-1 text-xs text-muted-foreground">
+                  {imagen.descripcion}
+                </figcaption>
+              ) : null}
+              {editable ? (
+                <button
+                  type="button"
+                  onClick={() => eliminar(imagen)}
+                  disabled={eliminandoId === imagen.id}
+                  aria-label="Eliminar imagen"
+                  className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
+                >
+                  <IconTrash className="size-3.5" />
+                </button>
+              ) : null}
             </figure>
           ))}
         </div>
       ) : (
-        <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
           Esta inspeccion aun no tiene imagenes registradas para este activo.
         </div>
       )}

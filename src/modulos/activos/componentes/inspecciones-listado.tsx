@@ -3,9 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, ClipboardCheck, Eye, Plus } from "lucide-react";
+import { CalendarDays, ClipboardCheck, Eye, Plus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -42,6 +43,7 @@ function aResumen(inspeccion: Inspeccion): InspeccionResumen {
 
 export function InspeccionesListado({ inspeccionesIniciales }: Props) {
   const router = useRouter();
+  const { usuario } = useSesion();
   const [inspecciones, setInspecciones] = React.useState(inspeccionesIniciales);
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
@@ -49,7 +51,6 @@ export function InspeccionesListado({ inspeccionesIniciales }: Props) {
   const [creando, setCreando] = React.useState(false);
   const [mostrarApertura, setMostrarApertura] = React.useState(false);
   const [formulario, setFormulario] = React.useState({
-    responsable: "",
     fechaInspeccion: toDateTimeInputValue(new Date()),
     descripcion: "",
     observacion: "",
@@ -79,8 +80,9 @@ export function InspeccionesListado({ inspeccionesIniciales }: Props) {
     event.preventDefault();
     setError(null);
 
-    if (!formulario.responsable.trim() || !formulario.fechaInspeccion) {
-      mostrarError("Completa responsable y fecha de inspeccion.");
+    const responsable = usuario?.nombre?.trim();
+    if (!responsable || !formulario.fechaInspeccion) {
+      mostrarError("No se pudo determinar el responsable (usuario en sesion) o falta la fecha.");
       return;
     }
 
@@ -88,11 +90,11 @@ export function InspeccionesListado({ inspeccionesIniciales }: Props) {
 
     try {
       const inspeccion = await aperturarInspeccion({
-        responsable: formulario.responsable.trim(),
+        responsable,
         fechaInspeccion: convertirDateTimeLocalAISO(formulario.fechaInspeccion),
         descripcion: formulario.descripcion.trim() || undefined,
         observacion: formulario.observacion.trim() || undefined,
-        usuarioApertura: "activos.web",
+        usuarioApertura: usuario?.nombreUsuario ?? "activos.web",
       });
       setInspecciones((actual) => [aResumen(inspeccion), ...actual]);
       router.push(`/activos/inspeccion/${inspeccion.id}`);
@@ -293,20 +295,17 @@ export function InspeccionesListado({ inspeccionesIniciales }: Props) {
               </div>
             ) : null}
             <div className="mt-5 grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="inspeccion-responsable">Responsable</Label>
-                <Input
-                  id="inspeccion-responsable"
-                  value={formulario.responsable}
-                  onChange={(event) =>
-                    setFormulario((actual) => ({
-                      ...actual,
-                      responsable: event.target.value,
-                    }))
-                  }
-                  placeholder="Edson Arias Taco"
-                  required
-                />
+              <div className="grid gap-1.5">
+                <Label>Responsable</Label>
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+                  <UserRound className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="text-sm font-medium">
+                    {usuario?.nombre ?? "Usuario en sesion"}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Es quien inicio sesion.
+                </p>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="inspeccion-fecha">Fecha y hora</Label>
@@ -364,7 +363,7 @@ export function InspeccionesListado({ inspeccionesIniciales }: Props) {
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={creando}>
+              <Button type="submit" disabled={creando || !usuario}>
                 {creando ? "Aperturando..." : "Guardar"}
               </Button>
             </div>

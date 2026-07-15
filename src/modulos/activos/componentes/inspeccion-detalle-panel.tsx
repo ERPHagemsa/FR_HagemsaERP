@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -87,6 +88,8 @@ export function InspeccionDetallePanel({
 }: {
   inspeccionInicial: Inspeccion;
 }) {
+  const { usuario } = useSesion();
+  const usuarioActual = usuario?.nombreUsuario ?? "activos.web";
   const [inspeccion, setInspeccion] = React.useState(inspeccionInicial);
   const [busqueda, setBusqueda] = React.useState("");
   const [pagina, setPagina] = React.useState(1);
@@ -144,7 +147,7 @@ export function InspeccionDetallePanel({
 
     try {
       const actualizado = await cerrarInspeccion(inspeccion.id, {
-        usuarioCierre: "activos.web",
+        usuarioCierre: usuarioActual,
         observacion: `Cierre desde Inspeccion. Activos registrados: ${inspeccion.detalles.length}. Con observaciones: ${conObservaciones}.`,
       });
       setInspeccion(actualizado);
@@ -274,6 +277,7 @@ export function InspeccionDetallePanel({
           inspeccionId={inspeccion.id}
           detalle={detalleSeleccionado}
           disabled={bloqueada}
+          usuarioActual={usuarioActual}
           onActualizado={(actualizado) => setInspeccion(actualizado)}
           onVolver={() => setDetalleSeleccionadoId(null)}
         />
@@ -412,6 +416,7 @@ export function InspeccionDetallePanel({
       <ModalRegistrarActivos
         abierto={modalRegistrarAbierto}
         inspeccionId={inspeccion.id}
+        usuarioActual={usuarioActual}
         onCerrar={() => setModalRegistrarAbierto(false)}
         onRegistrados={(actualizado) => {
           setInspeccion(actualizado);
@@ -425,11 +430,13 @@ export function InspeccionDetallePanel({
 function ModalRegistrarActivos({
   abierto,
   inspeccionId,
+  usuarioActual,
   onCerrar,
   onRegistrados,
 }: {
   abierto: boolean;
   inspeccionId: number;
+  usuarioActual: string;
   onCerrar: () => void;
   onRegistrados: (inspeccion: Inspeccion) => void;
 }) {
@@ -470,7 +477,7 @@ function ModalRegistrarActivos({
     try {
       const actualizado = await registrarActivosInspeccion(inspeccionId, {
         activoIds: Array.from(seleccionados),
-        usuario: "activos.web",
+        usuario: usuarioActual,
       });
       toast.success("Activos registrados", {
         description: `${seleccionados.size} activo(s) agregados a la inspeccion.`,
@@ -637,12 +644,14 @@ function FichaInspeccionActivo({
   inspeccionId,
   detalle,
   disabled,
+  usuarioActual,
   onActualizado,
   onVolver,
 }: {
   inspeccionId: number;
   detalle: InspeccionDetalle;
   disabled: boolean;
+  usuarioActual: string;
   onActualizado: (inspeccion: Inspeccion) => void;
   onVolver: () => void;
 }) {
@@ -671,7 +680,7 @@ function FichaInspeccionActivo({
       const actualizado = await actualizarObservacionesDetalle(
         inspeccionId,
         detalle.id,
-        { observaciones: textos, usuario: "activos.web" }
+        { observaciones: textos, usuario: usuarioActual }
       );
       toast.success("Observaciones guardadas");
       onActualizado(actualizado);
@@ -875,6 +884,7 @@ function FichaInspeccionActivo({
             detalleId={detalle.id}
             imagenes={detalle.imagenes}
             editable={!disabled}
+            usuarioActual={usuarioActual}
             onCambio={(actualizado) => onActualizado(actualizado)}
           />
         </CardContent>
