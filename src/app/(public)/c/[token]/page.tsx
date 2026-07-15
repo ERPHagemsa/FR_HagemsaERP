@@ -71,13 +71,14 @@ function requiereMotivo(decision: DecisionCliente | null): boolean {
   return decision === "RECHAZADA" || decision === "NEGOCIAR"
 }
 
-// Los motivos que corresponden a la decision elegida.
+// Los motivos que corresponden a la decision elegida. Tolera un `motivos`
+// ausente (backend viejo durante una ventana de despliegue) devolviendo [].
 function motivosDe(
   decision: DecisionCliente | null,
-  motivos: MotivosPorTipo,
+  motivos: MotivosPorTipo | undefined,
 ): MotivoDisponible[] {
-  if (decision === "RECHAZADA") return motivos.rechazo
-  if (decision === "NEGOCIAR") return motivos.negociacion
+  if (decision === "RECHAZADA") return motivos?.rechazo ?? []
+  if (decision === "NEGOCIAR") return motivos?.negociacion ?? []
   return []
 }
 
@@ -340,6 +341,14 @@ function Formulario({
               ? "¿Por qué no acepta la cotización?"
               : "¿Qué desea negociar?"}
           </p>
+          {motivosDisponibles.length === 0 ? (
+            // Sin motivos cargados no se puede completar esta respuesta: se avisa
+            // en vez de dejar el formulario en blanco con el boton deshabilitado.
+            <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-700 ring-1 ring-amber-200">
+              No hay motivos disponibles en este momento. Contacte a su ejecutivo
+              comercial para responder esta cotización.
+            </p>
+          ) : null}
           <div className="grid gap-2">
             {motivosDisponibles.map((m) => {
               const activo = idMotivo === m.id
