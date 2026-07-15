@@ -21,6 +21,7 @@ import type {
   CrearActivoPayload,
   CrearDocumentoActivoPayload,
   CrearImagenActivoPayload,
+  ArchivoDocumentoActivo,
   CrearInventarioFisicoPayload,
   MetadataOrigenCambio,
   CrearTanqueActivoPayload,
@@ -451,6 +452,27 @@ export async function obtenerDocumentosPorCodigo(
 ): Promise<DocumentoActivo[]> {
   const { data } = await clienteActivos.get<DocumentoActivo[]>(
     `/activos/codigo/${codigo}/documentos`
+  );
+  return data;
+}
+
+// El archivo (base64/URL) no viaja en la lista; se pide al abrir el sustento.
+export async function obtenerArchivoDocumentoPorCodigo(
+  codigo: string,
+  documentoId: number
+): Promise<ArchivoDocumentoActivo> {
+  const { data } = await clienteActivos.get<ArchivoDocumentoActivo>(
+    `/activos/codigo/${codigo}/documentos/${documentoId}/archivo`
+  );
+  return data;
+}
+
+export async function obtenerArchivoDocumentoCompartidoPorCodigo(
+  codigo: string,
+  documentoCompartidoId: number
+): Promise<ArchivoDocumentoActivo> {
+  const { data } = await clienteActivos.get<ArchivoDocumentoActivo>(
+    `/activos/codigo/${codigo}/documentos-compartidos/${documentoCompartidoId}/archivo`
   );
   return data;
 }

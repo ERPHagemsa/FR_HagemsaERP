@@ -18,7 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
-import { obtenerTiposDocumento } from "../servicios/activos-api";
+import {
+  obtenerArchivoDocumentoCompartidoPorCodigo,
+  obtenerArchivoDocumentoPorCodigo,
+  obtenerTiposDocumento,
+} from "../servicios/activos-api";
 import {
   useCrearDocumentoActivoMutation,
   useEliminarDocumentoActivoMutation,
@@ -73,6 +77,7 @@ export function DocumentosActivo({
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [abriendoId, setAbriendoId] = React.useState<number | null>(null);
   const [archivoNombre, setArchivoNombre] = React.useState("");
   const [archivoDataUrl, setArchivoDataUrl] = React.useState("");
   const [documentosOptimistas, setDocumentosOptimistas] =
@@ -264,6 +269,18 @@ export function DocumentosActivo({
     }
   }
 
+  async function abrirSustento(documento: DocumentoActivo) {
+    setAbriendoId(documento.id);
+
+    try {
+      await obtenerYAbrirArchivoDocumento(codigo, documento);
+    } catch (error) {
+      toast.error(extraerMensajeError(error, "No se pudo abrir el sustento."));
+    } finally {
+      setAbriendoId(null);
+    }
+  }
+
   return (
     <div className="grid gap-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -427,16 +444,16 @@ export function DocumentosActivo({
                     "-"}
                 </TableCell>
                 <TableCell>
-                  {esDocumentoAbrible(documento.archivoUrl) ? (
-                    <a
-                      className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
-                      href={documento.archivoUrl ?? undefined}
-                      rel="noreferrer"
-                      target="_blank"
+                  {documento.tieneArchivo ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline disabled:opacity-60"
+                      disabled={abriendoId === documento.id}
+                      onClick={() => abrirSustento(documento)}
                     >
                       <IconExternalLink className="size-4" />
-                      Ver
-                    </a>
+                      {abriendoId === documento.id ? "Abriendo..." : "Ver"}
+                    </button>
                   ) : (
                     "Registrado"
                   )}
@@ -478,6 +495,31 @@ export function DocumentosActivo({
   );
 }
 
+// El archivo ya no viaja en la lista de documentos (pesaba hasta 2 MB por
+// activo): se pide al backend recien cuando el usuario abre el sustento.
+// Lanza error si la descarga falla; el caller decide el toast.
+export async function obtenerYAbrirArchivoDocumento(
+  codigo: string,
+  documento: Pick<DocumentoActivo, "id" | "alcance">
+) {
+  const { archivoUrl } =
+    documento.alcance === "COMPARTIDO"
+      ? await obtenerArchivoDocumentoCompartidoPorCodigo(codigo, documento.id)
+      : await obtenerArchivoDocumentoPorCodigo(codigo, documento.id);
+
+  if (!archivoUrl) {
+    throw new Error("Este documento no tiene archivo adjunto.");
+  }
+
+  if (archivoUrl.startsWith("data:")) {
+    // base64 -> Blob para que el navegador lo abra como archivo real.
+    const blob = await (await fetch(archivoUrl)).blob();
+    window.open(URL.createObjectURL(blob), "_blank");
+  } else {
+    window.open(archivoUrl, "_blank", "noopener,noreferrer");
+  }
+}
+
 function fileToDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -485,15 +527,6 @@ function fileToDataUrl(file: File) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
-}
-
-function esDocumentoAbrible(value: string | null | undefined) {
-  return Boolean(
-    value &&
-      (value.startsWith("http://") ||
-        value.startsWith("https://") ||
-        value.startsWith("data:"))
-  );
 }
 
 function EstadoDocumentoBadge({ value }: { value: EstadoDocumentoActivo }) {

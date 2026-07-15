@@ -44,6 +44,7 @@ import {
   schemaGanada,
 } from "../tipos/cotizaciones.schemas";
 import { EntradaCorreos } from "@/compartido/componentes/entrada-correos";
+import { AvisoEnvioCorreo } from "@/compartido/componentes/aviso-envio-correo";
 import { useAprobadoresCuentasQuery } from "../../aprobaciones/servicios/aprobaciones-queries";
 import { sugerenciasAprobadores } from "../../aprobaciones/utilidades/sugerencias-aprobadores";
 import {
@@ -307,6 +308,8 @@ function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprob
             </p>
           ) : null}
 
+          <AvisoEnvioCorreo visible={isPending} />
+
           <DialogFooter>
             <Button
               type="button"
@@ -317,7 +320,7 @@ function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprob
               Cancelar
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Solicitando..." : "Enviar a aprobación"}
+              {isPending ? "Enviando correo..." : "Enviar a aprobación"}
             </Button>
           </DialogFooter>
         </form>

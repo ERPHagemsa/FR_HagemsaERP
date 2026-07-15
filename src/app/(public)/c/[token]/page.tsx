@@ -23,6 +23,8 @@ import {
 import type {
   CotizacionPublica,
   DecisionCliente,
+  MotivoDisponible,
+  MotivosPorTipo,
 } from "@/modulos/comercial/cotizaciones/tipos/respuesta-cliente.tipos"
 
 // Look claro comprometido (no depende del tema del sistema): es una pagina
@@ -63,10 +65,21 @@ const OPCIONES: Array<{
   },
 ]
 
-// El comentario es obligatorio al rechazar (es el motivo de perdida) y al
-// negociar (motivo de la nueva version). Misma regla que el dominio en BC-03.
-function requiereComentario(decision: DecisionCliente | null): boolean {
+// Al rechazar o negociar el cliente debe elegir un motivo del catalogo; al
+// aceptar no. Misma regla que el dominio en BC-03.
+function requiereMotivo(decision: DecisionCliente | null): boolean {
   return decision === "RECHAZADA" || decision === "NEGOCIAR"
+}
+
+// Los motivos que corresponden a la decision elegida. Tolera un `motivos`
+// ausente (backend viejo durante una ventana de despliegue) devolviendo [].
+function motivosDe(
+  decision: DecisionCliente | null,
+  motivos: MotivosPorTipo | undefined,
+): MotivoDisponible[] {
+  if (decision === "RECHAZADA") return motivos?.rechazo ?? []
+  if (decision === "NEGOCIAR") return motivos?.negociacion ?? []
+  return []
 }
 
 const TEXTO_RESPUESTA: Record<DecisionCliente, string> = {
@@ -224,23 +237,40 @@ function DocumentoPdf({ token }: { token: string }) {
 
 function Formulario({
   token,
+  motivos,
   alEnviar,
 }: {
   token: string
+  motivos: MotivosPorTipo
   alEnviar: (decision: DecisionCliente) => void
 }) {
   const [decision, setDecision] = useState<DecisionCliente | null>(null)
+  const [idMotivo, setIdMotivo] = useState<string | null>(null)
   const [nombre, setNombre] = useState("")
   const [comentario, setComentario] = useState("")
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const comentarioObligatorio = requiereComentario(decision)
+  const motivosDisponibles = motivosDe(decision, motivos)
+  const motivoElegido = motivosDisponibles.find((m) => m.id === idMotivo) ?? null
+  const necesitaMotivo = requiereMotivo(decision)
+  // El detalle es obligatorio solo si el motivo elegido lo pide (ej. "Otro").
+  const detalleObligatorio = motivoElegido?.requiereDetalle ?? false
+
   const puedeEnviar =
     decision !== null &&
     nombre.trim().length > 0 &&
-    (!comentarioObligatorio || comentario.trim().length > 0) &&
+    (!necesitaMotivo || motivoElegido !== null) &&
+    (!detalleObligatorio || comentario.trim().length > 0) &&
     !enviando
+
+  // Al cambiar de decision, el motivo elegido deja de tener sentido (cada decision
+  // tiene su propia lista): se limpia.
+  function cambiarDecision(nueva: DecisionCliente) {
+    setDecision(nueva)
+    setIdMotivo(null)
+    if (error) setError(null)
+  }
 
   async function enviar(evento: React.FormEvent) {
     evento.preventDefault()
@@ -251,6 +281,7 @@ function Formulario({
       await registrarRespuestaCliente(token, {
         decision,
         nombreRespondedor: nombre.trim(),
+        idMotivo: motivoElegido?.id,
         comentario: comentario.trim() || undefined,
       })
       alEnviar(decision)
@@ -289,7 +320,7 @@ function Formulario({
                 name="decision"
                 value={opcion.decision}
                 checked={activa}
-                onChange={() => setDecision(opcion.decision)}
+                onChange={() => cambiarDecision(opcion.decision)}
                 className="sr-only"
               />
               <Icono className={`mt-0.5 size-5 shrink-0 ${activa ? opcion.clase : "text-zinc-400"}`} />
@@ -301,6 +332,60 @@ function Formulario({
           )
         })}
       </div>
+
+      {/* Motivo del catalogo: solo al rechazar o negociar. */}
+      {necesitaMotivo ? (
+        <div className="grid gap-2">
+          <p className="text-xs font-semibold text-zinc-700">
+            {decision === "RECHAZADA"
+              ? "¿Por qué no acepta la cotización?"
+              : "¿Qué desea negociar?"}
+          </p>
+          {motivosDisponibles.length === 0 ? (
+            // Sin motivos cargados no se puede completar esta respuesta: se avisa
+            // en vez de dejar el formulario en blanco con el boton deshabilitado.
+            <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-700 ring-1 ring-amber-200">
+              No hay motivos disponibles en este momento. Contacte a su ejecutivo
+              comercial para responder esta cotización.
+            </p>
+          ) : null}
+          <div className="grid gap-2">
+            {motivosDisponibles.map((m) => {
+              const activo = idMotivo === m.id
+              return (
+                <label
+                  key={m.id}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-2.5 text-sm transition ${
+                    activo
+                      ? "border-zinc-800 bg-zinc-50 ring-1 ring-zinc-800"
+                      : "border-zinc-200 bg-white hover:border-zinc-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="motivo"
+                    value={m.id}
+                    checked={activo}
+                    onChange={() => {
+                      setIdMotivo(m.id)
+                      if (error) setError(null)
+                    }}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${
+                      activo ? "border-zinc-800" : "border-zinc-300"
+                    }`}
+                  >
+                    {activo ? <span className="size-2 rounded-full bg-zinc-800" /> : null}
+                  </span>
+                  <span className="text-zinc-800">{m.etiqueta}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid gap-1.5">
         <label htmlFor="nombre" className="text-xs font-semibold text-zinc-700">
@@ -318,9 +403,9 @@ function Formulario({
 
       <div className="grid gap-1.5">
         <label htmlFor="comentario" className="text-xs font-semibold text-zinc-700">
-          Comentario{" "}
+          {necesitaMotivo ? "Detalle" : "Comentario"}{" "}
           <span className="font-normal text-zinc-400">
-            {comentarioObligatorio ? "(obligatorio)" : "(opcional)"}
+            {detalleObligatorio ? "(obligatorio)" : "(opcional)"}
           </span>
         </label>
         <textarea
@@ -330,11 +415,13 @@ function Formulario({
           maxLength={1000}
           rows={4}
           placeholder={
-            decision === "RECHAZADA"
-              ? "Cuéntenos el motivo por el que no acepta la cotización."
-              : decision === "NEGOCIAR"
-                ? "Indíquenos qué puntos desea negociar."
-                : "Puede dejarnos un comentario."
+            detalleObligatorio
+              ? "Cuéntenos un poco más."
+              : decision === "RECHAZADA"
+                ? "Si desea, agregue algún detalle."
+                : decision === "NEGOCIAR"
+                  ? "Si desea, indíquenos qué puntos ajustar."
+                  : "Puede dejarnos un comentario."
           }
           className="resize-y rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
         />
@@ -451,7 +538,11 @@ export default function RespuestaCotizacionPage() {
     <Envoltorio>
       <Encabezado cotizacion={cotizacion} />
       <DocumentoPdf token={token} />
-      <Formulario token={token} alEnviar={setRespondidaAhora} />
+      <Formulario
+        token={token}
+        motivos={cotizacion.motivos}
+        alEnviar={setRespondidaAhora}
+      />
     </Envoltorio>
   )
 }

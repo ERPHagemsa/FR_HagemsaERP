@@ -949,9 +949,17 @@ export function ActivoFormulario({
                       "LATERAL",
                       "POSTERIOR",
                       "INTERIOR",
-                      "DOCUMENTO",
-                      "OTRO",
+                      "ADICIONAL_1",
+                      "ADICIONAL_2",
                     ]}
+                    labels={{
+                      FRONTAL: "Frontal",
+                      LATERAL: "Lateral",
+                      POSTERIOR: "Posterior",
+                      INTERIOR: "Interior",
+                      ADICIONAL_1: "Adicional 1",
+                      ADICIONAL_2: "Adicional 2",
+                    }}
                     required
                   />
                   <div className="grid gap-2">

@@ -74,6 +74,17 @@
   --chart-3: oklch(0.577 0.245 27.325);
   --chart-4: oklch(0.505 0.213 27.518);
   --chart-5: oklch(0.444 0.177 26.899);
+  /* Paleta dataviz del dashboard comercial (design D8, tarea 2.3/2.4). Cada
+     widget referencia estas vars vía ChartConfig (`color: "var(--dataviz-x)"`).
+     Contraste validado (WCAG, tarea 2.4) contra el fondo de Card en claro
+     (--card: oklch(1 0 0), blanco): teal 3.74:1, rose 4.70:1, amber 3.19:1 —
+     los 3 superan el umbral 3:1 de objetos gráficos no-textuales (WCAG 2.1
+     SC 1.4.11), el umbral aplicable a barras/donut/segmentos de gráfica.
+     `amber` queda por debajo de 4.5:1 (umbral de texto): no usar este color
+     para texto/etiquetas en claro, solo para relleno de gráfica. */
+  --dataviz-teal: #0d9488;
+  --dataviz-rose: #e11d48;
+  --dataviz-amber: #d97706;
   --radius: 0.45rem;
   /* Sin fondo propio: el sidebar comparte el fondo de la pagina. */
   --sidebar: var(--background);
@@ -167,6 +178,14 @@
   --chart-3: oklch(0.577 0.245 27.325);
   --chart-4: oklch(0.505 0.213 27.518);
   --chart-5: oklch(0.444 0.177 26.899);
+  /* Paleta dataviz aclarada para el fondo oscuro de Card (--card: oklch(0.205 0 0)):
+     contraste validado (tarea 2.4) teal 9.62:1, rose 6.66:1, amber 10.73:1 —
+     los 3 superan holgadamente tanto el umbral gráfico (3:1) como el de texto
+     (4.5:1), a diferencia de los hex del mockup en claro que solo alcanzan el
+     umbral gráfico. */
+  --dataviz-teal: #2dd4bf;
+  --dataviz-rose: #fb7185;
+  --dataviz-amber: #fbbf24;
   /* Sin fondo propio: el sidebar comparte el fondo de la pagina. */
   --sidebar: var(--background);
   --sidebar-foreground: oklch(0.985 0 0);

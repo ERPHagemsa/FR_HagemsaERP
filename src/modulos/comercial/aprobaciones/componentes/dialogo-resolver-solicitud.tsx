@@ -16,6 +16,7 @@ import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
 import { EntradaCorreos } from "@/compartido/componentes/entrada-correos";
+import { AvisoEnvioCorreo } from "@/compartido/componentes/aviso-envio-correo";
 import { normalizarErrorAccion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-error-handler";
 import { useConsultarCotizacion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries";
 
@@ -246,6 +247,10 @@ export function DialogoResolverSolicitud({
           {errorForm ? (
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorForm}</p>
           ) : null}
+
+          {/* Solo al aprobar: rechazar no genera PDF ni encola correo, así que
+              responde de inmediato y el aviso solo confundiría. */}
+          <AvisoEnvioCorreo visible={isPending && accion === "aprobar"} />
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onAbiertoChange(false)} disabled={isPending}>

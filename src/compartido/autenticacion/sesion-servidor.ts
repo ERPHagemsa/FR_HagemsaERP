@@ -61,6 +61,9 @@ export function mapearPayloadAUsuario(
     nombre: payload.name,
     tipo: payload.type,
     roles: payload.roles.map((rol: RolPayload) => rol.role),
+    // Tokens emitidos antes de definir permisos pueden traer roles sin
+    // permisos[]; se tolera con ?? [].
+    permisos: payload.roles.flatMap((rol: RolPayload) => rol.permisos ?? []),
     codigoSocio: payload.codigoSocio,
     codigoCuenta: payload.codigoCuenta,
     socioExternoId: payload.socioExternoId,
