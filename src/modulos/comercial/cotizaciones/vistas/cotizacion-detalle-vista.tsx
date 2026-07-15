@@ -177,6 +177,7 @@ function CotizacionDetalleContenido({
                 solicitudVigente ? (
                   <AccionesResolverSolicitud
                     idSolicitud={solicitudVigente.id}
+                    idCotizacion={cotizacion.id}
                   />
                 ) : null
               }
@@ -324,7 +325,13 @@ const ACCIONES_RESOLVER: {
   { accion: "rechazar", etiqueta: "Rechazar", icono: CircleX, destructiva: true },
 ];
 
-function AccionesResolverSolicitud({ idSolicitud }: { idSolicitud: string }) {
+function AccionesResolverSolicitud({
+  idSolicitud,
+  idCotizacion,
+}: {
+  idSolicitud: string;
+  idCotizacion: string;
+}) {
   // El dialogo es controlado y no trae trigger propio: la vista decide desde
   // donde se abre y lo monta solo cuando hay una accion elegida.
   const [accionAbierta, setAccionAbierta] = useState<AccionResolver | null>(
@@ -349,6 +356,7 @@ function AccionesResolverSolicitud({ idSolicitud }: { idSolicitud: string }) {
         <DialogoResolverSolicitud
           key={accionAbierta}
           idSolicitud={idSolicitud}
+          idCotizacion={idCotizacion}
           accion={accionAbierta}
           abierto
           onAbiertoChange={(abierto) => {
@@ -457,4 +465,3 @@ function SmartButton({
     </TarjetaShell>
   );
 }
-

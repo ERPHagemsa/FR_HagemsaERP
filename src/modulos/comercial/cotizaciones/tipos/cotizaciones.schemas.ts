@@ -55,13 +55,18 @@ export type DatosRegistrarSC = z.infer<typeof schemaRegistrarSC>;
 // Schemas de transiciones de estado (Slice 4)
 // ---------------------------------------------------------------------------
 
-// POST /cotizaciones/:id/enviar — validezDias es opcional (default 10 en backend)
+// POST /cotizaciones/:id/enviar — validezDias es opcional (default 10 en backend);
+// correos son los aprobadores que reciben la cotizacion por correo (1..20, HU-03-036).
 export const schemaEnviar = z.object({
   validezDias: z
     .number({ message: "Ingresa un numero de dias valido" })
     .int("Debe ser un numero entero")
     .min(1, "La validez debe ser al menos 1 dia")
     .optional(),
+  correos: z
+    .array(z.string().trim().email("Correo invalido"))
+    .min(1, "Agrega al menos un aprobador.")
+    .max(20, "Maximo 20 correos."),
 });
 
 export type DatosEnviar = z.infer<typeof schemaEnviar>;

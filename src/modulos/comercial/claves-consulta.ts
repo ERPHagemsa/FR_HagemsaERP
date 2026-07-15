@@ -14,6 +14,10 @@ export const CLAVE_COTIZACION_DETALLE = "comercial/cotizaciones/detalle";
 export const CLAVE_APROBACIONES = "comercial/aprobaciones";
 export const CLAVE_APROBACIONES_RESUMEN = "comercial/aprobaciones/resumen";
 export const CLAVE_APROBADORES = "comercial/aprobaciones/aprobadores";
+// Distinta de CLAVE_APROBADORES: aquella son los aprobadores que ya resolvieron
+// solicitudes (dato de BC-03, para filtros); esta son las cuentas habilitadas como
+// aprobadoras segun el servicio de autenticacion (para elegir destinatarios).
+export const CLAVE_APROBADORES_CUENTAS = "comercial/aprobaciones/aprobadores-cuentas";
 export const CLAVE_COTIZACION_APROBACIONES_HISTORIAL = "comercial/cotizaciones/aprobaciones-historial";
 export const CLAVE_MODALIDADES = "comercial/modalidades";
 export const CLAVE_TIPOS_UNIDAD = "comercial/tipos-unidad";

@@ -10,7 +10,9 @@ import {
 import { refrescarSiNecesario } from "@/compartido/autenticacion/refrescar-sesion"
 import { validarSesionRemota } from "@/compartido/autenticacion/validar-sesion"
 
-const rutasPublicas = ["/login", "/e"]
+// "/c": formulario publico de respuesta del cliente a una cotizacion; el enlace
+// llega por correo y el cliente no tiene sesion.
+const rutasPublicas = ["/login", "/e", "/c"]
 const prefijosPublicos = ["/api/auth"]
 
 function esRutaPublica(pathname: string): boolean {

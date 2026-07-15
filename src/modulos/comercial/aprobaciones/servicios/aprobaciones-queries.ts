@@ -7,11 +7,13 @@ import {
   CLAVE_APROBACIONES,
   CLAVE_APROBACIONES_RESUMEN,
   CLAVE_APROBADORES,
+  CLAVE_APROBADORES_CUENTAS,
   CLAVE_COTIZACION_APROBACIONES_HISTORIAL,
   CLAVE_COTIZACION_DETALLE,
   CLAVE_COTIZACIONES,
   CLAVE_COTIZACIONES_RESUMEN,
 } from "../../claves-consulta";
+import { obtenerAprobadoresCotizaciones } from "./aprobadores-cuentas-api";
 import type {
   FiltrosAprobaciones,
   PayloadAprobar,
@@ -91,6 +93,19 @@ export function useAprobarMutation(idSolicitud: string) {
       invalidarTrasResolver();
       toast.success("Solicitud aprobada correctamente.");
     },
+  });
+}
+
+/**
+ * Cuentas habilitadas como aprobadoras de cotizaciones (servicio de auth), para
+ * sugerir destinatarios en los diálogos de correo. Es un extra de comodidad: si
+ * falla (por ejemplo 403 por falta del permiso `auth:account:read-emails`), quien
+ * la use debe seguir permitiendo cargar los correos a mano.
+ */
+export function useAprobadoresCuentasQuery(habilitada = true) {
+  return useConsulta(() => obtenerAprobadoresCotizaciones(), [], {
+    clave: CLAVE_APROBADORES_CUENTAS,
+    enabled: habilitada,
   });
 }
 
