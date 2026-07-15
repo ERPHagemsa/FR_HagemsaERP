@@ -92,6 +92,7 @@ const data = {
     },
     {
       title: "Gestion Comercial",
+      url: "/comercial",
       icon: <Briefcase />,
       items: [
         { title: "Prospectos", url: "/comercial/prospectos" },
