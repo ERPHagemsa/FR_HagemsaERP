@@ -24,6 +24,7 @@ import {
 import { NavMain } from "@/compartido/componentes/nav-main"
 import { NavUser } from "@/compartido/componentes/nav-user"
 import { ThemeToggle } from "@/compartido/componentes/theme-toggle"
+import { usePermisos } from "@/modulos/autenticacion/ganchos/use-permisos"
 import { useTieneRol } from "@/modulos/autenticacion/ganchos/use-tiene-rol"
 import {
   Sidebar,
@@ -36,7 +37,22 @@ import {
   useSidebar,
 } from "@/compartido/componentes/ui/sidebar"
 
-const data = {
+type ModuloNav = {
+  title: string
+  url?: string
+  icon?: React.ReactNode
+  // Prefijo de los codigos de permiso del modulo (`<modulo>:<recurso>:<accion>`,
+  // ej. "bc02"). Si la cuenta tiene permisos de modulo en su JWT, solo ve los
+  // modulos cuyo prefijo coincide. Los modulos sin prefijo declarado quedan
+  // ocultos para cuentas restringidas hasta que definan sus permisos.
+  prefijoPermiso?: string
+  items: { title: string; url: string }[]
+}
+
+const data: {
+  user: { name: string; email: string; avatar: string }
+  navMain: ModuloNav[]
+} = {
   user: {
     name: "Hagemsa",
     email: "operaciones@hagemsa.local",
@@ -58,6 +74,7 @@ const data = {
     {
       title: "Activos",
       url: "/activos",
+      prefijoPermiso: "bc02",
       icon: <Boxes />,
       items: [
         { title: "Nuevo activo", url: "/activos/nuevo" },
@@ -92,6 +109,7 @@ const data = {
     },
     {
       title: "Gestion Comercial",
+      url: "/comercial",
       icon: <Briefcase />,
       items: [
         { title: "Prospectos", url: "/comercial/prospectos" },
@@ -227,7 +245,29 @@ const navAdmin = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const esSuperAdmin = useTieneRol("SUPER_ADMIN")
-  const navMain = esSuperAdmin ? [...data.navMain, navAdmin] : data.navMain
+  const permisos = usePermisos()
+
+  // Filtrado del menu por permisos del JWT (solo UI; el backend autoriza de
+  // verdad). Reglas:
+  //  1. SUPER_ADMIN ve todo.
+  //  2. Cuentas SIN permisos de modulo (JWT sin roles o roles sin permisos,
+  //     excluyendo los "auth:*" de IAM) ven todo — compatibilidad mientras el
+  //     resto de cuentas/modulos adopta permisos.
+  //  3. Cuentas restringidas (ej. solo "bc02:*") ven UNICAMENTE los modulos
+  //     cuyo prefijoPermiso coincide con alguno de sus permisos.
+  const prefijosUsuario = new Set(
+    permisos
+      .map((permiso) => permiso.split(":")[0])
+      .filter((prefijo) => prefijo && prefijo !== "auth"),
+  )
+  const navFiltrado =
+    esSuperAdmin || prefijosUsuario.size === 0
+      ? data.navMain
+      : data.navMain.filter(
+          (modulo) =>
+            modulo.prefijoPermiso && prefijosUsuario.has(modulo.prefijoPermiso),
+        )
+  const navMain = esSuperAdmin ? [...navFiltrado, navAdmin] : navFiltrado
   const { setOpenMobile } = useSidebar()
 
   return (
