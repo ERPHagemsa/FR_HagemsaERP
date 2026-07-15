@@ -12,6 +12,9 @@ export interface UsuarioSesion {
   readonly nombre: string
   readonly tipo: string
   readonly roles: ReadonlyArray<string>
+  // Permisos planos resueltos de roles[].permisos[] del JWT. Solo para UI
+  // (ocultar modulos/botones); la autorizacion real la hace cada backend.
+  readonly permisos: ReadonlyArray<string>
   // Vinculo con el socio de negocio (BC01), si la cuenta lo tiene. Los codigos
   // son alfanumericos (hasta 20); socioExternoId es el personalId de BC01.
   readonly codigoSocio?: string

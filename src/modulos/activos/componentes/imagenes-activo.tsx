@@ -48,9 +48,20 @@ const tiposImagen: TipoImagenActivo[] = [
   "LATERAL",
   "POSTERIOR",
   "INTERIOR",
-  "DOCUMENTO",
-  "OTRO",
+  "ADICIONAL_1",
+  "ADICIONAL_2",
 ];
+
+const etiquetasTipoImagen: Record<TipoImagenActivo, string> = {
+  FRONTAL: "Frontal",
+  LATERAL: "Lateral",
+  POSTERIOR: "Posterior",
+  INTERIOR: "Interior",
+  ADICIONAL_1: "Adicional 1",
+  ADICIONAL_2: "Adicional 2",
+  DOCUMENTO: "Documento",
+  OTRO: "Otro",
+};
 
 function isRenderableImageUrl(url: string) {
   return (
@@ -230,7 +241,7 @@ export function ImagenesActivo({
             >
               {tiposImagen.map((tipo) => (
                 <option key={tipo} value={tipo}>
-                  {tipo}
+                  {etiquetasTipoImagen[tipo]}
                 </option>
               ))}
             </select>
@@ -312,7 +323,9 @@ export function ImagenesActivo({
                 </div>
                 <figcaption className="grid gap-2 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <Badge variant="outline">{imagen.tipoImagen}</Badge>
+                    <Badge variant="outline">
+                      {etiquetasTipoImagen[imagen.tipoImagen] ?? imagen.tipoImagen}
+                    </Badge>
                     {editable ? (
                       <Button
                         type="button"

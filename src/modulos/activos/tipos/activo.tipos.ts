@@ -223,6 +223,8 @@ export type TipoImagenActivo =
   | "LATERAL"
   | "POSTERIOR"
   | "INTERIOR"
+  | "ADICIONAL_1"
+  | "ADICIONAL_2"
   | "DOCUMENTO"
   | "OTRO";
 
@@ -285,13 +287,20 @@ export type DocumentoActivo = {
   numero: string | null;
   fechaEmision: string | null;
   fechaVencimiento: string | null;
-  archivoUrl: string | null;
+  /** El archivo NO viaja en la lista (pesaba hasta 2 MB por activo); pedirlo con obtenerArchivoDocumento*. */
+  tieneArchivo: boolean;
   nombreArchivo: string | null;
   observacion: string | null;
   usuarioCarga: string | null;
   usuarioActualizacion: string | null;
   fechaCreacion: string;
   fechaModificacion: string;
+};
+
+/** Archivo de un documento, pedido bajo demanda al abrir el sustento. */
+export type ArchivoDocumentoActivo = {
+  archivoUrl: string | null;
+  nombreArchivo: string | null;
 };
 
 export type CrearDocumentoActivoPayload = {

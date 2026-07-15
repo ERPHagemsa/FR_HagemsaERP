@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { FileText, GitCompareArrows } from "lucide-react";
+import { toast } from "sonner";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { useConsulta } from "@/compartido/api/use-consulta";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -14,6 +16,7 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { ActivoFormulario } from "../componentes/activo-formulario";
+import { obtenerYAbrirArchivoDocumento } from "../componentes/documentos-activo";
 import {
   obtenerActivoPorId,
   obtenerDocumentosPorActivoId,
@@ -190,15 +193,26 @@ function ActivoOrigenCard({
                     etiqueta="Vencimiento"
                     valor={formatearFecha(documento.fechaVencimiento)}
                   />
-                  {documento.archivoUrl ? (
-                    <Button asChild size="sm" variant="outline">
-                      <a
-                        href={documento.archivoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Ver documento
-                      </a>
+                  {documento.tieneArchivo ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        obtenerYAbrirArchivoDocumento(
+                          activo.codigo,
+                          documento
+                        ).catch((error) =>
+                          toast.error(
+                            extraerMensajeError(
+                              error,
+                              "No se pudo abrir el sustento."
+                            )
+                          )
+                        )
+                      }
+                    >
+                      Ver documento
                     </Button>
                   ) : (
                     <span className="text-xs text-muted-foreground">
