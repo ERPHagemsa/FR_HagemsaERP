@@ -1,55 +1,58 @@
-"use client";
+'use client';
 
-import { FormEvent, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { FormEvent, useState } from 'react';
+import { toast } from 'sonner';
 
-import { extraerMensajeError } from "@/compartido/api";
-import { useMutar } from "@/compartido/api";
-import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
-import type { UsuarioSesion } from "@/compartido/autenticacion/sesion";
-import { SiteHeader } from "@/compartido/componentes/site-header";
-import { Avatar, AvatarFallback } from "@/compartido/componentes/ui/avatar";
-import { Badge } from "@/compartido/componentes/ui/badge";
-import { Button } from "@/compartido/componentes/ui/button";
+import { extraerMensajeError } from '@/compartido/api';
+import { useMutar } from '@/compartido/api';
+import { useSesion } from '@/modulos/autenticacion/ganchos/use-sesion';
+import type { UsuarioSesion } from '@/compartido/autenticacion/sesion';
+import { SiteHeader } from '@/compartido/componentes/site-header';
+import { Avatar, AvatarFallback } from '@/compartido/componentes/ui/avatar';
+import { Badge } from '@/compartido/componentes/ui/badge';
+import { Button } from '@/compartido/componentes/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/compartido/componentes/ui/card";
+} from '@/compartido/componentes/ui/card';
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/compartido/componentes/ui/field";
-import { Input } from "@/compartido/componentes/ui/input";
-import { Skeleton } from "@/compartido/componentes/ui/skeleton";
+} from '@/compartido/componentes/ui/field';
+import { Input } from '@/compartido/componentes/ui/input';
+import { Skeleton } from '@/compartido/componentes/ui/skeleton';
 
-import { cambiarCodigos, cambiarPassword } from "../servicios/perfil-api";
+import { cambiarCodigos, cambiarPassword } from '../servicios/perfil-api';
 
 // Normaliza un código: mayúsculas, solo alfanuméricos, máx 20 (regla del dominio).
 function normalizarCodigo(valor: string): string {
   return valor
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
+    .replace(/[^A-Z0-9]/g, '')
     .slice(0, 20);
 }
 
 // Separa un código de cuenta almacenado en prefijo + sufijo para editarlo en dos
 // inputs. El prefijo por defecto es "TH" (Transportes Hagemsa); si el código no
 // empieza en "TH" se respeta tal cual en el sufijo (no se altera lo existente).
-function separarCodigoCuenta(valor: string): { prefijo: string; sufijo: string } {
+function separarCodigoCuenta(valor: string): {
+  prefijo: string;
+  sufijo: string;
+} {
   const v = normalizarCodigo(valor);
-  if (v === "") return { prefijo: "TH", sufijo: "" };
-  if (v.startsWith("TH")) return { prefijo: "TH", sufijo: v.slice(2) };
-  return { prefijo: "", sufijo: v };
+  if (v === '') return { prefijo: 'TH', sufijo: '' };
+  if (v.startsWith('TH')) return { prefijo: 'TH', sufijo: v.slice(2) };
+  return { prefijo: '', sufijo: v };
 }
 
 function calcularIniciales(nombre: string): string {
   const partes = nombre.trim().split(/\s+/).filter(Boolean);
-  if (partes.length === 0) return "HG";
+  if (partes.length === 0) return 'HG';
   if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
   return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
 }
@@ -65,8 +68,9 @@ export function PerfilVista() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <SeccionCodigos
-            codigoSocioInicial={usuario?.codigoSocio ?? ""}
-            codigoCuentaInicial={usuario?.codigoCuenta ?? ""}
+            key={`${usuario?.codigoSocio ?? ''}-${usuario?.codigoCuenta ?? ''}`}
+            codigoSocioInicial={usuario?.codigoSocio ?? ''}
+            codigoCuentaInicial={usuario?.codigoCuenta ?? ''}
             cargando={estaCargando}
             onCambio={recargar}
           />
@@ -187,13 +191,16 @@ function SeccionCodigos({
     `${codigoCuentaPrefijo}${codigoCuentaSufijo}`,
   );
 
-  // Sincroniza con la sesión cuando termina de cargar o cambia tras guardar.
-  useEffect(() => {
-    setCodigoSocio(codigoSocioInicial);
-    const { prefijo, sufijo } = separarCodigoCuenta(codigoCuentaInicial);
-    setCodigoCuentaPrefijo(prefijo);
-    setCodigoCuentaSufijo(sufijo);
-  }, [codigoSocioInicial, codigoCuentaInicial]);
+  // Vista previa del código de negocio de la cotización. Debe reflejar el formato
+  // real del backend: `${codigoCuenta}-${codigoSocio}-${numero(4)}-${anio(4)}`
+  // (ver codigo-cotizacion.mapper.ts). El correlativo reinicia cada año.
+  const anioActual = new Date().getFullYear();
+  const muestraCuenta = codigoCuenta || 'XX';
+  const muestraSocio = codigoSocio || 'XX';
+
+  // El reseteo tras cargar/guardar lo maneja el padre remontando este componente
+  // vía `key` (ver PerfilVista). Así el estado local se re-inicializa solo, sin
+  // copiar props al estado dentro de un efecto (evita renders en cascada).
 
   const mutacion = useMutar<
     { codigoSocio: string | null; codigoCuenta: string | null },
@@ -202,25 +209,25 @@ function SeccionCodigos({
     fn: ({ codigoSocio, codigoCuenta }) =>
       cambiarCodigos(codigoSocio, codigoCuenta),
     onSuccess: () => {
-      toast.success("Códigos actualizados.");
+      toast.success('Códigos actualizados.');
       onCambio();
     },
     onError: (error) => toast.error(extraerMensajeError(error)),
   });
 
-  const ambosVacios = codigoSocio === "" && codigoCuenta === "";
+  const ambosVacios = codigoSocio === '' && codigoCuenta === '';
   const ambosCompletos = codigoSocio.length > 0 && codigoCuenta.length > 0;
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!ambosVacios && !ambosCompletos) {
       toast.error(
-        "Completa ambos códigos o deja los dos vacíos para quitarlos.",
+        'Completa ambos códigos o deja los dos vacíos para quitarlos.',
       );
       return;
     }
     if (ambosCompletos && codigoSocio === codigoCuenta) {
-      toast.error("El código de socio y el de cuenta deben ser distintos.");
+      toast.error('El código de socio y el de cuenta deben ser distintos.');
       return;
     }
     mutacion.mutate({
@@ -285,17 +292,32 @@ function SeccionCodigos({
                 disabled={cargando || mutacion.isPending}
               />
             </Field>
-            <FieldDescription className="sm:col-span-2">
-              Deja ambos vacíos y guarda para quitar tus códigos.
-            </FieldDescription>
           </FieldGroup>
+
+          <div className="mt-4 rounded-lg border bg-muted/40 p-4">
+            <p className="text-sm font-medium">
+              Así se numerarán tus cotizaciones
+            </p>
+            <p className="mt-2 font-mono text-lg tracking-tight">
+              <span className="text-muted-foreground">{muestraCuenta}</span>
+              <span className="text-muted-foreground">-</span>
+              <span className="text-muted-foreground">{muestraSocio}</span>
+              <span className="text-muted-foreground">-0001-{anioActual}</span>
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Código de cuenta · código de socio · correlativo (reinicia cada
+              año) · año. Las revisiones de una misma cotización añaden una
+              letra al correlativo (0001A, 0001B…).
+            </p>
+          </div>
+
           <div className="mt-auto pt-6">
             <Button
               type="submit"
               className="w-full sm:w-auto"
               disabled={cargando || mutacion.isPending}
             >
-              {mutacion.isPending ? "Guardando…" : "Guardar códigos"}
+              {mutacion.isPending ? 'Guardando…' : 'Guardar códigos'}
             </Button>
           </div>
         </form>
@@ -305,17 +327,17 @@ function SeccionCodigos({
 }
 
 function SeccionPassword() {
-  const [actual, setActual] = useState("");
-  const [nueva, setNueva] = useState("");
-  const [confirmar, setConfirmar] = useState("");
+  const [actual, setActual] = useState('');
+  const [nueva, setNueva] = useState('');
+  const [confirmar, setConfirmar] = useState('');
 
   const mutacion = useMutar<{ actual: string; nueva: string }, unknown>({
     fn: ({ actual, nueva }) => cambiarPassword(actual, nueva),
     onSuccess: () => {
-      toast.success("Contraseña actualizada.");
-      setActual("");
-      setNueva("");
-      setConfirmar("");
+      toast.success('Contraseña actualizada.');
+      setActual('');
+      setNueva('');
+      setConfirmar('');
     },
     onError: (error) => toast.error(extraerMensajeError(error)),
   });
@@ -323,11 +345,11 @@ function SeccionPassword() {
   function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (nueva.length < 8) {
-      toast.error("La nueva contraseña debe tener al menos 8 caracteres.");
+      toast.error('La nueva contraseña debe tener al menos 8 caracteres.');
       return;
     }
     if (nueva !== confirmar) {
-      toast.error("La confirmación no coincide con la nueva contraseña.");
+      toast.error('La confirmación no coincide con la nueva contraseña.');
       return;
     }
     mutacion.mutate({ actual, nueva });
@@ -388,7 +410,7 @@ function SeccionPassword() {
               className="w-full sm:w-auto"
               disabled={mutacion.isPending || !actual || !nueva || !confirmar}
             >
-              {mutacion.isPending ? "Guardando…" : "Cambiar contraseña"}
+              {mutacion.isPending ? 'Guardando…' : 'Cambiar contraseña'}
             </Button>
           </div>
         </form>

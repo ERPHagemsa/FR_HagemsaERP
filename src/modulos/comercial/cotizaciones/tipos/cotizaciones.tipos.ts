@@ -281,6 +281,9 @@ export type Cotizacion = {
   motivoPerdida: string | null;
   ejecutivoResponsable: EjecutivoRef;
   solicitudClienteId: string | null;
+  // Correo del cliente sugerido (snapshot del contacto de la SC de origen). El
+  // diálogo de aprobación lo precarga; null si no hay SC o el contacto no tiene correo.
+  correoClienteSugerido: string | null;
   numeroCotizacion: number | null;
   anioCotizacion: number | null;
   codigoCotizacion: string | null;
@@ -648,6 +651,7 @@ export type PayloadRegistrarSC = PayloadRegistrarSCProspecto | PayloadRegistrarS
 
 export type PayloadEnviar = {
   validezDias?: number; // default 10 (DELTA 3)
+  correos: string[]; // aprobadores que reciben la cotizacion por correo (1..20)
 };
 
 export type PayloadNuevaVersion = {

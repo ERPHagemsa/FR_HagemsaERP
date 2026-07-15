@@ -38,7 +38,11 @@ type Props = {
 };
 
 /** Solicitud elegida en el menu `⋯` y accion a resolver sobre ella. */
-type Resolucion = { idSolicitud: string; accion: AccionResolver };
+type Resolucion = {
+  idSolicitud: string;
+  idCotizacion: string;
+  accion: AccionResolver;
+};
 
 const SIN_DATO = <span className="text-muted-foreground">—</span>;
 
@@ -199,14 +203,24 @@ export function AprobacionesTabla({ items, filtros, total }: Props) {
         etiqueta: "Aprobar",
         icono: CircleCheck,
         oculta: pendiente,
-        alSeleccionar: () => setResolucion({ idSolicitud: item.id, accion: "aprobar" }),
+        alSeleccionar: () =>
+          setResolucion({
+            idSolicitud: item.id,
+            idCotizacion: item.idCotizacion,
+            accion: "aprobar",
+          }),
       },
       {
         etiqueta: "Rechazar",
         icono: CircleX,
         destructiva: true,
         oculta: pendiente,
-        alSeleccionar: () => setResolucion({ idSolicitud: item.id, accion: "rechazar" }),
+        alSeleccionar: () =>
+          setResolucion({
+            idSolicitud: item.id,
+            idCotizacion: item.idCotizacion,
+            accion: "rechazar",
+          }),
       },
     ];
   }
@@ -276,6 +290,7 @@ export function AprobacionesTabla({ items, filtros, total }: Props) {
         <DialogoResolverSolicitud
           key={`${resolucion.idSolicitud}-${resolucion.accion}`}
           idSolicitud={resolucion.idSolicitud}
+          idCotizacion={resolucion.idCotizacion}
           accion={resolucion.accion}
           abierto
           onAbiertoChange={(abierto) => {

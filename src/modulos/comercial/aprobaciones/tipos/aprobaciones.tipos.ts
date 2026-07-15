@@ -89,5 +89,10 @@ export type FiltrosAprobaciones = {
   porPagina?: number;
 };
 
-export type PayloadAprobar = { comentario?: string };
+export type PayloadAprobar = {
+  comentario?: string;
+  // Destinatario de la cotizacion aprobada (con PDF) y avisos al comercial (HU-03-037).
+  correoCliente: string;
+  correosComercial: string[];
+};
 export type PayloadRechazar = { motivo: string };
