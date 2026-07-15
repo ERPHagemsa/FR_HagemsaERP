@@ -43,6 +43,7 @@ export type DashboardListaAccionableProps = {
   isError: boolean;
   mensajeError?: string;
   enlaceVerTodas?: string;
+  ayuda?: string;
 };
 
 // ---------------------------------------------------------------------------

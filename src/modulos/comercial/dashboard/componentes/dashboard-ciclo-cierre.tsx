@@ -10,6 +10,8 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
+import { AyudaMetrica } from "./ayuda-metrica";
+import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
 import { useCicloCierreQuery } from "../servicios/dashboard-queries";
 import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
 
@@ -38,8 +40,9 @@ export function DashboardCicloCierre({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Ciclo de cierre del período</CardTitle>
+        <AyudaMetrica descripcion={DASHBOARD_AYUDA.cicloCierre} />
       </CardHeader>
       <CardContent>
         {isError ? (

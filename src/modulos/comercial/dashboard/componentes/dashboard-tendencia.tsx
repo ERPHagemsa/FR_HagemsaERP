@@ -18,6 +18,8 @@ import {
 } from "@/compartido/componentes/ui/chart";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
+import { AyudaMetrica } from "./ayuda-metrica";
+import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
 import { useTendenciaMensualQuery } from "../servicios/dashboard-queries";
 import type { FiltrosDashboardTendencia } from "../tipos/dashboard.tipos";
 
@@ -55,8 +57,9 @@ export function DashboardTendencia({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Tendencia mensual (ganado vs. perdido)</CardTitle>
+        <AyudaMetrica descripcion={DASHBOARD_AYUDA.tendencia} />
       </CardHeader>
       <CardContent>
         {isError ? (

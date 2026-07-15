@@ -18,6 +18,8 @@ import {
 } from "@/compartido/componentes/ui/chart";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
+import { AyudaMetrica } from "./ayuda-metrica";
+import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
 import { useEmbudoConversionQuery } from "../servicios/dashboard-queries";
 import type {
   EmbudoConversionRespuesta,
@@ -64,8 +66,9 @@ export function DashboardEmbudo({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Embudo de conversión del período</CardTitle>
+        <AyudaMetrica descripcion={DASHBOARD_AYUDA.embudo} />
       </CardHeader>
       <CardContent>
         {isError ? (

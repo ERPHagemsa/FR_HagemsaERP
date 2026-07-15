@@ -11,6 +11,8 @@ import {
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { formatearMoneda } from "@/compartido/utilidades/formato-moneda";
 
+import { AyudaMetrica } from "./ayuda-metrica";
+import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
 import { useKpisMonetariosQuery } from "../servicios/dashboard-queries";
 import { calcularDeltaMonetario } from "../utilidades/delta-monetario";
 import type {
@@ -56,8 +58,9 @@ export function DashboardKpisDinero({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>KPI monetarios del período</CardTitle>
+        <AyudaMetrica descripcion={DASHBOARD_AYUDA.kpisMonetarios} />
       </CardHeader>
       <CardContent>
         {isError ? (

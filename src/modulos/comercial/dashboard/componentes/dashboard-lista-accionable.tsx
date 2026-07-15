@@ -12,6 +12,7 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
+import { AyudaMetrica } from "./ayuda-metrica";
 import type { DashboardListaAccionableProps } from "../tipos/dashboard.tipos";
 
 /**
@@ -28,11 +29,13 @@ export function DashboardListaAccionable({
   isError,
   mensajeError,
   enlaceVerTodas,
+  ayuda,
 }: DashboardListaAccionableProps) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{titulo}</CardTitle>
+        {ayuda ? <AyudaMetrica descripcion={ayuda} /> : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {isError ? (

@@ -19,6 +19,8 @@ import {
 } from "@/compartido/componentes/ui/table";
 import { formatearMoneda } from "@/compartido/utilidades/formato-moneda";
 
+import { AyudaMetrica } from "./ayuda-metrica";
+import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
 import { useRankingEjecutivosQuery } from "../servicios/dashboard-queries";
 import type { RangoPeriodo } from "../tipos/dashboard.tipos";
 
@@ -40,8 +42,9 @@ export function DashboardRanking({ periodo }: Props) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Ranking de ejecutivos</CardTitle>
+        <AyudaMetrica descripcion={DASHBOARD_AYUDA.ranking} />
       </CardHeader>
       <CardContent>
         {isError ? (

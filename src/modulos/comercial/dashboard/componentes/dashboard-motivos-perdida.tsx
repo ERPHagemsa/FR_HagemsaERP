@@ -18,6 +18,8 @@ import {
 } from "@/compartido/componentes/ui/chart";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
+import { AyudaMetrica } from "./ayuda-metrica";
+import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
 import { useMotivosPerdidaQuery } from "../servicios/dashboard-queries";
 import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
 
@@ -54,8 +56,9 @@ export function DashboardMotivosPerdida({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Motivos de pérdida del período</CardTitle>
+        <AyudaMetrica descripcion={DASHBOARD_AYUDA.motivosPerdida} />
       </CardHeader>
       <CardContent>
         {isError ? (

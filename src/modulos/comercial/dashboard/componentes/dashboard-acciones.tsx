@@ -4,6 +4,7 @@ import { extraerMensajeError } from "@/compartido/api";
 import { formatearMoneda } from "@/compartido/utilidades/formato-moneda";
 
 import { DashboardListaAccionable } from "./dashboard-lista-accionable";
+import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
 import { useAccionesPendientesQuery } from "../servicios/dashboard-queries";
 import type {
   AccionPendiente,
@@ -71,6 +72,7 @@ export function DashboardAcciones({
         isError={isError}
         mensajeError={mensajeError}
         enlaceVerTodas="/comercial/cotizaciones?bucket=porVencer"
+        ayuda={DASHBOARD_AYUDA.accionesPorVencer}
       />
       <DashboardListaAccionable
         titulo="Esperando aprobación"
@@ -79,6 +81,7 @@ export function DashboardAcciones({
         isError={isError}
         mensajeError={mensajeError}
         enlaceVerTodas="/comercial/cotizaciones?bucket=pendientesAprobacion"
+        ayuda={DASHBOARD_AYUDA.accionesEsperandoAprobacion}
       />
       <DashboardListaAccionable
         titulo="Solicitudes sin cotizar"
@@ -87,6 +90,7 @@ export function DashboardAcciones({
         isError={isError}
         mensajeError={mensajeError}
         enlaceVerTodas="/comercial/solicitudes-cliente?bucket=disponibles"
+        ayuda={DASHBOARD_AYUDA.accionesSinCotizar}
       />
     </div>
   );

@@ -18,6 +18,8 @@ import {
 } from "@/compartido/componentes/ui/chart";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 
+import { AyudaMetrica } from "./ayuda-metrica";
+import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
 import { useWinRateQuery } from "../servicios/dashboard-queries";
 import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
 
@@ -50,8 +52,9 @@ export function DashboardWinRate({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Win rate del período</CardTitle>
+        <AyudaMetrica descripcion={DASHBOARD_AYUDA.winRate} />
       </CardHeader>
       <CardContent>
         {isError ? (
