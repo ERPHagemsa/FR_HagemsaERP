@@ -19,8 +19,14 @@ import { EntradaCorreos } from "@/compartido/componentes/entrada-correos";
 import { normalizarErrorAccion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-error-handler";
 import { useConsultarCotizacion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries";
 
-import { invalidarAprobaciones, useAprobarMutation, useRechazarMutation } from "../servicios/aprobaciones-queries";
+import {
+  invalidarAprobaciones,
+  useAprobadoresCuentasQuery,
+  useAprobarMutation,
+  useRechazarMutation,
+} from "../servicios/aprobaciones-queries";
 import { schemaAprobar, schemaRechazar } from "../tipos/aprobaciones.schemas";
+import { sugerenciasAprobadores } from "../utilidades/sugerencias-aprobadores";
 
 /** El porton es binario: dejar salir la cotizacion, o no dejarla salir. */
 export type AccionResolver = "aprobar" | "rechazar";
@@ -103,6 +109,9 @@ export function DialogoResolverSolicitud({
   const [errorCorreosComercial, setErrorCorreosComercial] = React.useState<string | null>(null);
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
+  // Solo se consulta con el diálogo abierto. Si falla (ej. sin el permiso para
+  // leer correos), queda en null y el campo sigue funcionando a mano.
+  const aprobadores = useAprobadoresCuentasQuery(abierto);
 
   async function onConfirmar(event: React.FormEvent) {
     event.preventDefault();
@@ -203,6 +212,8 @@ export function DialogoResolverSolicitud({
                   disabled={isPending}
                   aria-invalid={Boolean(errorCorreosComercial)}
                   placeholder="comercial@hagemsa.com"
+                  sugerencias={sugerenciasAprobadores(aprobadores.data)}
+                  etiquetaSugerencias="Aprobadores"
                 />
                 {errorCorreosComercial ? (
                   <p className="text-xs text-destructive">{errorCorreosComercial}</p>

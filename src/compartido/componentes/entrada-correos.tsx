@@ -12,8 +12,21 @@ import { Badge } from "@/compartido/componentes/ui/badge";
  * removible; los inválidos o duplicados no se agregan y muestran un aviso. La
  * validación de forma es local (feedback inmediato); la fuente de verdad al
  * enviar es el schema zod del formulario que lo usa.
+ *
+ * Con `sugerencias`, además ofrece los correos conocidos para agregarlos con un
+ * clic y muestra el nombre de la persona en lugar de la dirección: una lista de
+ * direcciones sueltas no dice a quién se le está escribiendo. El valor que sale
+ * por `onChange` sigue siendo siempre la lista de correos.
  */
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Correo conocido: la etiqueta es lo que se muestra en vez de la dirección. */
+export type SugerenciaCorreo = {
+  email: string;
+  etiqueta: string;
+  /** Dato secundario para desambiguar homónimos (ej. el usuario). */
+  detalle?: string;
+};
 
 type Props = {
   id?: string;
@@ -24,6 +37,10 @@ type Props = {
   max?: number;
   placeholder?: string;
   "aria-invalid"?: boolean;
+  /** Correos conocidos que se ofrecen para agregar con un clic. */
+  sugerencias?: SugerenciaCorreo[];
+  /** Rótulo de la lista de sugerencias. */
+  etiquetaSugerencias?: string;
 };
 
 export function EntradaCorreos({
@@ -34,10 +51,27 @@ export function EntradaCorreos({
   max = 20,
   placeholder = "correo@empresa.com",
   "aria-invalid": ariaInvalid,
+  sugerencias = [],
+  etiquetaSugerencias = "Sugeridos",
 }: Props) {
   const [texto, setTexto] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const lleno = value.length >= max;
+
+  // Los correos se guardan en minúsculas (ver agregar()); las sugerencias se
+  // indexan igual para que el chip reconozca al conocido venga de donde venga
+  // (clic en la sugerencia o tecleado a mano con otra capitalización).
+  const porEmail = React.useMemo(() => {
+    const mapa = new Map<string, SugerenciaCorreo>();
+    for (const s of sugerencias) mapa.set(s.email.trim().toLowerCase(), s);
+    return mapa;
+  }, [sugerencias]);
+
+  const pendientes = React.useMemo(
+    () =>
+      sugerencias.filter((s) => !value.includes(s.email.trim().toLowerCase())),
+    [sugerencias, value],
+  );
 
   function agregar(tokens: string[]) {
     const acumulado = [...value];
@@ -96,20 +130,27 @@ export function EntradaCorreos({
         className="flex flex-wrap items-center gap-1.5 rounded-md border border-input bg-transparent px-2 py-1.5 text-sm shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 aria-invalid:border-destructive"
         aria-invalid={ariaInvalid}
       >
-        {value.map((email) => (
-          <Badge key={email} variant="secondary" className="gap-1 font-normal">
-            {email}
-            <button
-              type="button"
-              onClick={() => quitar(email)}
-              disabled={disabled}
-              aria-label={`Quitar ${email}`}
-              className="rounded-full outline-none hover:text-destructive focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none"
-            >
-              <X className="size-3" />
-            </button>
-          </Badge>
-        ))}
+        {value.map((email) => {
+          const conocido = porEmail.get(email);
+          return (
+            <Badge key={email} variant="secondary" className="gap-1 font-normal">
+              {/* Del conocido se muestra el nombre; el correo queda en el title
+                  para poder verificarlo sin sacar el chip. */}
+              <span title={conocido ? email : undefined}>
+                {conocido ? conocido.etiqueta : email}
+              </span>
+              <button
+                type="button"
+                onClick={() => quitar(email)}
+                disabled={disabled}
+                aria-label={`Quitar ${conocido ? `${conocido.etiqueta} (${email})` : email}`}
+                className="rounded-full outline-none hover:text-destructive focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          );
+        })}
         <input
           id={id}
           type="email"
@@ -126,6 +167,28 @@ export function EntradaCorreos({
           className="flex-1 border-0 bg-transparent p-0 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed min-w-[12ch]"
         />
       </div>
+      {pendientes.length > 0 && !lleno ? (
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="text-xs text-muted-foreground">
+            {etiquetaSugerencias}:
+          </span>
+          {pendientes.map((s) => (
+            <button
+              key={s.email}
+              type="button"
+              onClick={() => agregar([s.email])}
+              disabled={disabled}
+              title={s.email}
+              className="rounded-full border border-dashed border-input px-2 py-0.5 text-xs text-muted-foreground outline-none transition hover:border-solid hover:bg-accent hover:text-accent-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+            >
+              + {s.etiqueta}
+              {s.detalle ? (
+                <span className="ml-1 opacity-60">{s.detalle}</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">
           Enter o coma para agregar cada correo.

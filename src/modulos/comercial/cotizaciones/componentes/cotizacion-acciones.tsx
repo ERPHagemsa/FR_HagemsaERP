@@ -44,6 +44,8 @@ import {
   schemaGanada,
 } from "../tipos/cotizaciones.schemas";
 import { EntradaCorreos } from "@/compartido/componentes/entrada-correos";
+import { useAprobadoresCuentasQuery } from "../../aprobaciones/servicios/aprobaciones-queries";
+import { sugerenciasAprobadores } from "../../aprobaciones/utilidades/sugerencias-aprobadores";
 import {
   useSolicitarAprobacionMutation,
   useNuevaVersionMutation,
@@ -217,6 +219,9 @@ function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprob
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
   const mutation = useSolicitarAprobacionMutation(idCotizacion);
+  // Solo se consulta con el diálogo abierto. Si falla (ej. sin el permiso para
+  // leer correos), queda en null y el campo sigue funcionando a mano.
+  const aprobadores = useAprobadoresCuentasQuery(abierto);
 
   function handleOpenChange(open: boolean) {
     if (!open) {
@@ -288,6 +293,8 @@ function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprob
               disabled={isPending}
               aria-invalid={Boolean(errorCorreos)}
               placeholder="aprobador@hagemsa.com"
+              sugerencias={sugerenciasAprobadores(aprobadores.data)}
+              etiquetaSugerencias="Aprobadores"
             />
             {errorCorreos ? (
               <p className="text-xs text-destructive">{errorCorreos}</p>
