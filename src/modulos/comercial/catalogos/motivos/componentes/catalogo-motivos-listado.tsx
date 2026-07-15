@@ -18,6 +18,14 @@ import {
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import { Checkbox } from "@/compartido/componentes/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/compartido/componentes/ui/dialog"
 import { Input } from "@/compartido/componentes/ui/input"
 import { Label } from "@/compartido/componentes/ui/label"
 import {
@@ -181,109 +189,105 @@ function DialogCrear({
   }
 
   return (
-    <Sheet open={abierto} onOpenChange={(o) => !o && cerrar()}>
-      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-md">
-        <form onSubmit={(e) => void handleSubmit(e)} className="flex h-full flex-col">
-          <SheetHeader className="border-b border-border">
-            <SheetTitle>Nuevo motivo</SheetTitle>
-            <SheetDescription>
+    <Dialog open={abierto} onOpenChange={(o) => !o && cerrar()}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-5">
+          <DialogHeader>
+            <DialogTitle>Nuevo motivo</DialogTitle>
+            <DialogDescription>
               El código y el tipo se fijan al crear y no se pueden cambiar luego.
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="flex flex-col gap-5">
-              {error ? (
-                <Alert variant="destructive">
-                  <AlertTitle>No se pudo crear el motivo</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              ) : null}
+          {error ? (
+            <Alert variant="destructive">
+              <AlertTitle>No se pudo crear el motivo</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
 
-              <div className="grid gap-1.5">
-                <Label htmlFor="crear-tipo">
-                  Tipo <span className="text-destructive">*</span>
-                </Label>
-                <Select value={tipo} onValueChange={(v) => setTipo(v as TipoMotivo)}>
-                  <SelectTrigger id="crear-tipo">
-                    <SelectValue placeholder="¿Rechazo o negociación?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="RECHAZO">Rechazo</SelectItem>
-                    <SelectItem value="NEGOCIACION">Negociación</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="crear-tipo">
+              Tipo <span className="text-destructive">*</span>
+            </Label>
+            <Select value={tipo} onValueChange={(v) => setTipo(v as TipoMotivo)}>
+              <SelectTrigger id="crear-tipo">
+                <SelectValue placeholder="¿Rechazo o negociación?" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="RECHAZO">Rechazo</SelectItem>
+                <SelectItem value="NEGOCIACION">Negociación</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div className="grid gap-1.5">
-                <Label htmlFor="crear-codigo">
-                  Código <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="crear-codigo"
-                  name="codigo"
-                  placeholder="Ej. PRECIO"
-                  required
-                  autoFocus
-                  className="font-mono uppercase"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Identificador estable para reportes. Único por tipo. Se guarda en
-                  mayúsculas.
-                </p>
-              </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="crear-codigo">
+              Código <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="crear-codigo"
+              name="codigo"
+              placeholder="Ej. PRECIO"
+              required
+              autoFocus
+              className="font-mono uppercase"
+            />
+            <p className="text-xs text-muted-foreground">
+              Identificador estable para reportes. Único por tipo. Se guarda en
+              mayúsculas.
+            </p>
+          </div>
 
-              <div className="grid gap-1.5">
-                <Label htmlFor="crear-etiqueta">
-                  Etiqueta <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="crear-etiqueta"
-                  name="etiqueta"
-                  placeholder="El precio es más alto de lo esperado"
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  El texto que ve el cliente al responder.
-                </p>
-              </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="crear-etiqueta">
+              Etiqueta <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="crear-etiqueta"
+              name="etiqueta"
+              placeholder="El precio es más alto de lo esperado"
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              El texto que ve el cliente al responder.
+            </p>
+          </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="crear-orden">Orden sugerido</Label>
-                  <Input
-                    id="crear-orden"
-                    name="ordenSugerido"
-                    type="number"
-                    min={0}
-                    defaultValue={0}
-                  />
-                </div>
-                <div className="flex items-end gap-2 pb-0.5">
-                  <Checkbox
-                    id="crear-detalle"
-                    checked={requiereDetalle}
-                    onCheckedChange={(v) => setRequiereDetalle(Boolean(v))}
-                  />
-                  <Label htmlFor="crear-detalle" className="cursor-pointer">
-                    Exige detalle
-                  </Label>
-                </div>
-              </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="crear-orden">Orden sugerido</Label>
+              <Input
+                id="crear-orden"
+                name="ordenSugerido"
+                type="number"
+                min={0}
+                defaultValue={0}
+              />
+            </div>
+            <div className="flex items-end gap-2 pb-0.5">
+              <Checkbox
+                id="crear-detalle"
+                checked={requiereDetalle}
+                onCheckedChange={(v) => setRequiereDetalle(Boolean(v))}
+              />
+              <Label htmlFor="crear-detalle" className="cursor-pointer">
+                Exige detalle
+              </Label>
             </div>
           </div>
 
-          <SheetFooter className="border-t border-border">
-            <Button type="submit" disabled={crear.isPending}>
-              {crear.isPending ? "Creando..." : "Crear motivo"}
-            </Button>
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={cerrar}>
               Cancelar
             </Button>
-          </SheetFooter>
+            <Button type="submit" disabled={crear.isPending}>
+              {crear.isPending ? "Creando..." : "Crear motivo"}
+            </Button>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
 
