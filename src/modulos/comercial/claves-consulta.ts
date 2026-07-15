@@ -29,6 +29,7 @@ export const CLAVE_CONTRATOS = "comercial/contratos";
 export const CLAVE_CONTRATO_DETALLE = "comercial/contratos/detalle";
 export const CLAVE_TARIFARIO_CONSOLIDADO = "comercial/contratos/tarifario-consolidado";
 export const CLAVE_CONDICIONES = "comercial/condiciones";
+export const CLAVE_MOTIVOS = "comercial/motivos";
 export const CLAVE_UBICACIONES_TEMPORALES = "comercial/ubicaciones/temporales";
 export const CLAVE_UBICACIONES_MAESTRA = "comercial/ubicaciones/maestra";
 export const CLAVE_CALENDARIO_GANADAS = "comercial/cotizaciones/calendario-ganadas";
