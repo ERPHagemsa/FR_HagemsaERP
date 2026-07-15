@@ -35,14 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/compartido/componentes/ui/sheet"
 import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos"
 import type {
   AccionTabla,
@@ -330,77 +322,73 @@ function DialogEditar({
   }
 
   return (
-    <Sheet open={item !== null} onOpenChange={(o) => !o && onCerrar()}>
-      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-md">
+    <Dialog open={item !== null} onOpenChange={(o) => !o && onCerrar()}>
+      <DialogContent className="sm:max-w-md">
         {item ? (
-          <form onSubmit={(e) => void handleSubmit(e)} className="flex h-full flex-col">
-            <SheetHeader className="border-b border-border">
-              <SheetTitle>Editar motivo</SheetTitle>
-              <SheetDescription>
+          <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col gap-5">
+            <DialogHeader>
+              <DialogTitle>Editar motivo</DialogTitle>
+              <DialogDescription>
                 <span className="font-mono">{item.codigo}</span> ·{" "}
                 {ETIQUETAS_TIPO_MOTIVO[item.tipo]} (no editables)
-              </SheetDescription>
-            </SheetHeader>
+              </DialogDescription>
+            </DialogHeader>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="flex flex-col gap-5">
-                {error ? (
-                  <Alert variant="destructive">
-                    <AlertTitle>No se pudo actualizar</AlertTitle>
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                ) : null}
+            {error ? (
+              <Alert variant="destructive">
+                <AlertTitle>No se pudo actualizar</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
 
-                <div className="grid gap-1.5">
-                  <Label htmlFor="editar-etiqueta">
-                    Etiqueta <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="editar-etiqueta"
-                    name="etiqueta"
-                    defaultValue={item.etiqueta}
-                    required
-                    autoFocus
-                  />
-                </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="editar-etiqueta">
+                Etiqueta <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="editar-etiqueta"
+                name="etiqueta"
+                defaultValue={item.etiqueta}
+                required
+                autoFocus
+              />
+            </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="editar-orden">Orden sugerido</Label>
-                    <Input
-                      id="editar-orden"
-                      name="ordenSugerido"
-                      type="number"
-                      min={0}
-                      defaultValue={item.ordenSugerido}
-                    />
-                  </div>
-                  <div className="flex items-end gap-2 pb-0.5">
-                    <Checkbox
-                      id="editar-detalle"
-                      checked={requiereDetalle}
-                      onCheckedChange={(v) => setRequiereDetalle(Boolean(v))}
-                    />
-                    <Label htmlFor="editar-detalle" className="cursor-pointer">
-                      Exige detalle
-                    </Label>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-1.5">
+                <Label htmlFor="editar-orden">Orden sugerido</Label>
+                <Input
+                  id="editar-orden"
+                  name="ordenSugerido"
+                  type="number"
+                  min={0}
+                  defaultValue={item.ordenSugerido}
+                />
+              </div>
+              <div className="flex items-end gap-2 pb-0.5">
+                <Checkbox
+                  id="editar-detalle"
+                  checked={requiereDetalle}
+                  onCheckedChange={(v) => setRequiereDetalle(Boolean(v))}
+                />
+                <Label htmlFor="editar-detalle" className="cursor-pointer">
+                  Exige detalle
+                </Label>
               </div>
             </div>
 
-            <SheetFooter className="border-t border-border">
-              <Button type="submit" disabled={actualizar.isPending}>
-                {actualizar.isPending ? "Guardando..." : "Guardar cambios"}
-              </Button>
+            <DialogFooter>
               <Button type="button" variant="outline" onClick={onCerrar}>
                 Cancelar
               </Button>
-            </SheetFooter>
+              <Button type="submit" disabled={actualizar.isPending}>
+                {actualizar.isPending ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </DialogFooter>
           </form>
         ) : null}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
 
