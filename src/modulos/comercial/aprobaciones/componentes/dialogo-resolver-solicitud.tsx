@@ -15,7 +15,7 @@ import {
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
-import { EntradaCorreos } from "@/compartido/componentes/entrada-correos";
+import { SelectorAprobadores } from "./selector-aprobadores";
 import { AvisoEnvioCorreo } from "@/compartido/componentes/aviso-envio-correo";
 import { normalizarErrorAccion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-error-handler";
 import { useConsultarCotizacion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries";
@@ -27,7 +27,6 @@ import {
   useRechazarMutation,
 } from "../servicios/aprobaciones-queries";
 import { schemaAprobar, schemaRechazar } from "../tipos/aprobaciones.schemas";
-import { sugerenciasAprobadores } from "../utilidades/sugerencias-aprobadores";
 
 /** El porton es binario: dejar salir la cotizacion, o no dejarla salir. */
 export type AccionResolver = "aprobar" | "rechazar";
@@ -104,15 +103,28 @@ export function DialogoResolverSolicitud({
   // sugerido. Así se precarga sin pisar una edición manual y sin efectos.
   const [correoEditado, setCorreoEditado] = React.useState<string | null>(null);
   const correoCliente = correoEditado ?? correoClienteSugerido;
-  const [correosComercial, setCorreosComercial] = React.useState<string[]>([]);
+  // Mismo criterio que el correo del cliente de arriba: `null` = sin tocar, así
+  // que valen todos los aprobadores. Derivado, sin efecto que sincronice estado
+  // con estado (la consulta resuelve después de abrir el diálogo).
+  const [seleccionManual, setSeleccionManual] = React.useState<string[] | null>(
+    null,
+  );
   const [errorCampo, setErrorCampo] = React.useState<string | null>(null);
   const [errorCorreoCliente, setErrorCorreoCliente] = React.useState<string | null>(null);
   const [errorCorreosComercial, setErrorCorreosComercial] = React.useState<string | null>(null);
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
-  // Solo se consulta con el diálogo abierto. Si falla (ej. sin el permiso para
-  // leer correos), queda en null y el campo sigue funcionando a mano.
+  // Solo se consulta con el diálogo abierto. Los destinatarios salen de acá y no
+  // se escriben a mano: quién recibe el aviso lo define auth. Sin la lista no se
+  // puede aprobar (el SelectorAprobadores muestra el motivo).
   const aprobadores = useAprobadoresCuentasQuery(abierto);
+
+  // Todos marcados por defecto. El ejecutivo responsable NO está en esta lista:
+  // lo resuelve el backend por su cuenta y siempre recibe el aviso.
+  const correosComercial = React.useMemo(
+    () => seleccionManual ?? (aprobadores.data ?? []).map((c) => c.email),
+    [seleccionManual, aprobadores.data],
+  );
 
   async function onConfirmar(event: React.FormEvent) {
     event.preventDefault();
@@ -200,22 +212,24 @@ export function DialogoResolverSolicitud({
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor={`correos-comercial-${idSolicitud}`}>
-                  Correos del área comercial <span className="text-destructive">*</span>
+                <Label>
+                  Avisar a <span className="text-destructive">*</span>
                 </Label>
-                <EntradaCorreos
-                  id={`correos-comercial-${idSolicitud}`}
-                  value={correosComercial}
+                <SelectorAprobadores
+                  cuentas={aprobadores.data}
+                  cargando={aprobadores.isLoading}
+                  error={aprobadores.isError}
+                  seleccionados={correosComercial}
                   onChange={(nuevos) => {
-                    setCorreosComercial(nuevos);
+                    setSeleccionManual(nuevos);
                     if (errorCorreosComercial) setErrorCorreosComercial(null);
                   }}
                   disabled={isPending}
-                  aria-invalid={Boolean(errorCorreosComercial)}
-                  placeholder="comercial@hagemsa.com"
-                  sugerencias={sugerenciasAprobadores(aprobadores.data)}
-                  etiquetaSugerencias="Aprobadores"
                 />
+                <p className="text-xs text-muted-foreground">
+                  El ejecutivo responsable de la cotización recibe el aviso
+                  siempre.
+                </p>
                 {errorCorreosComercial ? (
                   <p className="text-xs text-destructive">{errorCorreosComercial}</p>
                 ) : null}
