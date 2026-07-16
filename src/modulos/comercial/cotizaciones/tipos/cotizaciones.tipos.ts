@@ -333,6 +333,10 @@ export type CotizacionResumen = {
   totalVersiones: number;
   fechaEnvio: string | null;
   fechaVencimiento: string | null;
+  // Eje de existencia (soft-delete), ortogonal a `estado` (negocio). true = activa,
+  // false = eliminada. El listado lo expone para tachar en sitio las filas eliminadas
+  // cuando se pide con `incluirEliminados=true` (ver FiltrosCotizaciones).
+  estadoRegistro: boolean;
   fechaCreacion: string;
   fechaModificacion: string | null;
 };
@@ -382,6 +386,9 @@ export type FiltrosCotizaciones = {
   origenTipo?: OrigenTipo;
   idEjecutivoResponsable?: string;
   busqueda?: string;
+  // Opt-in: si es true, el backend devuelve tambien las eliminadas (estadoRegistro=false)
+  // junto con las activas. Ausente/false = solo activas.
+  incluirEliminados?: boolean;
   pagina?: number;
   porPagina?: number;
 };

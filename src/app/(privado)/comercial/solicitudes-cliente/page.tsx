@@ -67,6 +67,9 @@ export default async function Page({ searchParams }: Props) {
     bucket,
     origenTipo,
     busqueda: busquedaRaw,
+    // Trae tambien las solicitudes con baja logica: llegan mezcladas y el listado
+    // las tacha en sitio, con Restaurar como accion de fila (patron del pilot de prospectos).
+    incluirEliminados: true,
     pagina,
     porPagina,
   };

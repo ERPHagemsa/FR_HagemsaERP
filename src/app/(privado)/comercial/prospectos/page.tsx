@@ -37,6 +37,8 @@ export default async function Page({ searchParams }: Props) {
     idEjecutivoResponsable,
     fechaDesde: fechaDesdeRaw,
     fechaHasta: fechaHastaRaw,
+    // Los eliminados se muestran siempre en sitio (tachados), no detras de un toggle.
+    incluirEliminados: true,
     pagina,
     porPagina,
   };

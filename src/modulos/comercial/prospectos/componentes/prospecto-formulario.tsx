@@ -487,6 +487,22 @@ export function ProspectoFormulario({ modo = "nuevo", prospecto }: Props) {
                   </Alert>
                 ) : null}
 
+                {avisoIdentidad?.veredicto === "PROSPECTO_ELIMINADO" &&
+                avisoIdentidad.prospecto ? (
+                  // Informativo, no bloqueante (como los demás veredictos): el 409
+                  // del backend sigue siendo la red de seguridad. Sin botón de acción
+                  // — la restauración se hace desde el módulo de Prospectos.
+                  <Alert>
+                    <AlertDescription>
+                      {avisoIdentidad.prospecto.razonSocial
+                        ? `Se encontró el prospecto «${avisoIdentidad.prospecto.razonSocial}», pero está eliminado.`
+                        : "Se encontró un prospecto con este documento, pero está eliminado."}{" "}
+                      Para reutilizar este documento, restáuralo desde el módulo de
+                      Prospectos.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
                 {avisoIdentidad?.veredicto === "CLIENTE" ||
                 avisoIdentidad?.veredicto === "CLIENTE_INACTIVO" ? (
                   <Alert variant="destructive">

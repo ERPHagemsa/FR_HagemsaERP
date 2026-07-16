@@ -10,6 +10,7 @@ import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { FieldLegend, FieldSet } from "@/compartido/componentes/ui/field";
 import { Input } from "@/compartido/componentes/ui/input";
+import { cn } from "@/compartido/utilidades";
 
 import { listarProspectos } from "../../prospectos/servicios/prospectos-api";
 import type { Prospecto } from "../../prospectos/tipos/prospecto.tipos";
@@ -61,8 +62,13 @@ export function BuscarOrigenPanel({ onIdentidadResuelta }: Props) {
   const term = aplicado ?? "";
   const porDocumento = esDocumento(term);
 
+  // Se mantiene el filtro estado="ACTIVO" (los seleccionables no cambian) y se
+  // añade incluirEliminados=true SOLO para poder mostrar en sitio, tachados y no
+  // seleccionables, los prospectos que existen pero fueron eliminados (soft-delete).
+  // No se relaja el filtro de estado: así no aparecen DESCARTADO/CONVERTIDO activos
+  // que hoy están ocultos. Ver nota de partición más abajo.
   const prospectos = useConsulta(
-    () => listarProspectos({ busqueda: term, estado: "ACTIVO" }),
+    () => listarProspectos({ busqueda: term, estado: "ACTIVO", incluirEliminados: true }),
     [term],
     { enabled: Boolean(aplicado) }
   );
@@ -76,13 +82,24 @@ export function BuscarOrigenPanel({ onIdentidadResuelta }: Props) {
   );
 
   const listaProspectos = prospectos.data?.data ?? [];
+  // estadoRegistro es el eje de existencia (soft-delete): true = activo (seleccionable),
+  // false = eliminado (se muestra tachado y NO seleccionable). Los activos son
+  // exactamente el mismo conjunto que antes (estado=ACTIVO, estadoRegistro=true).
+  const prospectosActivos = listaProspectos.filter((p) => p.estadoRegistro);
+  const prospectosEliminados = listaProspectos.filter((p) => !p.estadoRegistro);
   const listaClientes = clientes.data ?? [];
   const cargando = prospectos.isLoading || clientes.isLoading;
+  const hayResultadosUtiles =
+    prospectosActivos.length > 0 || listaClientes.length > 0;
+  // "Sin resultados" (con opción de crear) SOLO cuando no hay nada, ni activos ni
+  // eliminados. Si hay un eliminado que explica la ausencia de activos, se suprime
+  // el "Registrar nuevo prospecto": el registro existe (aunque eliminado) y crear
+  // uno nuevo con el mismo documento chocaría con el 409 del backend.
   const sinResultados =
     Boolean(aplicado) &&
     !cargando &&
-    listaProspectos.length === 0 &&
-    listaClientes.length === 0;
+    !hayResultadosUtiles &&
+    prospectosEliminados.length === 0;
 
   function buscar() {
     const valor = termino.trim();
@@ -169,7 +186,7 @@ export function BuscarOrigenPanel({ onIdentidadResuelta }: Props) {
 
       {!cargando && listaProspectos.length > 0 ? (
         <Grupo titulo="Prospectos (Comercial)">
-          {listaProspectos.map((p) => (
+          {prospectosActivos.map((p) => (
             <FilaOrigen
               key={`p-${p.id}`}
               icono={<UserRound className="size-4" />}
@@ -177,6 +194,16 @@ export function BuscarOrigenPanel({ onIdentidadResuelta }: Props) {
               secundario={p.nombreComercial}
               documento={p.numeroDocumento}
               onUsar={() => usarProspecto(p)}
+            />
+          ))}
+          {prospectosEliminados.map((p) => (
+            <FilaOrigen
+              key={`pe-${p.id}`}
+              icono={<UserRound className="size-4" />}
+              nombre={p.razonSocial}
+              secundario={p.nombreComercial}
+              documento={p.numeroDocumento}
+              eliminado
             />
           ))}
         </Grupo>
@@ -240,13 +267,18 @@ function FilaOrigen({
   documento,
   badge,
   onUsar,
+  eliminado = false,
 }: {
   icono: React.ReactNode;
   nombre: string;
   secundario?: string | null;
   documento: string;
   badge?: string;
-  onUsar: () => void;
+  // onUsar solo aplica a filas seleccionables; una fila eliminada no lo recibe.
+  onUsar?: () => void;
+  // Fila de un prospecto eliminado (soft-delete): se tacha y NO es seleccionable.
+  // Solo informativo — la restauración se hace desde el módulo de Prospectos.
+  eliminado?: boolean;
 }) {
   return (
     <li className="flex min-w-0 items-start justify-between gap-3 rounded-md border border-border bg-background p-3">
@@ -255,11 +287,19 @@ function FilaOrigen({
           {icono}
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-foreground">{nombre}</p>
-          {secundario ? (
-            <p className="truncate text-xs text-muted-foreground">{secundario}</p>
+          {/* Mismo idioma de tachado que el piloto (prospectos-tabla.tsx). */}
+          <div className={cn(eliminado && "line-through text-muted-foreground opacity-60")}>
+            <p className="truncate text-sm font-medium text-foreground">{nombre}</p>
+            {secundario ? (
+              <p className="truncate text-xs text-muted-foreground">{secundario}</p>
+            ) : null}
+            <p className="truncate text-xs text-muted-foreground tabular-nums">{documento}</p>
+          </div>
+          {eliminado ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Eliminado — restáuralo desde Prospectos
+            </p>
           ) : null}
-          <p className="truncate text-xs text-muted-foreground tabular-nums">{documento}</p>
         </div>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">
@@ -268,9 +308,11 @@ function FilaOrigen({
             {badge}
           </Badge>
         ) : null}
-        <Button type="button" size="sm" onClick={onUsar}>
-          Usar este origen
-        </Button>
+        {eliminado ? null : (
+          <Button type="button" size="sm" onClick={onUsar}>
+            Usar este origen
+          </Button>
+        )}
       </div>
     </li>
   );

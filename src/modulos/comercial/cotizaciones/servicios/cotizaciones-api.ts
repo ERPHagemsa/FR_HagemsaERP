@@ -54,6 +54,26 @@ export async function consultarCotizacion(id: string): Promise<Cotizacion> {
   return data;
 }
 
+// ---------------------------------------------------------------------------
+// Eliminar (baja logica / soft-delete). DELETE → 204.
+// 409 si la cotizacion no admite baja (GANADA, o con tarifario/contrato asociado):
+// el backend devuelve un mensaje en espanol explicando el bloqueo.
+// ---------------------------------------------------------------------------
+
+export async function eliminarCotizacion(id: string): Promise<void> {
+  await clienteComercial.delete(`/cotizaciones/${id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Restaurar (revierte la baja logica / soft-delete). POST → 204. Sin body.
+// 409 (D7b) si la solicitud de origen esta eliminada: el backend devuelve un
+// mensaje en espanol nombrando a la solicitud padre y pide restaurarla primero.
+// ---------------------------------------------------------------------------
+
+export async function restaurarCotizacion(id: string): Promise<void> {
+  await clienteComercial.post(`/cotizaciones/${id}/restaurar`);
+}
+
 // GET /cotizaciones/cargas/sugerencias
 // Autocompletado de cargas (API §5.3.1). Lectura GLOBAL: busca sobre todas las cargas
 // activas de cualquier cotizacion y deduplica por nombre (trae la mas reciente).

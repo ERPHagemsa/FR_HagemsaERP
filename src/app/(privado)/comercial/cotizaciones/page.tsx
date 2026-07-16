@@ -75,6 +75,9 @@ export default async function Page({ searchParams }: Props) {
     origenTipo,
     idEjecutivoResponsable: idEjecutivoRaw,
     busqueda: busquedaRaw,
+    // Trae tambien las cotizaciones con baja logica: llegan mezcladas y el listado
+    // las tacha en sitio, con Restaurar como accion de fila (patron del pilot de prospectos).
+    incluirEliminados: true,
     pagina,
     porPagina,
   };
