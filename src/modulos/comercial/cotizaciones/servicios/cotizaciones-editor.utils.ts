@@ -329,7 +329,9 @@ export function sincronizarRutaSeccion(seccion: DraftSeccion): DraftSeccion {
               ...l.carga,
               origen: seccion.origen,
               destino: seccion.destino,
-              // Los ids acompañan al texto (solo para el precio sugerido; no se persisten).
+              // Los ids acompañan al texto: alimentan el precio sugerido y ademas
+              // viajan al backend, que los usa para distinguir una ubicacion
+              // elegida de un nombre escrito a mano.
               origenUbicacionId: seccion.origenUbicacionId,
               destinoUbicacionId: seccion.destinoUbicacionId,
             },
@@ -528,10 +530,9 @@ export function derivarDraft(version: Version): DraftBorrador {
         claveCliente: s.id,
         esDefecto: false,
         nombre: s.nombre,
+        // Placeholder: la ruta y sus ids se derivan de las lineas en el pase 3.5.
         origen: "",
         destino: "",
-        // El write-model no persiste los ids de ubicacion: al cargar una cotizacion
-        // guardada la ruta viene solo como texto → sin id, el precio sugerido degrada.
         origenUbicacionId: "",
         destinoUbicacionId: "",
         orden: s.orden,
@@ -605,6 +606,16 @@ function cargaAPayload(c: DraftCargaHijo): PayloadCargaHijo {
   const payload: PayloadCargaHijo = {};
   if (c.origen !== "") payload.origen = c.origen;
   if (c.destino !== "") payload.destino = c.destino;
+  // El id viaja SOLO si la ubicacion se eligio de las sugerencias: el modal lo
+  // limpia al tipear. Su ausencia es informacion, no un descuido — le dice al
+  // backend "esta no es necesariamente la que ya esta en el maestro", y por eso
+  // abre una temporal a completar al ganar. Antes se descartaban aca y el backend
+  // solo veia el nombre: como matcheaba por nombre (case-insensitive), escribir
+  // "LIMA" reusaba la "Lima" del maestro con otra direccion.
+  if (c.origenUbicacionId !== "") payload.origenUbicacionId = c.origenUbicacionId;
+  if (c.destinoUbicacionId !== "") {
+    payload.destinoUbicacionId = c.destinoUbicacionId;
+  }
   // Snapshot del tipo de unidad: fuente + id opaco viajan juntos. El nombre NO se envia
   // (lo congela el backend). validarBorrador ya bloquea guardar sin seleccion en TRANSPORTE.
   if (c.fuenteTipoUnidad !== "" && c.idTipoUnidad !== "") {

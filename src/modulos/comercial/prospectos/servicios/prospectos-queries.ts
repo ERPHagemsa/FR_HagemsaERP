@@ -24,6 +24,7 @@ import {
   obtenerHistorialProspectos,
   reactivarProspecto,
   registrarProspecto,
+  restaurarProspecto,
 } from "./prospectos-api";
 
 import {
@@ -99,6 +100,12 @@ export function useReactivarProspectoMutation() {
 export function useEliminarProspectoMutation() {
   return useMutar<string, Awaited<ReturnType<typeof eliminarProspecto>>>({
     fn: (id) => eliminarProspecto(id),
+  });
+}
+
+export function useRestaurarProspectoMutation() {
+  return useMutar<string, Awaited<ReturnType<typeof restaurarProspecto>>>({
+    fn: (id) => restaurarProspecto(id),
   });
 }
 

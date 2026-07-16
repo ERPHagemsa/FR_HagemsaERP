@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
-import { Eye, Hash, RefreshCw, Search } from "lucide-react";
+import { Eye, Hash, RefreshCw, RotateCcw, Search, Trash2 } from "lucide-react";
 
 import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos";
 import type {
@@ -30,6 +30,8 @@ import type {
   OrigenTipo,
 } from "../tipos/cotizaciones.tipos";
 import { CotizacionesKpis } from "./cotizaciones-kpis";
+import { CotizacionEliminarFilaDialog } from "./cotizacion-eliminar-fila-dialog";
+import { CotizacionRestaurarDialog } from "./cotizacion-restaurar-dialog";
 import { DialogoFijarNumeracion } from "./dialogo-fijar-numeracion";
 import { EstadoCotizacionBadge } from "./estado-cotizacion-badge";
 
@@ -38,6 +40,11 @@ type Props = {
   filtros: FiltrosCotizaciones;
   total: number;
 };
+
+// Estado del dialogo de baja/restauracion abierto desde el menu `⋯`. Se maneja a
+// nivel de tabla (no por fila) porque los dialogos son controlados: el trigger es
+// un item del dropdown, no un boton propio del dialogo.
+type DialogoFila = { tipo: "eliminar" | "restaurar"; id: string } | null;
 
 const ORIGENES: Array<{ valor: OrigenTipo | "TODOS"; etiqueta: string }> = [
   { valor: "TODOS", etiqueta: "Todos" },
@@ -123,14 +130,41 @@ const COLUMNAS: ColumnaTabla<CotizacionResumen>[] = [
   },
 ];
 
+// Acciones del menú `⋯`. Adaptativas según la existencia (soft-delete):
+//  - fila activa: "Ver detalle" + Eliminar
+//  - fila eliminada (estadoRegistro=false): SOLO "Restaurar"
 function accionesCotizacion(
-  cotizacion: CotizacionResumen
+  cotizacion: CotizacionResumen,
+  abrirDialogo: (dialogo: DialogoFila) => void
 ): AccionTabla<CotizacionResumen>[] {
+  // estadoRegistro es el eje de existencia (soft-delete). Cuando el listado se pide
+  // con incluirEliminados=true, las filas eliminadas llegan mezcladas y se tachan.
+  const esEliminado = !cotizacion.estadoRegistro;
+
   return [
     {
       etiqueta: "Ver detalle",
       icono: Eye,
       href: () => `/comercial/cotizaciones/${cotizacion.id}`,
+      oculta: () => esEliminado,
+    },
+    {
+      etiqueta: "Eliminar",
+      icono: Trash2,
+      destructiva: true,
+      alSeleccionar: () => abrirDialogo({ tipo: "eliminar", id: cotizacion.id }),
+      oculta: () => esEliminado,
+    },
+    // TODO(bc03-autorizacion): envolver la accion Restaurar en
+    //   <RolGuard rolesPermitidos={ROLES_RESTAURAR}> cuando los roles viajen en el
+    // JWT. Hoy SIN guarda a proposito: los roles aun no viajan en el JWT y el guard
+    // ocultaria Restaurar a todos. ROLES_RESTAURAR vive en
+    // @/compartido/autenticacion/roles. Activacion futura = una linea.
+    {
+      etiqueta: "Restaurar",
+      icono: RotateCcw,
+      alSeleccionar: () => abrirDialogo({ tipo: "restaurar", id: cotizacion.id }),
+      oculta: () => !esEliminado,
     },
   ];
 }
@@ -141,6 +175,8 @@ export function CotizacionesTabla({ items, filtros, total }: Props) {
 
   const pagina = filtros.pagina ?? 1;
   const porPagina = filtros.porPagina ?? 10;
+
+  const [dialogoFila, setDialogoFila] = React.useState<DialogoFila>(null);
 
   const [busquedaLocal, setBusquedaLocal] = React.useState(filtros.busqueda ?? "");
   const [origenLocal, setOrigenLocal] = React.useState(filtros.origenTipo ?? "TODOS");
@@ -274,7 +310,13 @@ export function CotizacionesTabla({ items, filtros, total }: Props) {
         columnas={COLUMNAS}
         datos={items}
         obtenerId={(cotizacion) => cotizacion.id}
-        acciones={accionesCotizacion}
+        acciones={(cotizacion) => accionesCotizacion(cotizacion, setDialogoFila)}
+        claseFila={(cotizacion) =>
+          cn(
+            !cotizacion.estadoRegistro &&
+              "line-through text-muted-foreground opacity-60"
+          )
+        }
         barraHerramientas={barraHerramientas}
         paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
         vacioTitulo={hayFiltros ? "Sin coincidencias" : "Sin cotizaciones"}
@@ -284,6 +326,23 @@ export function CotizacionesTabla({ items, filtros, total }: Props) {
             : "No hay cotizaciones registradas."
         }
       />
+
+      {/* Dialogos controlados de baja/restauracion. Un unico par a nivel de tabla,
+          alimentado por el id de la fila cuyo menu `⋯` disparo la accion. */}
+      {dialogoFila?.tipo === "eliminar" ? (
+        <CotizacionEliminarFilaDialog
+          idCotizacion={dialogoFila.id}
+          abierto
+          onCerrar={() => setDialogoFila(null)}
+        />
+      ) : null}
+      {dialogoFila?.tipo === "restaurar" ? (
+        <CotizacionRestaurarDialog
+          idCotizacion={dialogoFila.id}
+          abierto
+          onCerrar={() => setDialogoFila(null)}
+        />
+      ) : null}
     </div>
   );
 }

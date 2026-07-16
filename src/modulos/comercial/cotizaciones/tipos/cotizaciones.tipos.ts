@@ -333,6 +333,10 @@ export type CotizacionResumen = {
   totalVersiones: number;
   fechaEnvio: string | null;
   fechaVencimiento: string | null;
+  // Eje de existencia (soft-delete), ortogonal a `estado` (negocio). true = activa,
+  // false = eliminada. El listado lo expone para tachar en sitio las filas eliminadas
+  // cuando se pide con `incluirEliminados=true` (ver FiltrosCotizaciones).
+  estadoRegistro: boolean;
   fechaCreacion: string;
   fechaModificacion: string | null;
 };
@@ -382,6 +386,9 @@ export type FiltrosCotizaciones = {
   origenTipo?: OrigenTipo;
   idEjecutivoResponsable?: string;
   busqueda?: string;
+  // Opt-in: si es true, el backend devuelve tambien las eliminadas (estadoRegistro=false)
+  // junto con las activas. Ausente/false = solo activas.
+  incluirEliminados?: boolean;
   pagina?: number;
   porPagina?: number;
 };
@@ -552,6 +559,13 @@ export type PayloadCargaItem = {
 export type PayloadCargaHijo = {
   origen?: string;
   destino?: string;
+  // Ubicacion ELEGIDA de las sugerencias. Solo viaja si el usuario la selecciono:
+  // al tipear, el modal limpia el id. Esa distincion es la que el backend necesita
+  // para decidir — una ubicacion es pais + departamento + distrito + direccion, asi
+  // que un nombre igual no significa el mismo lugar. Elegida -> apunta a esa;
+  // escrita a mano -> abre una ubicacion temporal a completar al ganar.
+  origenUbicacionId?: string;
+  destinoUbicacionId?: string;
   // Snapshot del tipo de unidad: fuente + id opaco. Ambos obligatorios cuando se envia la
   // carga (el backend exige @IsEnum + @IsString/@IsNotEmpty); el nombre lo congela el backend.
   fuenteTipoUnidad?: FuenteTipoUnidad;

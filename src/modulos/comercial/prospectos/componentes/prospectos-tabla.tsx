@@ -31,6 +31,8 @@ import { cn } from "@/compartido/utilidades";
 
 import type { EstadoProspecto, Prospecto, RespuestaPaginadaProspectos } from "../tipos/prospecto.tipos";
 import { EstadoProspectoBadge } from "./estado-prospecto-badge";
+import { ProspectoEliminarFilaDialog } from "./prospecto-eliminar-fila-dialog";
+import { ProspectoRestaurarDialog } from "./prospecto-restaurar-dialog";
 
 type Props = {
   respuesta: RespuestaPaginadaProspectos;
@@ -232,13 +234,13 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[25%]">Razon social</TableHead>
+                <TableHead className="w-[22%]">Razon social</TableHead>
                 <TableHead className="w-[20%]">Nombre comercial</TableHead>
                 <TableHead className="w-[12%]">Documento</TableHead>
                 <TableHead className="w-[14%]">Medio contacto</TableHead>
                 <TableHead className="w-[10%]">Estado</TableHead>
                 <TableHead className="w-[12%]">Actualizado</TableHead>
-                <TableHead className="w-[7%] text-center">Accion</TableHead>
+                <TableHead className="w-[10%] text-center">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -295,8 +297,13 @@ export function ProspectosTabla({ respuesta, filtrosActivos }: Props) {
 }
 
 function FilaProspecto({ prospecto }: { prospecto: Prospecto }) {
+  // estadoRegistro es el eje de existencia (soft-delete). Cuando el listado se pide
+  // con incluirEliminados=true, las filas eliminadas llegan mezcladas y se tachan.
+  const esEliminado = !prospecto.estadoRegistro;
   return (
-    <TableRow>
+    <TableRow
+      className={cn(esEliminado && "line-through text-muted-foreground opacity-60")}
+    >
       <TableCell>
         <span className="truncate font-medium">{prospecto.razonSocial}</span>
       </TableCell>
@@ -321,12 +328,26 @@ function FilaProspecto({ prospecto }: { prospecto: Prospecto }) {
         {prospecto.fechaModificacion ? formatearFecha(prospecto.fechaModificacion) : "—"}
       </TableCell>
       <TableCell className="text-center">
-        <Button asChild size="icon-sm" variant="outline">
-          <Link href={`/comercial/prospectos/${prospecto.id}`}>
-            <IconEye />
-            <span className="sr-only">Ver</span>
-          </Link>
-        </Button>
+        {esEliminado ? (
+          // Fila eliminada: sin "Ver" (el detalle de un eliminado responde 404).
+          // TODO(bc03-autorizacion): envolver en
+          //   <RolGuard rolesPermitidos={ROLES_RESTAURAR}>...</RolGuard>
+          // cuando los roles esten cableados en el JWT. Hoy SIN guarda a proposito:
+          // los roles aun no viajan en el JWT y el guard ocultaria Restaurar a todos.
+          // ROLES_RESTAURAR se exporta desde @/compartido/autenticacion/roles.
+          // Activacion futura = una linea (importar RolGuard + envolver).
+          <ProspectoRestaurarDialog idProspecto={prospecto.id} />
+        ) : (
+          <div className="flex items-center justify-center gap-1">
+            <Button asChild size="icon-sm" variant="outline">
+              <Link href={`/comercial/prospectos/${prospecto.id}`}>
+                <IconEye />
+                <span className="sr-only">Ver</span>
+              </Link>
+            </Button>
+            <ProspectoEliminarFilaDialog idProspecto={prospecto.id} />
+          </div>
+        )}
       </TableCell>
     </TableRow>
   );

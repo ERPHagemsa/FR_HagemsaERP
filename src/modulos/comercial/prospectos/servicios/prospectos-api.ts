@@ -89,6 +89,17 @@ export async function reactivarProspecto(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Restaurar (revierte la baja logica / soft-delete). Sin body. 204.
+// Distinto de reactivar: reactivar mueve el estado de negocio DESCARTADO -> ACTIVO;
+// restaurar flipea estadoRegistro (existencia) de false -> true. El prospecto es la
+// raiz de la cadena, por eso restaurar NO tiene guarda de padre (nunca da 409).
+// ---------------------------------------------------------------------------
+
+export async function restaurarProspecto(id: string): Promise<void> {
+  await clienteComercial.post(`/prospectos/${id}/restaurar`);
+}
+
+// ---------------------------------------------------------------------------
 // Eliminar (baja logica / soft-delete). 409 si tiene actividad comercial.
 // ---------------------------------------------------------------------------
 
