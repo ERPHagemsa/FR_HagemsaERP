@@ -559,6 +559,13 @@ export type PayloadCargaItem = {
 export type PayloadCargaHijo = {
   origen?: string;
   destino?: string;
+  // Ubicacion ELEGIDA de las sugerencias. Solo viaja si el usuario la selecciono:
+  // al tipear, el modal limpia el id. Esa distincion es la que el backend necesita
+  // para decidir — una ubicacion es pais + departamento + distrito + direccion, asi
+  // que un nombre igual no significa el mismo lugar. Elegida -> apunta a esa;
+  // escrita a mano -> abre una ubicacion temporal a completar al ganar.
+  origenUbicacionId?: string;
+  destinoUbicacionId?: string;
   // Snapshot del tipo de unidad: fuente + id opaco. Ambos obligatorios cuando se envia la
   // carga (el backend exige @IsEnum + @IsString/@IsNotEmpty); el nombre lo congela el backend.
   fuenteTipoUnidad?: FuenteTipoUnidad;
