@@ -15,6 +15,7 @@ import {
   IconTruck,
 } from "@tabler/icons-react";
 
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { extraerMensajeError } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -156,6 +157,7 @@ export function ActivoFormulario({
   accionesExtra,
 }: Props) {
   const router = useRouter();
+  const { usuario } = useSesion();
   const [returnToGuardado, setReturnToGuardado] = React.useState<string | null>(
     null
   );
@@ -888,7 +890,7 @@ export function ActivoFormulario({
             tipoCambio: inferirTipoCambioConfiguracion(activo, payload),
             motivo: construirMotivoConfiguracionHistorica(activo, payload),
             fechaCambio: new Date().toISOString(),
-            usuarioRegistro: "activos.web",
+            usuarioRegistro: usuario?.nombreUsuario ?? "activos.web",
           });
         }
       }
@@ -1329,8 +1331,9 @@ export function ActivoFormulario({
                         <Field
                           name="usuarioCarga"
                           label="Usuario responsable"
-                          placeholder="usuario.activos"
-                          required
+                          value={usuario?.nombreUsuario ?? "usuario.activos"}
+                          readOnly
+                          className="cursor-default bg-muted/40 text-muted-foreground"
                         />
                         {tipoActivoSeleccionadoId === TIPO_ACTIVO_VEHICULO_ID &&
                         tipoDocumentoDraft === "TARJETA_PROPIEDAD" ? (

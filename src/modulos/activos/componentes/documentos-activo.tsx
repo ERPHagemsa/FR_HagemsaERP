@@ -5,6 +5,7 @@ import * as React from "react";
 import { toast } from "sonner";
 import { IconExternalLink, IconFilePlus, IconFileUpload, IconTrash } from "@tabler/icons-react";
 
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -74,6 +75,7 @@ export function DocumentosActivo({
   origen,
 }: Props) {
   const router = useRouter();
+  const { usuario } = useSesion();
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
@@ -340,7 +342,7 @@ export function DocumentosActivo({
                 Documento desde equipo
                 <span className="ml-1 text-destructive">*</span>
               </Label>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <Button asChild type="button" variant="outline">
                   <label htmlFor="documento-archivo" className="cursor-pointer">
                     <IconFileUpload />
@@ -353,7 +355,7 @@ export function DocumentosActivo({
                   type="file"
                   onChange={onArchivoChange}
                 />
-                <span className="min-w-0 truncate rounded-full border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+                <span className="min-w-0 max-w-full truncate rounded-full border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
                   {archivoNombre || "Ningun documento seleccionado"}
                 </span>
               </div>
@@ -361,8 +363,9 @@ export function DocumentosActivo({
             <Field
               name="usuarioCarga"
               label="Usuario responsable"
-              placeholder="usuario.activos"
-              required
+              value={usuario?.nombreUsuario ?? "usuario.activos"}
+              readOnly
+              className="cursor-default bg-muted/40 text-muted-foreground"
             />
           </div>
           {esCompartido ? (

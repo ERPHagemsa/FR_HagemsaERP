@@ -611,10 +611,12 @@ function PasoResultado({
   const todosSeleccionados =
     codigosCreados.length > 0 &&
     codigosCreados.every((codigo) => codigosSeleccionados.has(codigo));
-  const codigosParaDocumentos =
-    codigosSeleccionados.size > 0
-      ? codigosCreados.filter((codigo) => codigosSeleccionados.has(codigo))
-      : codigosCreados;
+  // No hay fallback a "todos": si el usuario no marca nada, no hay a quien
+  // subirle el documento. Para aplicar a todo el lote debe usar el checkbox
+  // "Seleccionar todos los creados" de la cabecera de la tabla.
+  const codigosParaDocumentos = codigosCreados.filter((codigo) =>
+    codigosSeleccionados.has(codigo),
+  );
   return (
     <Card className="border-0 shadow-sm">
       <CardHeader>
@@ -764,12 +766,13 @@ function PasoResultado({
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={codigosSeleccionados.size === 0}
                   onClick={() => setMostrarSubidaSeleccionados(true)}
                 >
                   <FileText className="size-4" />
                   {codigosSeleccionados.size > 0
                     ? `Subir documento a ${codigosSeleccionados.size} seleccionado${codigosSeleccionados.size === 1 ? "" : "s"}`
-                    : "Subir documento a estos activos"}
+                    : "Selecciona activos para subir documento"}
                 </Button>
               </>
             )}

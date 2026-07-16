@@ -43,6 +43,7 @@ import {
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades/utils";
 import { extraerMensajeError } from "@/compartido/api";
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { useCatalogosActivos } from "../ganchos/use-catalogos-activos";
 import {
   buscarActivosConFiltros,
@@ -104,6 +105,8 @@ const SIN_TIPO_COMPARTIDO = "__ninguno__";
 
 export function CargaMasivaDocumentosVista() {
   const catalogos = useCatalogosActivos();
+  const { usuario } = useSesion();
+  const nombreUsuarioCarga = usuario?.nombreUsuario ?? "usuario.activos";
   const [tiposMaestro, setTiposMaestro] = React.useState<
     TipoDocumentoMaestro[]
   >([]);
@@ -134,10 +137,6 @@ export function CargaMasivaDocumentosVista() {
     nombreArchivo: string;
     contenidoBase64: string;
   } | null>(null);
-
-  // Usuario que carga el lote: un solo campo para todo el envio, igual que
-  // "usuarioCarga" en el formulario de documentos por activo.
-  const [usuarioCarga, setUsuarioCarga] = React.useState("");
 
   // Documentos individuales por activo (SOAT, revision tecnica, etc.).
   const [docsPorActivo, setDocsPorActivo] = React.useState<
@@ -273,7 +272,6 @@ export function CargaMasivaDocumentosVista() {
     setCompartidoFechaEmision("");
     setCompartidoFecha("");
     setCompartidoArchivo(null);
-    setUsuarioCarga("");
     limpiarFiltros();
   }
 
@@ -333,7 +331,7 @@ export function CargaMasivaDocumentosVista() {
     try {
       const datos = await procesarCargaMasivaDocumentos({
         archivos,
-        usuario: usuarioCarga.trim() || "usuario.activos",
+        usuario: nombreUsuarioCarga,
       });
       setResultado(datos);
       toast.success(
@@ -755,9 +753,9 @@ export function CargaMasivaDocumentosVista() {
             <div className="max-w-xs space-y-1.5">
               <Label className="text-xs">Cargado por</Label>
               <Input
-                placeholder="usuario.activos"
-                value={usuarioCarga}
-                onChange={(e) => setUsuarioCarga(e.target.value)}
+                value={nombreUsuarioCarga}
+                readOnly
+                className="cursor-default bg-muted/40 text-muted-foreground"
               />
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
