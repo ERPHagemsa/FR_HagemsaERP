@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Loader2 } from "lucide-react";
 
 import { esError409 } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -93,9 +94,8 @@ export function DialogoResolverSolicitud({
 
   // Solo al aprobar se consulta el detalle para precargar el correo del cliente;
   // con id vacío la query queda deshabilitada (enabled: Boolean(id)).
-  const { data: cotizacion } = useConsultarCotizacion(
-    accion === "aprobar" ? idCotizacion : "",
-  );
+  const { data: cotizacion, isLoading: cargandoCorreoCliente } =
+    useConsultarCotizacion(accion === "aprobar" ? idCotizacion : "");
   const correoClienteSugerido = cotizacion?.correoClienteSugerido ?? "";
 
   const [texto, setTexto] = React.useState("");
@@ -191,18 +191,37 @@ export function DialogoResolverSolicitud({
                 <Label htmlFor={`correo-cliente-${idSolicitud}`}>
                   Correo del cliente <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id={`correo-cliente-${idSolicitud}`}
-                  type="email"
-                  value={correoCliente}
-                  onChange={(event) => {
-                    setCorreoEditado(event.target.value);
-                    if (errorCorreoCliente) setErrorCorreoCliente(null);
-                  }}
-                  placeholder="contacto@cliente.com"
-                  disabled={isPending}
-                  aria-invalid={Boolean(errorCorreoCliente)}
-                />
+                {/*
+                  El correo sugerido tarda ~1s (el detalle de la cotización se
+                  pide al abrir). Sin señal, el campo se veía vacío y editable: o
+                  parecía que no había correo, o quien empezaba a escribir perdía
+                  lo tipeado cuando llegaba el sugerido (`correoEditado` gana, así
+                  que en realidad quedaba lo suyo — pero el salto igual desconcierta).
+                  Se bloquea mientras carga y el spinner dice por qué.
+                */}
+                <div className="relative">
+                  <Input
+                    id={`correo-cliente-${idSolicitud}`}
+                    type="email"
+                    value={cargandoCorreoCliente ? "" : correoCliente}
+                    onChange={(event) => {
+                      setCorreoEditado(event.target.value);
+                      if (errorCorreoCliente) setErrorCorreoCliente(null);
+                    }}
+                    placeholder={
+                      cargandoCorreoCliente ? "" : "contacto@cliente.com"
+                    }
+                    disabled={isPending || cargandoCorreoCliente}
+                    aria-busy={cargandoCorreoCliente}
+                    aria-invalid={Boolean(errorCorreoCliente)}
+                  />
+                  {cargandoCorreoCliente ? (
+                    <span className="absolute inset-y-0 left-3 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                      Buscando el correo del cliente…
+                    </span>
+                  ) : null}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Recibe la cotización aprobada con el PDF adjunto.
                 </p>
@@ -270,7 +289,14 @@ export function DialogoResolverSolicitud({
             <Button type="button" variant="outline" onClick={() => onAbiertoChange(false)} disabled={isPending}>
               Cancelar
             </Button>
-            <Button type="submit" variant={config.destructivo ? "destructive" : "default"} disabled={isPending}>
+            {/* Bloqueado mientras carga el correo sugerido: apretar antes lo
+                mandaria vacio y el formulario responderia con un error de
+                validacion que no es culpa de nadie. */}
+            <Button
+              type="submit"
+              variant={config.destructivo ? "destructive" : "default"}
+              disabled={isPending || cargandoCorreoCliente}
+            >
               {isPending ? config.procesando : config.boton}
             </Button>
           </DialogFooter>
