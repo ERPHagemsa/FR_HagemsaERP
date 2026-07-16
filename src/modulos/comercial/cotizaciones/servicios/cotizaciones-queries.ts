@@ -22,6 +22,7 @@ import {
   actualizarCondicionesVersion,
   cancelarCotizacion,
   consultarCotizacion,
+  eliminarCotizacion,
   fijarNumeracionCotizaciones,
   listarCotizaciones,
   marcarGanada,
@@ -31,6 +32,7 @@ import {
   obtenerPrecioSugerido,
   obtenerResumenCotizaciones,
   obtenerSugerenciasCarga,
+  restaurarCotizacion,
   solicitarAprobacion,
 } from "./cotizaciones-api";
 import { listarCatalogosCargoAdicional } from "./catalogos-cargo-adicional-api";
@@ -218,6 +220,22 @@ export function useCancelarCotizacionMutation(id: string) {
       invalidarConsulta(CLAVE_COTIZACIONES_RESUMEN);
       invalidarConsulta(CLAVE_COTIZACION_DETALLE);
     },
+  });
+}
+
+// Eliminar (soft-delete) desde la fila del listado. La invalidacion la dispara
+// el dialogo (mirroring del pilot de prospectos/solicitud), por eso queda minimal.
+export function useEliminarCotizacionMutation() {
+  return useMutar<string, Awaited<ReturnType<typeof eliminarCotizacion>>>({
+    fn: (id) => eliminarCotizacion(id),
+  });
+}
+
+// Restaurar (revierte el soft-delete) desde la fila del listado. Igual que
+// eliminar: el dialogo invalida tras el exito.
+export function useRestaurarCotizacionMutation() {
+  return useMutar<string, Awaited<ReturnType<typeof restaurarCotizacion>>>({
+    fn: (id) => restaurarCotizacion(id),
   });
 }
 

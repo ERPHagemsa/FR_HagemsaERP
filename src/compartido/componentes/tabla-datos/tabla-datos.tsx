@@ -55,6 +55,13 @@ type Props<T> = {
   obtenerId: (fila: T) => string;
   /** Si se define, agrega la columna de acciones con el menú `⋯`. */
   acciones?: (fila: T) => AccionTabla<T>[];
+  /**
+   * Clase(s) extra opcional(es) por fila, derivadas de los datos de esa fila.
+   * Se fusionan sobre el `<TableRow>` via `cn(...)`. Ausente = comportamiento
+   * por defecto sin cambios. Uso tipico: tachar filas con baja logica
+   * (soft-delete) cuando el listado se pide con `incluirEliminados=true`.
+   */
+  claseFila?: (fila: T) => string | undefined;
   /** Muestra filas esqueleto mientras carga. */
   cargando?: boolean;
   /** Controles de paginación; omitir si la tabla no pagina. */
@@ -77,6 +84,7 @@ export function TablaDatos<T>({
   datos,
   obtenerId,
   acciones,
+  claseFila,
   cargando = false,
   paginacion,
   barraHerramientas,
@@ -125,7 +133,7 @@ export function TablaDatos<T>({
               />
             ) : datos.length ? (
               datos.map((fila) => (
-                <TableRow key={obtenerId(fila)}>
+                <TableRow key={obtenerId(fila)} className={cn(claseFila?.(fila))}>
                   {columnas.map((columna) => (
                     <TableCell
                       key={columna.id}

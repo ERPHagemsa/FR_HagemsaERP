@@ -8,6 +8,9 @@ export type VeredictoIdentidad =
   | "CLIENTE"
   | "CLIENTE_INACTIVO"
   | "PROSPECTO_EXISTENTE"
+  // Existe un prospecto con este documento pero fue eliminado (soft-delete).
+  // Mismo payload que PROSPECTO_EXISTENTE: { prospecto: { prospectoId, razonSocial } }.
+  | "PROSPECTO_ELIMINADO"
   | "NUEVO";
 
 // Respuesta del endpoint resolver-identidad. Los campos opcionales solo

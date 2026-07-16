@@ -122,6 +122,10 @@ export type SolicitudClienteResumen = {
   descripcionServicio: string;
   numeroSolicitud: number | null;
   codigoSolicitud: string | null;
+  // Eje de existencia (soft-delete), ortogonal a `estado` (negocio). true = activo,
+  // false = eliminado. El listado lo expone para tachar en sitio las filas eliminadas
+  // cuando se pide con `incluirEliminados=true` (ver FiltrosSolicitudesCliente).
+  estadoRegistro: boolean;
   // Campos snapshot server-derived (disponibles desde backend v2)
   nombreSolicitante: string;
   totalCotizaciones: number;
@@ -171,6 +175,9 @@ export type FiltrosSolicitudesCliente = {
   origenTipo?: TipoOrigen;
   origenId?: string;
   busqueda?: string;
+  // Opt-in: si es true, el backend devuelve tambien los eliminados (estadoRegistro=false)
+  // junto con los activos. Ausente/false = solo activos.
+  incluirEliminados?: boolean;
   pagina?: number;
   porPagina?: number;
 };

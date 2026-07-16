@@ -103,3 +103,24 @@ export async function descartarSolicitudCliente(
 ): Promise<void> {
   await clienteComercial.patch(`/solicitudes-cliente/${id}/descartar`, payload);
 }
+
+// ---------------------------------------------------------------------------
+// Eliminar (baja logica / soft-delete). DELETE → 204.
+// 409 si la solicitud ya tiene una cotizacion (cualquier estado): en ese caso
+// el backend devuelve un mensaje en espanol mencionando las cotizaciones.
+// ---------------------------------------------------------------------------
+
+export async function eliminarSolicitud(id: string): Promise<void> {
+  await clienteComercial.delete(`/solicitudes-cliente/${id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Restaurar (revierte la baja logica / soft-delete). POST → 204. Sin body.
+// 409 (D7b) si el prospecto de origen esta eliminado (solo origenTipo=PROSPECTO):
+// el backend devuelve un mensaje en espanol nombrando al prospecto padre y pide
+// restaurarlo primero. Origen CLIENTE no tiene esa verificacion de padre.
+// ---------------------------------------------------------------------------
+
+export async function restaurarSolicitud(id: string): Promise<void> {
+  await clienteComercial.post(`/solicitudes-cliente/${id}/restaurar`);
+}

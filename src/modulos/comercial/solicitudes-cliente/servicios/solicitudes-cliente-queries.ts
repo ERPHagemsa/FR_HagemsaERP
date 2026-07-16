@@ -16,9 +16,11 @@ import {
   agregarCotizacion,
   consultarSolicitudCliente,
   descartarSolicitudCliente,
+  eliminarSolicitud,
   listarSolicitudesCliente,
   obtenerResumenSolicitudes,
   registrarSolicitudCliente,
+  restaurarSolicitud,
 } from "./solicitudes-cliente-api";
 
 import {
@@ -109,5 +111,21 @@ export function useDescartarSCMutation() {
       invalidarConsulta(CLAVE_SOLICITUDES_CLIENTE_RESUMEN);
       invalidarConsulta(CLAVE_SOLICITUD_CLIENTE_DETALLE);
     },
+  });
+}
+
+// Eliminar (soft-delete) desde la fila del listado. La invalidacion la dispara
+// el dialogo (mirroring del pilot de prospectos), por eso el hook queda minimal.
+export function useEliminarSolicitudMutation() {
+  return useMutar<string, Awaited<ReturnType<typeof eliminarSolicitud>>>({
+    fn: (id) => eliminarSolicitud(id),
+  });
+}
+
+// Restaurar (revierte el soft-delete) desde la fila del listado. Igual que
+// eliminar: el dialogo invalida tras el exito.
+export function useRestaurarSolicitudMutation() {
+  return useMutar<string, Awaited<ReturnType<typeof restaurarSolicitud>>>({
+    fn: (id) => restaurarSolicitud(id),
   });
 }

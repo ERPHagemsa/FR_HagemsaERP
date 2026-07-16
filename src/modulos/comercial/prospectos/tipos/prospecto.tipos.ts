@@ -38,6 +38,10 @@ export type Prospecto = {
   estado: EstadoProspecto;
   idEjecutivoResponsable: string;
   motivoDescarte: string | null;
+  // Eje de existencia (soft-delete), ortogonal a `estado` (negocio). true = activo,
+  // false = eliminado. El listado lo expone para tachar en sitio las filas eliminadas
+  // cuando se pide con `incluirEliminados=true` (ver FiltrosProspectos).
+  estadoRegistro: boolean;
   contactos: Contacto[];
   fechaCreacion: string;
   usuarioCreacion: string;
@@ -103,6 +107,9 @@ export type FiltrosProspectos = {
   // Rango sobre la fecha de creacion (ISO 8601).
   fechaDesde?: string;
   fechaHasta?: string;
+  // Opt-in: si es true, el backend devuelve tambien los eliminados (estadoRegistro=false)
+  // junto con los activos. Ausente/false = solo activos.
+  incluirEliminados?: boolean;
   pagina?: number;
   porPagina?: number;
 };

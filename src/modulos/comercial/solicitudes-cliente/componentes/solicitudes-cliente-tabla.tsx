@@ -2,7 +2,16 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
-import { Eye, FilePlusCorner, FileText, Plus, RefreshCw, Search } from "lucide-react";
+import {
+  Eye,
+  FilePlusCorner,
+  FileText,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Trash2,
+} from "lucide-react";
 
 import { TablaDatos } from "@/compartido/componentes/tabla-datos/tabla-datos";
 import type {
@@ -31,6 +40,13 @@ import type {
 import { EstadoSolicitudBadge } from "./estado-solicitud-badge";
 import { SolicitudesClienteKpis } from "./solicitudes-cliente-kpis";
 import { SolicitudClienteNuevaModal } from "./solicitud-cliente-nueva-modal";
+import { SolicitudClienteEliminarFilaDialog } from "./solicitud-cliente-eliminar-fila-dialog";
+import { SolicitudClienteRestaurarDialog } from "./solicitud-cliente-restaurar-dialog";
+
+// Estado del dialogo de baja/restauracion abierto desde el menu `⋯`. Se maneja a
+// nivel de tabla (no por fila) porque los dialogos son controlados: el trigger es
+// un item del dropdown, no un boton propio del dialogo.
+type DialogoFila = { tipo: "eliminar" | "restaurar"; id: string } | null;
 
 type Props = {
   items: SolicitudClienteResumen[];
@@ -147,32 +163,57 @@ const COLUMNAS: ColumnaTabla<SolicitudClienteResumen>[] = [
 ];
 
 // Acciones del menú `⋯`. Adaptativas según el estado de la solicitud:
-//  - hay cotizacion viva  → "Ver cotizacion" (deep-link directo)
-//  - no hay viva y se puede cotizar → "Cotizar"
-//  - "Ver detalle" (el expediente) queda SIEMPRE disponible.
+//  - fila activa: acciones de negocio + Eliminar
+//      - hay cotizacion viva  → "Ver cotizacion" (deep-link directo)
+//      - no hay viva y se puede cotizar → "Cotizar"
+//      - "Ver detalle" (el expediente) queda disponible
+//  - fila eliminada (estadoRegistro=false): SOLO "Restaurar"
 function accionesSolicitud(
-  item: SolicitudClienteResumen
+  item: SolicitudClienteResumen,
+  abrirDialogo: (dialogo: DialogoFila) => void
 ): AccionTabla<SolicitudClienteResumen>[] {
   const vigente = item.cotizacionVigente;
   const puedeCotizar = accionesPermitidasSC(item.estado).agregarCotizacion;
+  // estadoRegistro es el eje de existencia (soft-delete). Cuando el listado se pide
+  // con incluirEliminados=true, las filas eliminadas llegan mezcladas y se tachan.
+  const esEliminado = !item.estadoRegistro;
 
   return [
     {
       etiqueta: "Ver cotizacion",
       icono: FileText,
       href: () => `/comercial/cotizaciones/${vigente?.id}`,
-      oculta: () => vigente == null,
+      oculta: () => esEliminado || vigente == null,
     },
     {
       etiqueta: "Cotizar",
       icono: FilePlusCorner,
       href: () => `/comercial/solicitudes-cliente/${item.id}/cotizar`,
-      oculta: () => !(vigente == null && puedeCotizar),
+      oculta: () => esEliminado || !(vigente == null && puedeCotizar),
     },
     {
       etiqueta: "Ver detalle",
       icono: Eye,
       href: () => `/comercial/solicitudes-cliente/${item.id}`,
+      oculta: () => esEliminado,
+    },
+    {
+      etiqueta: "Eliminar",
+      icono: Trash2,
+      destructiva: true,
+      alSeleccionar: () => abrirDialogo({ tipo: "eliminar", id: item.id }),
+      oculta: () => esEliminado,
+    },
+    // TODO(bc03-autorizacion): envolver la accion Restaurar en
+    //   <RolGuard rolesPermitidos={ROLES_RESTAURAR}> cuando los roles viajen en el
+    // JWT. Hoy SIN guarda a proposito: los roles aun no viajan en el JWT y el guard
+    // ocultaria Restaurar a todos. ROLES_RESTAURAR vive en
+    // @/compartido/autenticacion/roles. Activacion futura = una linea.
+    {
+      etiqueta: "Restaurar",
+      icono: RotateCcw,
+      alSeleccionar: () => abrirDialogo({ tipo: "restaurar", id: item.id }),
+      oculta: () => !esEliminado,
     },
   ];
 }
@@ -182,6 +223,7 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
   const pathname = usePathname();
 
   const [crearAbierto, setCrearAbierto] = React.useState(false);
+  const [dialogoFila, setDialogoFila] = React.useState<DialogoFila>(null);
 
   const pagina = filtros.pagina ?? 1;
   const porPagina = filtros.porPagina ?? 10;
@@ -297,7 +339,10 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
         columnas={COLUMNAS}
         datos={items}
         obtenerId={(item) => item.id}
-        acciones={accionesSolicitud}
+        acciones={(item) => accionesSolicitud(item, setDialogoFila)}
+        claseFila={(item) =>
+          cn(!item.estadoRegistro && "line-through text-muted-foreground opacity-60")
+        }
         barraHerramientas={barraHerramientas}
         paginacion={{ pagina, porPagina, total, alCambiarPagina: irAPagina }}
         vacioTitulo={hayFiltros ? "Sin coincidencias" : "Sin solicitudes"}
@@ -316,6 +361,23 @@ export function SolicitudesClienteTabla({ items, filtros, total }: Props) {
           toast.success("Solicitud registrada");
         }}
       />
+
+      {/* Dialogos controlados de baja/restauracion. Un unico par a nivel de tabla,
+          alimentado por el id de la fila cuyo menu `⋯` disparo la accion. */}
+      {dialogoFila?.tipo === "eliminar" ? (
+        <SolicitudClienteEliminarFilaDialog
+          idSolicitud={dialogoFila.id}
+          abierto
+          onCerrar={() => setDialogoFila(null)}
+        />
+      ) : null}
+      {dialogoFila?.tipo === "restaurar" ? (
+        <SolicitudClienteRestaurarDialog
+          idSolicitud={dialogoFila.id}
+          abierto
+          onCerrar={() => setDialogoFila(null)}
+        />
+      ) : null}
     </div>
   );
 }
