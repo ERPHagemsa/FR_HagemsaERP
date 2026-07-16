@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 
@@ -14,9 +14,11 @@ import { Badge } from "@/compartido/componentes/ui/badge";
  * enviar es el schema zod del formulario que lo usa.
  *
  * Con `sugerencias`, además ofrece los correos conocidos para agregarlos con un
- * clic y muestra el nombre de la persona en lugar de la dirección: una lista de
- * direcciones sueltas no dice a quién se le está escribiendo. El valor que sale
- * por `onChange` sigue siendo siempre la lista de correos.
+ * clic, mostrando nombre, dirección y dato secundario: una lista de direcciones
+ * sueltas no dice a quién se le está escribiendo, y un nombre suelto no permite
+ * distinguir homónimos ni cuentas viejas. El chip ya agregado sí muestra solo el
+ * nombre (con la dirección en el title), que a esa altura es lo legible. El valor
+ * que sale por `onChange` sigue siendo siempre la lista de correos.
  */
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -168,25 +170,52 @@ export function EntradaCorreos({
         />
       </div>
       {pendientes.length > 0 && !lleno ? (
-        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+        <div className="flex flex-col gap-1 pt-0.5">
           <span className="text-xs text-muted-foreground">
             {etiquetaSugerencias}:
           </span>
-          {pendientes.map((s) => (
-            <button
-              key={s.email}
-              type="button"
-              onClick={() => agregar([s.email])}
-              disabled={disabled}
-              title={s.email}
-              className="rounded-full border border-dashed border-input px-2 py-0.5 text-xs text-muted-foreground outline-none transition hover:border-solid hover:bg-accent hover:text-accent-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-            >
-              + {s.etiqueta}
-              {s.detalle ? (
-                <span className="ml-1 opacity-60">{s.detalle}</span>
-              ) : null}
-            </button>
-          ))}
+          {/*
+            Una fila por persona en vez de píldoras en línea: hay que poder ver el
+            correo, y elegir a quién se le manda una cotización mirando solo un
+            nombre es adivinar (los homónimos y las cuentas viejas se distinguen
+            por la dirección). Con scroll a partir de ~4 filas para no empujar el
+            botón de confirmar fuera del diálogo.
+          */}
+          <div className="flex max-h-44 flex-col gap-1 overflow-y-auto">
+            {pendientes.map((s) => (
+              <button
+                key={s.email}
+                type="button"
+                onClick={() => agregar([s.email])}
+                disabled={disabled}
+                className="flex items-center gap-2 rounded-md border border-dashed border-input px-2.5 py-1.5 text-left outline-none transition hover:border-solid hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+              >
+                <Plus
+                  aria-hidden
+                  className="size-3.5 shrink-0 text-muted-foreground"
+                />
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="flex items-baseline gap-1.5">
+                    <span className="truncate text-sm text-foreground">
+                      {s.etiqueta}
+                    </span>
+                    {s.detalle ? (
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {s.detalle}
+                      </span>
+                    ) : null}
+                  </span>
+                  {/* La etiqueta cae al correo cuando la cuenta no tiene nombre;
+                      en ese caso no se repite la dirección dos veces. */}
+                  {s.email !== s.etiqueta ? (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {s.email}
+                    </span>
+                  ) : null}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
       <div className="flex items-center justify-between gap-2">

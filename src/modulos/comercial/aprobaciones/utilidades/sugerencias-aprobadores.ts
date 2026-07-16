@@ -14,11 +14,16 @@ export function sugerenciasAprobadores(
   cuentas: AprobadorCuenta[] | null | undefined,
 ): SugerenciaCorreo[] {
   if (!cuentas) return [];
-  return cuentas.map((cuenta) => ({
-    email: cuenta.email,
-    etiqueta: cuenta.nombreCompleto?.trim() || cuenta.nombreUsuario?.trim() || cuenta.email,
-    detalle: cuenta.nombreUsuario?.trim()
-      ? `@${cuenta.nombreUsuario.trim()}`
-      : undefined,
-  }));
+  return cuentas.map((cuenta) => {
+    const nombreCompleto = cuenta.nombreCompleto?.trim();
+    const nombreUsuario = cuenta.nombreUsuario?.trim();
+    return {
+      email: cuenta.email,
+      etiqueta: nombreCompleto || nombreUsuario || cuenta.email,
+      // El usuario solo acompaña cuando la etiqueta es el nombre completo: si la
+      // cuenta no tiene nombre, la etiqueta YA es el usuario y repetirlo al lado
+      // se lee como "jperez @jperez".
+      detalle: nombreCompleto && nombreUsuario ? `@${nombreUsuario}` : undefined,
+    };
+  });
 }
