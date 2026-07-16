@@ -102,6 +102,15 @@ export type Activo = {
     codigo: string;
     token: string;
   } | null;
+  /**
+   * Activo nuevo que reemplazo a este (replaqueo). Si viene, este registro
+   * quedo de baja como referencia historica y NO debe editarse (la data
+   * viva es la del reemplazo).
+   */
+  activoReemplazo?: {
+    id: number;
+    codigo: string;
+  } | null;
   fechaCreacion: string;
   fechaModificacion: string;
 };

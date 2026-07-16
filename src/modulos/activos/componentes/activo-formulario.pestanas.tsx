@@ -64,7 +64,7 @@ export function TabVehiculo({
                 : ""
             }
             required
-            className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="h-9 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
             onInput={(event) => event.stopPropagation()}
             onChange={(event) => {
               event.stopPropagation();
@@ -106,7 +106,7 @@ export function TabVehiculo({
             name="carroceriaReferenciaSelect"
             aria-labelledby="carroceria-referencia-label"
             value={selectedCarroceriaReferenciaId}
-            className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+            className="h-9 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
             // El div contenedor tiene onChange/onInput que disparan un
             // re-render en cada interaccion. Si esos eventos burbujean
             // desde este select controlado, lo re-renderizan con el

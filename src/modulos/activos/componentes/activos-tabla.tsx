@@ -725,12 +725,17 @@ export function ActivosTabla({
                                   Ver
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link href={`/activos/${activo.codigo}/editar`}>
-                                  <IconPencil />
-                                  Editar
-                                </Link>
-                              </DropdownMenuItem>
+                              {/* Un activo replaqueado es referencia
+                                  historica: editarlo permitiria reactivar
+                                  o alterar data que ya vive en el nuevo. */}
+                              {!activo.activoReemplazo ? (
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/activos/${activo.codigo}/editar`}>
+                                    <IconPencil />
+                                    Editar
+                                  </Link>
+                                </DropdownMenuItem>
+                              ) : null}
                               <DropdownMenuItem asChild>
                                 <Link href={`/activos/${activo.codigo}/historial`}>
                                   <IconHistory />
