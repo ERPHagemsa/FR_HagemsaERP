@@ -18,6 +18,17 @@ import { useCallback, useEffect, useRef, useState } from "react"
 //   - Soporta `enabled: false` para no disparar la query.
 //   - NO tiene cache compartido entre hooks (a diferencia de TanStack). Cada
 //     instancia es independiente.
+//
+// isLoading vs isFetching (misma semantica que TanStack):
+//   - isFetching: hay un fetch en vuelo, sea la carga inicial o un refetch.
+//     Usalo para indicadores sutiles (deshabilitar un boton, "Consultando...").
+//   - isLoading: solo la carga inicial, cuando todavia NO hay datos que mostrar.
+//     Usalo para el skeleton.
+//
+// La distincion no es cosmetica: un refetch NO debe poner isLoading en true. Si
+// lo hiciera, la vista cambia a su rama de skeleton y React desmonta el subarbol
+// de datos, perdiendo el estado local de lo que colgaba de ahi (dialogos
+// abiertos, formularios a medio llenar, un secreto mostrado una unica vez).
 
 export interface ResultadoRefetch<T> {
   readonly data: T | null
@@ -26,7 +37,9 @@ export interface ResultadoRefetch<T> {
 
 export interface ResultadoConsulta<T> {
   readonly data: T | null
+  // Solo la carga inicial (no hay datos todavia). Para el skeleton.
   readonly isLoading: boolean
+  // Cualquier fetch en vuelo, incluido un refetch sobre datos ya cargados.
   readonly isFetching: boolean
   readonly isError: boolean
   readonly isSuccess: boolean
@@ -71,7 +84,7 @@ export function useConsulta<T>(
   const { enabled = true, clave } = opciones
 
   const [data, setData] = useState<T | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(enabled)
+  const [isFetching, setIsFetching] = useState<boolean>(enabled)
   const [error, setError] = useState<unknown>(null)
 
   const fnRef = useRef(fn)
@@ -81,7 +94,7 @@ export function useConsulta<T>(
 
   const ejecutar = useCallback(async (): Promise<ResultadoRefetch<T>> => {
     const generacion = ++generacionRef.current
-    setIsLoading(true)
+    setIsFetching(true)
     setError(null)
     try {
       const resultado = await fnRef.current()
@@ -96,14 +109,14 @@ export function useConsulta<T>(
       return { data: null, error: err }
     } finally {
       if (generacionRef.current === generacion) {
-        setIsLoading(false)
+        setIsFetching(false)
       }
     }
   }, [])
 
   useEffect(() => {
     if (!enabled) {
-      setIsLoading(false)
+      setIsFetching(false)
       return
     }
     void ejecutar()
@@ -132,8 +145,10 @@ export function useConsulta<T>(
 
   return {
     data,
-    isLoading,
-    isFetching: isLoading,
+    // Un refetch sobre datos ya cargados deja isLoading en false: la vista sigue
+    // mostrando los datos viejos en vez de saltar al skeleton y desmontarse.
+    isLoading: isFetching && data === null,
+    isFetching,
     isError: error !== null,
     isSuccess: error === null && data !== null,
     error,
