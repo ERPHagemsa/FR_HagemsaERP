@@ -28,12 +28,19 @@ import {
 } from "lucide-react";
 
 import { extraerMensajeError } from "@/compartido/api";
+import { useConsulta } from "@/compartido/api/use-consulta";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/compartido/componentes/ui/alert";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
   CardContent,
 } from "@/compartido/componentes/ui/card";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { Input } from "@/compartido/componentes/ui/input";
 import {
   DropdownMenu,
@@ -68,7 +75,11 @@ import {
   useCambiarEstadoRegistroMutation,
   useCrearActivoMutation,
 } from "../servicios/activos-queries";
-import { obtenerActivos } from "../servicios/activos-api";
+import {
+  obtenerActivos,
+  obtenerActivosListado,
+  type ListadoActivosParams,
+} from "../servicios/activos-api";
 import { resolverEtiquetaPorToken } from "../servicios/etiquetas-api";
 import { exportarMaestroActivosExcel } from "../servicios/activos-maestro-excel";
 import { LectorQrEtiqueta } from "./lector-qr-etiqueta";
@@ -78,34 +89,6 @@ import type {
   EstadoActivo,
   EstadoOperativo,
 } from "../tipos/activo.tipos";
-
-type PaginacionExterna = {
-  pagina: number;
-  totalPaginas: number;
-  total: number;
-  tieneSiguiente: boolean;
-  tieneAnterior: boolean;
-  onCambiarPagina: (pagina: number) => void;
-  onCambiarLimite: (limite: number) => void;
-};
-
-type Props = {
-  activos: Activo[];
-  /** Cuando se pasa, la tabla usa paginación del servidor en lugar de la interna */
-  paginacionExterna?: PaginacionExterna;
-  /**
-   * Avisa al padre cuando cambia el filtro de registro APLICADO, para que
-   * refetchee del servidor (los anulados no vienen en la data por defecto;
-   * filtrarlos solo localmente siempre daria 0 filas).
-   */
-  onCambiarFiltroRegistro?: (filtro: FiltroRegistro) => void;
-  /**
-   * Valor inicial del filtro de registro. Necesario porque el padre desmonta
-   * la tabla mientras refetchea (skeleton) y sin esto el filtro elegido se
-   * perderia en cada remontaje.
-   */
-  filtroRegistroInicial?: FiltroRegistro;
-};
 
 export type FiltroRegistro = "ACTIVO" | "ANULADO" | "TODOS";
 
@@ -123,7 +106,9 @@ type FiltrosActivos = {
 const FILTROS_INICIALES: FiltrosActivos = {
   query: "",
   tipoActivo: "TODOS",
-  estadoActivo: "TODOS",
+  // Por defecto se muestran solo los activos en estado ACTIVO; los de baja
+  // se consultan cambiando el filtro Estado a "Baja" o "todos".
+  estadoActivo: "ACTIVO",
   estadoOperativo: "TODOS",
   estadoCalibracion: "TODOS",
   estadoRegistro: "ACTIVO",
@@ -131,22 +116,53 @@ const FILTROS_INICIALES: FiltrosActivos = {
   fechaHasta: "",
 };
 
-export function ActivosTabla({
-  activos,
-  paginacionExterna,
-  onCambiarFiltroRegistro,
-  filtroRegistroInicial,
-}: Props) {
+/**
+ * Traduce el estado de filtros de la UI a los query params que entiende
+ * GET /activos. "TODOS" significa "no enviar el filtro".
+ */
+function construirParamsListado(
+  filtros: FiltrosActivos,
+  pagina: number,
+  limite: number,
+  orden: "reciente" | "antigua"
+): ListadoActivosParams {
+  return {
+    busqueda: filtros.query.trim() || undefined,
+    tipoActivoReferenciaId:
+      filtros.tipoActivo !== "TODOS" ? Number(filtros.tipoActivo) : undefined,
+    estadoActivo:
+      filtros.estadoActivo !== "TODOS"
+        ? (filtros.estadoActivo as ListadoActivosParams["estadoActivo"])
+        : undefined,
+    estadoOperativo:
+      filtros.estadoOperativo !== "TODOS"
+        ? (filtros.estadoOperativo as EstadoOperativo)
+        : undefined,
+    estadoCalibracionReferenciaId:
+      filtros.estadoCalibracion !== "TODOS"
+        ? Number(filtros.estadoCalibracion)
+        : undefined,
+    estadoRegistro:
+      filtros.estadoRegistro === "TODOS"
+        ? undefined
+        : filtros.estadoRegistro !== "ANULADO",
+    incluirAnulados: filtros.estadoRegistro === "TODOS" || undefined,
+    fechaModificacionDesde: filtros.fechaDesde || undefined,
+    fechaModificacionHasta: filtros.fechaHasta || undefined,
+    orden:
+      orden === "reciente" ? "MODIFICACION_RECIENTE" : "MODIFICACION_ANTIGUA",
+    pagina,
+    limite,
+  };
+}
+
+export function ActivosTabla() {
   const router = useRouter();
   const catalogos = useCatalogosActivos();
-  const filtrosBase: FiltrosActivos = {
-    ...FILTROS_INICIALES,
-    estadoRegistro: filtroRegistroInicial ?? FILTROS_INICIALES.estadoRegistro,
-  };
   const [filtrosFormulario, setFiltrosFormulario] =
-    React.useState<FiltrosActivos>(filtrosBase);
+    React.useState<FiltrosActivos>(FILTROS_INICIALES);
   const [filtrosAplicados, setFiltrosAplicados] =
-    React.useState<FiltrosActivos>(filtrosBase);
+    React.useState<FiltrosActivos>(FILTROS_INICIALES);
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
   const [ordenModificacion, setOrdenModificacion] = React.useState<
@@ -164,111 +180,52 @@ export function ActivosTabla({
   const cambiarEstadoRegistroMutation = useCambiarEstadoRegistroMutation();
   const crearActivoMutation = useCrearActivoMutation();
 
-  const activosPorRegistro = activos.filter((activo) => {
-    if (filtrosAplicados.estadoRegistro === "TODOS") return true;
-    if (filtrosAplicados.estadoRegistro === "ANULADO") {
-      return activo.estadoRegistro === false;
-    }
+  // Filtros, orden, paginacion y resumen se resuelven en el BACKEND: cada
+  // cambio aplicado dispara una consulta nueva a GET /activos. La tabla ya no
+  // filtra nada en el cliente (antes traia todo y filtraba localmente, lo que
+  // producia conteos inconsistentes entre tarjetas, listado y paginas).
+  const consulta = useConsulta(
+    () =>
+      obtenerActivosListado(
+        construirParamsListado(
+          filtrosAplicados,
+          pagina,
+          registrosPorPagina,
+          ordenModificacion
+        )
+      ),
+    [filtrosAplicados, pagina, registrosPorPagina, ordenModificacion]
+  );
 
-    return activo.estadoRegistro !== false;
-  });
-
-  const normalizedQuery = filtrosAplicados.query.trim().toUpperCase();
-  const filtrados = activosPorRegistro.filter((activo) => {
-    const placa = activo.vehiculo?.placa ?? "";
-    const marca = activo.vehiculo?.marca ?? "";
-    const modelo = activo.vehiculo?.modelo ?? "";
-    const fechaModificacion = normalizarFecha(activo.fechaModificacion);
-    const coincideTexto = [activo.codigo, activo.descripcion, placa, marca, modelo]
-      .join(" ")
-      .toUpperCase()
-      .includes(normalizedQuery);
-
-    return (
-      coincideTexto &&
-      (filtrosAplicados.tipoActivo === "TODOS" ||
-        activo.tipoActivoReferenciaId === Number(filtrosAplicados.tipoActivo)) &&
-      coincideEstadoActivo(activo.estadoActivo, filtrosAplicados.estadoActivo) &&
-      (filtrosAplicados.estadoOperativo === "TODOS" ||
-        activo.vehiculo?.estadoOperativo === filtrosAplicados.estadoOperativo) &&
-      (filtrosAplicados.estadoCalibracion === "TODOS" ||
-        activo.vehiculo?.estadoCalibracionReferenciaId ===
-          Number(filtrosAplicados.estadoCalibracion)) &&
-      (!filtrosAplicados.fechaDesde ||
-        fechaModificacion >= filtrosAplicados.fechaDesde) &&
-      (!filtrosAplicados.fechaHasta ||
-        fechaModificacion <= filtrosAplicados.fechaHasta)
-    );
-  });
-
+  const visibles = consulta.data?.datos ?? [];
+  const paginacion = consulta.data?.paginacion;
   const resumen = {
-    total: activosPorRegistro.length,
-    operativos: activosPorRegistro.filter(
-      (activo) => activo.vehiculo?.estadoOperativo === "OPERATIVO"
-    ).length,
-    mantenimiento: activosPorRegistro.filter(
-      (activo) => activo.vehiculo?.estadoOperativo === "MANTENIMIENTO"
-    ).length,
-    noCalibrados: activosPorRegistro.filter((activo) => {
-      const id = activo.vehiculo?.estadoCalibracionReferenciaId;
-      return (
-        id != null &&
-        (id === catalogos.idPorNombre("ESTADO_CALIBRACION", "No calibrada") ||
-          id === catalogos.idPorNombre("ESTADO_CALIBRACION", "Observada"))
-      );
-    }).length,
+    total: paginacion?.total ?? 0,
+    operativos: consulta.data?.resumen?.operativos ?? 0,
+    mantenimiento: consulta.data?.resumen?.mantenimiento ?? 0,
+    noCalibrados: consulta.data?.resumen?.noCalibrados ?? 0,
   };
 
   const hayFiltros =
     filtrosAplicados.query ||
     filtrosAplicados.tipoActivo !== "TODOS" ||
-    filtrosAplicados.estadoActivo !== "TODOS" ||
+    filtrosAplicados.estadoActivo !== FILTROS_INICIALES.estadoActivo ||
     filtrosAplicados.estadoOperativo !== "TODOS" ||
     filtrosAplicados.estadoCalibracion !== "TODOS" ||
     filtrosAplicados.estadoRegistro !== "ACTIVO" ||
     filtrosAplicados.fechaDesde ||
     filtrosAplicados.fechaHasta;
 
-  const ordenados = [...filtrados].sort((a, b) => {
-    const fechaA = new Date(a.fechaModificacion).getTime();
-    const fechaB = new Date(b.fechaModificacion).getTime();
-
-    return ordenModificacion === "reciente"
-      ? fechaB - fechaA
-      : fechaA - fechaB;
-  });
-
-  // Paginación: externa (server-side) o interna (client-side)
-  const usarPaginacionExterna = paginacionExterna !== undefined;
-  const usarPaginacionRemota = usarPaginacionExterna && !hayFiltros;
-  const totalPaginas = usarPaginacionRemota
-    ? paginacionExterna.totalPaginas
-    : Math.max(1, Math.ceil(ordenados.length / registrosPorPagina));
-  const inicioPagina = (pagina - 1) * registrosPorPagina;
-  const finPagina = inicioPagina + registrosPorPagina;
-  // Si es server-side los activos ya vienen paginados; no re-sliceamos
-  const visibles = usarPaginacionRemota
-    ? ordenados
-    : ordenados.slice(inicioPagina, finPagina);
-  const totalParaTexto = usarPaginacionRemota
-    ? paginacionExterna.total
-    : ordenados.length;
-  const paginaActual = usarPaginacionRemota ? paginacionExterna.pagina : pagina;
+  const totalPaginas = Math.max(1, paginacion?.totalPaginas ?? 1);
+  const paginaActual = paginacion?.pagina ?? pagina;
+  const totalParaTexto = paginacion?.total ?? 0;
   const desdeVisible = totalParaTexto
-    ? usarPaginacionRemota
-      ? (paginaActual - 1) * registrosPorPagina + 1
-      : inicioPagina + 1
+    ? (paginaActual - 1) * registrosPorPagina + 1
     : 0;
-  const hastaVisible = usarPaginacionRemota
-    ? Math.min(paginaActual * registrosPorPagina, paginacionExterna.total)
-    : Math.min(finPagina, ordenados.length);
-
-  React.useEffect(() => {
-    setPagina(1);
-  }, [
-    filtrosAplicados,
-    registrosPorPagina,
-  ]);
+  const hastaVisible = Math.min(
+    paginaActual * registrosPorPagina,
+    totalParaTexto
+  );
 
   function actualizarFiltro<K extends keyof FiltrosActivos>(
     key: K,
@@ -289,18 +246,12 @@ export function ActivosTabla({
   function aplicarFiltros() {
     setPagina(1);
     setFiltrosAplicados(filtrosFormulario);
-    if (filtrosFormulario.estadoRegistro !== filtrosAplicados.estadoRegistro) {
-      onCambiarFiltroRegistro?.(filtrosFormulario.estadoRegistro);
-    }
   }
 
   function limpiarFiltros() {
     setPagina(1);
     setFiltrosFormulario(FILTROS_INICIALES);
     setFiltrosAplicados(FILTROS_INICIALES);
-    if (filtrosAplicados.estadoRegistro !== FILTROS_INICIALES.estadoRegistro) {
-      onCambiarFiltroRegistro?.(FILTROS_INICIALES.estadoRegistro);
-    }
   }
 
   /**
@@ -325,8 +276,25 @@ export function ActivosTabla({
     }
   }
 
-  function exportarPdf() {
-    const filas = ordenados
+  async function exportarPdf() {
+    // Trae del servidor TODO el conjunto filtrado (no solo la pagina visible).
+    let activosExportar: Activo[];
+    try {
+      const respuesta = await obtenerActivosListado({
+        ...construirParamsListado(
+          filtrosAplicados,
+          1,
+          500,
+          ordenModificacion
+        ),
+      });
+      activosExportar = [...respuesta.datos];
+    } catch (err) {
+      toast.error(extraerMensajeError(err, "No se pudo generar el PDF."));
+      return;
+    }
+
+    const filas = activosExportar
       .map(
         (activo) => `
           <tr>
@@ -368,7 +336,7 @@ export function ActivosTabla({
         </head>
         <body>
           <h1>Listado de activos</h1>
-          <p>${ordenados.length} activos exportados - ${new Date().toLocaleString("es-PE")}</p>
+          <p>${activosExportar.length} activos exportados - ${new Date().toLocaleString("es-PE")}</p>
           <table>
             <thead>
               <tr>
@@ -409,7 +377,7 @@ export function ActivosTabla({
       toast.success("Activo borrado", {
         description: `${activoParaBorrar.codigo} fue retirado del maestro visible.`,
       });
-      router.refresh();
+      void consulta.refetch();
     } catch (error) {
       toast.error(extraerMensajeError(error, "No se pudo borrar el activo"));
     } finally {
@@ -427,19 +395,19 @@ export function ActivosTabla({
         crearPayloadReintegro(activoParaReintegrar)
       );
       setActivoParaReintegrar(null);
+      setPagina(1);
       setFiltrosFormulario((actual) => ({
         ...actual,
         estadoRegistro: "ACTIVO",
       }));
+      // Cambiar filtrosAplicados ya dispara el refetch del listado.
       setFiltrosAplicados((actual) => ({
         ...actual,
         estadoRegistro: "ACTIVO",
       }));
-      onCambiarFiltroRegistro?.("ACTIVO");
       toast.success("Activo reintegrado", {
         description: `${activoParaReintegrar.codigo} vuelve a estar disponible en el listado de activos.`,
       });
-      router.refresh();
     } catch (error) {
       toast.error(extraerMensajeError(error, "No se pudo reintegrar el activo"));
     } finally {
@@ -471,8 +439,8 @@ export function ActivosTabla({
             <h2 className="text-lg font-semibold">Consulta de activos</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Busca y filtra el maestro de unidades. Mostrando {filtrados.length} de{" "}
-            {activosPorRegistro.length}.
+            Busca y filtra el maestro de unidades.
+            {consulta.isFetching ? " Consultando..." : ` ${totalParaTexto} resultados.`}
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -633,6 +601,25 @@ export function ActivosTabla({
           </div>
         </div>
 
+        {consulta.isError ? (
+          <Alert variant="destructive" className="mx-4">
+            <AlertTitle>No se pudo cargar el listado</AlertTitle>
+            <AlertDescription>
+              {extraerMensajeError(
+                consulta.error,
+                "No se pudo consultar el maestro de activos"
+              )}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {consulta.isLoading ? (
+          <div className="mx-4 mb-4 flex flex-col gap-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        ) : (
+        <>
         <div className="mx-4 overflow-hidden rounded-xl border border-border">
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
@@ -848,7 +835,7 @@ export function ActivosTabla({
                 </TableRow>
                 );
               })}
-              {!ordenados.length ? (
+              {!visibles.length ? (
                 <TableRow>
                   <TableCell
                     colSpan={10}
@@ -873,11 +860,8 @@ export function ActivosTabla({
                 className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                 value={registrosPorPagina}
                 onChange={(event) => {
-                  const nuevo = Number(event.target.value);
-                  setRegistrosPorPagina(nuevo);
-                  if (usarPaginacionRemota) {
-                    paginacionExterna.onCambiarLimite(nuevo);
-                  }
+                  setPagina(1);
+                  setRegistrosPorPagina(Number(event.target.value));
                 }}
               >
                 <option value={10}>10</option>
@@ -889,14 +873,8 @@ export function ActivosTabla({
               type="button"
               variant="outline"
               size="sm"
-              disabled={usarPaginacionRemota ? !paginacionExterna.tieneAnterior : pagina === 1}
-              onClick={() => {
-                if (usarPaginacionRemota) {
-                  paginacionExterna.onCambiarPagina(paginaActual - 1);
-                } else {
-                  setPagina((actual) => Math.max(1, actual - 1));
-                }
-              }}
+              disabled={!paginacion?.tieneAnterior || consulta.isFetching}
+              onClick={() => setPagina((actual) => Math.max(1, actual - 1))}
             >
               Anterior
             </Button>
@@ -907,19 +885,17 @@ export function ActivosTabla({
               type="button"
               variant="outline"
               size="sm"
-              disabled={usarPaginacionRemota ? !paginacionExterna.tieneSiguiente : pagina === totalPaginas}
-              onClick={() => {
-                if (usarPaginacionRemota) {
-                  paginacionExterna.onCambiarPagina(paginaActual + 1);
-                } else {
-                  setPagina((actual) => Math.min(totalPaginas, actual + 1));
-                }
-              }}
+              disabled={!paginacion?.tieneSiguiente || consulta.isFetching}
+              onClick={() =>
+                setPagina((actual) => Math.min(totalPaginas, actual + 1))
+              }
             >
               Siguiente
             </Button>
           </div>
         </div>
+        </>
+        )}
         {activoParaBorrar ? (
           <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
             <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl">
@@ -1023,16 +999,6 @@ function formatearFecha(value: string) {
     month: "2-digit",
     year: "numeric",
   }).format(new Date(value));
-}
-
-function normalizarFecha(value: string) {
-  return new Date(value).toISOString().slice(0, 10);
-}
-
-function coincideEstadoActivo(estadoActivo: EstadoActivo, filtro: string) {
-  if (filtro === "TODOS") return true;
-  if (filtro === "BAJA") return estadoActivo !== "ACTIVO";
-  return estadoActivo === filtro;
 }
 
 function ResumenMini({
