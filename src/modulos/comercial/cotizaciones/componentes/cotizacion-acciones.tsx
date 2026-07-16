@@ -43,10 +43,9 @@ import {
   schemaPerdida,
   schemaGanada,
 } from "../tipos/cotizaciones.schemas";
-import { EntradaCorreos } from "@/compartido/componentes/entrada-correos";
+import { SelectorAprobadores } from "../../aprobaciones/componentes/selector-aprobadores";
 import { AvisoEnvioCorreo } from "@/compartido/componentes/aviso-envio-correo";
 import { useAprobadoresCuentasQuery } from "../../aprobaciones/servicios/aprobaciones-queries";
-import { sugerenciasAprobadores } from "../../aprobaciones/utilidades/sugerencias-aprobadores";
 import {
   useSolicitarAprobacionMutation,
   useNuevaVersionMutation,
@@ -204,8 +203,12 @@ function BotonImprimirPdf({ idCotizacion, version }: BotonImprimirPdfProps) {
 // Dialog: Solicitar aprobacion (HU-03-036)
 // Los dias de validez ya se fijan en el borrador (junto a la moneda) y quedan
 // persistidos en la version; el backend usa ese valor almacenado. Lo que se pide
-// aqui son los correos de los aprobadores, a quienes se les envia la cotizacion
-// (con el PDF adjunto) al solicitar la aprobacion.
+// aqui son los aprobadores a quienes se les envia la cotizacion (con el PDF
+// adjunto) al solicitar la aprobacion.
+//
+// Los destinatarios salen del servicio de autenticacion y NO se escriben a mano:
+// quien puede aprobar una cotizacion lo define auth, no quien la envia. Vienen
+// todos marcados y se pueden desmarcar.
 // ---------------------------------------------------------------------------
 
 type BotonSolicitarAprobacionProps = {
@@ -215,18 +218,34 @@ type BotonSolicitarAprobacionProps = {
 
 function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprobacionProps) {
   const [abierto, setAbierto] = React.useState(false);
-  const [correos, setCorreos] = React.useState<string[]>([]);
+  // `null` = el usuario todavía no tocó nada, así que valen todos. La selección
+  // se DERIVA de la lista en vez de copiarse a estado con un efecto: la consulta
+  // resuelve después de abrir, y sincronizar estado con estado deja un frame con
+  // la lista cargada y nada marcado.
+  const [seleccionManual, setSeleccionManual] = React.useState<string[] | null>(
+    null,
+  );
   const [errorCorreos, setErrorCorreos] = React.useState<string | null>(null);
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
   const mutation = useSolicitarAprobacionMutation(idCotizacion);
-  // Solo se consulta con el diálogo abierto. Si falla (ej. sin el permiso para
-  // leer correos), queda en null y el campo sigue funcionando a mano.
+  // Solo se consulta con el diálogo abierto. Los destinatarios salen de acá y no
+  // se pueden escribir a mano: sin la lista no se puede solicitar aprobación (el
+  // SelectorAprobadores muestra el motivo).
   const aprobadores = useAprobadoresCuentasQuery(abierto);
+
+  // Todos marcados por defecto: mandársela a todos los aprobadores es el caso
+  // normal, y desmarcar es más rápido que marcar.
+  const correos = React.useMemo(
+    () => seleccionManual ?? (aprobadores.data ?? []).map((c) => c.email),
+    [seleccionManual, aprobadores.data],
+  );
 
   function handleOpenChange(open: boolean) {
     if (!open) {
-      setCorreos([]);
+      // Vuelve a `null` para que al reabrir se marquen todos de nuevo, aunque la
+      // lista venga cacheada.
+      setSeleccionManual(null);
       setErrorCorreos(null);
       setErrorForm(null);
       setIsPending(false);
@@ -274,28 +293,26 @@ function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprob
         <DialogHeader>
           <DialogTitle>Solicitar aprobación</DialogTitle>
           <DialogDescription>
-            La cotización se enviará a los aprobadores por correo, con el PDF adjunto.
-            Indica a quiénes se les envía.
+            La cotización se enviará por correo, con el PDF adjunto, a los
+            aprobadores que queden marcados.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onConfirmar} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="correos-aprobadores">
-              Correos de aprobadores <span className="text-destructive">*</span>
+            <Label>
+              Aprobadores <span className="text-destructive">*</span>
             </Label>
-            <EntradaCorreos
-              id="correos-aprobadores"
-              value={correos}
+            <SelectorAprobadores
+              cuentas={aprobadores.data}
+              cargando={aprobadores.isLoading}
+              error={aprobadores.isError}
+              seleccionados={correos}
               onChange={(nuevos) => {
-                setCorreos(nuevos);
+                setSeleccionManual(nuevos);
                 if (errorCorreos) setErrorCorreos(null);
               }}
               disabled={isPending}
-              aria-invalid={Boolean(errorCorreos)}
-              placeholder="aprobador@hagemsa.com"
-              sugerencias={sugerenciasAprobadores(aprobadores.data)}
-              etiquetaSugerencias="Aprobadores"
             />
             {errorCorreos ? (
               <p className="text-xs text-destructive">{errorCorreos}</p>
@@ -319,7 +336,10 @@ function BotonSolicitarAprobacion({ idCotizacion, onExito }: BotonSolicitarAprob
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={isPending}>
+            {/* Sin destinatarios no hay nada que enviar y el backend lo
+                rechazaría igual: se bloquea acá para no gastar un viaje ni
+                mostrar un error después de apretar. */}
+            <Button type="submit" disabled={isPending || correos.length === 0}>
               {isPending ? "Enviando correo..." : "Enviar a aprobación"}
             </Button>
           </DialogFooter>
