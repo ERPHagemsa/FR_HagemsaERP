@@ -47,6 +47,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table"
+import { formatearFechaDeTimestamp } from "@/modulos/comercial/utilidades/formato-fecha"
 
 import {
   useCrearTarifarioManualMutation,
@@ -71,10 +72,6 @@ function BadgeEstado({ estado }: { estado: EstadoTarifario }) {
   )
 }
 
-function formatearFecha(iso: string | null): string {
-  if (!iso) return "—"
-  return new Date(iso).toLocaleDateString("es-PE")
-}
 
 // ── Sheet: crear tarifario manual ──
 function SheetCrearManual({
@@ -372,7 +369,7 @@ export function TarifariosListado({ filtros, onFiltrosChange }: Props) {
                       <BadgeEstado estado={item.estado} />
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {formatearFecha(item.fechaCreacion)}
+                      {formatearFechaDeTimestamp(item.fechaCreacion, { compacta: true })}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center">

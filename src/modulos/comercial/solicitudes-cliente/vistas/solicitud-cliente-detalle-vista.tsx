@@ -24,6 +24,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
+import {
+  formatearFecha,
+  formatearFechaDeTimestamp,
+} from "@/modulos/comercial/utilidades/formato-fecha";
 
 import { EstadoSolicitudBadge } from "../componentes/estado-solicitud-badge";
 import { SolicitudClienteAgregarCotizacion } from "../componentes/solicitud-cliente-agregar-cotizacion";
@@ -176,7 +180,10 @@ export function SolicitudClienteDetalleVista({ id }: Props) {
                     label="Registrada por"
                     value={sc.registradoPor?.nombre ?? "—"}
                   />
-                  <Meta label="Fecha de creacion" value={formatearFecha(sc.fechaCreacion)} />
+                  <Meta
+                    label="Fecha de creacion"
+                    value={formatearFechaDeTimestamp(sc.fechaCreacion)}
+                  />
                   {sc.fechaRequerida ? (
                     <Meta
                       label="Fecha requerida"
@@ -186,7 +193,7 @@ export function SolicitudClienteDetalleVista({ id }: Props) {
                   {sc.fechaModificacion ? (
                     <Meta
                       label="Ultima modificacion"
-                      value={formatearFecha(sc.fechaModificacion)}
+                      value={formatearFechaDeTimestamp(sc.fechaModificacion)}
                     />
                   ) : null}
                 </dl>
@@ -297,12 +304,4 @@ function formatearCanal(canal: string): string {
     OTRO: "Otro",
   };
   return mapa[canal] ?? canal;
-}
-
-function formatearFecha(value: string): string {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
 }

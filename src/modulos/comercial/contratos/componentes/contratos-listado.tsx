@@ -42,6 +42,10 @@ import {
   type EstadoContrato,
   type FiltrosContratos,
 } from "../tipos/contratos.tipos"
+import {
+  formatearFechaDeTimestamp,
+  formatearFechaVigencia,
+} from "@/modulos/comercial/utilidades/formato-fecha"
 
 function BadgeEstado({ estado }: { estado: EstadoContrato }) {
   return (
@@ -49,18 +53,6 @@ function BadgeEstado({ estado }: { estado: EstadoContrato }) {
       {estado === "ACTIVO" ? "Activo" : "Vencido"}
     </Badge>
   )
-}
-
-function formatearFecha(iso: string | null): string {
-  if (!iso) return "—"
-  return new Date(iso).toLocaleDateString("es-PE")
-}
-
-// Vigencia es fecha-solo (medianoche UTC): se formatea en UTC para no correrla un
-// dia por la zona horaria local.
-function formatearFechaVigencia(iso: string | null): string {
-  if (!iso) return "—"
-  return new Date(iso).toLocaleDateString("es-PE", { timeZone: "UTC" })
 }
 
 interface Props {
@@ -205,7 +197,7 @@ export function ContratosListado({ filtros, onFiltrosChange }: Props) {
                       <BadgeEstado estado={item.estado} />
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {formatearFecha(item.fechaCreacion)}
+                      {formatearFechaDeTimestamp(item.fechaCreacion, { compacta: true })}
                     </TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-center">

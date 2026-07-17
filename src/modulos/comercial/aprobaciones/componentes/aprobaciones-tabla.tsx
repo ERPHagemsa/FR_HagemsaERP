@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 import { cn } from "@/compartido/utilidades";
+import { formatearFechaHora } from "@/modulos/comercial/utilidades/formato-fecha";
 
 import { useAprobadoresQuery } from "../servicios/aprobaciones-queries";
 import {
@@ -334,14 +335,4 @@ function FiltroSelect({
       </Select>
     </div>
   );
-}
-
-function formatearFechaHora(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }

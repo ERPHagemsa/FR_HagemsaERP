@@ -28,6 +28,7 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
+import { formatearFechaDeTimestamp } from "@/modulos/comercial/utilidades/formato-fecha";
 
 import type { EstadoProspecto, Prospecto, RespuestaPaginadaProspectos } from "../tipos/prospecto.tipos";
 import { EstadoProspectoBadge } from "./estado-prospecto-badge";
@@ -325,7 +326,7 @@ function FilaProspecto({ prospecto }: { prospecto: Prospecto }) {
         <EstadoProspectoBadge estado={prospecto.estado} />
       </TableCell>
       <TableCell className="truncate text-sm text-muted-foreground">
-        {prospecto.fechaModificacion ? formatearFecha(prospecto.fechaModificacion) : "—"}
+        {prospecto.fechaModificacion ? formatearFechaDeTimestamp(prospecto.fechaModificacion) : "—"}
       </TableCell>
       <TableCell className="text-center">
         {esEliminado ? (
@@ -387,13 +388,6 @@ function FiltroSelect({
   );
 }
 
-function formatearFecha(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
-}
 
 function formatearMedioContacto(medio: string) {
   const mapa: Record<string, string> = {

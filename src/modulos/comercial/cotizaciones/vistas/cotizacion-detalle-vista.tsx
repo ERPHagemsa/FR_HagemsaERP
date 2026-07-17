@@ -58,6 +58,7 @@ import type {
 } from "../tipos/cotizaciones.tipos";
 import {
   formatearFecha,
+  formatearFechaDeTimestamp,
   formatearOrigenTipo,
 } from "../utilidades/formato";
 
@@ -203,7 +204,9 @@ function CotizacionDetalleContenido({
             icono={<CalendarDays className="size-4" />}
             label="Fecha envio"
             valor={
-              vigente?.fechaEnvio ? formatearFecha(vigente.fechaEnvio) : "—"
+              vigente?.fechaEnvio
+                ? formatearFechaDeTimestamp(vigente.fechaEnvio)
+                : "—"
             }
           />
           <SmartButton

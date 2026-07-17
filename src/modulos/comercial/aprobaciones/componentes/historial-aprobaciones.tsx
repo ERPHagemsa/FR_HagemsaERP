@@ -13,6 +13,7 @@ import {
 } from "@/compartido/componentes/ui/empty";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { extraerMensajeError } from "@/compartido/api";
+import { formatearFechaHora } from "@/modulos/comercial/utilidades/formato-fecha";
 
 import type { SolicitudAprobacion } from "../tipos/aprobaciones.tipos";
 import { SolicitudEstadoBadge } from "./solicitud-estado-badge";
@@ -120,14 +121,4 @@ function Dato({ label, value }: { label: string; value: string }) {
       <span className="text-sm font-medium">{value}</span>
     </div>
   );
-}
-
-function formatearFechaHora(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }
