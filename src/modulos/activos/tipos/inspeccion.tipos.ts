@@ -144,6 +144,15 @@ export type ActualizarObservacionesDetallePayload = {
   usuario?: string;
 };
 
+// Edicion de datos operativos: el propietario NO se edita (viene del manifiesto).
+export type ActualizarDatosOperativosDetallePayload = {
+  estado?: string | null;
+  ubicacion?: string | null;
+  conductor?: string | null;
+  cuenta?: string | null;
+  usuario?: string;
+};
+
 export type CrearImagenInspeccionPayload = {
   url: string;
   nombreArchivo?: string;

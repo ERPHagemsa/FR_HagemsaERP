@@ -74,7 +74,10 @@ import {
   useCandidatosInspeccionQuery,
   useSnapshotDetalleInspeccionQuery,
 } from "../servicios/inspeccion-queries";
-import { actualizarObservacionesDetalle } from "../servicios/inspeccion-api";
+import {
+  actualizarDatosOperativosDetalle,
+  actualizarObservacionesDetalle,
+} from "../servicios/inspeccion-api";
 import type {
   CandidatoInspeccion,
   FormatoExportacionInspeccion,
@@ -673,6 +676,53 @@ function FichaInspeccionActivo({
     );
   }, [detalle]);
 
+  // Datos operativos editables (el propietario NO se edita: viene del
+  // manifiesto). Se pre-llenan con lo que trajo el endpoint al registrar y se
+  // pueden corregir mientras la inspeccion este abierta.
+  const [datosOp, setDatosOp] = React.useState({
+    estado: "",
+    ubicacion: "",
+    conductor: "",
+    cuenta: "",
+  });
+  const [guardandoDatosOp, setGuardandoDatosOp] = React.useState(false);
+
+  React.useEffect(() => {
+    const op = snapshot?.datosOperativos;
+    setDatosOp({
+      estado: op?.estado ?? "",
+      ubicacion: op?.ubicacion ?? "",
+      conductor: op?.conductor ?? "",
+      cuenta: op?.cuenta ?? "",
+    });
+  }, [snapshot?.datosOperativos]);
+
+  async function guardarDatosOperativos() {
+    setGuardandoDatosOp(true);
+    try {
+      const actualizado = await actualizarDatosOperativosDetalle(
+        inspeccionId,
+        detalle.id,
+        {
+          estado: datosOp.estado.trim() || null,
+          ubicacion: datosOp.ubicacion.trim() || null,
+          conductor: datosOp.conductor.trim() || null,
+          cuenta: datosOp.cuenta.trim() || null,
+          usuario: usuarioActual,
+        }
+      );
+      toast.success("Datos operativos guardados");
+      onActualizado(actualizado);
+      void snapshotQuery.refetch();
+    } catch (err) {
+      toast.error("No se pudieron guardar los datos operativos", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setGuardandoDatosOp(false);
+    }
+  }
+
   async function guardarObservaciones() {
     setGuardandoObservaciones(true);
     try {
@@ -771,6 +821,7 @@ function FichaInspeccionActivo({
               Cargando snapshot del activo...
             </div>
           ) : (
+            <>
             <FichaGrid>
               <DatoInspeccion
                 label="Clase / Equipo"
@@ -788,23 +839,51 @@ function FichaInspeccionActivo({
                 label="Propietario"
                 value={operativos?.propietario ?? "No disponible"}
               />
-              <DatoInspeccion
+              <CampoOperativoEditable
                 label="Estado"
-                value={operativos?.estado ?? "No disponible"}
+                value={datosOp.estado}
+                onChange={(v) => setDatosOp((d) => ({ ...d, estado: v }))}
+                disabled={disabled}
               />
-              <DatoInspeccion
+              <CampoOperativoEditable
                 label="Ubicacion"
-                value={operativos?.ubicacion ?? "No disponible"}
+                value={datosOp.ubicacion}
+                onChange={(v) => setDatosOp((d) => ({ ...d, ubicacion: v }))}
+                disabled={disabled}
               />
-              <DatoInspeccion
+              <CampoOperativoEditable
                 label="Conductor"
-                value={operativos?.conductor ?? "No disponible"}
+                value={datosOp.conductor}
+                onChange={(v) => setDatosOp((d) => ({ ...d, conductor: v }))}
+                disabled={disabled}
               />
-              <DatoInspeccion
+              <CampoOperativoEditable
                 label="Cuenta"
-                value={operativos?.cuenta ?? "No disponible"}
+                value={datosOp.cuenta}
+                onChange={(v) => setDatosOp((d) => ({ ...d, cuenta: v }))}
+                disabled={disabled}
               />
-            </FichaGrid>
+              </FichaGrid>
+              {!disabled ? (
+                <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+                  <p className="text-xs text-muted-foreground">
+                    Estado, ubicacion, conductor y cuenta se pre-llenan del
+                    manifiesto por placa y puedes corregirlos. El propietario no
+                    es editable.
+                  </p>
+                  <Button
+                    type="button"
+                    className="w-fit"
+                    onClick={guardarDatosOperativos}
+                    disabled={guardandoDatosOp}
+                  >
+                    {guardandoDatosOp
+                      ? "Guardando..."
+                      : "Guardar datos operativos"}
+                  </Button>
+                </div>
+              ) : null}
+            </>
           )}
         </CardContent>
       </Card>
@@ -910,6 +989,34 @@ function DatoInspeccion({
     <div className="grid gap-1">
       <span className="text-xs uppercase text-muted-foreground">{label}</span>
       <span className="font-semibold text-foreground">{display}</span>
+    </div>
+  );
+}
+
+// Campo de datos operativos: input editable con la inspeccion abierta;
+// solo lectura (mismo look que DatoInspeccion) cuando esta cerrada/anulada.
+function CampoOperativoEditable({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  if (disabled) {
+    return <DatoInspeccion label={label} value={value} />;
+  }
+  return (
+    <div className="grid gap-1">
+      <label className="text-xs uppercase text-muted-foreground">{label}</label>
+      <input
+        className="h-9 rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }
