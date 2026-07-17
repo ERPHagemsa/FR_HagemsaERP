@@ -2358,6 +2358,20 @@ function construirDetallesInventario(
   catalogos: CatalogosActivos,
   asignacionesFlota: Map<number, AsignacionContratoFlota>
 ): InventarioFisicoDetalle[] {
+  // Un inventario CERRADO o ANULADO es un snapshot historico inmutable: se
+  // muestran SOLO los detalles congelados en la apertura, sin superponer el
+  // maestro vivo (bandeja de candidatos) ni asignaciones de flota actuales.
+  // De lo contrario, un inventario antiguo pintaria como "pendientes" a los
+  // vehiculos creados DESPUES de cerrarlo, y sus conteos (candidatos /
+  // pendientes) no cuadrarian con el listado, que cuenta lo realmente
+  // congelado en BD. La bandeja del maestro vivo solo aplica mientras el
+  // inventario esta ABIERTO o EN_REVISION.
+  const inventarioActivo =
+    inventario.estado === "ABIERTO" || inventario.estado === "EN_REVISION";
+  if (!inventarioActivo) {
+    return inventario.detalles;
+  }
+
   const detallesPorActivo = new Map<number, InventarioFisicoDetalle>();
 
   for (const detalle of inventario.detalles) {
