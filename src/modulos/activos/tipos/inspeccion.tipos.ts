@@ -103,7 +103,6 @@ export type SnapshotActivoInspeccion = {
 // Los 5 campos pueden venir null mientras DATOS_OPERATIVOS_API_URL no este configurada.
 export type DatosOperativosInspeccion = {
   propietario?: string | null;
-  estado?: string | null;
   ubicacion?: string | null;
   conductor?: string | null;
   cuenta?: string | null;
@@ -146,7 +145,6 @@ export type ActualizarObservacionesDetallePayload = {
 
 // Edicion de datos operativos: el propietario NO se edita (viene del manifiesto).
 export type ActualizarDatosOperativosDetallePayload = {
-  estado?: string | null;
   ubicacion?: string | null;
   conductor?: string | null;
   cuenta?: string | null;

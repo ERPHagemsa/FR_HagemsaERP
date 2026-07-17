@@ -680,7 +680,6 @@ function FichaInspeccionActivo({
   // manifiesto). Se pre-llenan con lo que trajo el endpoint al registrar y se
   // pueden corregir mientras la inspeccion este abierta.
   const [datosOp, setDatosOp] = React.useState({
-    estado: "",
     ubicacion: "",
     conductor: "",
     cuenta: "",
@@ -690,7 +689,6 @@ function FichaInspeccionActivo({
   React.useEffect(() => {
     const op = snapshot?.datosOperativos;
     setDatosOp({
-      estado: op?.estado ?? "",
       ubicacion: op?.ubicacion ?? "",
       conductor: op?.conductor ?? "",
       cuenta: op?.cuenta ?? "",
@@ -704,7 +702,6 @@ function FichaInspeccionActivo({
         inspeccionId,
         detalle.id,
         {
-          estado: datosOp.estado.trim() || null,
           ubicacion: datosOp.ubicacion.trim() || null,
           conductor: datosOp.conductor.trim() || null,
           cuenta: datosOp.cuenta.trim() || null,
@@ -840,12 +837,6 @@ function FichaInspeccionActivo({
                 value={operativos?.propietario ?? "No disponible"}
               />
               <CampoOperativoEditable
-                label="Estado"
-                value={datosOp.estado}
-                onChange={(v) => setDatosOp((d) => ({ ...d, estado: v }))}
-                disabled={disabled}
-              />
-              <CampoOperativoEditable
                 label="Ubicacion"
                 value={datosOp.ubicacion}
                 onChange={(v) => setDatosOp((d) => ({ ...d, ubicacion: v }))}
@@ -866,11 +857,6 @@ function FichaInspeccionActivo({
               </FichaGrid>
               {!disabled ? (
                 <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
-                  <p className="text-xs text-muted-foreground">
-                    Estado, ubicacion, conductor y cuenta se pre-llenan del
-                    manifiesto por placa y puedes corregirlos. El propietario no
-                    es editable.
-                  </p>
                   <Button
                     type="button"
                     className="w-fit"
