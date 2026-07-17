@@ -894,21 +894,28 @@ function FichaRevisionInventario({
                 : undefined
           }
         />
-        <EstadoCard
-          titulo="Condicion activo"
-          valor={formatear(detalle.estadoOperativo)}
-        />
-        <EstadoCard
-          titulo="Calibracion"
-          valor={
-            vehiculo
-              ? catalogos.nombrePorId(
-                  "ESTADO_CALIBRACION",
-                  vehiculo.estadoCalibracionReferenciaId
-                )
-              : formatear(detalle.estadoCalibracion)
-          }
-        />
+        {/* Condicion/Calibracion en vivo solo en inventarios abiertos. En un
+            cerrado, la Condicion y Calibracion historicas se muestran en la
+            seccion "Foto de apertura" (del snapshot), no del maestro actual. */}
+        {!disabled ? (
+          <>
+            <EstadoCard
+              titulo="Condicion activo"
+              valor={formatear(detalle.estadoOperativo)}
+            />
+            <EstadoCard
+              titulo="Calibracion"
+              valor={
+                vehiculo
+                  ? catalogos.nombrePorId(
+                      "ESTADO_CALIBRACION",
+                      vehiculo.estadoCalibracionReferenciaId
+                    )
+                  : formatear(detalle.estadoCalibracion)
+              }
+            />
+          </>
+        ) : null}
       </div>
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -917,6 +924,11 @@ function FichaRevisionInventario({
             <CardTitle>Ficha del activo</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Ficha en vivo (pestanas + imagenes del maestro) SOLO en
+                inventarios abiertos/en revision. En un inventario cerrado la
+                ficha historica se arma abajo desde el snapshot congelado. */}
+            {!disabled ? (
+            <>
             <Tabs defaultValue="base">
               <TabsList className="flex-wrap">
                 <TabsTrigger value="base">Base</TabsTrigger>
@@ -1141,6 +1153,8 @@ function FichaRevisionInventario({
                 embedded
               />
             )}
+            </>
+            ) : null}
             {/* En un inventario cerrado/anulado la ficha es un registro
                 historico inmutable: NO se pasa el maestro vivo, para que el
                 snapshot no se compare (ambar "cambio en el maestro") ni muestre
@@ -1820,7 +1834,11 @@ function SnapshotInventario({
       </section>
 
       <SnapshotLista titulo="Documentos" items={documentos} />
-      <SnapshotLista titulo="Imagenes" items={imagenes} />
+      {/* Imagenes: se omiten en la ficha historica (inventario cerrado, activo
+          undefined) porque el snapshot solo guarda metadata sin el archivo, y
+          resolver el archivo en vivo dejaria de ser historico si luego se borra
+          la imagen del activo. En inventarios abiertos se conserva el listado. */}
+      {activo ? <SnapshotLista titulo="Imagenes" items={imagenes} /> : null}
       <SnapshotLista titulo="Tanques" items={tanques} />
       <SnapshotLista titulo="Equipamiento" items={equipamiento} />
     </div>
