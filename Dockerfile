@@ -11,14 +11,14 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN npm install -g pnpm && pnpm install --frozen-lockfile
 COPY . .
 
-# Las NEXT_PUBLIC_* se INLINEAN en `next build`, así que la clave debe estar en
-# el entorno de este stage antes del build. deploy.sh la pasa como build-env-var
-# (→ --build-arg); sin este ARG/ENV el Dockerfile la descartaba y el mapa quedaba
-# deshabilitado en prod. Es config pública (restringida por referrer en GCP), no
-# un secreto: bakearla en el bundle del cliente es su uso previsto.
-ARG NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-ENV NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-
+# Las NEXT_PUBLIC_* se INLINEAN en `next build` y llegan por .env.production, que
+# deploy.sh genera y sube con el source (ver el "!.env.production" en
+# .dockerignore/.gcloudignore).
+#
+# NO declarar aquí ARG/ENV NEXT_PUBLIC_*: si el build-arg no llega, `ENV X=$X`
+# define X como string VACIO, y @next/env solo aplica el .env cuando la var es
+# `undefined` (chequea `typeof`, y `typeof "" === "string"`). O sea: una var
+# vacia SHADOWEA al .env.production y el mapa vuelve a quedar deshabilitado.
 RUN pnpm run build
 
 FROM base
