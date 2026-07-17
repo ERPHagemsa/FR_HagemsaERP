@@ -1141,7 +1141,14 @@ function FichaRevisionInventario({
                 embedded
               />
             )}
-            <TrazabilidadInventarioActivo detalle={detalle} activo={activo} />
+            {/* En un inventario cerrado/anulado la ficha es un registro
+                historico inmutable: NO se pasa el maestro vivo, para que el
+                snapshot no se compare (ambar "cambio en el maestro") ni muestre
+                data actual. La comparacion solo tiene sentido mientras se revisa. */}
+            <TrazabilidadInventarioActivo
+              detalle={detalle}
+              activo={disabled ? undefined : activo}
+            />
           </CardContent>
         </Card>
 
@@ -1651,11 +1658,20 @@ function SnapshotInventario({
           <div>
             <p className="text-sm font-medium">Foto de apertura</p>
             <p className="text-sm text-muted-foreground">
-              Datos copiados al aperturar. Los campos en{" "}
-              <span className="font-medium text-amber-600 dark:text-amber-400">
-                ambar
-              </span>{" "}
-              cambiaron en el maestro desde entonces.
+              {activo ? (
+                <>
+                  Datos copiados al aperturar. Los campos en{" "}
+                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                    ambar
+                  </span>{" "}
+                  cambiaron en el maestro desde entonces.
+                </>
+              ) : (
+                <>
+                  Registro historico congelado al aperturar el inventario. No se
+                  compara contra el maestro actual.
+                </>
+              )}
             </p>
           </div>
           {cambiosMaestro > 0 ? (
