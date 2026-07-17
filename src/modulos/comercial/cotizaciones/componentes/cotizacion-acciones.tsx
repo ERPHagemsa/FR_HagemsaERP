@@ -56,7 +56,6 @@ import {
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import { useTarifariosQuery } from "@/modulos/comercial/tarifarios/servicios/tarifarios-queries";
 import { normalizarErrorAccion } from "../servicios/cotizaciones-error-handler";
-import { useSolicitudClienteQuery } from "../../solicitudes-cliente/servicios/solicitudes-cliente-queries";
 import { aISODate, desdeISODate } from "@/compartido/utilidades";
 import { invalidarConsulta } from "@/compartido/api";
 import {
@@ -74,7 +73,7 @@ type Props = {
 };
 
 export function CotizacionAcciones({ cotizacion, accionesExtra }: Props) {
-  const { id, estado, versionVigente, versiones, solicitudClienteId } = cotizacion;
+  const { id, estado, versionVigente, versiones, fechaRequeridaSolicitud } = cotizacion;
   const acciones = accionesPermitidas(estado);
 
   // La edicion del contenido ya no es una accion aparte: se hace INLINE en el detalle
@@ -113,7 +112,7 @@ export function CotizacionAcciones({ cotizacion, accionesExtra }: Props) {
       {acciones.ganar ? (
         <DialogGanada
           idCotizacion={id}
-          solicitudClienteId={solicitudClienteId}
+          fechaRequeridaSolicitud={fechaRequeridaSolicitud}
           onExito={() => {
             alExito("Cotizacion marcada como ganada");
             invalidarConsulta(CLAVE_PROSPECTOS);
@@ -477,13 +476,14 @@ function DialogNuevaVersion({ idCotizacion, onExito }: DialogNuevaVersionProps) 
 
 type DialogGanadaProps = {
   idCotizacion: string;
-  // SC de origen de la cotizacion (o null). Se usa para precargar la fecha de
-  // inicio con la fecha requerida de la solicitud (default editable).
-  solicitudClienteId: string | null;
+  // Fecha requerida del servicio segun la SC de origen (la trae el detalle de
+  // cotizacion). Precarga la fecha de inicio al marcar ganada (default editable);
+  // null si no hay SC o no tiene fecha.
+  fechaRequeridaSolicitud: string | null;
   onExito: () => void;
 };
 
-function DialogGanada({ idCotizacion, solicitudClienteId, onExito }: DialogGanadaProps) {
+function DialogGanada({ idCotizacion, fechaRequeridaSolicitud, onExito }: DialogGanadaProps) {
   const [abierto, setAbierto] = React.useState(false);
   // Pick explicito del usuario. Mientras `inicioTocado` sea false se muestra la
   // precarga derivada de la SC; una vez que el usuario elige (o limpia) manda su
@@ -497,18 +497,13 @@ function DialogGanada({ idCotizacion, solicitudClienteId, onExito }: DialogGanad
 
   const mutation = useMarcarGanadaMutation(idCotizacion);
 
-  // Solo se consulta la SC mientras el dialogo esta abierto y hay origen SC.
-  const { data: solicitud } = useSolicitudClienteQuery(
-    abierto && solicitudClienteId ? solicitudClienteId : ""
-  );
-
   // Precarga como valor DERIVADO en render (sin efecto ni setState): la fecha
-  // requerida de la SC siembra el campo de inicio. Es un default editable —
-  // "fecha requerida" no es exactamente "inicio de servicio" — asi que al tocar
-  // el campo manda la eleccion del usuario.
+  // requerida que trae el detalle de cotizacion siembra el campo de inicio. Es un
+  // default editable — "fecha requerida" no es exactamente "inicio de servicio" —
+  // asi que al tocar el campo manda la eleccion del usuario.
   const fechaInicioValor = inicioTocado
     ? fechaInicioServicio
-    : desdeISODate(solicitud?.fechaRequerida);
+    : desdeISODate(fechaRequeridaSolicitud);
 
   function handleOpenChange(open: boolean) {
     if (!open) {
