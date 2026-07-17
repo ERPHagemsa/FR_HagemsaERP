@@ -39,17 +39,10 @@ import {
 } from "../servicios/contratos-queries"
 import { etiquetaEstadoContrato } from "../tipos/contratos.tipos"
 
-function formatearFecha(iso: string | null): string {
-  if (!iso) return "—"
-  return new Date(iso).toLocaleDateString("es-PE")
-}
-
-// Vigencia es fecha-solo (se guarda como medianoche UTC). Se formatea en UTC para
-// no correrla un dia por la zona horaria local (Lima UTC-5).
-function formatearFechaVigencia(iso: string | null): string {
-  if (!iso) return "—"
-  return new Date(iso).toLocaleDateString("es-PE", { timeZone: "UTC" })
-}
+import {
+  formatearFechaDeTimestamp,
+  formatearFechaVigencia,
+} from "@/modulos/comercial/utilidades/formato-fecha"
 
 interface Props {
   idContrato: string
@@ -159,13 +152,13 @@ export function ContratoDetalle({ idContrato }: Props) {
           ) : null}
           <div>
             <p className="text-xs text-muted-foreground">Creado</p>
-            <p>{formatearFecha(contrato.fechaCreacion)}</p>
+            <p>{formatearFechaDeTimestamp(contrato.fechaCreacion, { compacta: true })}</p>
           </div>
           <div className="col-span-2 sm:col-span-4">
             <p className="text-xs text-muted-foreground">PDF firmado</p>
             <p>
               {contrato.pdf
-                ? `${contrato.pdf.nombre} · ${formatearFecha(contrato.pdf.fechaCarga)}`
+                ? `${contrato.pdf.nombre} · ${formatearFechaDeTimestamp(contrato.pdf.fechaCarga, { compacta: true })}`
                 : "Sin PDF firmado"}
             </p>
           </div>

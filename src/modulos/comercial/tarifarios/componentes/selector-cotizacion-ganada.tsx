@@ -33,11 +33,7 @@ import { listarCotizaciones } from "@/modulos/comercial/cotizaciones/servicios/c
 import type { FiltrosCotizaciones } from "@/modulos/comercial/cotizaciones/tipos/cotizaciones.tipos"
 
 import { useGenerarDesdeCotizacionMutation } from "../servicios/tarifarios-queries"
-
-function formatearFecha(iso: string | null): string {
-  if (!iso) return "—"
-  return new Date(iso).toLocaleDateString("es-PE")
-}
+import { formatearFechaDeTimestamp } from "@/modulos/comercial/utilidades/formato-fecha"
 
 interface Props {
   abierto: boolean
@@ -192,7 +188,7 @@ export function SelectorCotizacionGanada({ abierto, onCerrar }: Props) {
                       </TableCell>
                       <TableCell className="text-sm">{item.origenNombre}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {formatearFecha(item.fechaCreacion)}
+                        {formatearFechaDeTimestamp(item.fechaCreacion, { compacta: true })}
                       </TableCell>
                       <TableCell className="text-right text-sm">
                         {item.montoTotal != null

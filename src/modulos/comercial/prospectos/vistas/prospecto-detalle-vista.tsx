@@ -19,6 +19,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/compartido/componentes/ui/tabs";
+import { formatearFechaHora } from "@/modulos/comercial/utilidades/formato-fecha";
 
 import { AvisoResultado } from "../componentes/aviso-resultado";
 import { ContactosProspecto } from "../componentes/contactos-prospecto";
@@ -197,16 +198,6 @@ function Dato({
       <span className="font-medium">{value ?? "-"}</span>
     </div>
   );
-}
-
-function formatearFechaHora(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }
 
 function formatearMedioContacto(medio: string) {

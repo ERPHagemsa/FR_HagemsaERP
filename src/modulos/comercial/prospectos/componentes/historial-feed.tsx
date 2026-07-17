@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
+import { formatearFechaHora } from "@/modulos/comercial/utilidades/formato-fecha";
 
 import type {
   AccionHistorial,
@@ -219,14 +220,4 @@ function varianteAccion(
   if (accion === "REGISTRO") return "default";
   if (accion === "ELIMINACION") return "destructive";
   return "secondary";
-}
-
-function formatearFechaHora(value: string): string {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }

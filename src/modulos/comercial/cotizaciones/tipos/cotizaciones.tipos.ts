@@ -284,6 +284,10 @@ export type Cotizacion = {
   // Correo del cliente sugerido (snapshot del contacto de la SC de origen). El
   // diálogo de aprobación lo precarga; null si no hay SC o el contacto no tiene correo.
   correoClienteSugerido: string | null;
+  // Fecha requerida del servicio según la SC de origen (snapshot). Precarga la
+  // fecha de inicio al marcar ganada (default editable); null si no hay SC o no
+  // la tiene. Llega como datetime ISO — parsear con desdeISODate.
+  fechaRequeridaSolicitud: string | null;
   numeroCotizacion: number | null;
   anioCotizacion: number | null;
   codigoCotizacion: string | null;

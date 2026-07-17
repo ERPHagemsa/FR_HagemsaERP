@@ -11,17 +11,13 @@ import {
   obtenerErroresPorCampo,
   useConsulta,
 } from "@/compartido/api";
-import { CalendarDays, Loader2, Pencil } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
-import { Calendar } from "@/compartido/componentes/ui/calendar";
+import { CampoFecha } from "@/compartido/componentes/campo-fecha";
+import { aISODate } from "@/compartido/utilidades";
 import { FieldLegend, FieldSet } from "@/compartido/componentes/ui/field";
 import { Label } from "@/compartido/componentes/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/compartido/componentes/ui/popover";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
 import {
   Select,
@@ -30,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select";
-import { cn } from "@/compartido/utilidades/utils";
 
 import { consultarProspecto } from "../../prospectos/servicios/prospectos-api";
 import { useRegistrarSCMutation } from "../servicios/solicitudes-cliente-queries";
@@ -62,15 +57,6 @@ const REGEX_UUID =
 
 function esUuid(valor: string): boolean {
   return REGEX_UUID.test(valor.trim());
-}
-
-// Formatea a YYYY-MM-DD desde las partes locales (evita el corrimiento de dia
-// que produce toISOString al convertir a UTC).
-function aISODate(fecha: Date): string {
-  const anio = fecha.getFullYear();
-  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
-  const dia = String(fecha.getDate()).padStart(2, "0");
-  return `${anio}-${mes}-${dia}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -577,68 +563,6 @@ function SeccionTitulo({
       {descripcion ? (
         <p className="mt-1 text-xs text-muted-foreground">{descripcion}</p>
       ) : null}
-    </div>
-  );
-}
-
-function CampoFecha({
-  label,
-  requerido = false,
-  value,
-  onSelect,
-  error,
-  disabled,
-}: {
-  label: string;
-  requerido?: boolean;
-  value?: Date;
-  onSelect: (fecha: Date | undefined) => void;
-  error?: string;
-  disabled?: boolean;
-}) {
-  const [abierto, setAbierto] = React.useState(false);
-
-  return (
-    <div className="grid gap-2">
-      <Label>
-        {label}
-        {requerido ? <span className="ml-1 text-destructive">*</span> : null}
-      </Label>
-      <Popover open={abierto} onOpenChange={setAbierto}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={disabled}
-            aria-invalid={Boolean(error)}
-            className={cn(
-              "w-full justify-start text-left font-normal",
-              !value && "text-muted-foreground"
-            )}
-          >
-            <CalendarDays className="size-4" />
-            {value
-              ? value.toLocaleDateString("es-ES", {
-                  day: "2-digit",
-                  month: "long",
-                  year: "numeric",
-                })
-              : "Selecciona una fecha"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={value}
-            onSelect={(fecha) => {
-              onSelect(fecha);
-              setAbierto(false);
-            }}
-            autoFocus
-          />
-        </PopoverContent>
-      </Popover>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

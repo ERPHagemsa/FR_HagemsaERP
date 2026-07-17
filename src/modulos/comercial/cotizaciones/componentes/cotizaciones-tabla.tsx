@@ -22,6 +22,7 @@ import {
 import { cn } from "@/compartido/utilidades";
 
 import { formatearMonto } from "../servicios/cotizaciones-formato";
+import { formatearFecha } from "../utilidades/formato";
 import { useEjecutivosCotizacionesQuery } from "../servicios/cotizaciones-queries";
 import type {
   BucketCotizacion,
@@ -379,12 +380,4 @@ function FiltroSelect({
       </Select>
     </div>
   );
-}
-
-function formatearFecha(value: string) {
-  return new Intl.DateTimeFormat("es-PE", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
 }
