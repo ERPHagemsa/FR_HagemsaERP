@@ -71,7 +71,11 @@ export function DashboardAcciones({
         isLoading={isLoading}
         isError={isError}
         mensajeError={mensajeError}
-        enlaceVerTodas="/comercial/cotizaciones?bucket=porVencer"
+        // No existe un bucket `porVencer` en el listado; "por vencer (72h)" es un
+        // subconjunto de las ENVIADA (solo esas tienen validez corriendo), asi que
+        // "Ver todas" apunta al bucket `enviadas`, el mas cercano y valido. Un
+        // filtro exacto de 72h requeriria un bucket propio en el backend.
+        enlaceVerTodas="/comercial/cotizaciones?bucket=enviadas"
         ayuda={DASHBOARD_AYUDA.accionesPorVencer}
       />
       <DashboardListaAccionable
