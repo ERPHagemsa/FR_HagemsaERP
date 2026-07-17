@@ -83,7 +83,10 @@ export function CotizacionEditorNuevo({ solicitudClienteId, clienteTipo, cliente
     const erroresValidacion = validarBorrador(draft);
     if (Object.keys(erroresValidacion).length > 0) {
       setErroresCampo(erroresValidacion);
-      toast.error("Revise los campos marcados antes de crear.");
+      // No dejar el submit "mudo": mostrar el primer error concreto (mismo patron
+      // que el formulario de solicitud). El generico no dice QUE campo esta mal.
+      const primerError = Object.values(erroresValidacion)[0];
+      toast.error(primerError ?? "Revise los campos marcados antes de crear.");
       return;
     }
 
