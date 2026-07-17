@@ -220,7 +220,7 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Placa" value={vehiculo?.placa} />
                     <Dato label="Marca" value={vehiculo?.marca} />
                     <Dato label="Modelo" value={vehiculo?.modelo} />
-                    <Dato label="Ano fabricacion" value={vehiculo?.anioFabricacion} />
+                    <Dato label="Año fabricacion" value={vehiculo?.anioFabricacion} />
                     <Dato label="Color" value={vehiculo?.color} />
                     <Dato label="Carroceria" value={vehiculo?.carroceria} />
                     <Dato label="Zona registral" value={vehiculo?.zonaRegistral} />

@@ -177,6 +177,7 @@ export function DocumentosActivo({
     setIsSaving(true);
 
     const formData = new FormData(form);
+    const fechaEmision = String(formData.get("fechaEmision") ?? "");
     const fechaVencimiento = String(formData.get("fechaVencimiento") ?? "");
     const observacion = String(formData.get("observacion") ?? "").trim();
     const archivoUrl = archivoDataUrl || "pendiente-storage";
@@ -195,11 +196,20 @@ export function DocumentosActivo({
       return;
     }
 
+    if (fechaVencimiento && fechaEmision && fechaVencimiento < fechaEmision) {
+      toast.error(
+        "La fecha de vencimiento no puede ser anterior a la fecha de emision."
+      );
+      setIsSaving(false);
+      enviandoRef.current = false;
+      return;
+    }
+
     try {
       const documentoCreado = await crearDocumentoMutation.mutateAsync({
         tipoDocumento: tipoSeleccionado as TipoDocumentoActivo,
         numero: String(formData.get("numero") ?? "").trim(),
-        fechaEmision: String(formData.get("fechaEmision") ?? ""),
+        fechaEmision,
         fechaVencimiento: fechaVencimiento || undefined,
         archivoUrl,
         nombreArchivo: archivoNombre || undefined,

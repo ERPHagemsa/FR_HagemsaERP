@@ -991,7 +991,7 @@ function FichaRevisionInventario({
                   <DatoInventario label="Placa" value={vehiculo?.placa ?? detalle.placa} />
                   <DatoInventario label="Marca" value={vehiculo?.marca ?? detalle.marca} />
                   <DatoInventario label="Modelo" value={vehiculo?.modelo ?? detalle.modelo} />
-                  <DatoInventario label="Ano fabricacion" value={vehiculo?.anioFabricacion} />
+                  <DatoInventario label="Año fabricacion" value={vehiculo?.anioFabricacion} />
                   <DatoInventario label="Color" value={vehiculo?.color} />
                   <DatoInventario
                     label="Carroceria"
