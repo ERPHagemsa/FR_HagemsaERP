@@ -75,11 +75,14 @@ import {
 } from "../ganchos/use-catalogos-activos";
 import type {
   Activo,
+  EstadoActivo,
+  EstadoOperativo,
   EstadoRevisionInventario,
   InventarioFisico,
   InventarioFisicoDetalle,
   InventarioFisicoHistorial,
   SnapshotHistoricoActivoInventario,
+  VehiculoDetalle,
 } from "../tipos/activo.tipos";
 
 const RESULTADOS_REVISION: EstadoRevisionInventario[] = [
@@ -767,7 +770,7 @@ function DetalleRow({
 function FichaRevisionInventario({
   inventarioId,
   detalle,
-  activo,
+  activo: activoProp,
   disabled,
   onGuardar,
   onVolver,
@@ -801,6 +804,29 @@ function FichaRevisionInventario({
   const imagenes = imagenesQuery.data ?? [];
   const documentos = documentosQuery.data ?? [];
   const tanques = tanquesQuery.data ?? [];
+  // En un inventario CERRADO/anulado la ficha (pestanas) debe mostrar la data
+  // HISTORICA del snapshot, no la del maestro vivo. Se trae el snapshot y se
+  // arma un `Activo` sintetico que reemplaza al vivo; asi las pestanas siguen
+  // igual pero con los valores congelados. En abiertos se usa el activo vivo.
+  const snapshotHistoricoQuery = useSnapshotDetalleInventarioQuery(
+    inventarioId,
+    disabled ? detalle.id : null
+  );
+  const activoHistorico = React.useMemo(
+    () =>
+      disabled
+        ? construirActivoDesdeSnapshot(
+            (detalle.snapshotActivo as Record<string, unknown> | null) ??
+              (snapshotHistoricoQuery.data?.snapshotActivo as
+                | Record<string, unknown>
+                | null) ??
+              null,
+            catalogos
+          )
+        : null,
+    [disabled, detalle.snapshotActivo, snapshotHistoricoQuery.data, catalogos]
+  );
+  const activo = disabled && activoHistorico ? activoHistorico : activoProp;
   const vehiculo = activo?.vehiculo ?? null;
   const returnToInventario = `/activos/inventario-fisico/${inventarioId}?activo=${encodeURIComponent(
     detalle.codigoActivo
@@ -896,7 +922,7 @@ function FichaRevisionInventario({
         />
         <EstadoCard
           titulo="Condicion activo"
-          valor={formatear(detalle.estadoOperativo)}
+          valor={formatear(vehiculo?.estadoOperativo ?? detalle.estadoOperativo)}
         />
         <EstadoCard
           titulo="Calibracion"
@@ -991,7 +1017,7 @@ function FichaRevisionInventario({
                   <DatoInventario label="Placa" value={vehiculo?.placa ?? detalle.placa} />
                   <DatoInventario label="Marca" value={vehiculo?.marca ?? detalle.marca} />
                   <DatoInventario label="Modelo" value={vehiculo?.modelo ?? detalle.modelo} />
-                  <DatoInventario label="Ano fabricacion" value={vehiculo?.anioFabricacion} />
+                  <DatoInventario label="Año fabricacion" value={vehiculo?.anioFabricacion} />
                   <DatoInventario label="Color" value={vehiculo?.color} />
                   <DatoInventario
                     label="Carroceria"
@@ -1129,19 +1155,32 @@ function FichaRevisionInventario({
               </TabsContent>
 
             </Tabs>
-            {imagenesQuery.isLoading ? (
-              <div className="mt-6 rounded-xl border border-border px-4 py-8 text-center text-sm text-muted-foreground">
-                Cargando imagenes del activo...
-              </div>
-            ) : (
-              <ImagenesActivo
-                codigo={detalle.codigoActivo}
-                imagenes={imagenes}
-                editable={false}
-                embedded
-              />
-            )}
-            <TrazabilidadInventarioActivo detalle={detalle} activo={activo} />
+            {/* Imagenes en vivo del maestro solo en inventarios abiertos. En un
+                cerrado se omiten: el snapshot no guarda el archivo, y mostrar la
+                imagen actual dejaria de ser historico (y desapareceria si luego
+                se borra del activo). */}
+            {!disabled ? (
+              imagenesQuery.isLoading ? (
+                <div className="mt-6 rounded-xl border border-border px-4 py-8 text-center text-sm text-muted-foreground">
+                  Cargando imagenes del activo...
+                </div>
+              ) : (
+                <ImagenesActivo
+                  codigo={detalle.codigoActivo}
+                  imagenes={imagenes}
+                  editable={false}
+                  embedded
+                />
+              )
+            ) : null}
+            {/* En un inventario cerrado/anulado la ficha es un registro
+                historico inmutable: NO se pasa el maestro vivo, para que el
+                snapshot no se compare (ambar "cambio en el maestro") ni muestre
+                data actual. La comparacion solo tiene sentido mientras se revisa. */}
+            <TrazabilidadInventarioActivo
+              detalle={detalle}
+              activo={disabled ? undefined : activo}
+            />
           </CardContent>
         </Card>
 
@@ -1651,11 +1690,20 @@ function SnapshotInventario({
           <div>
             <p className="text-sm font-medium">Foto de apertura</p>
             <p className="text-sm text-muted-foreground">
-              Datos copiados al aperturar. Los campos en{" "}
-              <span className="font-medium text-amber-600 dark:text-amber-400">
-                ambar
-              </span>{" "}
-              cambiaron en el maestro desde entonces.
+              {activo ? (
+                <>
+                  Datos copiados al aperturar. Los campos en{" "}
+                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                    ambar
+                  </span>{" "}
+                  cambiaron en el maestro desde entonces.
+                </>
+              ) : (
+                <>
+                  Registro historico congelado al aperturar el inventario. No se
+                  compara contra el maestro actual.
+                </>
+              )}
             </p>
           </div>
           {cambiosMaestro > 0 ? (
@@ -2358,6 +2406,20 @@ function construirDetallesInventario(
   catalogos: CatalogosActivos,
   asignacionesFlota: Map<number, AsignacionContratoFlota>
 ): InventarioFisicoDetalle[] {
+  // Un inventario CERRADO o ANULADO es un snapshot historico inmutable: se
+  // muestran SOLO los detalles congelados en la apertura, sin superponer el
+  // maestro vivo (bandeja de candidatos) ni asignaciones de flota actuales.
+  // De lo contrario, un inventario antiguo pintaria como "pendientes" a los
+  // vehiculos creados DESPUES de cerrarlo, y sus conteos (candidatos /
+  // pendientes) no cuadrarian con el listado, que cuenta lo realmente
+  // congelado en BD. La bandeja del maestro vivo solo aplica mientras el
+  // inventario esta ABIERTO o EN_REVISION.
+  const inventarioActivo =
+    inventario.estado === "ABIERTO" || inventario.estado === "EN_REVISION";
+  if (!inventarioActivo) {
+    return inventario.detalles;
+  }
+
   const detallesPorActivo = new Map<number, InventarioFisicoDetalle>();
 
   for (const detalle of inventario.detalles) {
@@ -2455,6 +2517,133 @@ function construirDetallesInventario(
     });
 
   return [...detallesDesdeMaestro, ...detallesFueraDelMaestro];
+}
+
+/**
+ * Construye un `Activo` sintetico a partir del snapshot congelado, para que la
+ * ficha (pestanas) muestre la data HISTORICA de un inventario cerrado SIN
+ * cambiar el layout. Los campos de catalogo del snapshot son NOMBRES; se
+ * resuelven de vuelta al id via `catalogos.idPorNombre` porque las pestanas
+ * muestran por id. El equipamiento legacy (radioComunicacion, autorradio, ...)
+ * se reconstruye desde `snapshot.equipamiento` por su `nombre`.
+ */
+function construirActivoDesdeSnapshot(
+  snapshot: Record<string, unknown> | null,
+  catalogos: CatalogosActivos
+): Activo | null {
+  if (!snapshot) return null;
+  const v = obtenerObjetoSnapshot(snapshot, "vehiculo");
+  const equipamiento = obtenerListaSnapshot(snapshot, "equipamiento");
+
+  const str = (val: unknown): string | null =>
+    val === null || val === undefined ? null : String(val);
+  const num = (val: unknown): number | null => {
+    if (val === null || val === undefined || val === "") return null;
+    const n = Number(val);
+    return Number.isFinite(n) ? n : null;
+  };
+  // Valor del equipamiento por nombre; cae al campo plano del snapshot.vehiculo
+  // para los que el snapshot si guarda ahi (baranda, camara, gps, ...).
+  const equip = (nombre: string, plano?: unknown): string | null => {
+    const item = equipamiento.find((e) => (e.nombre as string) === nombre);
+    return str(item?.descripcion) ?? str(plano);
+  };
+
+  const vehiculo: VehiculoDetalle | null = v
+    ? {
+        claseVehiculoReferenciaId:
+          catalogos.idPorNombre("CLASE_VEHICULO", str(v.plantillaInventario)) ??
+          0,
+        carroceriaReferenciaId: null,
+        tarjetaPropiedad: str(v.tarjetaPropiedad),
+        tipoTarjetaPropiedad: str(v.tipoTarjetaPropiedad),
+        tarjetaMercancias: str(v.tarjetaMercancias),
+        soat: str(v.soat),
+        revisionTecnica12Meses: str(v.revisionTecnica12Meses),
+        revisionTecnica6Meses: str(v.revisionTecnica6Meses),
+        resolucionDirectoral: str(v.resolucionDirectoral),
+        resolucionGerencial: str(v.resolucionGerencial),
+        iqbf: str(v.iqbf),
+        certificadoMatpel: str(v.certificadoMatpel),
+        certificadoBonificacion: str(v.certificadoBonificacion),
+        certificadoOperatividad: str(v.certificadoOperatividad),
+        placa: str(v.placa),
+        anioFabricacion: num(v.anioFabricacion),
+        color: str(v.color),
+        marca: str(v.marca),
+        modelo: str(v.modelo),
+        carroceria: str(v.carroceria),
+        zonaRegistral: str(v.zonaRegistral),
+        ejes: num(v.ejes),
+        cantidadRuedas: num(v.cantidadRuedas),
+        categoria: str(v.categoria),
+        serieChasis: str(v.serieChasis),
+        serieMotor: str(v.serieMotor),
+        radioComunicacion: equip("RADIO_COMUNICACION"),
+        autorradio: equip("AUTORRADIO"),
+        llantasRepuesto: equip("LLANTAS_REPUESTO"),
+        camara: equip("CAMARA", v.camara),
+        tablet: equip("TABLET"),
+        dispositivosSeguridad: equip("DISPOSITIVOS_SEGURIDAD"),
+        gps: equip("GPS", v.gps),
+        telemetria: equip("TELEMETRIA", v.telemetria),
+        radioBase: equip("RADIO_BASE", v.radioBase),
+        adas: equip("ADAS", v.adas),
+        adasAntapaccay: equip("ADAS_ANTAPACCAY", v.adasAntapaccay),
+        adasQuellaveco: equip("ADAS_QUELLAVECO", v.adasQuellaveco),
+        proveedorAdas: equip("PROVEEDOR_ADAS", v.proveedorAdas),
+        estadoOperativo: str(v.estadoOperativo) as EstadoOperativo | null,
+        cajaHerramientas: equip("CAJA_HERRAMIENTAS"),
+        jaulaAntivuelco: equip("JAULA_ANTIVUELCO"),
+        carriboy: equip("CARRIBOY"),
+        baranda: equip("BARANDA", v.baranda),
+        mamparon: equip("MAMPARON"),
+        ancho: num(v.ancho),
+        longitud: num(v.longitud),
+        alto: num(v.alto),
+        pesoBruto: num(v.pesoBruto),
+        pesoNeto: num(v.pesoNeto),
+        cargaUtil: num(v.cargaUtil),
+        tipoSuspension: str(v.tipoSuspension),
+        tipoTornamesa: str(v.tipoTornamesa),
+        capacidadTanqueGalones: num(v.capacidadTanqueGalones),
+        estadoCalibracionReferenciaId: catalogos.idPorNombre(
+          "ESTADO_CALIBRACION",
+          str(v.estadoCalibracion)
+        ),
+        factorCorreccion: num(v.factorCorreccion),
+        claseEuroReferenciaId: catalogos.idPorNombre(
+          "CLASE_EURO",
+          str(v.claseEuro)
+        ),
+        ratioCorona: num(v.ratioCorona),
+        tipoTransmisionReferenciaId: catalogos.idPorNombre(
+          "TIPO_TRANSMISION",
+          str(v.tipoTransmision)
+        ),
+      }
+    : null;
+
+  return {
+    id: num(snapshot.id) ?? 0,
+    codigo: str(snapshot.codigo) ?? "",
+    tipoActivoReferenciaId:
+      catalogos.idPorNombre("TIPO_ACTIVO", str(snapshot.tipoActivo)) ?? 0,
+    descripcion: str(snapshot.descripcion) ?? "",
+    ubicacion: str(snapshot.ubicacion) ?? "",
+    estadoActivo: (str(snapshot.estadoActivo) as EstadoActivo | null) ?? "ACTIVO",
+    estadoRegistro: snapshot.estadoRegistro as boolean | undefined,
+    activoOrigenId: null,
+    observacion: str(snapshot.observacion),
+    valorUnidad: num(snapshot.valorUnidad),
+    moneda: str(snapshot.moneda),
+    proveedor: str(snapshot.proveedor),
+    numeroFactura: str(snapshot.numeroFactura),
+    fechaFactura: str(snapshot.fechaFactura),
+    vehiculo,
+    fechaCreacion: str(snapshot.fechaCreacion) ?? "",
+    fechaModificacion: str(snapshot.fechaModificacion) ?? "",
+  };
 }
 
 function obtenerDetalleKey(detalle: InventarioFisicoDetalle) {

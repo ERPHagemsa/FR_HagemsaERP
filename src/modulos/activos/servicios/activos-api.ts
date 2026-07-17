@@ -27,6 +27,7 @@ import type {
   CrearTanqueActivoPayload,
   DocumentoActivo,
   EstadoActivo,
+  EstadoOperativo,
   EstadoRegistro,
   ImagenActivo,
   InventarioFisico,
@@ -165,6 +166,79 @@ export type PaginadoActivosParams = {
   placa?: string;
   tipoActivoReferenciaId?: number;
 };
+
+/** Conteos agregados que devuelve el backend para las tarjetas del listado. */
+export type ResumenActivosListado = {
+  operativos: number;
+  mantenimiento: number;
+  noCalibrados: number;
+};
+
+export type ListadoActivosParams = {
+  /** Texto libre sobre codigo, descripcion, placa, marca y modelo. */
+  busqueda?: string;
+  tipoActivoReferenciaId?: number;
+  /** BAJA agrupa INACTIVO + SINIESTRADO en el backend. */
+  estadoActivo?: EstadoActivo | "BAJA";
+  estadoOperativo?: EstadoOperativo;
+  estadoCalibracionReferenciaId?: number;
+  estadoRegistro?: EstadoRegistro;
+  /** true = visibles y anulados juntos (ignora estadoRegistro). */
+  incluirAnulados?: boolean;
+  /** YYYY-MM-DD inclusive, sobre fecha de modificacion. */
+  fechaModificacionDesde?: string;
+  fechaModificacionHasta?: string;
+  orden?: "MODIFICACION_RECIENTE" | "MODIFICACION_ANTIGUA";
+  pagina?: number;
+  limite?: number;
+};
+
+export type ListadoActivosRespuesta = RespuestaPaginada<Activo> & {
+  resumen?: ResumenActivosListado;
+};
+
+/**
+ * Listado del maestro con filtros, orden y paginacion resueltos en el
+ * BACKEND (a diferencia de obtenerActivos, que trae todo y deja el filtrado
+ * al cliente). Pide siempre conResumen=true para las tarjetas del listado.
+ */
+export async function obtenerActivosListado(
+  params: ListadoActivosParams
+): Promise<ListadoActivosRespuesta> {
+  const queryParams: Record<string, unknown> = {
+    pagina: params.pagina ?? 1,
+    limite: params.limite ?? 20,
+    conResumen: true,
+  };
+  if (params.busqueda?.trim()) queryParams.busqueda = params.busqueda.trim();
+  if (params.tipoActivoReferenciaId !== undefined) {
+    queryParams.tipoActivoReferenciaId = params.tipoActivoReferenciaId;
+  }
+  if (params.estadoActivo) queryParams.estadoActivo = params.estadoActivo;
+  if (params.estadoOperativo) queryParams.estadoOperativo = params.estadoOperativo;
+  if (params.estadoCalibracionReferenciaId !== undefined) {
+    queryParams.estadoCalibracionReferenciaId =
+      params.estadoCalibracionReferenciaId;
+  }
+  if (params.incluirAnulados) {
+    queryParams.incluirAnulados = true;
+  } else if (params.estadoRegistro !== undefined) {
+    queryParams.estadoRegistro = params.estadoRegistro;
+  }
+  if (params.fechaModificacionDesde) {
+    queryParams.fechaModificacionDesde = params.fechaModificacionDesde;
+  }
+  if (params.fechaModificacionHasta) {
+    queryParams.fechaModificacionHasta = params.fechaModificacionHasta;
+  }
+  if (params.orden) queryParams.orden = params.orden;
+
+  const { data } = await clienteActivos.get<ListadoActivosRespuesta>(
+    "/activos",
+    { params: queryParams }
+  );
+  return data;
+}
 
 export async function obtenerActivos(
   params?: ObtenerActivosParams

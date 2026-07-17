@@ -115,7 +115,15 @@ export function DocumentosActivo({
     const creados = documentosCreados.filter(
       (documento) => !eliminados.has(documento.id) && !idsBase.has(documento.id)
     );
-    return [...base, ...creados];
+    // Dedup defensivo por id: evita que un id repetido (ej. una doble
+    // creacion que se cuele pese a la guarda de envio) rompa el key de
+    // React en la tabla.
+    const vistos = new Set<number>();
+    return [...base, ...creados].filter((documento) => {
+      if (vistos.has(documento.id)) return false;
+      vistos.add(documento.id);
+      return true;
+    });
   }, [codigo, documentos, documentosOptimistas]);
 
   // Maestro Documentario: tipos disponibles, alcance y vencimiento obligatorio.
@@ -155,13 +163,21 @@ export function DocumentosActivo({
   const metaTipo = opcionesTipo.find((tipo) => tipo.codigo === tipoSeleccionado);
   const requiereVencimiento = metaTipo?.requiereVencimiento ?? false;
   const esCompartido = metaTipo?.alcance === "COMPARTIDO";
+  // Guarda sincrona: `disabled={isSaving}` no alcanza a llegar al DOM antes
+  // de que un doble clic rapido dispare un segundo evento submit (React
+  // recien deshabilita el boton tras el commit del render). El ref se
+  // actualiza al instante, sin esperar ese ciclo.
+  const enviandoRef = React.useRef(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (enviandoRef.current) return;
+    enviandoRef.current = true;
     const form = event.currentTarget;
     setIsSaving(true);
 
     const formData = new FormData(form);
+    const fechaEmision = String(formData.get("fechaEmision") ?? "");
     const fechaVencimiento = String(formData.get("fechaVencimiento") ?? "");
     const observacion = String(formData.get("observacion") ?? "").trim();
     const archivoUrl = archivoDataUrl || "pendiente-storage";
@@ -169,12 +185,23 @@ export function DocumentosActivo({
     if (!archivoDataUrl) {
       toast.error("Selecciona un documento desde tu equipo.");
       setIsSaving(false);
+      enviandoRef.current = false;
       return;
     }
 
     if (requiereVencimiento && !fechaVencimiento) {
       toast.error("Este tipo de documento requiere fecha de vencimiento.");
       setIsSaving(false);
+      enviandoRef.current = false;
+      return;
+    }
+
+    if (fechaVencimiento && fechaEmision && fechaVencimiento < fechaEmision) {
+      toast.error(
+        "La fecha de vencimiento no puede ser anterior a la fecha de emision."
+      );
+      setIsSaving(false);
+      enviandoRef.current = false;
       return;
     }
 
@@ -182,7 +209,7 @@ export function DocumentosActivo({
       const documentoCreado = await crearDocumentoMutation.mutateAsync({
         tipoDocumento: tipoSeleccionado as TipoDocumentoActivo,
         numero: String(formData.get("numero") ?? "").trim(),
-        fechaEmision: String(formData.get("fechaEmision") ?? ""),
+        fechaEmision,
         fechaVencimiento: fechaVencimiento || undefined,
         archivoUrl,
         nombreArchivo: archivoNombre || undefined,
@@ -217,6 +244,7 @@ export function DocumentosActivo({
       toast.error(extraerMensajeError(error, "No se pudo registrar el documento."));
     } finally {
       setIsSaving(false);
+      enviandoRef.current = false;
     }
   }
 

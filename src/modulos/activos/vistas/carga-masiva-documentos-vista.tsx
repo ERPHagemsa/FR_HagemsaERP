@@ -289,6 +289,12 @@ export function CargaMasivaDocumentosVista() {
         toast.error("Este documento requiere fecha de vencimiento.");
         return;
       }
+      if (compartidoFecha && compartidoFecha < compartidoFechaEmision) {
+        toast.error(
+          "La fecha de vencimiento no puede ser anterior a la fecha de emision."
+        );
+        return;
+      }
     }
 
     const archivos: ArchivoDocumentoMasivo[] = [];
@@ -527,10 +533,10 @@ export function CargaMasivaDocumentosVista() {
                   }
                 />
                 <Input
-                  aria-label="Ano de fabricacion"
+                  aria-label="Año de fabricacion"
                   className="h-9 w-24 rounded-4xl"
                   type="number"
-                  placeholder="Ano"
+                  placeholder="Año"
                   value={filtros.anio}
                   onChange={(e) =>
                     setFiltros((f) => ({ ...f, anio: e.target.value }))
@@ -850,6 +856,12 @@ function FilaActivoSeleccionado({
     }
     if (tipoMeta?.requiereVencimiento && !fecha) {
       toast.error("Este tipo requiere fecha de vencimiento.");
+      return;
+    }
+    if (fecha && fecha < fechaEmision) {
+      toast.error(
+        "La fecha de vencimiento no puede ser anterior a la fecha de emision."
+      );
       return;
     }
     onAgregar({

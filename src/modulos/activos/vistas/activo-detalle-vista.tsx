@@ -116,14 +116,32 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                 ID anterior {activo.activoOrigenId}
               </Badge>
             ) : null}
+            {activo.activoReemplazo ? (
+              <Badge
+                className="mt-2 w-fit border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                variant="outline"
+              >
+                Replaqueado por{" "}
+                <Link
+                  className="underline underline-offset-2"
+                  href={`/activos/${activo.activoReemplazo.codigo}`}
+                >
+                  {activo.activoReemplazo.codigo}
+                </Link>
+              </Badge>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
               <Link href="/activos">Volver</Link>
             </Button>
-            <Button asChild>
-              <Link href={`/activos/${activo.codigo}/editar`}>Editar</Link>
-            </Button>
+            {/* Un activo replaqueado es referencia historica de solo
+                lectura: la data viva es la del activo que lo reemplazo. */}
+            {!activo.activoReemplazo ? (
+              <Button asChild>
+                <Link href={`/activos/${activo.codigo}/editar`}>Editar</Link>
+              </Button>
+            ) : null}
           </div>
         </section>
 
@@ -202,7 +220,7 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                     <Dato label="Placa" value={vehiculo?.placa} />
                     <Dato label="Marca" value={vehiculo?.marca} />
                     <Dato label="Modelo" value={vehiculo?.modelo} />
-                    <Dato label="Ano fabricacion" value={vehiculo?.anioFabricacion} />
+                    <Dato label="Año fabricacion" value={vehiculo?.anioFabricacion} />
                     <Dato label="Color" value={vehiculo?.color} />
                     <Dato label="Carroceria" value={vehiculo?.carroceria} />
                     <Dato label="Zona registral" value={vehiculo?.zonaRegistral} />

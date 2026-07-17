@@ -455,7 +455,7 @@ export default function DetalleVehiculoClient({
         <DatoVer label="Estado registro" value={vehiculo.estadoRegistro ?? vehiculo.estadoActivo} />
         <DatoVer label="Marca" value={vehiculo.marca ?? vehiculo.vehiculo?.marca} />
         <DatoVer label="Modelo" value={vehiculo.modelo ?? vehiculo.vehiculo?.modelo} />
-        <DatoVer label="Ano Fab." value={vehiculo.anioFabricacion} />
+        <DatoVer label="Año Fab." value={vehiculo.anioFabricacion} />
         <DatoVer label="Color" value={vehiculo.color} />
         <DatoVer label="Serie Chasis" value={vehiculo.serieChasis} />
         <DatoVer label="Serie Motor" value={vehiculo.serieMotor} />

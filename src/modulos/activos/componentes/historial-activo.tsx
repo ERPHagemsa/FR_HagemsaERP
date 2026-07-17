@@ -580,7 +580,7 @@ const CAMPOS_HISTORIAL: Record<string, string> = {
   imagenes: "Imagenes",
   "vehiculo.plantillaInventario": "Clase",
   "vehiculo.placa": "Placa",
-  "vehiculo.anioFabricacion": "Ano de fabricacion",
+  "vehiculo.anioFabricacion": "Año de fabricacion",
   "vehiculo.color": "Color",
   "vehiculo.marca": "Marca",
   "vehiculo.modelo": "Modelo",
