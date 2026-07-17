@@ -16,6 +16,7 @@ import {
   AlertDialogTrigger,
 } from "@/compartido/componentes/ui/alert-dialog";
 import { Button } from "@/compartido/componentes/ui/button";
+import { CampoFecha } from "@/compartido/componentes/campo-fecha";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +27,6 @@ import {
   DialogTrigger,
 } from "@/compartido/componentes/ui/dialog";
 import { Label } from "@/compartido/componentes/ui/label";
-import { Input } from "@/compartido/componentes/ui/input";
 import { Textarea } from "@/compartido/componentes/ui/textarea";
 import {
   Tooltip,
@@ -56,6 +56,8 @@ import {
 import { useImprimirPdf } from "../ganchos/use-imprimir-pdf";
 import { useTarifariosQuery } from "@/modulos/comercial/tarifarios/servicios/tarifarios-queries";
 import { normalizarErrorAccion } from "../servicios/cotizaciones-error-handler";
+import { useSolicitudClienteQuery } from "../../solicitudes-cliente/servicios/solicitudes-cliente-queries";
+import { aISODate, desdeISODate } from "@/compartido/utilidades";
 import { invalidarConsulta } from "@/compartido/api";
 import {
   CLAVE_COTIZACIONES,
@@ -72,7 +74,7 @@ type Props = {
 };
 
 export function CotizacionAcciones({ cotizacion, accionesExtra }: Props) {
-  const { id, estado, versionVigente, versiones } = cotizacion;
+  const { id, estado, versionVigente, versiones, solicitudClienteId } = cotizacion;
   const acciones = accionesPermitidas(estado);
 
   // La edicion del contenido ya no es una accion aparte: se hace INLINE en el detalle
@@ -111,6 +113,7 @@ export function CotizacionAcciones({ cotizacion, accionesExtra }: Props) {
       {acciones.ganar ? (
         <DialogGanada
           idCotizacion={id}
+          solicitudClienteId={solicitudClienteId}
           onExito={() => {
             alExito("Cotizacion marcada como ganada");
             invalidarConsulta(CLAVE_PROSPECTOS);
@@ -474,23 +477,44 @@ function DialogNuevaVersion({ idCotizacion, onExito }: DialogNuevaVersionProps) 
 
 type DialogGanadaProps = {
   idCotizacion: string;
+  // SC de origen de la cotizacion (o null). Se usa para precargar la fecha de
+  // inicio con la fecha requerida de la solicitud (default editable).
+  solicitudClienteId: string | null;
   onExito: () => void;
 };
 
-function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
+function DialogGanada({ idCotizacion, solicitudClienteId, onExito }: DialogGanadaProps) {
   const [abierto, setAbierto] = React.useState(false);
-  const [fechaInicioServicio, setFechaInicioServicio] = React.useState("");
-  const [fechaFinServicio, setFechaFinServicio] = React.useState("");
+  // Pick explicito del usuario. Mientras `inicioTocado` sea false se muestra la
+  // precarga derivada de la SC; una vez que el usuario elige (o limpia) manda su
+  // valor.
+  const [fechaInicioServicio, setFechaInicioServicio] = React.useState<Date | undefined>(undefined);
+  const [inicioTocado, setInicioTocado] = React.useState(false);
+  const [fechaFinServicio, setFechaFinServicio] = React.useState<Date | undefined>(undefined);
   const [errorFechas, setErrorFechas] = React.useState<string | null>(null);
   const [errorForm, setErrorForm] = React.useState<string | null>(null);
   const [isPending, setIsPending] = React.useState(false);
 
   const mutation = useMarcarGanadaMutation(idCotizacion);
 
+  // Solo se consulta la SC mientras el dialogo esta abierto y hay origen SC.
+  const { data: solicitud } = useSolicitudClienteQuery(
+    abierto && solicitudClienteId ? solicitudClienteId : ""
+  );
+
+  // Precarga como valor DERIVADO en render (sin efecto ni setState): la fecha
+  // requerida de la SC siembra el campo de inicio. Es un default editable —
+  // "fecha requerida" no es exactamente "inicio de servicio" — asi que al tocar
+  // el campo manda la eleccion del usuario.
+  const fechaInicioValor = inicioTocado
+    ? fechaInicioServicio
+    : desdeISODate(solicitud?.fechaRequerida);
+
   function handleOpenChange(open: boolean) {
     if (!open) {
-      setFechaInicioServicio("");
-      setFechaFinServicio("");
+      setFechaInicioServicio(undefined);
+      setInicioTocado(false);
+      setFechaFinServicio(undefined);
       setErrorFechas(null);
       setErrorForm(null);
       setIsPending(false);
@@ -504,8 +528,10 @@ function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
     setErrorForm(null);
 
     const resultado = schemaGanada.safeParse({
-      fechaInicioServicio,
-      fechaFinServicio: fechaFinServicio.trim() === "" ? undefined : fechaFinServicio,
+      // El schema valida strings ISO; se convierte desde Date en partes locales.
+      // Sin fecha -> "" para que dispare el mensaje "requerida" del schema.
+      fechaInicioServicio: fechaInicioValor ? aISODate(fechaInicioValor) : "",
+      fechaFinServicio: fechaFinServicio ? aISODate(fechaFinServicio) : undefined,
     });
     if (!resultado.success) {
       setErrorFechas(resultado.error.issues[0]?.message ?? "Fechas invalidas");
@@ -554,44 +580,29 @@ function DialogGanada({ idCotizacion, onExito }: DialogGanadaProps) {
         </DialogHeader>
 
         <form onSubmit={onConfirmar} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="fecha-inicio-servicio">
-              Fecha de inicio de servicio <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="fecha-inicio-servicio"
-              type="date"
-              value={fechaInicioServicio}
-              onChange={(e) => {
-                setFechaInicioServicio(e.target.value);
-                if (errorFechas) setErrorFechas(null);
-              }}
-              disabled={isPending}
-              aria-invalid={Boolean(errorFechas)}
-            />
-          </div>
+          <CampoFecha
+            label="Fecha de inicio de servicio"
+            requerido
+            value={fechaInicioValor}
+            onSelect={(fecha) => {
+              setFechaInicioServicio(fecha);
+              setInicioTocado(true);
+              if (errorFechas) setErrorFechas(null);
+            }}
+            disabled={isPending}
+          />
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="fecha-fin-servicio">
-              Fecha de fin de servicio{" "}
-              <span className="text-muted-foreground">(opcional)</span>
-            </Label>
-            <Input
-              id="fecha-fin-servicio"
-              type="date"
-              min={fechaInicioServicio || undefined}
-              value={fechaFinServicio}
-              onChange={(e) => {
-                setFechaFinServicio(e.target.value);
-                if (errorFechas) setErrorFechas(null);
-              }}
-              disabled={isPending}
-              aria-invalid={Boolean(errorFechas)}
-            />
-            {errorFechas ? (
-              <p className="text-xs text-destructive">{errorFechas}</p>
-            ) : null}
-          </div>
+          <CampoFecha
+            label="Fecha de fin de servicio (opcional)"
+            value={fechaFinServicio}
+            min={fechaInicioValor}
+            onSelect={(fecha) => {
+              setFechaFinServicio(fecha);
+              if (errorFechas) setErrorFechas(null);
+            }}
+            disabled={isPending}
+            error={errorFechas ?? undefined}
+          />
 
           {errorForm ? (
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">

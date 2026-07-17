@@ -6,3 +6,4 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export { formatearMoneda } from "./formato-moneda";
+export { aISODate, desdeISODate } from "./formato-fecha";
