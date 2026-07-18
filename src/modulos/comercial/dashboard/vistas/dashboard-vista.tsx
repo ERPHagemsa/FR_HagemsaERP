@@ -7,7 +7,6 @@ import { DashboardCicloCierre } from "../componentes/dashboard-ciclo-cierre";
 import { DashboardEmbudo } from "../componentes/dashboard-embudo";
 import { DashboardFiltroEjecutivo } from "../componentes/dashboard-filtro-ejecutivo";
 import { DashboardKpisConsolidado } from "../componentes/dashboard-kpis-consolidado";
-import { DashboardKpisDinero } from "../componentes/dashboard-kpis-dinero";
 import { DashboardMotivosPerdida } from "../componentes/dashboard-motivos-perdida";
 import { DashboardMotivosRespuestaCliente } from "../componentes/dashboard-motivos-respuesta-cliente";
 import { DashboardRanking } from "../componentes/dashboard-ranking";
@@ -21,21 +20,25 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  * Vista de orquestación del dashboard (design D4/D5, Fase 2b): eleva dos
  * estados — `idEjecutivoResponsable` (Fase 1, sin cambios de contrato) y
  * `periodo` (nuevo, default preset "este-mes") — y los baja por props a los
- * 8 widgets con la propagación exacta de design D5:
- * - `periodo` + `idEjecutivoResponsable`: kpis-dinero, win-rate, ciclo-cierre,
+ * widgets con la propagación exacta de design D5:
+ * - `periodo` + `idEjecutivoResponsable`: win-rate, ciclo-cierre,
  *   motivos-perdida, embudo.
  * - solo `periodo`: ranking (el endpoint ignora el filtro de ejecutivo,
  *   D-restricción verificada).
  * - solo `idEjecutivoResponsable`: tendencia (ventana propia `meses`, D6) y
  *   acciones (no dependiente de período).
  *
- * Cambio dashboard-kpis-motivos-respuesta-front (10 widgets): agrega
- * `DashboardKpisConsolidado` (ancho completo, primero — resume el período
- * antes del drill-down de `KpisDinero`) y `DashboardMotivosRespuestaCliente`
- * (ancho completo, pegado a la fila motivos-perdida/embudo — misma zona
- * diagnóstica de "por qué no ganamos"). Ambos con `periodo` +
- * `idEjecutivoResponsable`, igual que los widgets vecinos. No se reordena
- * nada existente.
+ * Cambio dashboard-kpis-motivos-respuesta-front: agrega
+ * `DashboardKpisConsolidado` (ancho completo, primero — resume el período)
+ * y `DashboardMotivosRespuestaCliente` (ancho completo, pegado a la fila
+ * motivos-perdida/embudo — misma zona diagnóstica de "por qué no ganamos").
+ * Ambos con `periodo` + `idEjecutivoResponsable`, igual que los widgets
+ * vecinos.
+ *
+ * `DashboardKpisDinero` (Ganado/Pipeline/Ticket promedio) se ELIMINÓ —
+ * pedido explícito de producto: era ilegible y su dato principal (Ganado)
+ * ya está en `DashboardKpisConsolidado`, que lo reemplaza. El endpoint
+ * `/dashboard/kpis-monetarios` se retira en paralelo en el backend.
  */
 export function DashboardVista() {
   const [idEjecutivoResponsable, setIdEjecutivoResponsable] =
@@ -55,11 +58,6 @@ export function DashboardVista() {
       </div>
 
       <DashboardKpisConsolidado
-        periodo={periodo}
-        idEjecutivoResponsable={idEjecutivoResponsable}
-      />
-
-      <DashboardKpisDinero
         periodo={periodo}
         idEjecutivoResponsable={idEjecutivoResponsable}
       />

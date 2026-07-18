@@ -117,27 +117,6 @@ export type TotalPorMoneda = {
   usd: number;
 };
 
-/** espejo de ResumenDineroPorEstado, BC03 dashboard.repository.ts:11-15 */
-export type ResumenDineroPorEstado = {
-  ganado: TotalPorMoneda;
-  pipeline: TotalPorMoneda;
-  ticketPromedio: TotalPorMoneda;
-};
-
-/**
- * espejo de KpisMonetariosResultado, BC03 obtener-kpis-monetarios.use-case.ts:9-19
- * GET /dashboard/kpis-monetarios.
- *
- * OJO (design D12): `variacionVsMesAnterior` aqui NO es un delta ya
- * calculado — son los KPIs crudos del periodo inmediatamente anterior de
- * igual duracion. El frontend deriva el delta comparando `actual` contra
- * este campo (ver `utilidades/delta-monetario.ts`).
- */
-export type KpisMonetariosRespuesta = {
-  actual: ResumenDineroPorEstado;
-  variacionVsMesAnterior: ResumenDineroPorEstado;
-};
-
 /** espejo de WinRateResultado, BC03 calcular-win-rate.use-case.ts:6-24 — GET /dashboard/win-rate */
 export type WinRateRespuesta = {
   ganadas: number;

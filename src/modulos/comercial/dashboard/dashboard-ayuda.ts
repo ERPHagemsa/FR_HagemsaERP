@@ -5,8 +5,6 @@
  * verdad del texto y evitar duplicarlo entre widgets.
  */
 export const DASHBOARD_AYUDA = {
-  kpisMonetarios:
-    "Ganado: monto ya cerrado en cotizaciones ganadas. Pipeline: monto en cotizaciones abiertas (aún en negociación). Ticket promedio: valor promedio de una cotización ganada. Todo se muestra separado por moneda (S/ y US$); las monedas no se suman ni se convierten entre sí.",
   winRate:
     "Porcentaje de cotizaciones cerradas que se ganaron. Se calcula sobre las ganadas y perdidas del período; las que siguen abiertas no se cuentan. Un valor más alto indica mejor conversión. La variación compara contra el período anterior.",
   cicloCierre:

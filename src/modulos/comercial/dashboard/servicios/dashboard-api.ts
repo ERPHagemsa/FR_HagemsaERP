@@ -9,7 +9,6 @@ import type {
   FiltrosDashboardRanking,
   FiltrosDashboardTendencia,
   KpisConsolidadoRespuesta,
-  KpisMonetariosRespuesta,
   MotivosPerdidaRespuesta,
   MotivosRespuestaClienteRespuesta,
   PuntoTendenciaMensual,
@@ -23,17 +22,6 @@ import type {
 // cotizaciones-api.ts (params opcionales, axios omite `undefined` del query
 // string). Todos exigen `bc03:dashboard:leer` — aplicado backend-side.
 // ---------------------------------------------------------------------------
-
-// GET /dashboard/kpis-monetarios — Ganado/Pipeline/Ticket promedio PEN/USD del período.
-export async function obtenerKpisMonetarios(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-): Promise<KpisMonetariosRespuesta> {
-  const { data } = await clienteComercial.get<KpisMonetariosRespuesta>(
-    "/dashboard/kpis-monetarios",
-    { params: filtros }
-  );
-  return data;
-}
 
 // GET /dashboard/win-rate — ganadas/perdidas/winRate (null-safe) del período.
 export async function obtenerWinRate(

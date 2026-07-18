@@ -7,7 +7,6 @@ import {
   obtenerCicloCierre,
   obtenerEmbudoConversion,
   obtenerKpisConsolidado,
-  obtenerKpisMonetarios,
   obtenerMotivosPerdida,
   obtenerMotivosRespuestaCliente,
   obtenerRankingEjecutivos,
@@ -18,7 +17,6 @@ import {
   CLAVE_DASHBOARD_ACCIONES,
   CLAVE_DASHBOARD_CICLO,
   CLAVE_DASHBOARD_EMBUDO,
-  CLAVE_DASHBOARD_KPIS,
   CLAVE_DASHBOARD_KPIS_CONSOLIDADO,
   CLAVE_DASHBOARD_MOTIVOS,
   CLAVE_DASHBOARD_MOTIVOS_RESPUESTA,
@@ -41,17 +39,6 @@ import type {
 // cotizaciones-queries.ts). Un useConsulta por widget: carga/error aislados
 // (D10).
 // ---------------------------------------------------------------------------
-
-// kpis-monetarios: recalcula con período y ejecutivo.
-export function useKpisMonetariosQuery(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-) {
-  return useConsulta(
-    () => obtenerKpisMonetarios(filtros),
-    [JSON.stringify(filtros)],
-    { clave: CLAVE_DASHBOARD_KPIS }
-  );
-}
 
 // win-rate: recalcula con período y ejecutivo.
 export function useWinRateQuery(
