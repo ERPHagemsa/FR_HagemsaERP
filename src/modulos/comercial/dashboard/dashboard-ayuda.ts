@@ -29,6 +29,8 @@ export const DASHBOARD_AYUDA = {
     "Resumen del período en dos partes que NO se deben mezclar: la actividad cuenta solicitudes por su fecha de creación, y el cierre mide dinero por su fecha de cierre. Son grupos distintos de cotizaciones: no dividas un número de una parte por uno de la otra.",
   actividadPeriodo:
     "Cuántas solicitudes se crearon en el período, cuántas de ellas llegaron a cotizarse y cuántas se ganaron. Se cuentan por la fecha en que se creó la solicitud, sin importar cuándo se cerraron. Son cantidades, no dinero.",
+  perdidas:
+    "Solicitudes que el cliente rechazó: tienen al menos una cotización marcada como perdida y ninguna ganada. No incluye cotizaciones vencidas ni canceladas, porque esas no son un \"no\" del cliente, sino que expiraron o se cancelaron internamente sin respuesta.",
   cerradoPeriodo:
     "Dinero de las cotizaciones que se cerraron dentro del período, contadas por su fecha de cierre (aunque la solicitud se haya creado antes). S/ y US$ se muestran siempre por separado: no se suman ni se convierten entre sí.",
   margen:

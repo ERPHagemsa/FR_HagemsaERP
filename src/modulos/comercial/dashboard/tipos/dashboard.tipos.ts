@@ -261,11 +261,18 @@ export type PorcentajePorMoneda = {
 /**
  * espejo de ActividadPeriodo, BC03 obtener-kpis-consolidados.use-case.ts.
  * Cohorte anclada a la CREACION de la solicitud. Sin moneda: son conteos.
+ *
+ * `perdidas`: solicitudes con al menos una cotizacion en estado PERDIDA y
+ * NINGUNA GANADA. VENCIDA y CANCELADA quedan FUERA a proposito (decision de
+ * negocio): "perdida" significa que el CLIENTE la rechazo, no que la
+ * cotizacion expiro o se cancelo internamente. Anclada a la misma fecha de
+ * CREACION que el resto del bloque, igual que `totalSolicitudes`/`cotizadas`/`ganadas`.
  */
 export type ActividadPeriodo = {
   totalSolicitudes: number;
   cotizadas: number;
   ganadas: number;
+  perdidas: number;
 };
 
 /**

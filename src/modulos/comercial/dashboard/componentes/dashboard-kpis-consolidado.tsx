@@ -63,8 +63,8 @@ export function DashboardKpisConsolidado({
           </Alert>
         ) : isLoading || !data ? (
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {["solicitudes", "cotizadas", "ganadas"].map((clave) => (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {["solicitudes", "cotizadas", "ganadas", "perdidas"].map((clave) => (
                 <Skeleton key={clave} className="h-24 w-full" />
               ))}
             </div>
@@ -83,13 +83,18 @@ export function DashboardKpisConsolidado({
                 </h3>
                 <AyudaMetrica descripcion={DASHBOARD_AYUDA.actividadPeriodo} />
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <TarjetaEntero
                   etiqueta="Solicitudes"
                   valor={data.actividad.totalSolicitudes}
                 />
                 <TarjetaEntero etiqueta="Cotizadas" valor={data.actividad.cotizadas} />
                 <TarjetaEntero etiqueta="Ganadas" valor={data.actividad.ganadas} />
+                <TarjetaEntero
+                  etiqueta="Perdidas"
+                  valor={data.actividad.perdidas}
+                  ayuda={DASHBOARD_AYUDA.perdidas}
+                />
               </div>
             </div>
 
@@ -116,10 +121,27 @@ export function DashboardKpisConsolidado({
   );
 }
 
-function TarjetaEntero({ etiqueta, valor }: { etiqueta: string; valor: number }) {
+/**
+ * `ayuda` es opcional: solo la usan métricas con una regla de negocio que no
+ * es obvia por el nombre (p. ej. "Perdidas" excluye VENCIDA/CANCELADA). Las
+ * demás tarjetas de este tipo se apoyan en la ayuda del bloque
+ * (`actividadPeriodo`), igual que "Solicitudes"/"Cotizadas"/"Ganadas".
+ */
+function TarjetaEntero({
+  etiqueta,
+  valor,
+  ayuda,
+}: {
+  etiqueta: string;
+  valor: number;
+  ayuda?: string;
+}) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl bg-card px-4 py-3 ring-1 ring-foreground/10">
-      <span className="text-xs font-medium text-muted-foreground">{etiqueta}</span>
+      <div className="flex items-center gap-1">
+        <span className="text-xs font-medium text-muted-foreground">{etiqueta}</span>
+        {ayuda ? <AyudaMetrica descripcion={ayuda} /> : null}
+      </div>
       <span className="text-2xl font-semibold tabular-nums">{valor}</span>
     </div>
   );
