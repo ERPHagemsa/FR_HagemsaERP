@@ -40,9 +40,15 @@ type Props = { periodo: RangoPeriodo };
  * Jerarquía visual (pedido explícito del negocio): la columna "Utilidad" es
  * el valor PROTAGONISTA — S/ y US$ en grande, siempre separados — con el
  * margen (`utilidad / ganado`, por moneda) como dato de apoyo chico al lado,
- * nunca al revés. Las dos efectividades (cotizadas/cierre) usan el mismo
- * tamaño discreto que "Win rate": son ratios de diagnóstico, no el foco de
- * la tarjeta.
+ * nunca al revés. Las columnas "Cotizados / Total" y "Ganadas / Total"
+ * usan el mismo tamaño discreto que "Win rate": son ratios de diagnóstico,
+ * no el foco de la tarjeta.
+ *
+ * Formato de división LITERAL (pedido explícito, corrección post-review):
+ * estas dos columnas muestran `enviadas/creadas` y `ganadas/creadas` como
+ * texto crudo (ej. `15/50`), NO como porcentaje — a diferencia de "Win
+ * rate", que sí usa `formatearPorcentaje`. No pasar estos dos valores por
+ * ese helper.
  */
 export function DashboardRanking({ periodo }: Props) {
   const { data, isLoading, isError, error } = useRankingEjecutivosQuery(periodo);
@@ -82,13 +88,13 @@ export function DashboardRanking({ periodo }: Props) {
                 <TableHead className="text-right">Win rate</TableHead>
                 <TableHead className="text-right">
                   <span className="inline-flex items-center gap-1">
-                    Efect. cotizadas
+                    Cotizados / Total
                     <AyudaMetrica descripcion={DASHBOARD_AYUDA.efectividadCotizadas} />
                   </span>
                 </TableHead>
                 <TableHead className="text-right">
                   <span className="inline-flex items-center gap-1">
-                    Efect. cierre
+                    Ganadas / Total
                     <AyudaMetrica descripcion={DASHBOARD_AYUDA.efectividadCierre} />
                   </span>
                 </TableHead>
@@ -96,14 +102,7 @@ export function DashboardRanking({ periodo }: Props) {
             </TableHeader>
             <TableBody>
               {filas.map((fila) => {
-                const efectividadCotizadas =
-                  fila.cantidadCreadas === 0
-                    ? null
-                    : fila.cantidadEnviadas / fila.cantidadCreadas;
-                const efectividadCierre =
-                  fila.cantidadCreadas === 0
-                    ? null
-                    : fila.cantidadGanadas / fila.cantidadCreadas;
+                const sinCreadas = fila.cantidadCreadas === 0;
 
                 return (
                   <TableRow key={fila.ejecutivoId}>
@@ -130,23 +129,17 @@ export function DashboardRanking({ periodo }: Props) {
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      <span
-                        className={
-                          efectividadCotizadas === null
-                            ? "text-muted-foreground"
-                            : undefined
-                        }
-                      >
-                        {formatearPorcentaje(efectividadCotizadas)}
+                      <span className={sinCreadas ? "text-muted-foreground" : undefined}>
+                        {sinCreadas
+                          ? "Sin datos"
+                          : `${fila.cantidadEnviadas}/${fila.cantidadCreadas}`}
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      <span
-                        className={
-                          efectividadCierre === null ? "text-muted-foreground" : undefined
-                        }
-                      >
-                        {formatearPorcentaje(efectividadCierre)}
+                      <span className={sinCreadas ? "text-muted-foreground" : undefined}>
+                        {sinCreadas
+                          ? "Sin datos"
+                          : `${fila.cantidadGanadas}/${fila.cantidadCreadas}`}
                       </span>
                     </TableCell>
                   </TableRow>
