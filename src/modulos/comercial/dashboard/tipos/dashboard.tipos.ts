@@ -186,23 +186,29 @@ export type PuntoTendenciaMensual = {
  * YA NO EXISTEN.
  *
  * `cantidadDelPeriodo` reemplaza a `cantidadCreadas`: es el OR de 3 anclas
- * (creada, enviada o cerrada dentro del rango), y es el DENOMINADOR de las
- * dos razones ("Cotizados / Total" y "Ganadas / Total"). Por construccion,
- * si `ganado.pen > 0` o `ganado.usd > 0`, `cantidadDelPeriodo > 0` siempre —
- * ya no puede reproducirse el caso plata-con-denominador-cero.
+ * (creada, enviada o cerrada dentro del rango), y es el DENOMINADOR de
+ * "Cotizados / Total". Por construccion, si `ganado.pen > 0` o
+ * `ganado.usd > 0`, `cantidadDelPeriodo > 0` siempre — ya no puede
+ * reproducirse el caso plata-con-denominador-cero.
  *
  * `cantidadGanadasDelPeriodo` comparte el MISMO cohorte que
- * `cantidadDelPeriodo` (numerador de "Ganadas / Total"). NO confundir con
- * `cantidadGanadas`, que sigue anclada a fecha de CIERRE (alimenta el win
- * rate clasico, `cantidadGanadas / (cantidadGanadas + cantidadPerdidas)`,
- * ya calculado por el backend en el campo `winRate`).
+ * `cantidadDelPeriodo` pero su DENOMINADOR en el front es
+ * `cantidadEnviadas`, no `cantidadDelPeriodo` (cambio
+ * `dashboard-kpis-motivos-respuesta-front`: la columna "Ganadas / Enviadas"
+ * lee la tabla como un embudo, donde cada paso divide sobre el numerador del
+ * paso anterior). NO confundir con `cantidadGanadas`, que sigue anclada a
+ * fecha de CIERRE (alimenta el win rate clasico,
+ * `cantidadGanadas / (cantidadGanadas + cantidadPerdidas)`, ya calculado por
+ * el backend en el campo `winRate`) — ese es un cohorte y una condicion de
+ * "sin datos" distintos de los de esta fila.
  *
  * `cantidadPerdidas` esta anclada a CIERRE, igual que `cantidadGanadas`:
  * juntas arman el denominador clasico de `winRate`, no el de las dos razones
  * de esta fila.
  *
- * `cantidadEnviadas` ahora esta sobre el conjunto de `cantidadDelPeriodo`
- * (ya no sobre el viejo `cantidadCreadas`).
+ * `cantidadEnviadas` esta sobre el conjunto de `cantidadDelPeriodo` (ya no
+ * sobre el viejo `cantidadCreadas`) y es el NUMERADOR de "Cotizados / Total"
+ * a la vez que el DENOMINADOR de "Ganadas / Enviadas".
  *
  * `utilidad` puede ser NEGATIVA (cotizacion ganada bajo costo): no es un
  * error de datos, se muestra tal cual. El margen (`utilidad / ganado`) NO
@@ -223,13 +229,19 @@ export type RankingEjecutivoRespuesta = {
   winRate: number | null;
   /**
    * Cotizaciones con actividad en el periodo: creadas, enviadas o cerradas
-   * dentro de el (OR de 3 anclas). DENOMINADOR de "Cotizados / Total" y
-   * "Ganadas / Total".
+   * dentro de el (OR de 3 anclas). DENOMINADOR de "Cotizados / Total".
    */
   cantidadDelPeriodo: number;
-  /** Mismo cohorte que `cantidadDelPeriodo`. Numerador de "Cotizados / Total". */
+  /**
+   * Mismo cohorte que `cantidadDelPeriodo`. Numerador de "Cotizados / Total"
+   * Y DENOMINADOR de "Ganadas / Enviadas".
+   */
   cantidadEnviadas: number;
-  /** Mismo cohorte que `cantidadDelPeriodo`, filtrado a GANADA. Numerador de "Ganadas / Total". */
+  /**
+   * Mismo cohorte que `cantidadDelPeriodo`, filtrado a GANADA. Numerador de
+   * "Ganadas / Enviadas" (el denominador de esa columna es `cantidadEnviadas`,
+   * no `cantidadDelPeriodo`).
+   */
   cantidadGanadasDelPeriodo: number;
   /** Utilidad del periodo por moneda (anclaje CIERRE). Puede ser negativa. */
   utilidad: TotalPorMoneda;

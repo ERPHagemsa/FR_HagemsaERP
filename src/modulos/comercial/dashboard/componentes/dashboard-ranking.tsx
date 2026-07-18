@@ -43,15 +43,23 @@ type Props = { periodo: RangoPeriodo };
  * Jerarquía visual (pedido explícito del negocio): la columna "Utilidad" es
  * el valor PROTAGONISTA — S/ y US$ en grande, siempre separados — con el
  * margen (`utilidad / ganado`, por moneda) como dato de apoyo chico al lado,
- * nunca al revés. Las columnas "Cotizados / Total" y "Ganadas / Total"
+ * nunca al revés. Las columnas "Cotizados / Total" y "Ganadas / Enviadas"
  * usan el mismo tamaño discreto que "Win rate": son ratios de diagnóstico,
  * no el foco de la tarjeta.
  *
  * Formato de división LITERAL (pedido explícito, corrección post-review):
- * estas dos columnas muestran `enviadas/delPeriodo` y `ganadasDelPeriodo/delPeriodo`
- * como texto crudo (ej. `15/50`), NO como porcentaje — a diferencia de "Win
- * rate", que sí usa `formatearPorcentaje`. No pasar estos dos valores por
- * ese helper.
+ * estas dos columnas muestran `enviadas/delPeriodo` y
+ * `ganadasDelPeriodo/enviadas` como texto crudo (ej. `9/16` y `1/9`), NO
+ * como porcentaje — a diferencia de "Win rate", que sí usa
+ * `formatearPorcentaje`. No pasar estos dos valores por ese helper.
+ *
+ * "Ganadas / Enviadas" (pedido explícito de producto, cambio
+ * `dashboard-kpis-motivos-respuesta-front`): el denominador de esta columna
+ * pasó de `cantidadDelPeriodo` a `cantidadEnviadas`, para que la tabla se lea
+ * como un embudo (cada columna usa como denominador el numerador de la
+ * anterior). Por eso tiene su PROPIA condición de "sin datos"
+ * (`cantidadEnviadas === 0`), distinta de la de "Cotizados / Total"
+ * (`cantidadDelPeriodo === 0`) — no unificar ambas condiciones.
  */
 export function DashboardRanking({ periodo }: Props) {
   const { data, isLoading, isError, error } = useRankingEjecutivosQuery(periodo);
@@ -96,7 +104,7 @@ export function DashboardRanking({ periodo }: Props) {
                 </TableHead>
                 <TableHead className="text-right">
                   <span className="inline-flex items-center gap-1">
-                    Ganadas / Total
+                    Ganadas / Enviadas
                     <AyudaMetrica descripcion={DASHBOARD_AYUDA.efectividadCierre} />
                   </span>
                 </TableHead>
@@ -105,6 +113,7 @@ export function DashboardRanking({ periodo }: Props) {
             <TableBody>
               {filas.map((fila) => {
                 const sinActividad = fila.cantidadDelPeriodo === 0;
+                const sinEnviadas = fila.cantidadEnviadas === 0;
 
                 return (
                   <TableRow key={fila.ejecutivoId}>
@@ -135,10 +144,10 @@ export function DashboardRanking({ periodo }: Props) {
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      <span className={sinActividad ? "text-muted-foreground" : undefined}>
-                        {sinActividad
+                      <span className={sinEnviadas ? "text-muted-foreground" : undefined}>
+                        {sinEnviadas
                           ? "Sin datos"
-                          : `${fila.cantidadGanadasDelPeriodo}/${fila.cantidadDelPeriodo}`}
+                          : `${fila.cantidadGanadasDelPeriodo}/${fila.cantidadEnviadas}`}
                       </span>
                     </TableCell>
                   </TableRow>
