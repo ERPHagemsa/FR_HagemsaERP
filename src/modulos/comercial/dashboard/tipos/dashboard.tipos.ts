@@ -179,6 +179,22 @@ export type PuntoTendenciaMensual = {
  * GET /dashboard/ranking-ejecutivos devuelve `RankingEjecutivoRespuesta[]` PELADO.
  * `cantidadCerradas` = ganadas + perdidas del periodo (denominador de winRate);
  * `cantidadGanadas` = solo ganadas (Gap #3 de design.md).
+ *
+ * `cantidadCreadas`/`cantidadEnviadas` (commit BC03 `b8feebb`) estan
+ * ancladas a la fecha de CREACION de la cotizacion — el mismo anclaje que
+ * `ActividadPeriodo`, NO el de `cantidadCerradas`/`ganado`/`utilidad` (que
+ * son fecha de CIERRE). Por eso "efectividad de cotizadas"
+ * (`cantidadEnviadas / cantidadCreadas`) compara dentro del mismo cohorte,
+ * pero "efectividad de cierre" (`cantidadGanadas / cantidadCreadas`) CRUZA
+ * anclas y subestima a ejecutivos con actividad reciente (sus cotizaciones
+ * nuevas todavia no tuvieron tiempo de cerrar) — advertencia obligatoria en
+ * el copy de ayuda, no solo un comentario de tipos.
+ *
+ * `utilidad` puede ser NEGATIVA (cotizacion ganada bajo costo): no es un
+ * error de datos, se muestra tal cual. El margen (`utilidad / ganado`) NO
+ * viene del backend para este endpoint — se calcula en el FRONT como
+ * fraccion 0..1, a diferencia de `margenPct` de `kpis-consolidado` (que
+ * llega en escala 0..100): no pasar por el mismo `/100` aca.
  */
 export type RankingEjecutivoRespuesta = {
   ejecutivoId: string;
@@ -189,6 +205,12 @@ export type RankingEjecutivoRespuesta = {
   cantidadCerradas: number;
   /** `null` sin cierres del ejecutivo en el periodo (mismo patron que WinRateRespuesta). */
   winRate: number | null;
+  /** Cantidad de cotizaciones creadas en el periodo (anclaje CREACION). */
+  cantidadCreadas: number;
+  /** Cantidad de cotizaciones enviadas en el periodo (anclaje CREACION). */
+  cantidadEnviadas: number;
+  /** Utilidad del periodo por moneda (anclaje CIERRE). Puede ser negativa. */
+  utilidad: TotalPorMoneda;
 };
 
 /** espejo de MotivoPerdidaAgrupado, BC03 dashboard.repository.ts:41-47 */
