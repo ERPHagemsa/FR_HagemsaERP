@@ -17,6 +17,7 @@ import {
   type ChartConfig,
 } from "@/compartido/componentes/ui/chart";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
+import { formatearPorcentaje } from "@/compartido/utilidades/formato-porcentaje";
 
 import { AyudaMetrica } from "./ayuda-metrica";
 import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
@@ -90,7 +91,7 @@ export function DashboardWinRate({
 
             <div className="flex flex-col items-center gap-1 sm:items-end">
               <span className="text-3xl font-semibold tabular-nums">
-                {(data.winRate * 100).toFixed(1)}%
+                {formatearPorcentaje(data.winRate)}
               </span>
               <span className="text-xs text-muted-foreground">
                 {data.ganadas} ganadas · {data.perdidas} perdidas
@@ -118,6 +119,12 @@ function VariacionWinRate({ variacion }: { variacion: number | null }) {
       : "text-muted-foreground";
   const signo = esPositivo ? "+" : "";
 
+  // NO se pasa a `formatearPorcentaje`: "pp" (puntos porcentuales) es una
+  // unidad distinta de un porcentaje formateado con "%" — es la diferencia
+  // entre dos porcentajes, no un porcentaje en si. Unico call-site en el
+  // modulo: extraer un helper compartido para un solo consumidor seria
+  // sobre-ingenieria. Se deja inline a proposito, no es un olvido del
+  // refactor de dashboard-kpis-motivos-respuesta-front.
   return (
     <span className={`text-xs tabular-nums ${color}`}>
       {signo}

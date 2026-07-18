@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { formatearMoneda } from "@/compartido/utilidades/formato-moneda";
+import { formatearPorcentaje } from "@/compartido/utilidades/formato-porcentaje";
 
 import { AyudaMetrica } from "./ayuda-metrica";
 import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
@@ -87,11 +88,13 @@ export function DashboardRanking({ periodo }: Props) {
                     {fila.cantidadCerradas}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {fila.winRate === null ? (
-                      <span className="text-muted-foreground">Sin datos</span>
-                    ) : (
-                      `${(fila.winRate * 100).toFixed(1)}%`
-                    )}
+                    <span
+                      className={
+                        fila.winRate === null ? "text-muted-foreground" : undefined
+                      }
+                    >
+                      {formatearPorcentaje(fila.winRate)}
+                    </span>
                   </TableCell>
                 </TableRow>
               ))}

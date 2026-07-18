@@ -238,3 +238,82 @@ export type AccionesPendientesRespuesta = {
   esperandoAprobacion: AccionPendiente[];
   solicitudesSinCotizar: AccionPendiente[];
 };
+
+// ---------------------------------------------------------------------------
+// kpis-consolidado / motivos-respuesta-cliente (endpoints BC03 posteriores a
+// Fase 2b, cambio dashboard-kpis-motivos-respuesta-front)
+// ---------------------------------------------------------------------------
+
+/**
+ * espejo de PorcentajePorMoneda, BC03 obtener-kpis-consolidados.use-case.ts.
+ * OJO — a diferencia de `WinRateRespuesta.winRate` (fraccion 0..1), este
+ * valor llega YA multiplicado por 100: `20` significa `20%`, no `2000%`.
+ * Verificado contra el use case (`margen()`: `(utilidad / montoGanado) * 100`)
+ * y el e2e (`margenPct.pen` ~= 20 para un margen del 20%). NO pasar directo a
+ * `formatearPorcentaje` (que asume fraccion 0..1) sin dividir entre 100
+ * primero, con una variable nombrada que deje explicito el porque.
+ */
+export type PorcentajePorMoneda = {
+  pen: number;
+  usd: number;
+};
+
+/**
+ * espejo de ActividadPeriodo, BC03 obtener-kpis-consolidados.use-case.ts.
+ * Cohorte anclada a la CREACION de la solicitud. Sin moneda: son conteos.
+ */
+export type ActividadPeriodo = {
+  totalSolicitudes: number;
+  cotizadas: number;
+  ganadas: number;
+};
+
+/**
+ * espejo de CerradoPeriodo, BC03 obtener-kpis-consolidados.use-case.ts.
+ * Cohorte anclada a la FECHA DE CIERRE — DISTINTA de `ActividadPeriodo`:
+ * jamas dividir un campo de una contra el de la otra.
+ * `montoGanado`/`utilidad` son SOLO cotizaciones GANADAS del periodo, no
+ * incluyen perdidas. `margenPct` NUNCA es `null` (es `0` cuando
+ * `montoGanado` es `0`) — a diferencia de `WinRateRespuesta.winRate`. Para
+ * distinguir "0% de margen con cierres reales" de "sin cierres" hay que
+ * mirar `montoGanado`, no `margenPct`.
+ */
+export type CerradoPeriodo = {
+  montoGanado: TotalPorMoneda;
+  utilidad: TotalPorMoneda;
+  margenPct: PorcentajePorMoneda;
+};
+
+/**
+ * espejo de KpisConsolidadoResultado, BC03 obtener-kpis-consolidados.use-case.ts
+ * GET /dashboard/kpis-consolidado.
+ */
+export type KpisConsolidadoRespuesta = {
+  actividad: ActividadPeriodo;
+  cerrado: CerradoPeriodo;
+};
+
+/** espejo del enum TipoMotivoRespuesta de BC03. */
+export type TipoMotivoRespuesta = "RECHAZO" | "NEGOCIACION";
+
+/**
+ * espejo de MotivoRespuestaClienteAgrupado, BC03.
+ * A diferencia de `MotivoPerdidaAgrupado` (texto libre del ejecutivo,
+ * agrupacion best-effort) esto viene de un CATALOGO cerrado elegido por el
+ * CLIENTE: `codigo` es estable, `etiqueta` es el texto a mostrar.
+ */
+export type MotivoRespuestaClienteAgrupado = {
+  codigo: string;
+  etiqueta: string;
+  tipo: TipoMotivoRespuesta;
+  cantidad: number;
+};
+
+/**
+ * espejo de MotivosRespuestaClienteResultado — GET /dashboard/motivos-respuesta-cliente.
+ * Lista PLANA ya ordenada por (tipo, cantidad DESC): el frontend particiona
+ * por `tipo` preservando ese orden, no reordena.
+ */
+export type MotivosRespuestaClienteRespuesta = {
+  motivos: MotivoRespuestaClienteAgrupado[];
+};

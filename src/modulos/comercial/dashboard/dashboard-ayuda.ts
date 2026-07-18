@@ -25,4 +25,14 @@ export const DASHBOARD_AYUDA = {
     "Cotizaciones que requieren aprobación interna antes de poder enviarse al cliente.",
   accionesSinCotizar:
     "Solicitudes de clientes que todavía no tienen una cotización. Son oportunidades pendientes de atender.",
+  resumenPeriodo:
+    "Resumen del período en dos partes que NO se deben mezclar: la actividad cuenta solicitudes por su fecha de creación, y el cierre mide dinero por su fecha de cierre. Son grupos distintos de cotizaciones: no dividas un número de una parte por uno de la otra.",
+  actividadPeriodo:
+    "Cuántas solicitudes se crearon en el período, cuántas de ellas llegaron a cotizarse y cuántas se ganaron. Se cuentan por la fecha en que se creó la solicitud, sin importar cuándo se cerraron. Son cantidades, no dinero.",
+  cerradoPeriodo:
+    "Dinero de las cotizaciones que se cerraron dentro del período, contadas por su fecha de cierre (aunque la solicitud se haya creado antes). S/ y US$ se muestran siempre por separado: no se suman ni se convierten entre sí.",
+  margen:
+    "De todo lo que le cobré al cliente, cuánto fue ganancia. Si vendí S/ 100 y me quedaron S/ 23, el margen es 23%. Un margen más alto significa que el mismo monto vendido deja más utilidad. Se calcula por separado para cada moneda. Si no hubo cierres en una moneda, no se muestra margen.",
+  motivosRespuestaCliente:
+    'Qué respondió el CLIENTE ante nuestras cotizaciones, según el motivo que eligió de una lista fija. Se separa en Rechazo (cerró la puerta) y Negociación (sigue conversando). Es distinto de "Motivos de pérdida", que es lo que escribe el ejecutivo con sus palabras.',
 } as const;

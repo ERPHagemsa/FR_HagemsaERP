@@ -6,8 +6,10 @@ import { DashboardAcciones } from "../componentes/dashboard-acciones";
 import { DashboardCicloCierre } from "../componentes/dashboard-ciclo-cierre";
 import { DashboardEmbudo } from "../componentes/dashboard-embudo";
 import { DashboardFiltroEjecutivo } from "../componentes/dashboard-filtro-ejecutivo";
+import { DashboardKpisConsolidado } from "../componentes/dashboard-kpis-consolidado";
 import { DashboardKpisDinero } from "../componentes/dashboard-kpis-dinero";
 import { DashboardMotivosPerdida } from "../componentes/dashboard-motivos-perdida";
+import { DashboardMotivosRespuestaCliente } from "../componentes/dashboard-motivos-respuesta-cliente";
 import { DashboardRanking } from "../componentes/dashboard-ranking";
 import { DashboardSelectorPeriodo } from "../componentes/dashboard-selector-periodo";
 import { DashboardTendencia } from "../componentes/dashboard-tendencia";
@@ -26,6 +28,14 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  *   D-restricción verificada).
  * - solo `idEjecutivoResponsable`: tendencia (ventana propia `meses`, D6) y
  *   acciones (no dependiente de período).
+ *
+ * Cambio dashboard-kpis-motivos-respuesta-front (10 widgets): agrega
+ * `DashboardKpisConsolidado` (ancho completo, primero — resume el período
+ * antes del drill-down de `KpisDinero`) y `DashboardMotivosRespuestaCliente`
+ * (ancho completo, pegado a la fila motivos-perdida/embudo — misma zona
+ * diagnóstica de "por qué no ganamos"). Ambos con `periodo` +
+ * `idEjecutivoResponsable`, igual que los widgets vecinos. No se reordena
+ * nada existente.
  */
 export function DashboardVista() {
   const [idEjecutivoResponsable, setIdEjecutivoResponsable] =
@@ -43,6 +53,11 @@ export function DashboardVista() {
         />
         <DashboardSelectorPeriodo periodo={periodo} alCambiar={setPeriodo} />
       </div>
+
+      <DashboardKpisConsolidado
+        periodo={periodo}
+        idEjecutivoResponsable={idEjecutivoResponsable}
+      />
 
       <DashboardKpisDinero
         periodo={periodo}
@@ -74,6 +89,11 @@ export function DashboardVista() {
           idEjecutivoResponsable={idEjecutivoResponsable}
         />
       </div>
+
+      <DashboardMotivosRespuestaCliente
+        periodo={periodo}
+        idEjecutivoResponsable={idEjecutivoResponsable}
+      />
 
       <DashboardAcciones idEjecutivoResponsable={idEjecutivoResponsable} />
     </div>

@@ -6,8 +6,10 @@ import {
   obtenerAccionesPendientes,
   obtenerCicloCierre,
   obtenerEmbudoConversion,
+  obtenerKpisConsolidado,
   obtenerKpisMonetarios,
   obtenerMotivosPerdida,
+  obtenerMotivosRespuestaCliente,
   obtenerRankingEjecutivos,
   obtenerTendenciaMensual,
   obtenerWinRate,
@@ -17,7 +19,9 @@ import {
   CLAVE_DASHBOARD_CICLO,
   CLAVE_DASHBOARD_EMBUDO,
   CLAVE_DASHBOARD_KPIS,
+  CLAVE_DASHBOARD_KPIS_CONSOLIDADO,
   CLAVE_DASHBOARD_MOTIVOS,
+  CLAVE_DASHBOARD_MOTIVOS_RESPUESTA,
   CLAVE_DASHBOARD_RANKING,
   CLAVE_DASHBOARD_TENDENCIA,
   CLAVE_DASHBOARD_WIN_RATE,
@@ -124,5 +128,27 @@ export function useAccionesPendientesQuery(
     () => obtenerAccionesPendientes(filtros),
     [JSON.stringify(filtros)],
     { clave: CLAVE_DASHBOARD_ACCIONES }
+  );
+}
+
+// kpis-consolidado: recalcula con período y ejecutivo.
+export function useKpisConsolidadoQuery(
+  filtros: FiltrosDashboardPeriodoEjecutivo = {}
+) {
+  return useConsulta(
+    () => obtenerKpisConsolidado(filtros),
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_DASHBOARD_KPIS_CONSOLIDADO }
+  );
+}
+
+// motivos-respuesta-cliente: recalcula con período y ejecutivo.
+export function useMotivosRespuestaClienteQuery(
+  filtros: FiltrosDashboardPeriodoEjecutivo = {}
+) {
+  return useConsulta(
+    () => obtenerMotivosRespuestaCliente(filtros),
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_DASHBOARD_MOTIVOS_RESPUESTA }
   );
 }
