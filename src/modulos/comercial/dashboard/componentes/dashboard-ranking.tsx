@@ -29,13 +29,16 @@ import type { RangoPeriodo } from "../tipos/dashboard.tipos";
 type Props = { periodo: RangoPeriodo };
 
 /**
- * Ranking de ejecutivos (design D4/gap #3, tarea 3.5; extendido tras BC03
- * commit `b8feebb` con `cantidadCreadas`/`cantidadEnviadas`/`utilidad`):
- * consume `useRankingEjecutivosQuery({ periodo })` — SIN prop de ejecutivo,
- * el ranking es siempre de equipo completo (el endpoint ignora
+ * Ranking de ejecutivos (design D4/gap #3, tarea 3.5; contrato corregido tras
+ * BC03 commit `2bbb181`, ver JSDoc de `RankingEjecutivoRespuesta`): consume
+ * `useRankingEjecutivosQuery({ periodo })` — SIN prop de ejecutivo, el
+ * ranking es siempre de equipo completo (el endpoint ignora
  * `idEjecutivoResponsable`, restricción verificada). Tabla ordenada por
- * `ganado.pen` descendente; "Cotiz." mapea a `cantidadCerradas` (gap #3);
- * `winRate` null-safe → "sin datos", nunca `0%`.
+ * `ganado.pen` descendente; `winRate` null-safe → "sin datos", nunca `0%`.
+ *
+ * La columna "Cotiz." (que mostraba `cantidadCerradas`) se ELIMINÓ junto con
+ * el campo en el backend — pedido explícito de producto, ya era redundante
+ * con "Ganadas / Total".
  *
  * Jerarquía visual (pedido explícito del negocio): la columna "Utilidad" es
  * el valor PROTAGONISTA — S/ y US$ en grande, siempre separados — con el
@@ -45,8 +48,8 @@ type Props = { periodo: RangoPeriodo };
  * no el foco de la tarjeta.
  *
  * Formato de división LITERAL (pedido explícito, corrección post-review):
- * estas dos columnas muestran `enviadas/creadas` y `ganadas/creadas` como
- * texto crudo (ej. `15/50`), NO como porcentaje — a diferencia de "Win
+ * estas dos columnas muestran `enviadas/delPeriodo` y `ganadasDelPeriodo/delPeriodo`
+ * como texto crudo (ej. `15/50`), NO como porcentaje — a diferencia de "Win
  * rate", que sí usa `formatearPorcentaje`. No pasar estos dos valores por
  * ese helper.
  */
@@ -84,7 +87,6 @@ export function DashboardRanking({ periodo }: Props) {
                 <TableHead>Ejecutivo</TableHead>
                 <TableHead className="text-right">Ganado</TableHead>
                 <TableHead className="text-right">Utilidad</TableHead>
-                <TableHead className="text-right">Cotiz.</TableHead>
                 <TableHead className="text-right">Win rate</TableHead>
                 <TableHead className="text-right">
                   <span className="inline-flex items-center gap-1">
@@ -102,7 +104,7 @@ export function DashboardRanking({ periodo }: Props) {
             </TableHeader>
             <TableBody>
               {filas.map((fila) => {
-                const sinCreadas = fila.cantidadCreadas === 0;
+                const sinActividad = fila.cantidadDelPeriodo === 0;
 
                 return (
                   <TableRow key={fila.ejecutivoId}>
@@ -117,9 +119,6 @@ export function DashboardRanking({ periodo }: Props) {
                       <ColumnaUtilidad ganado={fila.ganado} utilidad={fila.utilidad} />
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {fila.cantidadCerradas}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
                       <span
                         className={
                           fila.winRate === null ? "text-muted-foreground" : undefined
@@ -129,17 +128,17 @@ export function DashboardRanking({ periodo }: Props) {
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      <span className={sinCreadas ? "text-muted-foreground" : undefined}>
-                        {sinCreadas
+                      <span className={sinActividad ? "text-muted-foreground" : undefined}>
+                        {sinActividad
                           ? "Sin datos"
-                          : `${fila.cantidadEnviadas}/${fila.cantidadCreadas}`}
+                          : `${fila.cantidadEnviadas}/${fila.cantidadDelPeriodo}`}
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      <span className={sinCreadas ? "text-muted-foreground" : undefined}>
-                        {sinCreadas
+                      <span className={sinActividad ? "text-muted-foreground" : undefined}>
+                        {sinActividad
                           ? "Sin datos"
-                          : `${fila.cantidadGanadas}/${fila.cantidadCreadas}`}
+                          : `${fila.cantidadGanadasDelPeriodo}/${fila.cantidadDelPeriodo}`}
                       </span>
                     </TableCell>
                   </TableRow>

@@ -14,11 +14,11 @@ export const DASHBOARD_AYUDA = {
   tendencia:
     "Monto ganado y perdido mes a mes durante los últimos meses. Permite ver la evolución del cierre en el tiempo. Este gráfico siempre muestra los últimos meses y no depende del período seleccionado.",
   ranking:
-    "Compara a los ejecutivos por monto ganado en el período. Incluye el monto ganado, la utilidad y el margen (S/ y US$), la cantidad de cotizaciones cerradas, el win rate, y dos divisiones (cotizados sobre el total y ganadas sobre el total, ver la ayuda de cada columna). Muestra siempre al equipo completo.",
+    "Compara a los ejecutivos por monto ganado en el período. Incluye el monto ganado, la utilidad y el margen (S/ y US$), el win rate, y dos divisiones (cotizados sobre el total y ganadas sobre el total, ver la ayuda de cada columna). Muestra siempre al equipo completo.",
   efectividadCotizadas:
-    "Cuántas de las cotizaciones que el ejecutivo creó en el período llegaron a enviarse al cliente, sobre el total de cotizaciones creadas. Ambos números se cuentan por la misma fecha (la de creación de la cotización), así que la comparación entre ejecutivos es justa.",
+    "Cuántas de las cotizaciones del ejecutivo llegaron a enviarse al cliente, sobre el 'Total': las cotizaciones que tuvieron movimiento en el período (se crearon, se enviaron o se cerraron dentro de él). Numerador y denominador se cuentan sobre ese mismo grupo.",
   efectividadCierre:
-    "Cuántas de las cotizaciones que el ejecutivo creó en el período se ganaron, sobre el total de cotizaciones creadas. OJO: el total se cuenta por la fecha en que se creó la cotización, pero las ganadas se cuentan por la fecha en que se cerró el negocio — son dos momentos distintos. Esto muestra un número más bajo para los ejecutivos con cotizaciones muy recientes, porque todavía no tuvieron tiempo de resolverse.",
+    "Cuántas de las cotizaciones del ejecutivo se ganaron, sobre el 'Total': las cotizaciones que tuvieron movimiento en el período (se crearon, se enviaron o se cerraron dentro de él). Numerador y denominador se cuentan sobre ese mismo grupo.",
   motivosPerdida:
     "Agrupa las cotizaciones perdidas del período según el motivo registrado. Ayuda a identificar las causas más frecuentes de pérdida.",
   embudo:

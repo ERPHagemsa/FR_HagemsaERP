@@ -174,21 +174,35 @@ export type PuntoTendenciaMensual = {
 };
 
 /**
- * espejo de RankingEjecutivoResultado, BC03 obtener-ranking-ejecutivos.use-case.ts:9-15
- * (extiende DineroPorEjecutivo, dashboard.repository.ts:18-25).
+ * espejo de RankingEjecutivoResultado, BC03 obtener-ranking-ejecutivos.use-case.ts
+ * (extiende DineroPorEjecutivo, dashboard.repository.ts:60-77).
  * GET /dashboard/ranking-ejecutivos devuelve `RankingEjecutivoRespuesta[]` PELADO.
- * `cantidadCerradas` = ganadas + perdidas del periodo (denominador de winRate);
- * `cantidadGanadas` = solo ganadas (Gap #3 de design.md).
  *
- * `cantidadCreadas`/`cantidadEnviadas` (commit BC03 `b8feebb`) estan
- * ancladas a la fecha de CREACION de la cotizacion — el mismo anclaje que
- * `ActividadPeriodo`, NO el de `cantidadCerradas`/`ganado`/`utilidad` (que
- * son fecha de CIERRE). Por eso "efectividad de cotizadas"
- * (`cantidadEnviadas / cantidadCreadas`) compara dentro del mismo cohorte,
- * pero "efectividad de cierre" (`cantidadGanadas / cantidadCreadas`) CRUZA
- * anclas y subestima a ejecutivos con actividad reciente (sus cotizaciones
- * nuevas todavia no tuvieron tiempo de cerrar) — advertencia obligatoria en
- * el copy de ayuda, no solo un comentario de tipos.
+ * Contrato corregido (BC03 `2bbb181`): el contrato anterior tenia un bug —
+ * `cantidadCreadas` (ancla UNICA a fecha de creacion) podia ser `0` mientras
+ * `ganado`/`utilidad` (ancla a fecha de CIERRE) traian plata, si la
+ * cotizacion se creo en un periodo y se cerro en otro. Eso mostraba filas
+ * con dinero y "Sin datos" a la vez. `cantidadCerradas` y `cantidadCreadas`
+ * YA NO EXISTEN.
+ *
+ * `cantidadDelPeriodo` reemplaza a `cantidadCreadas`: es el OR de 3 anclas
+ * (creada, enviada o cerrada dentro del rango), y es el DENOMINADOR de las
+ * dos razones ("Cotizados / Total" y "Ganadas / Total"). Por construccion,
+ * si `ganado.pen > 0` o `ganado.usd > 0`, `cantidadDelPeriodo > 0` siempre —
+ * ya no puede reproducirse el caso plata-con-denominador-cero.
+ *
+ * `cantidadGanadasDelPeriodo` comparte el MISMO cohorte que
+ * `cantidadDelPeriodo` (numerador de "Ganadas / Total"). NO confundir con
+ * `cantidadGanadas`, que sigue anclada a fecha de CIERRE (alimenta el win
+ * rate clasico, `cantidadGanadas / (cantidadGanadas + cantidadPerdidas)`,
+ * ya calculado por el backend en el campo `winRate`).
+ *
+ * `cantidadPerdidas` esta anclada a CIERRE, igual que `cantidadGanadas`:
+ * juntas arman el denominador clasico de `winRate`, no el de las dos razones
+ * de esta fila.
+ *
+ * `cantidadEnviadas` ahora esta sobre el conjunto de `cantidadDelPeriodo`
+ * (ya no sobre el viejo `cantidadCreadas`).
  *
  * `utilidad` puede ser NEGATIVA (cotizacion ganada bajo costo): no es un
  * error de datos, se muestra tal cual. El margen (`utilidad / ganado`) NO
@@ -201,14 +215,22 @@ export type RankingEjecutivoRespuesta = {
   ejecutivoNombre: string;
   ganado: TotalPorMoneda;
   pipeline: TotalPorMoneda;
+  /** Ancla CIERRE. Junto con `cantidadPerdidas` arma el denominador del `winRate` clasico. */
   cantidadGanadas: number;
-  cantidadCerradas: number;
+  /** Ancla CIERRE. Solo alimenta `winRate` — no es el denominador de las dos razones de esta fila. */
+  cantidadPerdidas: number;
   /** `null` sin cierres del ejecutivo en el periodo (mismo patron que WinRateRespuesta). */
   winRate: number | null;
-  /** Cantidad de cotizaciones creadas en el periodo (anclaje CREACION). */
-  cantidadCreadas: number;
-  /** Cantidad de cotizaciones enviadas en el periodo (anclaje CREACION). */
+  /**
+   * Cotizaciones con actividad en el periodo: creadas, enviadas o cerradas
+   * dentro de el (OR de 3 anclas). DENOMINADOR de "Cotizados / Total" y
+   * "Ganadas / Total".
+   */
+  cantidadDelPeriodo: number;
+  /** Mismo cohorte que `cantidadDelPeriodo`. Numerador de "Cotizados / Total". */
   cantidadEnviadas: number;
+  /** Mismo cohorte que `cantidadDelPeriodo`, filtrado a GANADA. Numerador de "Ganadas / Total". */
+  cantidadGanadasDelPeriodo: number;
   /** Utilidad del periodo por moneda (anclaje CIERRE). Puede ser negativa. */
   utilidad: TotalPorMoneda;
 };
