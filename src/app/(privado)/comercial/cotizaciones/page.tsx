@@ -35,6 +35,7 @@ export default async function Page({ searchParams }: Props) {
     "enviadas",
     "ganadas",
     "perdidas",
+    "porVencer",
   ];
   const bucket =
     bucketRaw && bucketsValidos.includes(bucketRaw as BucketCotizacion)

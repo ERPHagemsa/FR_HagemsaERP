@@ -3,7 +3,6 @@
 import { useConsulta } from "@/compartido/api";
 
 import {
-  obtenerAccionesPendientes,
   obtenerCicloCierre,
   obtenerEmbudoConversion,
   obtenerKpisConsolidado,
@@ -13,7 +12,6 @@ import {
   obtenerTendenciaMensual,
 } from "./dashboard-api";
 import {
-  CLAVE_DASHBOARD_ACCIONES,
   CLAVE_DASHBOARD_CICLO,
   CLAVE_DASHBOARD_EMBUDO,
   CLAVE_DASHBOARD_KPIS_CONSOLIDADO,
@@ -24,14 +22,13 @@ import {
 } from "../../claves-consulta";
 
 import type {
-  FiltrosDashboardAcciones,
   FiltrosDashboardPeriodoEjecutivo,
   FiltrosDashboardRanking,
   FiltrosDashboardTendencia,
 } from "../tipos/dashboard.tipos";
 
 // ---------------------------------------------------------------------------
-// Tríada de acceso a datos del dashboard (design D1/D3): 8 hooks useConsulta,
+// Tríada de acceso a datos del dashboard (design D1/D3): 7 hooks useConsulta,
 // cada uno con su clave (solo lectura, sin invalidarConsulta — D3) y deps
 // derivadas de sus filtros (patrón [JSON.stringify(filtros)], igual que
 // cotizaciones-queries.ts). Un useConsulta por widget: carga/error aislados
@@ -92,17 +89,6 @@ export function useEmbudoConversionQuery(
     () => obtenerEmbudoConversion(filtros),
     [JSON.stringify(filtros)],
     { clave: CLAVE_DASHBOARD_EMBUDO }
-  );
-}
-
-// acciones-pendientes: SIN período — solo ejecutivo.
-export function useAccionesPendientesQuery(
-  filtros: FiltrosDashboardAcciones = {}
-) {
-  return useConsulta(
-    () => obtenerAccionesPendientes(filtros),
-    [JSON.stringify(filtros)],
-    { clave: CLAVE_DASHBOARD_ACCIONES }
   );
 }
 

@@ -1,10 +1,8 @@
 import { clienteComercial } from "@/compartido/api/clientes-backend";
 
 import type {
-  AccionesPendientesRespuesta,
   CicloCierreRespuesta,
   EmbudoConversionRespuesta,
-  FiltrosDashboardAcciones,
   FiltrosDashboardPeriodoEjecutivo,
   FiltrosDashboardRanking,
   FiltrosDashboardTendencia,
@@ -16,7 +14,7 @@ import type {
 } from "../tipos/dashboard.tipos";
 
 // ---------------------------------------------------------------------------
-// Tríada de acceso a datos del dashboard (design D1): 8 funciones raw, una
+// Tríada de acceso a datos del dashboard (design D1): 7 funciones raw, una
 // por endpoint `/dashboard/*` de BC03, espejando el estilo de
 // cotizaciones-api.ts (params opcionales, axios omite `undefined` del query
 // string). Todos exigen `bc03:dashboard:leer` — aplicado backend-side.
@@ -78,18 +76,6 @@ export async function obtenerEmbudoConversion(
 ): Promise<EmbudoConversionRespuesta> {
   const { data } = await clienteComercial.get<EmbudoConversionRespuesta>(
     "/dashboard/embudo-conversion",
-    { params: filtros }
-  );
-  return data;
-}
-
-// GET /dashboard/acciones-pendientes — 3 listas (porVencer72h/esperandoAprobacion/solicitudesSinCotizar).
-// No es dependiente de período: usa siempre "ahora" para la ventana de 72h.
-export async function obtenerAccionesPendientes(
-  filtros: FiltrosDashboardAcciones = {}
-): Promise<AccionesPendientesRespuesta> {
-  const { data } = await clienteComercial.get<AccionesPendientesRespuesta>(
-    "/dashboard/acciones-pendientes",
     { params: filtros }
   );
   return data;

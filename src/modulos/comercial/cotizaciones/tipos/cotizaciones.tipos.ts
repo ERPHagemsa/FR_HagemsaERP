@@ -48,7 +48,10 @@ export type BucketCotizacion =
   | "pendientesAprobacion"
   | "enviadas"
   | "ganadas"
-  | "perdidas";
+  | "perdidas"
+  // Transversal (no partición): ENVIADA cuya versión vigente vence en <=3 días.
+  // Subconjunto de "enviadas"; comparte predicado con el conteo `porVencer` del resumen.
+  | "porVencer";
 
 // Ref del ejecutivo (snapshot { id, nombre }). id = AuthContext.accountId
 // (no es un correo); sin token MVP = { id: "mvp-sin-auth", nombre: "Usuario MVP" }.
@@ -351,11 +354,14 @@ export type CotizacionResumen = {
 
 // Contadores agregados del pipeline. Invariante backend:
 //   enPreparacion + enviadas + ganadas + perdidas === total
+// `porVencer` es TRANSVERSAL: cotizaciones ENVIADA cuya validez vence en <=3 dias.
+// Es un subconjunto de `enviadas`, por eso NO entra en la suma de `total`.
 export type ResumenCotizaciones = {
   total: number;
   enPreparacion: number;
   pendientesAprobacion: number;
   enviadas: number;
+  porVencer: number;
   ganadas: number;
   perdidas: number;
 };

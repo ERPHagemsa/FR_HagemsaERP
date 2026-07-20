@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 
-import { DashboardAcciones } from "../componentes/dashboard-acciones";
 import { DashboardEmbudo } from "../componentes/dashboard-embudo";
 import { DashboardFiltroEjecutivo } from "../componentes/dashboard-filtro-ejecutivo";
 import { DashboardKpisConsolidado } from "../componentes/dashboard-kpis-consolidado";
 import { DashboardMotivosPerdida } from "../componentes/dashboard-motivos-perdida";
 import { DashboardMotivosRespuestaCliente } from "../componentes/dashboard-motivos-respuesta-cliente";
 import { DashboardRanking } from "../componentes/dashboard-ranking";
+import { DashboardResultados } from "../componentes/dashboard-resultados";
 import { DashboardSelectorPeriodo } from "../componentes/dashboard-selector-periodo";
 import { DashboardTendencia } from "../componentes/dashboard-tendencia";
 import { resolverPeriodoPreset } from "../utilidades/periodo-preset";
@@ -25,7 +25,12 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  *   granularidad.
  * - solo `periodo`: ranking (el endpoint ignora el filtro de ejecutivo,
  *   D-restricción verificada).
- * - solo `idEjecutivoResponsable`: acciones (no dependiente de período).
+ *
+ * Las 3 listas de "acciones pendientes" se reemplazaron por 3 KPIs clickeables
+ * (Por vencer / Esperando aprobación / Sin cotizar) que viven DENTRO del strip
+ * (`DashboardKpisConsolidado`): son estado ACTUAL (no dependen del período) y
+ * navegan al listado filtrado por su bucket. Su data la traen ellos mismos
+ * (resumen de cotizaciones / de solicitudes), no `DashboardVista`.
  *
  * Reorganización de producto: `DashboardWinRate` (donut) se ELIMINÓ (su
  * proporción se lee en la tendencia interactiva). Ganadas/Perdidas se sacaron
@@ -46,8 +51,12 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  *
  * `DashboardKpisDinero` (Ganado/Pipeline/Ticket promedio) se ELIMINÓ —
  * pedido explícito de producto: era ilegible y su dato principal (Ganado)
- * ya está en `DashboardKpisConsolidado`, que lo reemplaza. El endpoint
+ * ya está en `DashboardResultados`, que lo reemplaza. El endpoint
  * `/dashboard/kpis-monetarios` se retira en paralelo en el backend.
+ *
+ * `DashboardResultados` (Monto ganado / Utilidad / Margen) se saca del strip
+ * apretado a su propio card con más aire, justo después del strip; consume el
+ * mismo `kpis-consolidado` (campo `cerrado`) con `periodo` + ejecutivo.
  */
 export function DashboardVista() {
   const [idEjecutivoResponsable, setIdEjecutivoResponsable] =
@@ -67,6 +76,11 @@ export function DashboardVista() {
       </div>
 
       <DashboardKpisConsolidado
+        periodo={periodo}
+        idEjecutivoResponsable={idEjecutivoResponsable}
+      />
+
+      <DashboardResultados
         periodo={periodo}
         idEjecutivoResponsable={idEjecutivoResponsable}
       />
@@ -96,8 +110,6 @@ export function DashboardVista() {
           idEjecutivoResponsable={idEjecutivoResponsable}
         />
       </div>
-
-      <DashboardAcciones idEjecutivoResponsable={idEjecutivoResponsable} />
     </div>
   );
 }

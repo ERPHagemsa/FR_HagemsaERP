@@ -24,28 +24,6 @@ export type DashboardFiltroEjecutivoProps = {
   alCambiar: (idEjecutivoResponsable: IdEjecutivoFiltro) => void;
 };
 
-/** Item generico de una lista accionable: id + etiqueta + enlace de detalle. */
-export type DashboardItemAccionable = {
-  id: string;
-  titulo: string;
-  subtitulo?: string;
-  enlace: string;
-};
-
-/**
- * Props del widget presentacional generico de lista accionable (design D5):
- * base compartida por las listas "por aprobar", "sin cotizar" y "por vencer".
- */
-export type DashboardListaAccionableProps = {
-  titulo: string;
-  items: DashboardItemAccionable[];
-  isLoading: boolean;
-  isError: boolean;
-  mensajeError?: string;
-  enlaceVerTodas?: string;
-  ayuda?: string;
-};
-
 // ---------------------------------------------------------------------------
 // Selector global de periodo (design D5/D6)
 // ---------------------------------------------------------------------------
@@ -100,11 +78,6 @@ export type FiltrosDashboardRanking = RangoPeriodo;
  * `granularidad`, la recibe en la respuesta.
  */
 export type FiltrosDashboardTendencia = RangoPeriodo & {
-  idEjecutivoResponsable?: string;
-};
-
-/** Filtros de acciones-pendientes: SOLO ejecutivo, sin periodo. */
-export type FiltrosDashboardAcciones = {
   idEjecutivoResponsable?: string;
 };
 
@@ -265,28 +238,6 @@ export type EmbudoConversionRespuesta = {
   cotizada: number;
   enviada: number;
   ganada: number;
-};
-
-/**
- * espejo de AccionPendienteConMonto, BC03 dashboard.repository.ts:61-70.
- * `moneda` refleja el enum `Moneda` de BC03 (`PEN` | `USD`), `null` cuando la
- * accion no tiene monto asociado (ej. solicitud sin cotizar).
- */
-export type AccionPendiente = {
-  id: string;
-  referencia: string;
-  /** `null` para solicitudes sin cotizar: aun no tienen ejecutivo asignado. */
-  idEjecutivoResponsable: string | null;
-  nombreEjecutivoResponsable: string | null;
-  moneda: "PEN" | "USD" | null;
-  monto: number | null;
-};
-
-/** espejo de AccionesPendientes, BC03 dashboard.repository.ts:72-76 — GET /dashboard/acciones-pendientes */
-export type AccionesPendientesRespuesta = {
-  porVencer72h: AccionPendiente[];
-  esperandoAprobacion: AccionPendiente[];
-  solicitudesSinCotizar: AccionPendiente[];
 };
 
 // ---------------------------------------------------------------------------

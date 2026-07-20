@@ -1,12 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import {
-  Banknote,
-  Coins,
+  AlarmClock,
+  ClipboardCheck,
+  FileQuestion,
   FileText,
   Inbox,
-  Percent,
   Timer,
   type LucideIcon,
 } from "lucide-react";
@@ -15,16 +16,11 @@ import { extraerMensajeError } from "@/compartido/api";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { cn } from "@/compartido/utilidades";
-import { formatearMoneda } from "@/compartido/utilidades/formato-moneda";
-import { formatearPorcentaje } from "@/compartido/utilidades/formato-porcentaje";
+import { useResumenCotizacionesQuery } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries";
+import { useResumenSolicitudesQuery } from "@/modulos/comercial/solicitudes-cliente/servicios/solicitudes-cliente-queries";
 
 import { useCicloCierreQuery, useKpisConsolidadoQuery } from "../servicios/dashboard-queries";
-import type {
-  IdEjecutivoFiltro,
-  PorcentajePorMoneda,
-  RangoPeriodo,
-  TotalPorMoneda,
-} from "../tipos/dashboard.tipos";
+import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
 
 /** Props de widgets period-scoped + ejecutivo (design D5): el estado elevado en `DashboardVista`. */
 type PropsPeriodoEjecutivo = {
@@ -36,16 +32,21 @@ const GRID_KPIS = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6";
 
 /**
  * Strip de KPIs del período. Adopta el lenguaje visual de `CotizacionesKpis`
- * (tarjeta con borde + ícono arriba a la derecha + descripción abajo), SIN el
- * comportamiento de filtro clickeable: acá los KPIs son solo lectura.
+ * (tarjeta con borde + ícono arriba a la derecha + descripción abajo).
  *
- * Cada tile es su PROPIA tarjeta (`bg-card ring-1`) en un grid, no van dentro
- * de un card contenedor — así se evita el anidado "caja dentro de caja".
+ * Seis tiles en una sola franja, de dos naturalezas distintas:
+ * - Estado del período (Solicitudes, Cotizadas): salen de `useKpisConsolidadoQuery`,
+ *   anclados a la creación de la solicitud. Solo lectura.
+ * - Estado ACTUAL, clickeables (Por vencer, Esperando aprobación, Sin cotizar):
+ *   NO dependen del período (como el viejo acciones-pendientes). Cada uno trae su
+ *   propia data y navega al listado filtrado por su bucket. "Por vencer" y
+ *   "Esperando aprobación" comparten UNA sola llamada al resumen de cotizaciones;
+ *   "Sin cotizar" viene del resumen de solicitudes (sin ejecutivo: una solicitud
+ *   sin cotizar no tiene ejecutivo asignado).
+ * - "Tiempo para ganar" (`TarjetaCiclo`): endpoint aparte, con su propio loading.
  *
- * Los conteos (actividad) están anclados a la creación de la solicitud y la
- * plata (cerrado) a la fecha de cierre: son cohortes distintas y por eso nunca
- * se divide un conteo por un monto. El tile de "Tiempo para ganar" trae su
- * propia data (endpoint aparte), con su propio loading.
+ * Cada tile es su PROPIA tarjeta (`bg-card ring-1`) en un grid, no van dentro de
+ * un card contenedor — así se evita el anidado "caja dentro de caja".
  */
 export function DashboardKpisConsolidado({
   periodo,
@@ -70,7 +71,7 @@ export function DashboardKpisConsolidado({
   return (
     <div className={GRID_KPIS}>
       {isLoading || !data ? (
-        Array.from({ length: 5 }).map((_, i) => (
+        Array.from({ length: 2 }).map((_, i) => (
           <Skeleton key={i} className="h-[104px] w-full rounded-2xl" />
         ))
       ) : (
@@ -91,36 +92,11 @@ export function DashboardKpisConsolidado({
           >
             <ValorSimple>{data.actividad.cotizadas}</ValorSimple>
           </TarjetaKpi>
-          <TarjetaKpi
-            etiqueta="Monto ganado"
-            descripcion="Facturado en ventas ganadas"
-            icono={Banknote}
-            claseIcono="text-emerald-500"
-          >
-            <ValorMoneda valores={data.cerrado.montoGanado} />
-          </TarjetaKpi>
-          <TarjetaKpi
-            etiqueta="Utilidad"
-            descripcion="Ganancia de las ventas ganadas"
-            icono={Coins}
-            claseIcono="text-teal-500"
-          >
-            <ValorMoneda valores={data.cerrado.utilidad} />
-          </TarjetaKpi>
-          <TarjetaKpi
-            etiqueta="Margen"
-            descripcion="Ganancia sobre lo que cobraste"
-            icono={Percent}
-            claseIcono="text-amber-500"
-          >
-            <ValorMargen
-              montoGanado={data.cerrado.montoGanado}
-              margenPct={data.cerrado.margenPct}
-            />
-          </TarjetaKpi>
         </>
       )}
       <TarjetaCiclo periodo={periodo} idEjecutivoResponsable={idEjecutivoResponsable} />
+      <TarjetasPipelineCotizaciones idEjecutivoResponsable={idEjecutivoResponsable} />
+      <TarjetaSinCotizar />
     </div>
   );
 }
@@ -156,57 +132,107 @@ function TarjetaKpi({
   );
 }
 
+/**
+ * Variante clickeable de `TarjetaKpi`: mismo lenguaje visual, envuelta en un
+ * `Link` que navega al listado filtrado por el bucket del KPI. Suma afordancia
+ * de click (`cursor-pointer` + realce del ring en hover).
+ */
+function TarjetaKpiLink({
+  etiqueta,
+  descripcion,
+  icono: Icono,
+  claseIcono,
+  href,
+  children,
+}: {
+  etiqueta: string;
+  descripcion: string;
+  icono: LucideIcon;
+  claseIcono: string;
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex h-full cursor-pointer flex-col gap-1 rounded-2xl bg-card px-4 py-3 ring-1 ring-foreground/10 transition-colors hover:ring-foreground/25"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">{etiqueta}</span>
+        <Icono className={cn("size-4 shrink-0", claseIcono)} />
+      </div>
+      {children}
+      <span className="mt-auto pt-2 text-[11px] text-muted-foreground">{descripcion}</span>
+    </Link>
+  );
+}
+
 function ValorSimple({ children }: { children: ReactNode }) {
   return <span className="text-lg font-semibold tabular-nums">{children}</span>;
 }
 
-function ValorMoneda({ valores }: { valores: TotalPorMoneda }) {
+/** Placeholder chico mientras un tile clickeable resuelve su propia data. */
+function ValorCargando() {
+  return <span className="text-sm text-muted-foreground">…</span>;
+}
+
+/**
+ * Dos tiles clickeables que salen de UNA sola llamada al resumen de cotizaciones
+ * (no dependen del período, sí del ejecutivo): "Por vencer" (subconjunto de las
+ * ENVIADA que caducan en <=3 días) y "Esperando aprobación". Cada uno navega a su
+ * bucket del listado.
+ */
+function TarjetasPipelineCotizaciones({
+  idEjecutivoResponsable,
+}: {
+  idEjecutivoResponsable: IdEjecutivoFiltro;
+}) {
+  const { data, isLoading } = useResumenCotizacionesQuery({ idEjecutivoResponsable });
+  const cargando = isLoading || !data;
+
   return (
-    <div className="flex flex-col">
-      <span className="text-lg font-semibold tabular-nums">
-        {formatearMoneda(valores.pen, "PEN")}
-      </span>
-      <span className="text-lg font-semibold tabular-nums">
-        {formatearMoneda(valores.usd, "USD")}
-      </span>
-    </div>
+    <>
+      <TarjetaKpiLink
+        etiqueta="Por vencer"
+        descripcion="Enviadas que vencen en ≤3 días"
+        icono={AlarmClock}
+        claseIcono="text-amber-500"
+        href="/comercial/cotizaciones?bucket=porVencer"
+      >
+        {cargando ? <ValorCargando /> : <ValorSimple>{data.porVencer}</ValorSimple>}
+      </TarjetaKpiLink>
+      <TarjetaKpiLink
+        etiqueta="Esperando aprobación"
+        descripcion="Requieren aprobación interna"
+        icono={ClipboardCheck}
+        claseIcono="text-indigo-500"
+        href="/comercial/cotizaciones?bucket=pendientesAprobacion"
+      >
+        {cargando ? <ValorCargando /> : <ValorSimple>{data.pendientesAprobacion}</ValorSimple>}
+      </TarjetaKpiLink>
+    </>
   );
 }
 
 /**
- * Margen por moneda: la regla mira `montoGanado`, NO `margenPct` (que es `0`
- * legítimo cuando hubo cierres sin ganancia). Si no hubo cierres en esa moneda,
- * dice "Sin cierres" en vez de un `0.0%` engañoso. `margenPct` llega en escala
- * 0..100 (backend `* 100`); `formatearPorcentaje` asume fracción 0..1, por eso
- * se convierte con una variable nombrada antes de formatear.
+ * Tile clickeable "Sin cotizar": solicitudes sin ninguna cotización. Trae su
+ * propia data del resumen de solicitudes SIN ejecutivo (invariante de dominio:
+ * una solicitud sin cotizar no tiene ejecutivo asignado). No depende del período.
  */
-function ValorMargen({
-  montoGanado,
-  margenPct,
-}: {
-  montoGanado: TotalPorMoneda;
-  margenPct: PorcentajePorMoneda;
-}) {
-  const margenPenFraccion = margenPct.pen / 100;
-  const margenUsdFraccion = margenPct.usd / 100;
+function TarjetaSinCotizar() {
+  const { data, isLoading } = useResumenSolicitudesQuery();
+  const cargando = isLoading || !data;
 
   return (
-    <div className="flex flex-col">
-      <span className="text-lg font-semibold tabular-nums">
-        {montoGanado.pen === 0 ? (
-          <span className="text-sm font-normal text-muted-foreground">Sin cierres</span>
-        ) : (
-          formatearPorcentaje(margenPenFraccion)
-        )}
-      </span>
-      <span className="text-lg font-semibold tabular-nums">
-        {montoGanado.usd === 0 ? (
-          <span className="text-sm font-normal text-muted-foreground">Sin cierres</span>
-        ) : (
-          formatearPorcentaje(margenUsdFraccion)
-        )}
-      </span>
-    </div>
+    <TarjetaKpiLink
+      etiqueta="Sin cotizar"
+      descripcion="Solicitudes sin cotización"
+      icono={FileQuestion}
+      claseIcono="text-sky-500"
+      href="/comercial/solicitudes-cliente?bucket=disponibles"
+    >
+      {cargando ? <ValorCargando /> : <ValorSimple>{data.disponibles}</ValorSimple>}
+    </TarjetaKpiLink>
   );
 }
 
