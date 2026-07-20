@@ -115,3 +115,21 @@ export async function desactivarCuenta(
 ): Promise<void> {
   await clienteHttp.delete(`/api/admin/cuentas/${id}`, { data: payload })
 }
+
+// Cuentas (distintas de `excluyendoId`) que ya usan ese correo. El correo NO es
+// unico, asi que esto no bloquea nada: alimenta una advertencia para que quien
+// administra sepa que la casilla ya esta en uso y decida.
+//
+// Reusa el listado con `busqueda`, que en el backend matchea email, usuario y
+// nombre por LIKE; por eso hay que filtrar el email exacto del lado del cliente.
+export async function cuentasConEseCorreo(
+  email: string,
+  excluyendoId?: string,
+): Promise<ReadonlyArray<CuentaResponse>> {
+  const buscado = email.trim().toLowerCase()
+  if (!buscado) return []
+  const { datos } = await obtenerCuentas({ busqueda: buscado, limite: 100 })
+  return datos.filter(
+    (c) => c.email.toLowerCase() === buscado && c.id !== excluyendoId,
+  )
+}

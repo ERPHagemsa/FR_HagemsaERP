@@ -42,10 +42,12 @@ import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import { cn } from "@/compartido/utilidades/utils"
 
 import { AsignarSocioSeccion } from "../componentes/asignar-socio-seccion"
+import { AvisoCorreoDuplicado } from "../componentes/aviso-correo-duplicado"
 import { CodigosCuentaSeccion } from "../componentes/codigos-cuenta-seccion"
 import { RolesAsignadosSeccion } from "../componentes/roles-asignados-seccion"
 import { SesionesActivasSeccion } from "../componentes/sesiones-activas-seccion"
 import { SocioAsignadoSeccion } from "../componentes/socio-asignado-seccion"
+import { useAvisoCorreoDuplicado } from "../ganchos/use-aviso-correo-duplicado"
 import { useCuenta } from "../ganchos/use-cuenta"
 import {
   useActualizarCuenta,
@@ -56,6 +58,7 @@ import {
   useSuspenderCuenta,
 } from "../ganchos/use-mutaciones-cuenta"
 import type { CuentaResponse, EstadoCuenta } from "../tipos/administracion.tipos"
+import { normalizarEmail } from "../utilidades/normalizar-identidad"
 
 const PUNTO_ESTADO: Record<EstadoCuenta, string> = {
   activo: "bg-emerald-500",
@@ -365,15 +368,20 @@ function DialogResetPassword({ cuenta }: PropsAccion) {
 
 function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
   const [abierto, setAbierto] = useState(false)
+  const [email, setEmail] = useState(cuenta.email)
   const [nombreCompleto, setNombreCompleto] = useState(cuenta.nombreCompleto)
   const [documentoIdentidad, setDocumentoIdentidad] = useState(
     cuenta.documentoIdentidad ?? "",
   )
   const [error, setError] = useState<string | null>(null)
   const mutation = useActualizarCuenta(cuenta.id, { onSuccess: onActualizado })
+  // Advertencia, no validacion: el correo puede repetirse. Se excluye la propia
+  // cuenta para que no se reporte a si misma.
+  const avisoCorreo = useAvisoCorreoDuplicado(email, cuenta.id)
 
   function abrir(siguiente: boolean) {
     if (siguiente) {
+      setEmail(cuenta.email)
       setNombreCompleto(cuenta.nombreCompleto)
       setDocumentoIdentidad(cuenta.documentoIdentidad ?? "")
       setError(null)
@@ -382,6 +390,7 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
   }
 
   async function confirmar() {
+    const emailTrim = email.trim()
     const nombreTrim = nombreCompleto.trim()
     const docTrim = documentoIdentidad.trim()
 
@@ -389,9 +398,20 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
       setError("El nombre es obligatorio.")
       return
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrim)) {
+      setError("El correo no tiene un formato valido.")
+      return
+    }
     setError(null)
 
-    const cambios: { nombreCompleto?: string; documentoIdentidad?: string | null } = {}
+    const cambios: {
+      email?: string
+      nombreCompleto?: string
+      documentoIdentidad?: string | null
+    } = {}
+    if (emailTrim !== cuenta.email) {
+      cambios.email = emailTrim
+    }
     if (nombreTrim !== cuenta.nombreCompleto) {
       cambios.nombreCompleto = nombreTrim
     }
@@ -427,11 +447,24 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
         <DialogHeader>
           <DialogTitle>Editar cuenta</DialogTitle>
           <DialogDescription>
-            Cambia el nombre completo o el documento de identidad. El email y
-            el tipo de cuenta no son editables.
+            Cambia el correo, el nombre completo o el documento de identidad. El
+            nombre de usuario y el tipo de cuenta no son editables.
           </DialogDescription>
         </DialogHeader>
         <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="email-editar">Correo</FieldLabel>
+            <Input
+              id="email-editar"
+              className="rounded-md"
+              type="email"
+              autoComplete="off"
+              value={email}
+              onChange={(e) => setEmail(normalizarEmail(e.target.value))}
+              maxLength={255}
+            />
+            <AvisoCorreoDuplicado {...avisoCorreo} />
+          </Field>
           <Field>
             <FieldLabel htmlFor="nombre-editar">Nombre completo</FieldLabel>
             <Input

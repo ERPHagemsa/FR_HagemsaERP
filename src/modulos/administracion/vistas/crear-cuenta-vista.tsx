@@ -30,7 +30,13 @@ import {
   SocioPicker,
   type SocioSeleccionado,
 } from "../componentes/socio-picker";
+import { AvisoCorreoDuplicado } from "../componentes/aviso-correo-duplicado";
+import { useAvisoCorreoDuplicado } from "../ganchos/use-aviso-correo-duplicado";
 import { useCrearCuenta } from "../ganchos/use-mutaciones-cuenta";
+import {
+  normalizarEmail,
+  normalizarNombreUsuario,
+} from "../utilidades/normalizar-identidad";
 import type { TipoCuenta } from "../tipos/administracion.tipos";
 
 // Normaliza un codigo de socio/cuenta: mayusculas, solo alfanumericos, max 20.
@@ -42,38 +48,6 @@ function normalizarCodigo(valor: string): string {
     .slice(0, 20);
 }
 
-// Marcas combinantes Unicode (U+0300-U+036F): lo que NFD separa de la letra
-// base. Se arma con fromCharCode para no dejar caracteres invisibles en el
-// fuente. El target del proyecto es ES2017, que no admite \p{Diacritic}.
-const DIACRITICOS = new RegExp(
-  "[" + String.fromCharCode(0x300) + "-" + String.fromCharCode(0x36f) + "]",
-  "g",
-);
-
-// Convierte tildes y diacriticos a su letra base: "José" -> "Jose", "ñ" -> "n".
-// Se transforma en vez de borrar el caracter para no mutilar lo escrito: si se
-// eliminara, "josé" quedaria "jos".
-function quitarDiacriticos(valor: string): string {
-  return valor.normalize("NFD").replace(DIACRITICOS, "");
-}
-
-// Correo: minusculas, sin espacios ni tildes. Conserva solo los caracteres que
-// una direccion admite (letras, digitos y @ . _ - +); el resto se descarta.
-function normalizarEmail(valor: string): string {
-  return quitarDiacriticos(valor)
-    .toLowerCase()
-    .replace(/[^a-z0-9@._+-]/g, "")
-    .slice(0, 255);
-}
-
-// Nombre de usuario: minusculas, sin espacios ni tildes. Refleja la regla del
-// dominio (^[a-z][a-z0-9._-]{2,29}$), que admite guion bajo, punto y guion.
-function normalizarNombreUsuario(valor: string): string {
-  return quitarDiacriticos(valor)
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]/g, "")
-    .slice(0, 30);
-}
 
 export function CrearCuentaVista() {
   const router = useRouter();
@@ -99,6 +73,9 @@ export function CrearCuentaVista() {
       ? ""
       : normalizarCodigo(`${codigoCuentaPrefijo}${codigoCuentaSufijo}`);
   const [error, setError] = useState<string | null>(null);
+
+  // Advertencia, no validacion: el correo puede repetirse entre cuentas.
+  const avisoCorreo = useAvisoCorreoDuplicado(email);
 
   const crearMutation = useCrearCuenta();
 
@@ -211,6 +188,7 @@ export function CrearCuentaVista() {
                     Puede repetirse entre cuentas. Se usa para notificaciones y
                     para recuperar la contrasena, no para iniciar sesion.
                   </FieldDescription>
+                  <AvisoCorreoDuplicado {...avisoCorreo} />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="nombreUsuario">
