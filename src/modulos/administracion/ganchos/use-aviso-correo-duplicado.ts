@@ -9,22 +9,29 @@ import type { CuentaResponse } from "../tipos/administracion.tipos"
 // en cada tecla.
 const RETARDO_MS = 500
 
-export interface AvisoCorreoDuplicado {
+export interface ResultadoAvisoCorreo {
   readonly cuentas: ReadonlyArray<CuentaResponse>
   readonly consultando: boolean
+}
+
+export interface OpcionesAvisoCorreo {
+  // Id de la cuenta que se esta editando, para que no se reporte a si misma.
+  readonly excluyendoId?: string
+  // Permite apagar la consulta mientras no haga falta (ej. dialogo cerrado).
+  // Por defecto esta activo.
+  readonly habilitado?: boolean
 }
 
 /**
  * Avisa si el correo ya lo usa otra cuenta. Es informativo, NO bloquea: el
  * correo dejo de ser unico y varias cuentas pueden compartir casilla a
  * proposito. Sirve para que quien administra lo note y decida.
- *
- * `excluyendoId` evita que una cuenta se reporte a si misma al editarla.
  */
 export function useAvisoCorreoDuplicado(
   email: string,
-  excluyendoId?: string,
-): AvisoCorreoDuplicado {
+  opciones: OpcionesAvisoCorreo = {},
+): ResultadoAvisoCorreo {
+  const { excluyendoId, habilitado = true } = opciones
   const [cuentas, setCuentas] = useState<ReadonlyArray<CuentaResponse>>([])
   const [consultando, setConsultando] = useState(false)
 
@@ -32,7 +39,7 @@ export function useAvisoCorreoDuplicado(
     const buscado = email.trim()
     // Sin forma de correo no tiene sentido consultar: ahorra llamadas mientras
     // se escribe la direccion.
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buscado)) {
+    if (!habilitado || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buscado)) {
       setCuentas([])
       setConsultando(false)
       return
@@ -61,7 +68,7 @@ export function useAvisoCorreoDuplicado(
       vigente = false
       clearTimeout(temporizador)
     }
-  }, [email, excluyendoId])
+  }, [email, excluyendoId, habilitado])
 
   return { cuentas, consultando }
 }

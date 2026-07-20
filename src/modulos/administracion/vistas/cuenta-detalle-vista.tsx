@@ -376,8 +376,12 @@ function DialogEditarCuenta({ cuenta, onActualizado }: PropsAccion) {
   const [error, setError] = useState<string | null>(null)
   const mutation = useActualizarCuenta(cuenta.id, { onSuccess: onActualizado })
   // Advertencia, no validacion: el correo puede repetirse. Se excluye la propia
-  // cuenta para que no se reporte a si misma.
-  const avisoCorreo = useAvisoCorreoDuplicado(email, cuenta.id)
+  // cuenta para que no se reporte a si misma, y solo consulta con el dialogo
+  // abierto: este componente esta siempre montado en la pagina de detalle.
+  const avisoCorreo = useAvisoCorreoDuplicado(email, {
+    excluyendoId: cuenta.id,
+    habilitado: abierto,
+  })
 
   function abrir(siguiente: boolean) {
     if (siguiente) {

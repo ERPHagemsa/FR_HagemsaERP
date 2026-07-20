@@ -2,14 +2,26 @@
 
 import { TriangleAlert } from "lucide-react"
 
-import type { AvisoCorreoDuplicado } from "../ganchos/use-aviso-correo-duplicado"
+import type { ResultadoAvisoCorreo } from "../ganchos/use-aviso-correo-duplicado"
 
 /**
  * Advertencia de que el correo ya lo usa otra cuenta. Es informativa: el correo
  * no es unico y compartir casilla puede ser intencional, asi que no impide
  * guardar. Se listan las cuentas para que se vea con cuales choca.
  */
-export function AvisoCorreoDuplicado({ cuentas }: AvisoCorreoDuplicado) {
+export function AvisoCorreoDuplicado({
+  cuentas,
+  consultando,
+}: ResultadoAvisoCorreo) {
+  // Se avisa que la verificacion sigue en curso: sin esto, guardar rapido puede
+  // dar la falsa impresion de que el correo estaba libre.
+  if (consultando && cuentas.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Verificando si el correo ya esta en uso...
+      </p>
+    )
+  }
   if (cuentas.length === 0) return null
 
   return (
