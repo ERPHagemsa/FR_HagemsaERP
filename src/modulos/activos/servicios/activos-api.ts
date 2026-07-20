@@ -598,6 +598,35 @@ export async function quitarCoberturaDocumentoCompartidoPorCodigo(
   );
 }
 
+export type ResultadoAgregarCoberturas = {
+  documentoCompartidoId: number;
+  agregados: number;
+  yaCubiertos: number;
+  sinActivo: number;
+  detalles: Array<{
+    identificador: string;
+    estado: "AGREGADO" | "YA_CUBIERTO" | "SIN_ACTIVO";
+    codigoActivo: string | null;
+  }>;
+};
+
+/**
+ * Agrega uno o varios activos (por placa o codigo) a un documento COMPARTIDO
+ * existente. Idempotente: los ya cubiertos se reportan sin duplicarse.
+ */
+export async function agregarCoberturasDocumentoCompartidoPorCodigo(
+  codigo: string,
+  documentoCompartidoId: number,
+  identificadores: string[],
+  origen?: MetadataOrigenCambio
+): Promise<ResultadoAgregarCoberturas> {
+  const { data } = await clienteActivos.post<ResultadoAgregarCoberturas>(
+    `/activos/codigo/${codigo}/documentos-compartidos/${documentoCompartidoId}/coberturas`,
+    { identificadores, ...(origen ?? {}) }
+  );
+  return data;
+}
+
 export async function obtenerTanquesPorCodigo(
   codigo: string
 ): Promise<TanqueActivo[]> {

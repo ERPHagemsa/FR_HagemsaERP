@@ -28,6 +28,7 @@ export interface CatalogosActivos {
   clasesEuro: OpcionCatalogo[];
   tiposTransmision: OpcionCatalogo[];
   estadosCalibracion: OpcionCatalogo[];
+  tiposDocumento: OpcionCatalogo[];
   estaCargando: boolean;
   /** Devuelve el `nombre` del valor de catalogo con ese id, o "" si no esta cargado/no existe. */
   nombrePorId: (
@@ -75,6 +76,7 @@ export function useCatalogosActivos(): CatalogosActivos {
   const claseEuro = useValoresCatalogoQuery("CLASE_EURO", true);
   const tipoTransmision = useValoresCatalogoQuery("TIPO_TRANSMISION", true);
   const estadoCalibracion = useValoresCatalogoQuery("ESTADO_CALIBRACION", true);
+  const tipoDocumento = useValoresCatalogoQuery("TIPO_DOCUMENTO", true);
 
   const porTipo = useMemo<Record<TipoCatalogoMaestro, ValorCatalogo[]>>(
     () => ({
@@ -84,6 +86,7 @@ export function useCatalogosActivos(): CatalogosActivos {
       CLASE_EURO: claseEuro.data ?? [],
       TIPO_TRANSMISION: tipoTransmision.data ?? [],
       ESTADO_CALIBRACION: estadoCalibracion.data ?? [],
+      TIPO_DOCUMENTO: tipoDocumento.data ?? [],
     }),
     [
       tipoActivo.data,
@@ -92,6 +95,7 @@ export function useCatalogosActivos(): CatalogosActivos {
       claseEuro.data,
       tipoTransmision.data,
       estadoCalibracion.data,
+      tipoDocumento.data,
     ]
   );
 
@@ -121,13 +125,15 @@ export function useCatalogosActivos(): CatalogosActivos {
       clasesEuro: aOpciones(porTipo.CLASE_EURO),
       tiposTransmision: aOpciones(porTipo.TIPO_TRANSMISION),
       estadosCalibracion: aOpciones(porTipo.ESTADO_CALIBRACION),
+      tiposDocumento: aOpciones(porTipo.TIPO_DOCUMENTO),
       estaCargando:
         tipoActivo.isLoading ||
         claseVehiculo.isLoading ||
         carroceria.isLoading ||
         claseEuro.isLoading ||
         tipoTransmision.isLoading ||
-        estadoCalibracion.isLoading,
+        estadoCalibracion.isLoading ||
+        tipoDocumento.isLoading,
       nombrePorId,
       idPorNombre,
     };
@@ -139,5 +145,6 @@ export function useCatalogosActivos(): CatalogosActivos {
     claseEuro.isLoading,
     tipoTransmision.isLoading,
     estadoCalibracion.isLoading,
+    tipoDocumento.isLoading,
   ]);
 }

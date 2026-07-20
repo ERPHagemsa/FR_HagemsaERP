@@ -1,4 +1,4 @@
-import { Car, Cog, Leaf, ShieldCheck, Tag, Truck, type LucideIcon } from "lucide-react";
+import { Car, Cog, FileText, Leaf, ShieldCheck, Tag, Truck, type LucideIcon } from "lucide-react";
 
 import type { TipoCatalogoMaestro } from "../tipos/maestros.tipos";
 
@@ -17,6 +17,13 @@ export const CATALOGOS_MAESTROS: ConfiguracionCatalogoMaestro[] = [
     titulo: "Tipo de Activo",
     grupo: "Base",
     icono: Tag,
+    permiteCrear: true,
+  },
+  {
+    tipoCatalogo: "TIPO_DOCUMENTO",
+    titulo: "Tipo de Documento",
+    grupo: "Base",
+    icono: FileText,
     permiteCrear: true,
   },
   {

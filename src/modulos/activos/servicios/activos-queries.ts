@@ -29,6 +29,7 @@ import {
   obtenerSnapshotDetalleInventario,
   obtenerTanquesPorCodigo,
   quitarCoberturaDocumentoCompartidoPorCodigo,
+  agregarCoberturasDocumentoCompartidoPorCodigo,
   siniestrarActivo,
 } from "./activos-api";
 
@@ -168,6 +169,24 @@ export function useQuitarCoberturaDocumentoCompartidoMutation(
       quitarCoberturaDocumentoCompartidoPorCodigo(
         codigo,
         documentoCompartidoId,
+        origen
+      ),
+  });
+}
+
+export function useAgregarCoberturasDocumentoCompartidoMutation(
+  codigo: string,
+  origen?: MetadataOrigenCambio
+) {
+  return useMutar<
+    { documentoCompartidoId: number; identificadores: string[] },
+    Awaited<ReturnType<typeof agregarCoberturasDocumentoCompartidoPorCodigo>>
+  >({
+    fn: ({ documentoCompartidoId, identificadores }) =>
+      agregarCoberturasDocumentoCompartidoPorCodigo(
+        codigo,
+        documentoCompartidoId,
+        identificadores,
         origen
       ),
   });

@@ -1,19 +1,23 @@
 // Arma el contenido que se codifica en el QR de una etiqueta a partir de su
-// `token`. La URL apunta a la pagina publica de escaneo `/e/{token}`.
+// `id`. La URL apunta al servicio de inventario existente
+// (`/activo/?idactivo={id}`), que ya tiene la data y con el que conviven los
+// QR del sistema anterior.
 //
-// El dominio NO viene del backend (el back solo es dueño del token): se toma de
-// donde esta desplegado el propio front. Por defecto usa `window.location.origin`
-// (cero configuracion: en prod sera https://erp.hagemsa.com, en local
-// http://localhost:3000). Se puede fijar un dominio canonico con
-// `NEXT_PUBLIC_APP_URL` para evitar que, si alguien imprime QRs parado en un
-// entorno de staging, el codigo quede grabado con ese dominio equivocado.
+// OJO: pese a que el parametro de la URL se llama `idactivo`, lo que se envia es
+// el ID de la ETIQUETA (asi lo definio el servicio de inventario; el nombre del
+// parametro es historico y no se puede cambiar sin tocar ese otro sistema).
 //
-// Nota: el dominio queda "quemado" dentro de la imagen del QR al imprimirla; por
-// eso conviene imprimir siempre desde el dominio de produccion.
-export function urlEtiquetaQr(token: string): string {
-  const base = (
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (typeof window !== "undefined" ? window.location.origin : "")
-  ).replace(/\/+$/, "");
-  return `${base}/e/${token}`;
+// El dominio es fijo (es un servicio externo, NO el front del ERP): por defecto
+// `https://inventario.hagemsa.org`, configurable con `NEXT_PUBLIC_INVENTARIO_URL`
+// por si cambia el host. Nota: el dominio queda "quemado" dentro de la imagen
+// del QR al imprimirla, asi que conviene imprimir siempre contra el dominio real
+// de produccion.
+const INVENTARIO_BASE_URL = "https://inventario.hagemsa.org";
+
+export function urlEtiquetaQr(idEtiqueta: number): string {
+  const base = (process.env.NEXT_PUBLIC_INVENTARIO_URL || INVENTARIO_BASE_URL).replace(
+    /\/+$/,
+    "",
+  );
+  return `${base}/activo/?idactivo=${idEtiqueta}`;
 }

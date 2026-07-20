@@ -19,12 +19,18 @@ import {
   DialogTitle,
 } from "@/compartido/componentes/ui/dialog";
 
+export type IdentificadorQrEtiqueta =
+  | { tipo: "token"; valor: string }
+  | { tipo: "id"; valor: number };
+
 /**
- * Extrae el token de etiqueta del contenido de un QR. Acepta tanto la URL
- * completa que imprime el sistema (https://.../e/{token}) como un token UUID
- * pegado a secas. Devuelve null si el QR no parece de una etiqueta nuestra.
+ * Extrae el identificador de una etiqueta desde el contenido del QR.
+ * Acepta el formato legado `/e/{token}` y el formato nuevo
+ * `/activo/?idactivo={idEtiqueta}`.
  */
-export function extraerTokenDeContenidoQr(contenido: string): string | null {
+export function extraerIdentificadorDeContenidoQr(
+  contenido: string,
+): IdentificadorQrEtiqueta | null {
   const texto = contenido.trim();
   const patronUuid =
     /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
@@ -32,11 +38,21 @@ export function extraerTokenDeContenidoQr(contenido: string): string | null {
   const rutaEtiqueta = texto.match(/\/e\/([^/?#\s]+)/i);
   if (rutaEtiqueta) {
     const candidato = rutaEtiqueta[1];
-    return patronUuid.test(candidato) ? candidato : null;
+    return patronUuid.test(candidato) ? { tipo: "token", valor: candidato } : null;
+  }
+
+  const rutaInventario = texto.match(/\/activo\/?\?[^#\s]*idactivo=(\d+)/i);
+  if (rutaInventario) {
+    return { tipo: "id", valor: Number(rutaInventario[1]) };
   }
 
   const uuidSuelto = texto.match(patronUuid);
-  return uuidSuelto ? uuidSuelto[0] : null;
+  if (uuidSuelto) {
+    return { tipo: "token", valor: uuidSuelto[0] };
+  }
+
+  const idSuelto = texto.match(/^(\d+)$/);
+  return idSuelto ? { tipo: "id", valor: Number(idSuelto[1]) } : null;
 }
 
 /**
@@ -53,7 +69,7 @@ export function LectorQrEtiqueta({
 }: {
   abierto: boolean;
   onCerrar: () => void;
-  onTokenLeido: (token: string) => void;
+  onTokenLeido: (identificador: IdentificadorQrEtiqueta) => void;
   titulo?: string;
   descripcion?: string;
 }) {
@@ -75,12 +91,12 @@ export function LectorQrEtiqueta({
       const resultado = await QrScanner.scanImage(archivo, {
         returnDetailedScanResult: true,
       });
-      const token = extraerTokenDeContenidoQr(resultado.data);
-      if (!token) {
+      const identificador = extraerIdentificadorDeContenidoQr(resultado.data);
+      if (!identificador) {
         setError("La foto no contiene una etiqueta QR de Activos valida.");
         return;
       }
-      onTokenLeido(token);
+      onTokenLeido(identificador);
     } catch {
       setError(
         "No se encontro un QR legible. Toma la foto de frente, con buena luz y sin recortar el codigo."

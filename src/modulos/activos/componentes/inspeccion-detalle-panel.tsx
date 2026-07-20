@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { extraerMensajeError } from "@/compartido/api/formato-error";
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -78,6 +79,7 @@ import {
   actualizarDatosOperativosDetalle,
   actualizarObservacionesDetalle,
 } from "../servicios/inspeccion-api";
+import { obtenerEtiquetaPorId } from "../servicios/etiquetas-api";
 import type {
   CandidatoInspeccion,
   FormatoExportacionInspeccion,
@@ -245,10 +247,10 @@ export function InspeccionDetallePanel({
           <AlertDialogHeader>
             <AlertDialogTitle>Cerrar inspeccion</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta accion no es reversible: despues del cierre no se podran
-              agregar o editar activos, observaciones ni imagenes. La
-              inspeccion quedara disponible en modo solo lectura para consulta
-              y exportacion.
+              Una vez cerrada, la inspeccion <strong>no se puede reabrir</strong>.
+              No se podran agregar ni editar activos, observaciones ni imagenes;
+              quedara disponible solo en modo lectura para consulta y
+              exportacion. Asegurate de haber registrado todo antes de continuar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -632,9 +634,21 @@ function ModalRegistrarActivos({
       <LectorQrEtiqueta
         abierto={lectorQrAbierto}
         onCerrar={() => setLectorQrAbierto(false)}
-        onTokenLeido={(token) => {
-          setEtiqueta(token);
-          setLectorQrAbierto(false);
+        onTokenLeido={(identificador) => {
+          if (identificador.tipo === "token") {
+            setEtiqueta(identificador.valor);
+            setLectorQrAbierto(false);
+            return;
+          }
+
+          void obtenerEtiquetaPorId(identificador.valor)
+            .then((etiqueta) => {
+              setEtiqueta(etiqueta.codigo);
+              setLectorQrAbierto(false);
+            })
+            .catch((error) => {
+              toast.error(extraerMensajeError(error, "No se pudo resolver la etiqueta."));
+            });
         }}
         titulo="Escanear activo"
         descripcion="Toma una foto clara del QR del activo para buscarlo directamente."

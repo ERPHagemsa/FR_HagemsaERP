@@ -15,6 +15,7 @@ import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { LectorQrEtiqueta } from "./lector-qr-etiqueta";
 import {
   asignarEtiqueta,
+  obtenerEtiquetaPorId,
   resolverEtiquetaPorToken,
 } from "../servicios/etiquetas-api";
 import { useEtiquetasQuery } from "../servicios/etiquetas-queries";
@@ -57,13 +58,21 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
   const etiquetaActual =
     (vinculadas.data ?? []).find((item) => item.estado === "ASIGNADA") ?? null;
 
-  async function handleTokenLeido(token: string) {
+  async function handleIdentificadorLeido(
+    identificador:
+      | { tipo: "token"; valor: string }
+      | { tipo: "id"; valor: number },
+  ) {
     setLectorAbierto(false);
     setErrorLectura(null);
     setEtiquetaLeida(null);
     setResolviendo(true);
     try {
-      setEtiquetaLeida(await resolverEtiquetaPorToken(token));
+      setEtiquetaLeida(
+        identificador.tipo === "token"
+          ? await resolverEtiquetaPorToken(identificador.valor)
+          : await obtenerEtiquetaPorId(identificador.valor),
+      );
     } catch (err) {
       setErrorLectura(extraerMensajeError(err));
     } finally {
@@ -205,7 +214,7 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
       <LectorQrEtiqueta
         abierto={lectorAbierto}
         onCerrar={() => setLectorAbierto(false)}
-        onTokenLeido={(token) => void handleTokenLeido(token)}
+        onTokenLeido={(identificador) => void handleIdentificadorLeido(identificador)}
       />
     </section>
   );

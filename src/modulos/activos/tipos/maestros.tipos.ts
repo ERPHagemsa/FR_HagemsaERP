@@ -4,7 +4,8 @@ export type TipoCatalogoMaestro =
   | "CARROCERIA"
   | "CLASE_EURO"
   | "TIPO_TRANSMISION"
-  | "ESTADO_CALIBRACION";
+  | "ESTADO_CALIBRACION"
+  | "TIPO_DOCUMENTO";
 
 export type AccionHistorialCatalogo = "REGISTRO" | "MODIFICACION" | "ELIMINACION";
 
@@ -18,6 +19,10 @@ export interface ValorCatalogo {
   claseVehiculoReferenciaNombre?: string | null;
   /** Abreviatura de 1 letra (Clase) o 2 letras (Carroceria) para codigos futuros. */
   codigoAbreviado?: string | null;
+  codigo?: string | null;
+  alcance?: "INDIVIDUAL" | "COMPARTIDO" | null;
+  requiereVencimiento?: boolean | null;
+  orden?: number | null;
   fechaCreacion: string;
   fechaModificacion: string;
 }
@@ -40,6 +45,9 @@ export interface CrearValorCatalogoPayload {
   descripcion?: string;
   claseVehiculoReferenciaId?: number;
   codigoAbreviado?: string;
+  alcance?: "INDIVIDUAL" | "COMPARTIDO";
+  requiereVencimiento?: boolean;
+  orden?: number;
 }
 
 export interface ActualizarValorCatalogoPayload {
@@ -47,6 +55,9 @@ export interface ActualizarValorCatalogoPayload {
   descripcion?: string;
   claseVehiculoReferenciaId?: number;
   codigoAbreviado?: string;
+  alcance?: "INDIVIDUAL" | "COMPARTIDO";
+  requiereVencimiento?: boolean;
+  orden?: number;
 }
 
 export interface CambiarEstadoRegistroValorCatalogoPayload {
