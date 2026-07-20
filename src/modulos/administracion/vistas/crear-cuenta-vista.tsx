@@ -12,6 +12,7 @@ import { extraerMensajeError } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -29,7 +30,13 @@ import {
   SocioPicker,
   type SocioSeleccionado,
 } from "../componentes/socio-picker";
+import { AvisoCorreoDuplicado } from "../componentes/aviso-correo-duplicado";
+import { useAvisoCorreoDuplicado } from "../ganchos/use-aviso-correo-duplicado";
 import { useCrearCuenta } from "../ganchos/use-mutaciones-cuenta";
+import {
+  normalizarEmail,
+  normalizarNombreUsuario,
+} from "../utilidades/normalizar-identidad";
 import type { TipoCuenta } from "../tipos/administracion.tipos";
 
 // Normaliza un codigo de socio/cuenta: mayusculas, solo alfanumericos, max 20.
@@ -40,6 +47,7 @@ function normalizarCodigo(valor: string): string {
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 20);
 }
+
 
 export function CrearCuentaVista() {
   const router = useRouter();
@@ -56,10 +64,18 @@ export function CrearCuentaVista() {
   // código: la concatenación normalizada de ambos.
   const [codigoCuentaPrefijo, setCodigoCuentaPrefijo] = useState("TH");
   const [codigoCuentaSufijo, setCodigoCuentaSufijo] = useState("");
-  const codigoCuenta = normalizarCodigo(
-    `${codigoCuentaPrefijo}${codigoCuentaSufijo}`,
-  );
+  // Sin sufijo NO hay codigo de cuenta: el prefijo por si solo es solo la marca
+  // de la empresa, no un codigo. Si se concatenara igual, "TH" contaria como
+  // codigo cargado y obligaria a completar tambien el de socio, volviendo
+  // imposible dejar ambos vacios (que es lo normal: son opcionales).
+  const codigoCuenta =
+    codigoCuentaSufijo.trim() === ""
+      ? ""
+      : normalizarCodigo(`${codigoCuentaPrefijo}${codigoCuentaSufijo}`);
   const [error, setError] = useState<string | null>(null);
+
+  // Advertencia, no validacion: el correo puede repetirse entre cuentas.
+  const avisoCorreo = useAvisoCorreoDuplicado(email);
 
   const crearMutation = useCrearCuenta();
 
@@ -163,10 +179,16 @@ export function CrearCuentaVista() {
                     type="email"
                     autoComplete="off"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(normalizarEmail(e.target.value))}
                     required
                     maxLength={255}
                   />
+                  <FieldDescription>
+                    Se normaliza solo: minusculas y sin espacios ni tildes.
+                    Puede repetirse entre cuentas. Se usa para notificaciones y
+                    para recuperar la contraseña, no para iniciar sesion.
+                  </FieldDescription>
+                  <AvisoCorreoDuplicado {...avisoCorreo} />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="nombreUsuario">
@@ -178,13 +200,22 @@ export function CrearCuentaVista() {
                     type="text"
                     autoComplete="off"
                     value={nombreUsuario}
-                    onChange={(e) => setNombreUsuario(e.target.value)}
+                    onChange={(e) =>
+                      setNombreUsuario(normalizarNombreUsuario(e.target.value))
+                    }
                     required
                     minLength={3}
                     maxLength={30}
-                    pattern="[A-Za-z][A-Za-z0-9._\-]{2,29}"
+                    // El input ya fuerza minusculas, asi que el patron no
+                    // contempla mayusculas: solo valida el resto de la regla.
+                    pattern="[a-z][a-z0-9._\-]{2,29}"
                     title="3 a 30 caracteres, empieza con letra y solo letras, digitos, punto, guion o guion bajo"
                   />
+                  <FieldDescription>
+                    Se normaliza solo: minusculas, sin espacios ni tildes.
+                    Unico e irrepetible: es la credencial con la que la persona
+                    inicia sesion.
+                  </FieldDescription>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="nombreCompleto">

@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/compartido/componentes/ui/dropdown-menu";
 import { Input } from "@/compartido/componentes/ui/input";
+import { Checkbox } from "@/compartido/componentes/ui/checkbox";
 import { Label } from "@/compartido/componentes/ui/label";
 import {
   Select,
@@ -81,12 +82,16 @@ function DialogCrearValor({
   onCreado: () => void;
 }) {
   const esCarroceria = tipoCatalogo === "CARROCERIA";
+  const esTipoDocumento = tipoCatalogo === "TIPO_DOCUMENTO";
   const usaAbreviatura = esCarroceria || tipoCatalogo === "CLASE_VEHICULO";
   const longitudAbreviatura = esCarroceria ? 2 : 1;
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [claseVehiculoId, setClaseVehiculoId] = useState("");
   const [codigoAbreviado, setCodigoAbreviado] = useState("");
+  const [alcance, setAlcance] = useState<"INDIVIDUAL" | "COMPARTIDO">("INDIVIDUAL");
+  const [requiereVencimiento, setRequiereVencimiento] = useState(false);
+  const [orden, setOrden] = useState("0");
   const [error, setError] = useState<string | null>(null);
 
   const clasesVehiculo = useValoresCatalogoQuery("CLASE_VEHICULO", true, undefined, {
@@ -100,6 +105,9 @@ function DialogCrearValor({
       setDescripcion("");
       setClaseVehiculoId("");
       setCodigoAbreviado("");
+      setAlcance("INDIVIDUAL");
+      setRequiereVencimiento(false);
+      setOrden("0");
       onCreado();
       onCerrar();
     },
@@ -113,6 +121,9 @@ function DialogCrearValor({
       setDescripcion("");
       setClaseVehiculoId("");
       setCodigoAbreviado("");
+      setAlcance("INDIVIDUAL");
+      setRequiereVencimiento(false);
+      setOrden("0");
       onCerrar();
     }
   }
@@ -129,6 +140,9 @@ function DialogCrearValor({
       descripcion: descripcion.trim() || undefined,
       claseVehiculoReferenciaId: esCarroceria ? Number(claseVehiculoId) : undefined,
       codigoAbreviado: usaAbreviatura ? codigoAbreviado.trim().toUpperCase() : undefined,
+      alcance: esTipoDocumento ? alcance : undefined,
+      requiereVencimiento: esTipoDocumento ? requiereVencimiento : undefined,
+      orden: esTipoDocumento ? Number(orden) || 0 : undefined,
     });
   }
 
@@ -205,6 +219,45 @@ function DialogCrearValor({
               </div>
             ) : null}
 
+            {esTipoDocumento ? (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="form-alcance">Alcance</Label>
+                  <Select value={alcance} onValueChange={(v) => setAlcance(v as "INDIVIDUAL" | "COMPARTIDO")}>
+                    <SelectTrigger id="form-alcance" className="w-full">
+                      <SelectValue placeholder="Selecciona el alcance" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                      <SelectItem value="COMPARTIDO">Compartido (Global)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2.5 py-1">
+                  <Checkbox
+                    id="form-requiere-vencimiento"
+                    checked={requiereVencimiento}
+                    onCheckedChange={(checked) => setRequiereVencimiento(!!checked)}
+                  />
+                  <Label htmlFor="form-requiere-vencimiento" className="cursor-pointer text-sm font-medium">
+                    Requiere fecha de vencimiento
+                  </Label>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="form-orden">Orden de visualizacion</Label>
+                  <Input
+                    id="form-orden"
+                    type="number"
+                    value={orden}
+                    onChange={(e) => setOrden(e.target.value)}
+                    placeholder="Ej. 10"
+                  />
+                </div>
+              </>
+            ) : null}
+
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="form-descripcion">Descripcion (opcional)</Label>
               <Textarea
@@ -250,12 +303,16 @@ function DialogEditarValor({
   onActualizado: () => void;
 }) {
   const esCarroceria = tipoCatalogo === "CARROCERIA";
+  const esTipoDocumento = tipoCatalogo === "TIPO_DOCUMENTO";
   const usaAbreviatura = esCarroceria || tipoCatalogo === "CLASE_VEHICULO";
   const longitudAbreviatura = esCarroceria ? 2 : 1;
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [claseVehiculoId, setClaseVehiculoId] = useState("");
   const [codigoAbreviado, setCodigoAbreviado] = useState("");
+  const [alcance, setAlcance] = useState<"INDIVIDUAL" | "COMPARTIDO">("INDIVIDUAL");
+  const [requiereVencimiento, setRequiereVencimiento] = useState(false);
+  const [orden, setOrden] = useState("0");
   const [error, setError] = useState<string | null>(null);
   const [itemActualId, setItemActualId] = useState<number | null>(null);
 
@@ -274,6 +331,9 @@ function DialogEditarValor({
       item?.claseVehiculoReferenciaId ? String(item.claseVehiculoReferenciaId) : ""
     );
     setCodigoAbreviado(item?.codigoAbreviado ?? "");
+    setAlcance(item?.alcance ?? "INDIVIDUAL");
+    setRequiereVencimiento(item?.requiereVencimiento ?? false);
+    setOrden(String(item?.orden ?? 0));
     setError(null);
   }
 
@@ -308,6 +368,9 @@ function DialogEditarValor({
         descripcion: descripcion.trim(),
         claseVehiculoReferenciaId: esCarroceria ? Number(claseVehiculoId) : undefined,
         codigoAbreviado: usaAbreviatura ? codigoAbreviado.trim().toUpperCase() : undefined,
+        alcance: esTipoDocumento ? alcance : undefined,
+        requiereVencimiento: esTipoDocumento ? requiereVencimiento : undefined,
+        orden: esTipoDocumento ? Number(orden) || 0 : undefined,
       },
     });
   }
@@ -394,6 +457,45 @@ function DialogEditarValor({
                   El cambio aplica solo a codigos que se generen desde ahora.
                 </p>
               </div>
+            ) : null}
+
+            {esTipoDocumento ? (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="form-editar-alcance">Alcance</Label>
+                  <Select value={alcance} onValueChange={(v) => setAlcance(v as "INDIVIDUAL" | "COMPARTIDO")}>
+                    <SelectTrigger id="form-editar-alcance" className="w-full">
+                      <SelectValue placeholder="Selecciona el alcance" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="INDIVIDUAL">Individual</SelectItem>
+                      <SelectItem value="COMPARTIDO">Compartido (Global)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2.5 py-1">
+                  <Checkbox
+                    id="form-editar-requiere-vencimiento"
+                    checked={requiereVencimiento}
+                    onCheckedChange={(checked) => setRequiereVencimiento(!!checked)}
+                  />
+                  <Label htmlFor="form-editar-requiere-vencimiento" className="cursor-pointer text-sm font-medium">
+                    Requiere fecha de vencimiento
+                  </Label>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="form-editar-orden">Orden de visualizacion</Label>
+                  <Input
+                    id="form-editar-orden"
+                    type="number"
+                    value={orden}
+                    onChange={(e) => setOrden(e.target.value)}
+                    placeholder="Ej. 10"
+                  />
+                </div>
+              </>
             ) : null}
 
             <div className="flex flex-col gap-1.5">
@@ -559,6 +661,7 @@ export function CatalogoValoresListado({
   notaSoloLectura,
 }: PropsCatalogoValoresListado) {
   const esCarroceria = tipoCatalogo === "CARROCERIA";
+  const esTipoDocumento = tipoCatalogo === "TIPO_DOCUMENTO";
   const muestraAbreviatura = esCarroceria || tipoCatalogo === "CLASE_VEHICULO";
   const [estadoFiltro, setEstadoFiltro] = useState<"TODOS" | "true" | "false">(
     "true"
@@ -655,7 +758,14 @@ export function CatalogoValoresListado({
                   <TableHead className="w-[20%]">Nombre</TableHead>
                   {muestraAbreviatura ? <TableHead className="w-[12%]">Abrev.</TableHead> : null}
                   {esCarroceria ? <TableHead className="w-[16%]">Clase</TableHead> : null}
-                  <TableHead className={esCarroceria ? "w-[22%]" : "w-[32%]"}>
+                  {esTipoDocumento ? (
+                    <>
+                      <TableHead className="w-[15%]">Alcance</TableHead>
+                      <TableHead className="w-[15%]">Req. Venc.</TableHead>
+                      <TableHead className="w-[10%]">Orden</TableHead>
+                    </>
+                  ) : null}
+                  <TableHead className={esCarroceria || esTipoDocumento ? "w-[22%]" : "w-[32%]"}>
                     Descripcion
                   </TableHead>
                   <TableHead className="w-[18%]">Estado</TableHead>
@@ -666,7 +776,7 @@ export function CatalogoValoresListado({
                 {consulta.isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
                     <TableRow key={i}>
-                      <TableCell colSpan={esCarroceria ? 7 : muestraAbreviatura ? 6 : 5}>
+                      <TableCell colSpan={esCarroceria ? 7 : esTipoDocumento ? 8 : muestraAbreviatura ? 6 : 5}>
                         <Skeleton className="h-7 w-full" />
                       </TableCell>
                     </TableRow>
@@ -674,7 +784,7 @@ export function CatalogoValoresListado({
                 ) : valores.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={esCarroceria ? 7 : muestraAbreviatura ? 6 : 5}
+                      colSpan={esCarroceria ? 7 : esTipoDocumento ? 8 : muestraAbreviatura ? 6 : 5}
                       className="h-28 text-center text-muted-foreground"
                     >
                       No hay valores para los filtros aplicados.
@@ -733,6 +843,21 @@ export function CatalogoValoresListado({
                         <TableCell className="truncate text-sm text-muted-foreground">
                           {item.claseVehiculoReferenciaNombre ?? "—"}
                         </TableCell>
+                      ) : null}
+                      {esTipoDocumento ? (
+                        <>
+                          <TableCell className="text-sm">
+                            <Badge variant="outline">
+                              {item.alcance === "COMPARTIDO" ? "Compartido" : "Individual"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {item.requiereVencimiento ? "Sí" : "No"}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {item.orden ?? 0}
+                          </TableCell>
+                        </>
                       ) : null}
                       <TableCell className="truncate text-sm text-muted-foreground">
                         {item.descripcion ?? "—"}

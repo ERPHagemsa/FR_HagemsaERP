@@ -80,7 +80,7 @@ import {
   obtenerActivosListado,
   type ListadoActivosParams,
 } from "../servicios/activos-api";
-import { resolverEtiquetaPorToken } from "../servicios/etiquetas-api";
+import { obtenerEtiquetaPorId, resolverEtiquetaPorToken } from "../servicios/etiquetas-api";
 import { exportarMaestroActivosExcel } from "../servicios/activos-maestro-excel";
 import { LectorQrEtiqueta } from "./lector-qr-etiqueta";
 import type {
@@ -415,10 +415,17 @@ export function ActivosTabla() {
     }
   }
 
-  async function buscarActivoPorQr(token: string) {
+  async function buscarActivoPorQr(
+    identificador:
+      | { tipo: "token"; valor: string }
+      | { tipo: "id"; valor: number },
+  ) {
     setLectorQrAbierto(false);
     try {
-      const etiqueta = await resolverEtiquetaPorToken(token);
+      const etiqueta =
+        identificador.tipo === "token"
+          ? await resolverEtiquetaPorToken(identificador.valor)
+          : await obtenerEtiquetaPorId(identificador.valor);
       if (!etiqueta.activo) {
         toast.error("La etiqueta fue encontrada, pero aun no esta vinculada a un activo.");
         return;
@@ -960,7 +967,7 @@ export function ActivosTabla() {
       <LectorQrEtiqueta
         abierto={lectorQrAbierto}
         onCerrar={() => setLectorQrAbierto(false)}
-        onTokenLeido={(token) => void buscarActivoPorQr(token)}
+        onTokenLeido={(identificador) => void buscarActivoPorQr(identificador)}
         titulo="Buscar activo por QR"
         descripcion="Toma una foto del QR de la unidad para abrir su ficha de consulta."
       />

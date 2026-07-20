@@ -50,15 +50,30 @@ if [ -n "${API_GATEWAY_URL}" ]; then
   VARS="${VARS},API_GATEWAY_URL=${API_GATEWAY_URL}"
 fi
 
-# Env vars de BUILD: las NEXT_PUBLIC_* se "inlinean" en `next build`, NO en
-# runtime, asi que van aca (no en --set-env-vars). No hay NEXT_PUBLIC_ de
-# backend (esas son server-only). La unica es la clave de Google Maps del
-# selector de ubicaciones: config PUBLICA del cliente, protegida por
-# restriccion de referrer/API en Google Cloud, no por secreto. Es OPCIONAL: si
-# falta, el mapa se deshabilita y los campos se completan a mano.
-BUILD_VARS="NODE_ENV=${NODE_ENV}"
+# Env vars de BUILD: las NEXT_PUBLIC_* se "inlinean" durante `next build`, no
+# existen en runtime, asi que tienen que estar en el entorno del build.
+#
+# NO se pueden pasar con --set-build-env-vars: cuando el source deploy encuentra
+# un Dockerfile, gcloud construye por la ruta Docker, y en esa ruta las build env
+# vars se DESCARTAN sin aviso (solo viajan por la ruta buildpacks; el mensaje
+# DockerBuild de la API no tiene donde ponerlas). El deploy sale verde y la var
+# llega vacia al bundle.
+#
+# Por eso se escriben en .env.production, que Next lee durante el build.
+# .gcloudignore y .dockerignore excluyen .env* pero re-incluyen este archivo con
+# "!.env.production". Es efimero (lo borra el trap) y .gitignore lo cubre.
+if [ -e .env.production ]; then
+  echo "Ya existe .env.production y deploy.sh lo genera. Movelo o borralo y volve a correr."
+  exit 1
+fi
+trap 'rm -f .env.production' EXIT
+
+# La unica NEXT_PUBLIC_ es la clave de Google Maps del selector de ubicaciones:
+# config PUBLICA del cliente, protegida por restriccion de referrer/API en Google
+# Cloud, no por secreto. Es OPCIONAL: si falta, el mapa se deshabilita y los
+# campos se completan a mano.
 if [ -n "${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}" ]; then
-  BUILD_VARS="${BUILD_VARS},NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}"
+  printf 'NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=%s\n' "${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}" > .env.production
 else
   echo "Aviso: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY no esta definida; el mapa del selector de ubicaciones quedara deshabilitado (los campos se completan a mano)."
 fi
@@ -67,5 +82,4 @@ gcloud run deploy front-ddd \
   --source . \
   --region=us-central1 \
   --clear-base-image \
-  --set-build-env-vars="${BUILD_VARS}" \
   --set-env-vars="${VARS}"

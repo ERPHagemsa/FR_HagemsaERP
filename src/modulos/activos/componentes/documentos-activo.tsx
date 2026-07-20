@@ -3,14 +3,29 @@
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { IconExternalLink, IconFilePlus, IconFileUpload, IconTrash } from "@tabler/icons-react";
+import {
+  IconExternalLink,
+  IconFilePlus,
+  IconFileUpload,
+  IconTrash,
+  IconUsersPlus,
+} from "@tabler/icons-react";
 
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/compartido/componentes/ui/dialog";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
+import { Textarea } from "@/compartido/componentes/ui/textarea";
 import {
   Table,
   TableBody,
@@ -28,6 +43,7 @@ import {
   useCrearDocumentoActivoMutation,
   useEliminarDocumentoActivoMutation,
   useQuitarCoberturaDocumentoCompartidoMutation,
+  useAgregarCoberturasDocumentoCompartidoMutation,
 } from "../servicios/activos-queries";
 import type {
   DocumentoActivo,
@@ -101,6 +117,55 @@ export function DocumentosActivo({
     codigo,
     origen
   );
+  const agregarCoberturasMutation =
+    useAgregarCoberturasDocumentoCompartidoMutation(codigo, origen);
+  // Documento compartido al que se le estan agregando activos (null = modal cerrado).
+  const [coberturaDoc, setCoberturaDoc] =
+    React.useState<DocumentoActivo | null>(null);
+  const [identificadoresTexto, setIdentificadoresTexto] = React.useState("");
+
+  async function agregarCoberturas() {
+    if (!coberturaDoc) return;
+    // Acepta placas/codigos separados por coma, espacio o salto de linea.
+    const identificadores = identificadoresTexto
+      .split(/[\s,;]+/)
+      .map((valor) => valor.trim())
+      .filter((valor) => valor.length > 0);
+
+    if (identificadores.length === 0) {
+      toast.error("Escribe al menos una placa o codigo.");
+      return;
+    }
+
+    try {
+      const resultado = await agregarCoberturasMutation.mutateAsync({
+        documentoCompartidoId: coberturaDoc.id,
+        identificadores,
+      });
+      const partes: string[] = [];
+      if (resultado.agregados) partes.push(`${resultado.agregados} agregado(s)`);
+      if (resultado.yaCubiertos)
+        partes.push(`${resultado.yaCubiertos} ya cubierto(s)`);
+      if (resultado.sinActivo)
+        partes.push(`${resultado.sinActivo} sin activo`);
+      toast.success(`Coberturas actualizadas: ${partes.join(", ") || "sin cambios"}.`);
+      if (resultado.sinActivo) {
+        const noResueltos = resultado.detalles
+          .filter((detalle) => detalle.estado === "SIN_ACTIVO")
+          .map((detalle) => detalle.identificador)
+          .join(", ");
+        toast.warning(`Sin activo: ${noResueltos}`);
+      }
+      setCoberturaDoc(null);
+      setIdentificadoresTexto("");
+      onCambio?.();
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        extraerMensajeError(error, "No se pudieron agregar las coberturas.")
+      );
+    }
+  }
 
   const documentosLocales = React.useMemo(() => {
     const documentosCreados =
@@ -126,12 +191,17 @@ export function DocumentosActivo({
     });
   }, [codigo, documentos, documentosOptimistas]);
 
-  // Maestro Documentario: tipos disponibles, alcance y vencimiento obligatorio.
   React.useEffect(() => {
     let activo = true;
     obtenerTiposDocumento()
       .then((tipos) => {
-        if (activo) setTiposMaestro(tipos);
+        if (activo) {
+          setTiposMaestro(tipos);
+          const primerTipo = tipos.filter((t) => t.activo)[0]?.codigo;
+          if (primerTipo) {
+            setTipoSeleccionado(primerTipo);
+          }
+        }
       })
       .catch(() => {
         // Si falla, se usa la lista de respaldo (comportamiento anterior).
@@ -491,20 +561,36 @@ export function DocumentosActivo({
                 </TableCell>
                 {editable ? (
                   <TableCell className="text-center">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      disabled={deletingId === documento.id}
-                      onClick={() => eliminarDocumento(documento)}
-                    >
-                      <IconTrash />
-                      {deletingId === documento.id
-                        ? "Quitando..."
-                        : documento.alcance === "COMPARTIDO"
-                          ? "Quitar"
-                          : "Eliminar"}
-                    </Button>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      {documento.alcance === "COMPARTIDO" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setCoberturaDoc(documento);
+                            setIdentificadoresTexto("");
+                          }}
+                        >
+                          <IconUsersPlus />
+                          Agregar
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={deletingId === documento.id}
+                        onClick={() => eliminarDocumento(documento)}
+                      >
+                        <IconTrash />
+                        {deletingId === documento.id
+                          ? "Quitando..."
+                          : documento.alcance === "COMPARTIDO"
+                            ? "Quitar"
+                            : "Eliminar"}
+                      </Button>
+                    </div>
                   </TableCell>
                 ) : null}
               </TableRow>
@@ -522,6 +608,61 @@ export function DocumentosActivo({
           </TableBody>
         </Table>
       </div>
+
+      <Dialog
+        open={coberturaDoc !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) {
+            setCoberturaDoc(null);
+            setIdentificadoresTexto("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar activos al documento compartido</DialogTitle>
+            <DialogDescription>
+              {coberturaDoc
+                ? `Este documento (${formatear(
+                    coberturaDoc.tipoDocumento
+                  )}) cubre ${coberturaDoc.coberturaTotal ?? 1} activo(s). ` +
+                  "Escribe las placas o codigos de los activos a agregar, separados por coma, espacio o salto de linea."
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Label htmlFor="cobertura-identificadores">Placas o codigos</Label>
+            <Textarea
+              id="cobertura-identificadores"
+              rows={4}
+              placeholder="ABC-123, DEF-456, HG-CAM-001"
+              value={identificadoresTexto}
+              onChange={(event) => setIdentificadoresTexto(event.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setCoberturaDoc(null);
+                setIdentificadoresTexto("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={agregarCoberturas}
+              disabled={agregarCoberturasMutation.isPending}
+            >
+              {agregarCoberturasMutation.isPending
+                ? "Agregando..."
+                : "Agregar activos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

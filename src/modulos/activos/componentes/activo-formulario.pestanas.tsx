@@ -26,6 +26,7 @@ import { formatLabel, toDateInputValue } from "./activo-formulario.utilidades";
 
 export function TabVehiculo({
   activo,
+  isEdit,
   catalogos,
   claseVehiculoSeleccionadaId,
   onClaseChange,
@@ -35,6 +36,7 @@ export function TabVehiculo({
   onCarroceriaChange,
 }: {
   activo?: Activo;
+  isEdit: boolean;
   catalogos: CatalogosActivos;
   claseVehiculoSeleccionadaId: number | null;
   onClaseChange: (nuevaClaseId: number | null) => void;
@@ -81,7 +83,7 @@ export function TabVehiculo({
             ))}
           </select>
         </label>
-        <Field name="placa" label="Placa" placeholder="BTZ-750" defaultValue={activo?.vehiculo?.placa ?? undefined} />
+        <Field name="placa" label="Placa" placeholder="BTZ-750" defaultValue={activo?.vehiculo?.placa ?? undefined} disabled={isEdit} />
         <Field name="marca" label="Marca" placeholder="TOYOTA" defaultValue={activo?.vehiculo?.marca ?? undefined} />
         <Field name="modelo" label="Modelo" placeholder="HILUX" defaultValue={activo?.vehiculo?.modelo ?? undefined} />
       </div>
@@ -160,6 +162,19 @@ export function TabVehiculo({
           label="Zona registral"
           placeholder="Zona Registral N XII - Sede Arequipa"
           defaultValue={activo?.vehiculo?.zonaRegistral ?? undefined}
+        />
+        <Field
+          name="tarjetaPropiedad"
+          label="Tarjeta propiedad"
+          placeholder="N de tarjeta de propiedad"
+          defaultValue={activo?.vehiculo?.tarjetaPropiedad ?? undefined}
+        />
+        <SelectField
+          name="tipoTarjetaPropiedad"
+          label="Tipo tarjeta propiedad"
+          defaultValue={activo?.vehiculo?.tipoTarjetaPropiedad ?? ""}
+          values={["ELECTRONICA", "FISICA"]}
+          labels={{ ELECTRONICA: "Electronica", FISICA: "Fisica" }}
         />
       </div>
       <div className="grid gap-4 pt-4 md:grid-cols-2">

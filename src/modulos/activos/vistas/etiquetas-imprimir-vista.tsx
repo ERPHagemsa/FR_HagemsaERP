@@ -21,10 +21,10 @@ import { urlEtiquetaQr } from "../utilidades/etiqueta-qr";
 /**
  * Hoja de impresion de etiquetas QR. Recibe `?ids=1,2,3` (ids de etiqueta) y
  * renderiza una cuadricula de rotulos listos para imprimir/recortar. El QR se
- * genera en el navegador a partir del `token` (el dominio lo pone el front, no
- * el back; ver `urlEtiquetaQr`). No se guarda imagen en BD. Sirve tanto para la
- * impresion inicial del lote como para reimprimir una etiqueta puntual (mismo
- * token = mismo QR, la reimpresion no cambia datos).
+ * genera en el navegador a partir del `id` de la etiqueta, apuntando al servicio
+ * de inventario (ver `urlEtiquetaQr`). No se guarda imagen en BD. Sirve tanto
+ * para la impresion inicial del lote como para reimprimir una etiqueta puntual
+ * (mismo id = mismo QR, la reimpresion no cambia datos).
  */
 export function EtiquetasImprimirVista() {
   const searchParams = useSearchParams();
@@ -128,7 +128,7 @@ export function EtiquetasImprimirVista() {
                   HAGEMSA · Activos
                 </span>
                 <QRCodeSVG
-                  value={urlEtiquetaQr(item.token)}
+                  value={urlEtiquetaQr(item.id)}
                   size={140}
                   level="M"
                   marginSize={1}

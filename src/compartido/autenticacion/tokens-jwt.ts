@@ -24,8 +24,8 @@ export interface PayloadAccessToken {
   readonly sub: string
   readonly jti: string
   readonly email: string
-  // Nombre de usuario (identificador alterno al email). Opcional: tokens
-  // emitidos antes de habilitar el login por usuario pueden no traerlo.
+  // Nombre de usuario: la unica llave de acceso (el correo dejo de ser unico).
+  // Opcional: tokens emitidos antes de habilitarlo pueden no traerlo.
   readonly username?: string
   // TipoCuenta del dominio: "interno" | "cliente" | "proveedor"
   readonly type: string

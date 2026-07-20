@@ -43,7 +43,9 @@ import {
   obtenerCarroceriasReferencia,
   obtenerSiguienteCorrelativo,
   registrarConfiguracionHistoricaPorCodigo,
+  obtenerTiposDocumento,
 } from "../servicios/activos-api";
+import type { TipoDocumentoMaestro } from "../tipos/carga-masiva.tipos";
 import {
   obtenerAsignacionesContratosFlota,
   type AsignacionContratoFlota,
@@ -165,6 +167,49 @@ export function ActivoFormulario({
   const [activeTab, setActiveTab] = React.useState("base");
   const [tipoDocumentoDraft, setTipoDocumentoDraft] =
     React.useState("SOAT");
+  const [tiposMaestro, setTiposMaestro] = React.useState<TipoDocumentoMaestro[]>([]);
+
+  React.useEffect(() => {
+    let active = true;
+    obtenerTiposDocumento().then((tipos) => {
+      if (active) {
+        setTiposMaestro(tipos);
+        const primerTipo = tipos.filter((t) => t.activo)[0]?.codigo;
+        if (primerTipo) {
+          setTipoDocumentoDraft(primerTipo);
+        }
+      }
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const opcionesTipo = React.useMemo(() => {
+    if (tiposMaestro.length > 0) {
+      return tiposMaestro
+        .filter((tipo) => tipo.activo)
+        .map((tipo) => tipo.codigo);
+    }
+    return [
+      "SOAT",
+      "POLIZA",
+      "TARJETA_PROPIEDAD",
+      "FACTURA",
+      "MANUAL",
+      "REVISION_TECNICA",
+      "CERTIFICADO",
+      "OTRO",
+    ];
+  }, [tiposMaestro]);
+
+  const labelsTipo = React.useMemo(() => {
+    if (tiposMaestro.length > 0) {
+      return Object.fromEntries(
+        tiposMaestro.map((tipo) => [tipo.codigo, tipo.nombre])
+      );
+    }
+    return {};
+  }, [tiposMaestro]);
+
   const catalogos = useCatalogosActivos();
   const [tipoActivoSeleccionadoId, setTipoActivoSeleccionadoId] =
     React.useState<number>(
@@ -750,8 +795,10 @@ export function ActivoFormulario({
             zonaRegistral: puedeGuardarTab("vehiculo")
               ? texto("zonaRegistral")
               : null,
-            tarjetaPropiedad: null,
-            tipoTarjetaPropiedad: puedeGuardarTab("documentos")
+            tarjetaPropiedad: puedeGuardarTab("vehiculo")
+              ? texto("tarjetaPropiedad")
+              : null,
+            tipoTarjetaPropiedad: puedeGuardarTab("vehiculo")
               ? texto("tipoTarjetaPropiedad")
               : null,
             ejes: puedeGuardarTab("vehiculo") ? numero("ejes") : null,
@@ -1178,6 +1225,7 @@ export function ActivoFormulario({
             <TabsContent forceMount value="vehiculo" className="mt-0 data-[state=inactive]:hidden">
               <TabVehiculo
                 activo={activo}
+                isEdit={isEdit}
                 catalogos={catalogos}
                 claseVehiculoSeleccionadaId={claseVehiculoSeleccionadaId}
                 onClaseChange={cambiarClaseVehiculo}
@@ -1300,19 +1348,12 @@ export function ActivoFormulario({
                     >
                       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         <SelectField
+                          key={opcionesTipo.join(",")}
                           name="tipoDocumento"
                           label="Tipo documento"
-                          defaultValue="SOAT"
-                          values={[
-                            "SOAT",
-                            "POLIZA",
-                            "TARJETA_PROPIEDAD",
-                            "FACTURA",
-                            "MANUAL",
-                            "REVISION_TECNICA",
-                            "CERTIFICADO",
-                            "OTRO",
-                          ]}
+                          defaultValue={opcionesTipo[0] || "SOAT"}
+                          values={opcionesTipo}
+                          labels={labelsTipo}
                           onChange={(value) => setTipoDocumentoDraft(value)}
                           required
                         />
@@ -1335,16 +1376,6 @@ export function ActivoFormulario({
                           readOnly
                           className="cursor-default bg-muted/40 text-muted-foreground"
                         />
-                        {tipoActivoSeleccionadoId === TIPO_ACTIVO_VEHICULO_ID &&
-                        tipoDocumentoDraft === "TARJETA_PROPIEDAD" ? (
-                          <SelectField
-                            name="tipoTarjetaPropiedad"
-                            label="Tipo tarjeta propiedad"
-                            defaultValue={activo?.vehiculo?.tipoTarjetaPropiedad ?? ""}
-                            values={["ELECTRONICA", "FISICA"]}
-                            labels={{ ELECTRONICA: "Electronica", FISICA: "Fisica" }}
-                          />
-                        ) : null}
                       </div>
                       <Field
                         name="observacionDocumento"
@@ -1430,7 +1461,10 @@ export function ActivoFormulario({
         {/* La etiqueta es un identificador operativo: se consulta antes del
             resumen y solo existe cuando el activo ya fue creado. */}
         {isEdit && activo?.id ? (
-          <EtiquetaActivoSeccion activoId={activo.id} />
+          <EtiquetaActivoSeccion
+            activoId={activo.id}
+            activoDeBaja={estadoActivoGrupo === "BAJA"}
+          />
         ) : null}
         <ResumenRegistro
           activeTab={activeTab}

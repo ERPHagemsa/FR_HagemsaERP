@@ -1,6 +1,7 @@
 import { clienteActivos } from "@/compartido/api/clientes-backend";
 
 import type {
+  ActualizarDatosOperativosDetallePayload,
   ActualizarObservacionesDetallePayload,
   CandidatoInspeccion,
   CandidatoInspeccionFiltro,
@@ -81,6 +82,18 @@ export async function actualizarObservacionesDetalle(
 ): Promise<Inspeccion> {
   const { data } = await clienteActivos.patch<Inspeccion>(
     `/activos/inspecciones/${inspeccionId}/detalles/${detalleId}`,
+    payload
+  );
+  return data;
+}
+
+export async function actualizarDatosOperativosDetalle(
+  inspeccionId: number,
+  detalleId: number,
+  payload: ActualizarDatosOperativosDetallePayload
+): Promise<Inspeccion> {
+  const { data } = await clienteActivos.patch<Inspeccion>(
+    `/activos/inspecciones/${inspeccionId}/detalles/${detalleId}/datos-operativos`,
     payload
   );
   return data;

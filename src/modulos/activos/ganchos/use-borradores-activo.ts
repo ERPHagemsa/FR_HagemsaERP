@@ -17,9 +17,11 @@ import type {
 export function useBorradoresActivo({
   setActiveTab,
   actualizarResumen,
+  validarDocumento,
 }: {
   setActiveTab: (tab: string) => void;
   actualizarResumen: () => void;
+  validarDocumento?: (documento: CrearDocumentoActivoPayload) => string | null;
 }) {
   const [documentosPendientes, setDocumentosPendientes] = React.useState<
     CrearDocumentoActivoPayload[]
@@ -67,18 +69,24 @@ export function useBorradoresActivo({
       return;
     }
 
-    setDocumentosPendientes((items) => [
-      ...items,
-      {
-        tipoDocumento: getValue("tipoDocumento") as TipoDocumentoActivo,
-        numero: numeroDocumento,
-        fechaEmision,
-        fechaVencimiento: fechaVencimiento || undefined,
-        archivoUrl,
-        usuarioCarga: getValue("usuarioCarga") || "usuario.activos",
-        observacion: observacion || undefined,
-      },
-    ]);
+    const documento: CrearDocumentoActivoPayload = {
+      tipoDocumento: getValue("tipoDocumento") as TipoDocumentoActivo,
+      numero: numeroDocumento,
+      fechaEmision,
+      fechaVencimiento: fechaVencimiento || undefined,
+      archivoUrl,
+      usuarioCarga: getValue("usuarioCarga") || "usuario.activos",
+      observacion: observacion || undefined,
+    };
+
+    const errorDocumento = validarDocumento?.(documento);
+    if (errorDocumento) {
+      setActiveTab("documentos");
+      toast.error(errorDocumento);
+      return;
+    }
+
+    setDocumentosPendientes((items) => [...items, documento]);
 
     setSelectedDocFileName("");
     setLocalDocUrl("");

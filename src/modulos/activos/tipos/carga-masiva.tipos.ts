@@ -64,15 +64,7 @@ export type FilaPrevisualizada = {
 
 // ---- Carga masiva de documentos ----
 
-export type TipoDocumentoCarga =
-  | "SOAT"
-  | "POLIZA"
-  | "TARJETA_PROPIEDAD"
-  | "REVISION_TECNICA"
-  | "FACTURA"
-  | "CERTIFICADO"
-  | "MANUAL"
-  | "OTRO";
+export type TipoDocumentoCarga = string;
 
 export type EstadoArchivoMasivo = "ASOCIADO" | "SIN_ACTIVO" | "ERROR";
 

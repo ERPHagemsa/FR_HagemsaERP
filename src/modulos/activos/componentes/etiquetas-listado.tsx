@@ -221,12 +221,12 @@ function DialogLoteGenerado({
               <Card key={etiqueta.id}>
                 <CardContent className="flex items-center gap-4 pt-5">
                   <div className="rounded-lg border border-border bg-white p-2">
-                    <QRCodeSVG value={urlEtiquetaQr(etiqueta.token)} size={64} />
+                    <QRCodeSVG value={urlEtiquetaQr(etiqueta.id)} size={64} />
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-sm font-semibold">{etiqueta.codigo}</span>
                     <span className="text-xs text-muted-foreground break-all">
-                      {urlEtiquetaQr(etiqueta.token)}
+                      {urlEtiquetaQr(etiqueta.id)}
                     </span>
                   </div>
                 </CardContent>

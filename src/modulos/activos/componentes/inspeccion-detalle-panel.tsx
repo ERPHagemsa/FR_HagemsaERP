@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { extraerMensajeError } from "@/compartido/api/formato-error";
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -74,7 +75,11 @@ import {
   useCandidatosInspeccionQuery,
   useSnapshotDetalleInspeccionQuery,
 } from "../servicios/inspeccion-queries";
-import { actualizarObservacionesDetalle } from "../servicios/inspeccion-api";
+import {
+  actualizarDatosOperativosDetalle,
+  actualizarObservacionesDetalle,
+} from "../servicios/inspeccion-api";
+import { obtenerEtiquetaPorId } from "../servicios/etiquetas-api";
 import type {
   CandidatoInspeccion,
   FormatoExportacionInspeccion,
@@ -242,10 +247,10 @@ export function InspeccionDetallePanel({
           <AlertDialogHeader>
             <AlertDialogTitle>Cerrar inspeccion</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta accion no es reversible: despues del cierre no se podran
-              agregar o editar activos, observaciones ni imagenes. La
-              inspeccion quedara disponible en modo solo lectura para consulta
-              y exportacion.
+              Una vez cerrada, la inspeccion <strong>no se puede reabrir</strong>.
+              No se podran agregar ni editar activos, observaciones ni imagenes;
+              quedara disponible solo en modo lectura para consulta y
+              exportacion. Asegurate de haber registrado todo antes de continuar.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -629,9 +634,21 @@ function ModalRegistrarActivos({
       <LectorQrEtiqueta
         abierto={lectorQrAbierto}
         onCerrar={() => setLectorQrAbierto(false)}
-        onTokenLeido={(token) => {
-          setEtiqueta(token);
-          setLectorQrAbierto(false);
+        onTokenLeido={(identificador) => {
+          if (identificador.tipo === "token") {
+            setEtiqueta(identificador.valor);
+            setLectorQrAbierto(false);
+            return;
+          }
+
+          void obtenerEtiquetaPorId(identificador.valor)
+            .then((etiqueta) => {
+              setEtiqueta(etiqueta.codigo);
+              setLectorQrAbierto(false);
+            })
+            .catch((error) => {
+              toast.error(extraerMensajeError(error, "No se pudo resolver la etiqueta."));
+            });
         }}
         titulo="Escanear activo"
         descripcion="Toma una foto clara del QR del activo para buscarlo directamente."
@@ -672,6 +689,50 @@ function FichaInspeccionActivo({
         .map((observacion) => observacion.texto)
     );
   }, [detalle]);
+
+  // Datos operativos editables (el propietario NO se edita: viene del
+  // manifiesto). Se pre-llenan con lo que trajo el endpoint al registrar y se
+  // pueden corregir mientras la inspeccion este abierta.
+  const [datosOp, setDatosOp] = React.useState({
+    ubicacion: "",
+    conductor: "",
+    cuenta: "",
+  });
+  const [guardandoDatosOp, setGuardandoDatosOp] = React.useState(false);
+
+  React.useEffect(() => {
+    const op = snapshot?.datosOperativos;
+    setDatosOp({
+      ubicacion: op?.ubicacion ?? "",
+      conductor: op?.conductor ?? "",
+      cuenta: op?.cuenta ?? "",
+    });
+  }, [snapshot?.datosOperativos]);
+
+  async function guardarDatosOperativos() {
+    setGuardandoDatosOp(true);
+    try {
+      const actualizado = await actualizarDatosOperativosDetalle(
+        inspeccionId,
+        detalle.id,
+        {
+          ubicacion: datosOp.ubicacion.trim() || null,
+          conductor: datosOp.conductor.trim() || null,
+          cuenta: datosOp.cuenta.trim() || null,
+          usuario: usuarioActual,
+        }
+      );
+      toast.success("Datos operativos guardados");
+      onActualizado(actualizado);
+      void snapshotQuery.refetch();
+    } catch (err) {
+      toast.error("No se pudieron guardar los datos operativos", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setGuardandoDatosOp(false);
+    }
+  }
 
   async function guardarObservaciones() {
     setGuardandoObservaciones(true);
@@ -771,6 +832,7 @@ function FichaInspeccionActivo({
               Cargando snapshot del activo...
             </div>
           ) : (
+            <>
             <FichaGrid>
               <DatoInspeccion
                 label="Clase / Equipo"
@@ -788,23 +850,40 @@ function FichaInspeccionActivo({
                 label="Propietario"
                 value={operativos?.propietario ?? "No disponible"}
               />
-              <DatoInspeccion
-                label="Estado"
-                value={operativos?.estado ?? "No disponible"}
-              />
-              <DatoInspeccion
+              <CampoOperativoEditable
                 label="Ubicacion"
-                value={operativos?.ubicacion ?? "No disponible"}
+                value={datosOp.ubicacion}
+                onChange={(v) => setDatosOp((d) => ({ ...d, ubicacion: v }))}
+                disabled={disabled}
               />
-              <DatoInspeccion
+              <CampoOperativoEditable
                 label="Conductor"
-                value={operativos?.conductor ?? "No disponible"}
+                value={datosOp.conductor}
+                onChange={(v) => setDatosOp((d) => ({ ...d, conductor: v }))}
+                disabled={disabled}
               />
-              <DatoInspeccion
+              <CampoOperativoEditable
                 label="Cuenta"
-                value={operativos?.cuenta ?? "No disponible"}
+                value={datosOp.cuenta}
+                onChange={(v) => setDatosOp((d) => ({ ...d, cuenta: v }))}
+                disabled={disabled}
               />
-            </FichaGrid>
+              </FichaGrid>
+              {!disabled ? (
+                <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+                  <Button
+                    type="button"
+                    className="w-fit"
+                    onClick={guardarDatosOperativos}
+                    disabled={guardandoDatosOp}
+                  >
+                    {guardandoDatosOp
+                      ? "Guardando..."
+                      : "Guardar datos operativos"}
+                  </Button>
+                </div>
+              ) : null}
+            </>
           )}
         </CardContent>
       </Card>
@@ -910,6 +989,34 @@ function DatoInspeccion({
     <div className="grid gap-1">
       <span className="text-xs uppercase text-muted-foreground">{label}</span>
       <span className="font-semibold text-foreground">{display}</span>
+    </div>
+  );
+}
+
+// Campo de datos operativos: input editable con la inspeccion abierta;
+// solo lectura (mismo look que DatoInspeccion) cuando esta cerrada/anulada.
+function CampoOperativoEditable({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  if (disabled) {
+    return <DatoInspeccion label={label} value={value} />;
+  }
+  return (
+    <div className="grid gap-1">
+      <label className="text-xs uppercase text-muted-foreground">{label}</label>
+      <input
+        className="h-9 rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </div>
   );
 }

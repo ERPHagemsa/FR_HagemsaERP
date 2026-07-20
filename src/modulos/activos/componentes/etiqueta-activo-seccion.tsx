@@ -15,6 +15,7 @@ import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { LectorQrEtiqueta } from "./lector-qr-etiqueta";
 import {
   asignarEtiqueta,
+  obtenerEtiquetaPorId,
   resolverEtiquetaPorToken,
 } from "../servicios/etiquetas-api";
 import { useEtiquetasQuery } from "../servicios/etiquetas-queries";
@@ -45,7 +46,14 @@ const BADGE_TEXTO: Record<EstadoEtiqueta, string> = {
  * endpoint (slice `asignacion` en construccion) — el lector y la resolucion
  * del token ya funcionan de punta a punta.
  */
-export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
+export function EtiquetaActivoSeccion({
+  activoId,
+  activoDeBaja = false,
+}: {
+  activoId: number;
+  /** El activo esta INACTIVO o SINIESTRADO: no tiene sentido reemprimir/reemplazar su QR. */
+  activoDeBaja?: boolean;
+}) {
   const [lectorAbierto, setLectorAbierto] = useState(false);
   const [etiquetaLeida, setEtiquetaLeida] = useState<Etiqueta | null>(null);
   const [errorLectura, setErrorLectura] = useState<string | null>(null);
@@ -57,13 +65,21 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
   const etiquetaActual =
     (vinculadas.data ?? []).find((item) => item.estado === "ASIGNADA") ?? null;
 
-  async function handleTokenLeido(token: string) {
+  async function handleIdentificadorLeido(
+    identificador:
+      | { tipo: "token"; valor: string }
+      | { tipo: "id"; valor: number },
+  ) {
     setLectorAbierto(false);
     setErrorLectura(null);
     setEtiquetaLeida(null);
     setResolviendo(true);
     try {
-      setEtiquetaLeida(await resolverEtiquetaPorToken(token));
+      setEtiquetaLeida(
+        identificador.tipo === "token"
+          ? await resolverEtiquetaPorToken(identificador.valor)
+          : await obtenerEtiquetaPorId(identificador.valor),
+      );
     } catch (err) {
       setErrorLectura(extraerMensajeError(err));
     } finally {
@@ -130,6 +146,7 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
         <Button
           type="button"
           variant="outline"
+          disabled={vinculadas.isLoading || (Boolean(etiquetaActual) && activoDeBaja)}
           onClick={() => {
             setEtiquetaLeida(null);
             setErrorLectura(null);
@@ -141,6 +158,12 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
           {etiquetaActual ? "Reemplazar etiqueta" : "Vincular etiqueta QR"}
         </Button>
       </div>
+
+      {etiquetaActual && activoDeBaja ? (
+        <p className="text-xs text-muted-foreground">
+          El activo esta dado de baja: no se puede reemplazar su etiqueta QR.
+        </p>
+      ) : null}
 
       {resolviendo ? <Skeleton className="h-16 w-full" /> : null}
 
@@ -205,7 +228,7 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
       <LectorQrEtiqueta
         abierto={lectorAbierto}
         onCerrar={() => setLectorAbierto(false)}
-        onTokenLeido={(token) => void handleTokenLeido(token)}
+        onTokenLeido={(identificador) => void handleIdentificadorLeido(identificador)}
       />
     </section>
   );

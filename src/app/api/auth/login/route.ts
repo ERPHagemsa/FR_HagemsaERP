@@ -17,16 +17,16 @@ import { mapearPayloadAUsuario } from "@/compartido/autenticacion/sesion-servido
 import { decodificarAccessToken } from "@/compartido/autenticacion/tokens-jwt"
 
 type CuerpoLogin = {
-  identificador?: string
+  nombreUsuario?: string
   password?: string
 }
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as CuerpoLogin | null
 
-  if (!body?.identificador || !body.password) {
+  if (!body?.nombreUsuario || !body.password) {
     return NextResponse.json(
-      { message: "Usuario o correo y contrasena son obligatorios." },
+      { message: "Nombre de usuario y contraseña son obligatorios." },
       { status: 400 },
     )
   }
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   let tokens
   try {
     tokens = await loginContraAuthService(
-      body.identificador,
+      body.nombreUsuario,
       body.password,
       ipCliente,
       request.headers.get("user-agent"),

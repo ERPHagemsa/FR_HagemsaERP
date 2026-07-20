@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type React from "react";
 import { QrCode } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import { urlEtiquetaQr } from "../utilidades/etiqueta-qr";
 
 import { useConsulta } from "@/compartido/api/use-consulta";
 import { Badge } from "@/compartido/componentes/ui/badge";
@@ -357,6 +359,23 @@ export function ActivoDetalleVista({ codigo, accion }: Props) {
                 </FichaGrid>
               </CardContent>
             </Card>
+
+            {activo.etiquetaActual ? (
+              <Card className="flex flex-col items-center gap-4 p-5">
+                <div className="w-full">
+                  <CardTitle className="text-sm font-semibold">Etiqueta QR vinculada</CardTitle>
+                  <p className="text-xs text-muted-foreground">Código: {activo.etiquetaActual.codigo}</p>
+                </div>
+                <div className="rounded-lg bg-white p-3">
+                  <QRCodeSVG value={urlEtiquetaQr(activo.etiquetaActual.id)} size={140} />
+                </div>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href={`/activos/etiquetas/imprimir?ids=${activo.etiquetaActual.id}`}>
+                    Imprimir etiqueta
+                  </Link>
+                </Button>
+              </Card>
+            ) : null}
 
             <ActivoAccionesCicloVida activo={activo} />
           </aside>
