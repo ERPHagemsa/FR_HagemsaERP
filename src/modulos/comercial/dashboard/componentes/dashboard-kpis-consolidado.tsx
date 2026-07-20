@@ -1,16 +1,23 @@
 "use client";
 
 import type { ReactNode } from "react";
+import {
+  Banknote,
+  Coins,
+  FileText,
+  Inbox,
+  Percent,
+  Timer,
+  type LucideIcon,
+} from "lucide-react";
 
 import { extraerMensajeError } from "@/compartido/api";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
-import { Card, CardContent } from "@/compartido/componentes/ui/card";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
+import { cn } from "@/compartido/utilidades";
 import { formatearMoneda } from "@/compartido/utilidades/formato-moneda";
 import { formatearPorcentaje } from "@/compartido/utilidades/formato-porcentaje";
 
-import { AyudaMetrica } from "./ayuda-metrica";
-import { DASHBOARD_AYUDA } from "../dashboard-ayuda";
 import { useCicloCierreQuery, useKpisConsolidadoQuery } from "../servicios/dashboard-queries";
 import type {
   IdEjecutivoFiltro,
@@ -25,16 +32,20 @@ type PropsPeriodoEjecutivo = {
   idEjecutivoResponsable: IdEjecutivoFiltro;
 };
 
+const GRID_KPIS = "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6";
+
 /**
- * Tira compacta de KPIs del período (cambio de UI, pedido de producto): una
- * sola fila de tiles angostos, sin título de card ni sub-encabezados —
- * "roban espacio y son obvios". Los 4 primeros son conteos de ACTIVIDAD
- * (anclados a la creación de la solicitud) y los 3 últimos son plata CERRADA
- * (anclada a la fecha de cierre): son cohortes distintas y por eso NUNCA se
- * divide un conteo por un monto. La distinción de anclaje, antes en los
- * encabezados, ahora vive en los popovers de ayuda de "Perdidas" y "Margen".
- * La respuesta siempre trae ambos grupos, por eso no hay rama de "vacío": los
- * ceros se muestran como ceros.
+ * Strip de KPIs del período. Adopta el lenguaje visual de `CotizacionesKpis`
+ * (tarjeta con borde + ícono arriba a la derecha + descripción abajo), SIN el
+ * comportamiento de filtro clickeable: acá los KPIs son solo lectura.
+ *
+ * Cada tile es su PROPIA tarjeta (`bg-card ring-1`) en un grid, no van dentro
+ * de un card contenedor — así se evita el anidado "caja dentro de caja".
+ *
+ * Los conteos (actividad) están anclados a la creación de la solicitud y la
+ * plata (cerrado) a la fecha de cierre: son cohortes distintas y por eso nunca
+ * se divide un conteo por un monto. El tile de "Tiempo para ganar" trae su
+ * propia data (endpoint aparte), con su propio loading.
  */
 export function DashboardKpisConsolidado({
   periodo,
@@ -45,110 +56,131 @@ export function DashboardKpisConsolidado({
     idEjecutivoResponsable,
   });
 
+  if (isError) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>Error al cargar</AlertTitle>
+        <AlertDescription>
+          {extraerMensajeError(error, "No se pudo cargar el resumen del período")}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
-    <Card size="sm">
-      <CardContent>
-        {isError ? (
-          <Alert variant="destructive">
-            <AlertTitle>Error al cargar</AlertTitle>
-            <AlertDescription>
-              {extraerMensajeError(error, "No se pudo cargar el resumen del período")}
-            </AlertDescription>
-          </Alert>
-        ) : isLoading || !data ? (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-14 w-full" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            <TarjetaEntero etiqueta="Solicitudes" valor={data.actividad.totalSolicitudes} />
-            <TarjetaEntero etiqueta="Cotizadas" valor={data.actividad.cotizadas} />
-            <TarjetaMoneda etiqueta="Monto ganado" valores={data.cerrado.montoGanado} />
-            <TarjetaMoneda etiqueta="Utilidad" valores={data.cerrado.utilidad} />
-            <TarjetaMargen
+    <div className={GRID_KPIS}>
+      {isLoading || !data ? (
+        Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-[104px] w-full rounded-2xl" />
+        ))
+      ) : (
+        <>
+          <TarjetaKpi
+            etiqueta="Solicitudes"
+            descripcion="Recibidas en el período"
+            icono={Inbox}
+            claseIcono="text-sky-500"
+          >
+            <ValorSimple>{data.actividad.totalSolicitudes}</ValorSimple>
+          </TarjetaKpi>
+          <TarjetaKpi
+            etiqueta="Cotizadas"
+            descripcion="Con al menos una cotización"
+            icono={FileText}
+            claseIcono="text-indigo-500"
+          >
+            <ValorSimple>{data.actividad.cotizadas}</ValorSimple>
+          </TarjetaKpi>
+          <TarjetaKpi
+            etiqueta="Monto ganado"
+            descripcion="Facturado en ventas ganadas"
+            icono={Banknote}
+            claseIcono="text-emerald-500"
+          >
+            <ValorMoneda valores={data.cerrado.montoGanado} />
+          </TarjetaKpi>
+          <TarjetaKpi
+            etiqueta="Utilidad"
+            descripcion="Ganancia de las ventas ganadas"
+            icono={Coins}
+            claseIcono="text-teal-500"
+          >
+            <ValorMoneda valores={data.cerrado.utilidad} />
+          </TarjetaKpi>
+          <TarjetaKpi
+            etiqueta="Margen"
+            descripcion="Ganancia sobre lo que cobraste"
+            icono={Percent}
+            claseIcono="text-amber-500"
+          >
+            <ValorMargen
               montoGanado={data.cerrado.montoGanado}
               margenPct={data.cerrado.margenPct}
             />
-            <TarjetaCiclo
-              periodo={periodo}
-              idEjecutivoResponsable={idEjecutivoResponsable}
-            />
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-/** Etiqueta micro de KPI: mayúsculas, atenuada, ocupa lo mínimo. */
-function EtiquetaKpi({ children, ayuda }: { children: ReactNode; ayuda?: string }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {children}
-      </span>
-      {ayuda ? <AyudaMetrica descripcion={ayuda} /> : null}
+          </TarjetaKpi>
+        </>
+      )}
+      <TarjetaCiclo periodo={periodo} idEjecutivoResponsable={idEjecutivoResponsable} />
     </div>
   );
 }
 
 /**
- * `ayuda` es opcional: solo la usan métricas con una regla de negocio que no
- * es obvia por el nombre (p. ej. "Perdidas" excluye VENCIDA/CANCELADA).
+ * Tarjeta base del strip (estilo `CotizacionesKpis`): header con etiqueta a la
+ * izquierda + ícono coloreado a la derecha, el valor en el medio (via
+ * `children`) y una descripción llana abajo. Las clases de color del ícono se
+ * pasan como string estático (Tailwind v4 no purga strings interpolados).
  */
-function TarjetaEntero({
+function TarjetaKpi({
   etiqueta,
-  valor,
-  ayuda,
+  descripcion,
+  icono: Icono,
+  claseIcono,
+  children,
 }: {
   etiqueta: string;
-  valor: number;
-  ayuda?: string;
+  descripcion: string;
+  icono: LucideIcon;
+  claseIcono: string;
+  children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2">
-      <EtiquetaKpi ayuda={ayuda}>{etiqueta}</EtiquetaKpi>
-      <span className="text-xl font-semibold tabular-nums">{valor}</span>
+    <div className="flex h-full flex-col gap-1 rounded-2xl bg-card px-4 py-3 ring-1 ring-foreground/10">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">{etiqueta}</span>
+        <Icono className={cn("size-4 shrink-0", claseIcono)} />
+      </div>
+      {children}
+      <span className="mt-auto pt-2 text-[11px] text-muted-foreground">{descripcion}</span>
     </div>
   );
 }
 
-function TarjetaMoneda({
-  etiqueta,
-  valores,
-}: {
-  etiqueta: string;
-  valores: TotalPorMoneda;
-}) {
+function ValorSimple({ children }: { children: ReactNode }) {
+  return <span className="text-lg font-semibold tabular-nums">{children}</span>;
+}
+
+function ValorMoneda({ valores }: { valores: TotalPorMoneda }) {
   return (
-    <div className="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2">
-      <EtiquetaKpi>{etiqueta}</EtiquetaKpi>
-      <div className="flex flex-col">
-        <span className="text-sm font-semibold tabular-nums">
-          {formatearMoneda(valores.pen, "PEN")}
-        </span>
-        <span className="text-sm font-semibold tabular-nums">
-          {formatearMoneda(valores.usd, "USD")}
-        </span>
-      </div>
+    <div className="flex flex-col">
+      <span className="text-lg font-semibold tabular-nums">
+        {formatearMoneda(valores.pen, "PEN")}
+      </span>
+      <span className="text-lg font-semibold tabular-nums">
+        {formatearMoneda(valores.usd, "USD")}
+      </span>
     </div>
   );
 }
 
 /**
  * Margen por moneda: la regla mira `montoGanado`, NO `margenPct` (que es `0`
- * legítimo cuando hubo cierres sin ganancia). Si no hubo cierres en esa
- * moneda, la celda dice "Sin cierres" en vez de un `0.0%` engañoso.
- * Evaluación POR MONEDA: PEN puede tener cierres y USD no (o viceversa).
- *
- * `margenPct` llega YA en escala 0..100 (backend: `20` significa `20%`, ver
- * comentario en `dashboard.tipos.ts`). `formatearPorcentaje` asume fracción
- * 0..1, así que acá se convierte explícitamente ANTES de formatear —
- * variable nombrada `margenFraccion`, no un `/100` perdido en el JSX.
+ * legítimo cuando hubo cierres sin ganancia). Si no hubo cierres en esa moneda,
+ * dice "Sin cierres" en vez de un `0.0%` engañoso. `margenPct` llega en escala
+ * 0..100 (backend `* 100`); `formatearPorcentaje` asume fracción 0..1, por eso
+ * se convierte con una variable nombrada antes de formatear.
  */
-function TarjetaMargen({
+function ValorMargen({
   montoGanado,
   margenPct,
 }: {
@@ -159,32 +191,28 @@ function TarjetaMargen({
   const margenUsdFraccion = margenPct.usd / 100;
 
   return (
-    <div className="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2">
-      <EtiquetaKpi ayuda={DASHBOARD_AYUDA.margen}>Margen</EtiquetaKpi>
-      <div className="flex flex-col">
-        <span className="text-sm font-semibold tabular-nums">
-          {montoGanado.pen === 0 ? (
-            <span className="text-muted-foreground">Sin cierres</span>
-          ) : (
-            formatearPorcentaje(margenPenFraccion)
-          )}
-        </span>
-        <span className="text-sm font-semibold tabular-nums">
-          {montoGanado.usd === 0 ? (
-            <span className="text-muted-foreground">Sin cierres</span>
-          ) : (
-            formatearPorcentaje(margenUsdFraccion)
-          )}
-        </span>
-      </div>
+    <div className="flex flex-col">
+      <span className="text-lg font-semibold tabular-nums">
+        {montoGanado.pen === 0 ? (
+          <span className="text-sm font-normal text-muted-foreground">Sin cierres</span>
+        ) : (
+          formatearPorcentaje(margenPenFraccion)
+        )}
+      </span>
+      <span className="text-lg font-semibold tabular-nums">
+        {montoGanado.usd === 0 ? (
+          <span className="text-sm font-normal text-muted-foreground">Sin cierres</span>
+        ) : (
+          formatearPorcentaje(margenUsdFraccion)
+        )}
+      </span>
     </div>
   );
 }
 
 /**
- * Ciclo de cierre como TILE del strip (pedido de producto: al nivel de los
- * KPIs, no como widget suelto que desperdiciaba todo el ancho en un solo
- * número). Trae su propia data (`useCicloCierreQuery`) para no acoplar el
+ * "Tiempo para ganar" (antes "Ciclo de cierre"): días promedio desde que se
+ * crea una cotización hasta que se gana. Trae su propia data para no acoplar el
  * fetch de kpis-consolidado con el de ciclo — cada uno con su propio loading.
  */
 function TarjetaCiclo({ periodo, idEjecutivoResponsable }: PropsPeriodoEjecutivo) {
@@ -194,28 +222,32 @@ function TarjetaCiclo({ periodo, idEjecutivoResponsable }: PropsPeriodoEjecutivo
   });
 
   return (
-    <div className="flex flex-col gap-1 rounded-lg bg-muted/40 px-3 py-2">
-      <EtiquetaKpi ayuda={DASHBOARD_AYUDA.cicloCierre}>Ciclo de cierre</EtiquetaKpi>
+    <TarjetaKpi
+      etiqueta="Tiempo para ganar"
+      descripcion="Días desde crear hasta ganar"
+      icono={Timer}
+      claseIcono="text-violet-500"
+    >
       {isLoading || !data ? (
         <span className="text-sm text-muted-foreground">…</span>
       ) : data.cicloPromedioDias === null ? (
         <span className="text-sm text-muted-foreground">Sin cierres</span>
       ) : (
-        <>
-          <span className="text-xl font-semibold tabular-nums">
+        <div className="flex flex-col">
+          <span className="text-lg font-semibold tabular-nums">
             {data.cicloPromedioDias.toFixed(1)} días
           </span>
           <VariacionCiclo variacion={data.variacionVsMesAnterior} />
-        </>
+        </div>
       )}
-    </div>
+    </TarjetaKpi>
   );
 }
 
 /**
  * Variación del ciclo, convención "menos es mejor": delta negativo (se acortó)
  * = verde/mejora, positivo (se alargó) = rojo/deterioro. Signo crudo del
- * backend, sin invertir. `null` no renderiza nada (tile compacto).
+ * backend, sin invertir. `null` no renderiza nada.
  */
 function VariacionCiclo({ variacion }: { variacion: number | null }) {
   if (variacion === null) return null;

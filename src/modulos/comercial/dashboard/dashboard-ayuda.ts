@@ -5,8 +5,10 @@
  * verdad del texto y evitar duplicarlo entre widgets.
  */
 export const DASHBOARD_AYUDA = {
+  winRate:
+    "ganadas ÷ (ganadas + perdidas + vencidas). Solo cuenta cotizaciones ya resueltas; una vencida (caducó sin respuesta) suma como no-ganada.",
   cicloCierre:
-    "Promedio de días desde que se crea una cotización hasta que se gana. Menos días indica un cierre más rápido. La variación compara contra el período anterior.",
+    "Cuántos días tarda, en promedio, una cotización desde que se crea hasta que se gana. Menos días es mejor: significa que cerrás las ventas más rápido. La variación compara contra el período anterior.",
   tendencia:
     "Cantidad de cotizaciones ganadas o perdidas a lo largo del período. Tocá 'Ganadas' o 'Perdidas' arriba para cambiar qué serie dibuja el gráfico; los números de cada botón son el total del período. Cuenta cotizaciones, no dinero (el dinero está en los KPIs y en el ranking). Se ajusta al filtro de arriba: si el rango es corto lo muestra por día y si es largo por mes, cortando siempre en la fecha de hoy.",
   ranking:

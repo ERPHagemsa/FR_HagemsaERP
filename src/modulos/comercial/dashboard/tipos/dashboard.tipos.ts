@@ -207,11 +207,19 @@ export type RankingEjecutivoRespuesta = {
   ejecutivoNombre: string;
   ganado: TotalPorMoneda;
   pipeline: TotalPorMoneda;
-  /** Ancla CIERRE. Junto con `cantidadPerdidas` arma el denominador del `winRate` clasico. */
+  /** Ancla CIERRE. Numerador del `winRate` (= ganadas / (ganadas + perdidas + vencidas)). */
   cantidadGanadas: number;
-  /** Ancla CIERRE. Solo alimenta `winRate` — no es el denominador de las dos razones de esta fila. */
+  /** Ancla CIERRE. Parte del denominador del `winRate` (con ganadas y vencidas). El cliente rechazó. */
   cantidadPerdidas: number;
-  /** `null` sin cierres del ejecutivo en el periodo (mismo patron que WinRateRespuesta). */
+  /**
+   * Ancla CIERRE. Cotizaciones ENVIADAS que caducaron sin respuesta del
+   * cliente. Entra al denominador del `winRate`: vencer = se envió y no se
+   * cerró, cuenta como no-ganada. CANCELADA NO entra (era un borrador
+   * pre-envío que nunca compitió — el dominio solo permite cancelar desde
+   * BORRADOR).
+   */
+  cantidadVencidas: number;
+  /** `null` sin cierres terminales (ganadas + perdidas + vencidas = 0) del ejecutivo en el periodo. */
   winRate: number | null;
   /**
    * Cotizaciones con actividad en el periodo: creadas, enviadas o cerradas

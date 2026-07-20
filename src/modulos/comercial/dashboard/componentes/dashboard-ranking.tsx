@@ -95,7 +95,12 @@ export function DashboardRanking({ periodo }: Props) {
                 <TableHead>Ejecutivo</TableHead>
                 <TableHead className="text-right">Ganado</TableHead>
                 <TableHead className="text-right">Utilidad</TableHead>
-                <TableHead className="text-right">Win rate</TableHead>
+                <TableHead className="text-right">
+                  <span className="inline-flex items-center gap-1">
+                    Win rate
+                    <AyudaMetrica descripcion={DASHBOARD_AYUDA.winRate} />
+                  </span>
+                </TableHead>
                 <TableHead className="text-right">
                   <span className="inline-flex items-center gap-1">
                     Cotizados / Total
