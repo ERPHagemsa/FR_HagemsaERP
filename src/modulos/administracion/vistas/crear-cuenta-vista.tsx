@@ -186,7 +186,7 @@ export function CrearCuentaVista() {
                   <FieldDescription>
                     Se normaliza solo: minusculas y sin espacios ni tildes.
                     Puede repetirse entre cuentas. Se usa para notificaciones y
-                    para recuperar la contrasena, no para iniciar sesion.
+                    para recuperar la contraseña, no para iniciar sesion.
                   </FieldDescription>
                   <AvisoCorreoDuplicado {...avisoCorreo} />
                 </Field>

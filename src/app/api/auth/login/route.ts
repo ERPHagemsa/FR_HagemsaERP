@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
   if (!body?.nombreUsuario || !body.password) {
     return NextResponse.json(
-      { message: "Nombre de usuario y contrasena son obligatorios." },
+      { message: "Nombre de usuario y contraseña son obligatorios." },
       { status: 400 },
     )
   }
