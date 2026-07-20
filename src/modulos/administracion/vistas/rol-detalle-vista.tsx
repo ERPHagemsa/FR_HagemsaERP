@@ -91,7 +91,7 @@ function DialogEditarPermisosRol({
     () => new Set(rol.permisos),
   )
   const [busqueda, setBusqueda] = useState("")
-  const mutation = useEditarPermisosRol(rol.id, rol.permisos, {
+  const mutation = useEditarPermisosRol(rol.id, {
     onSuccess: () => onActualizado(),
   })
 
@@ -159,20 +159,13 @@ function DialogEditarPermisosRol({
     })
   }
 
+  // El PUT es atomico: si responde OK quedo guardado el set completo, y si
+  // falla no se aplico nada. No hay resultado parcial que reconciliar.
   async function guardar() {
     try {
-      const resultado = await mutation.mutateAsync([...seleccionados])
-      const totalFallos =
-        resultado.fallaronAgregar.length + resultado.fallaronRemover.length
-      if (totalFallos === 0) {
-        toast.success("Permisos actualizados")
-        setAbierto(false)
-      } else {
-        toast.error(
-          `Se aplicaron ${resultado.agregados.length + resultado.removidos.length} cambios, ${totalFallos} fallaron`,
-        )
-        // No cerramos para que el admin vea lo que quedo pendiente tras el refetch.
-      }
+      await mutation.mutateAsync([...seleccionados])
+      toast.success("Permisos actualizados")
+      setAbierto(false)
     } catch (err) {
       toast.error(extraerMensajeError(err, "No se pudieron guardar los cambios."))
     }
