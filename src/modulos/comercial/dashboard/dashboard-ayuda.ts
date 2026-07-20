@@ -34,7 +34,11 @@ export const DASHBOARD_AYUDA = {
   perdidas:
     "Solicitudes que el cliente rechazó: tienen al menos una cotización marcada como perdida y ninguna ganada. No incluye cotizaciones vencidas ni canceladas, porque esas no son un \"no\" del cliente, sino que expiraron o se cancelaron internamente sin respuesta.",
   cerradoPeriodo:
-    "Dinero de las cotizaciones que se cerraron dentro del período, contadas por su fecha de cierre (aunque la solicitud se haya creado antes). S/ y US$ se muestran siempre por separado: no se suman ni se convierten entre sí.",
+    "Dinero de las cotizaciones ganadas que se cerraron dentro del período, contadas por su fecha de cierre (aunque la solicitud se haya creado antes). S/ y US$ siempre por separado: no se suman ni se convierten. El chip de color compara contra el período anterior (misma duración, justo antes): en monto y utilidad es el cambio porcentual; en margen, la diferencia en puntos porcentuales. Si el período anterior no da base de comparación, no se muestra chip.",
+  montoGanado:
+    "Lo facturado en las cotizaciones que se ganaron y cerraron en el período: el precio total que se le cobró al cliente (incluidos los cargos adicionales), sumado por moneda. Es plata que entró, no la ganancia.",
+  utilidad:
+    "La ganancia real de esas cotizaciones ganadas: precio de venta menos costo, línea por línea. Puede ser negativa si se vendió por debajo del costo. Separada por moneda.",
   margen:
     "De todo lo que le cobré al cliente, cuánto fue ganancia. Si vendí S/ 100 y me quedaron S/ 23, el margen es 23%. Un margen más alto significa que el mismo monto vendido deja más utilidad. Se calcula por separado para cada moneda. Si no hubo cierres en una moneda, no se muestra margen.",
   motivosRespuestaCliente:

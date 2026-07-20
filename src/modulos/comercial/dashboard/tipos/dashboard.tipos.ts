@@ -286,10 +286,30 @@ export type ActividadPeriodo = {
  * distinguir "0% de margen con cierres reales" de "sin cierres" hay que
  * mirar `montoGanado`, no `margenPct`.
  */
+/**
+ * Variación vs el período anterior, por moneda. `null` = sin base de comparación
+ * (el período anterior fue `0` en esa moneda → el front no muestra chip).
+ */
+export type VariacionPorMoneda = {
+  pen: number | null;
+  usd: number | null;
+};
+
 export type CerradoPeriodo = {
   montoGanado: TotalPorMoneda;
   utilidad: TotalPorMoneda;
   margenPct: PorcentajePorMoneda;
+  /**
+   * Variación vs el período anterior (misma duración, inmediatamente antes).
+   * `montoGanado`/`utilidad`: variación PORCENTUAL (`6.7` = +6.7%). `margenPct`:
+   * delta en PUNTOS PORCENTUALES (resta directa de los % en escala 0..100, ej.
+   * 20% vs 15% → `+5`). `null` cuando no hay base de comparación.
+   */
+  variacionVsAnterior: {
+    montoGanado: VariacionPorMoneda;
+    utilidad: VariacionPorMoneda;
+    margenPct: VariacionPorMoneda;
+  };
 };
 
 /**

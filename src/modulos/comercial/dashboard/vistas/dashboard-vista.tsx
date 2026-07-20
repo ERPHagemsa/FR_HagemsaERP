@@ -55,8 +55,9 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  * `/dashboard/kpis-monetarios` se retira en paralelo en el backend.
  *
  * `DashboardResultados` (Monto ganado / Utilidad / Margen) se saca del strip
- * apretado a su propio card con más aire, justo después del strip; consume el
- * mismo `kpis-consolidado` (campo `cerrado`) con `periodo` + ejecutivo.
+ * apretado a su propio card con más aire, debajo de la fila de
+ * tendencia/motivos-perdida; consume el mismo `kpis-consolidado` (campo
+ * `cerrado`) con `periodo` + ejecutivo.
  */
 export function DashboardVista() {
   const [idEjecutivoResponsable, setIdEjecutivoResponsable] =
@@ -80,11 +81,6 @@ export function DashboardVista() {
         idEjecutivoResponsable={idEjecutivoResponsable}
       />
 
-      <DashboardResultados
-        periodo={periodo}
-        idEjecutivoResponsable={idEjecutivoResponsable}
-      />
-
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <DashboardTendencia
@@ -97,6 +93,11 @@ export function DashboardVista() {
           idEjecutivoResponsable={idEjecutivoResponsable}
         />
       </div>
+
+      <DashboardResultados
+        periodo={periodo}
+        idEjecutivoResponsable={idEjecutivoResponsable}
+      />
 
       <DashboardRanking periodo={periodo} />
 
