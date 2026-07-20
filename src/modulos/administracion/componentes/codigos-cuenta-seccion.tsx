@@ -62,9 +62,13 @@ function DialogEditarCodigos({ cuenta, onActualizado }: Props) {
   const [codigoCuentaSufijo, setCodigoCuentaSufijo] = useState(
     () => separarCodigoCuenta(cuenta.codigoCuenta ?? "").sufijo,
   )
-  const codigoCuenta = normalizarCodigo(
-    `${codigoCuentaPrefijo}${codigoCuentaSufijo}`,
-  )
+  // Sin sufijo NO hay codigo de cuenta: el prefijo por si solo es la marca de la
+  // empresa, no un codigo. Si se concatenara igual, "TH" contaria como codigo
+  // cargado y no se podrian limpiar ambos codigos.
+  const codigoCuenta =
+    codigoCuentaSufijo.trim() === ""
+      ? ""
+      : normalizarCodigo(`${codigoCuentaPrefijo}${codigoCuentaSufijo}`)
   const [error, setError] = useState<string | null>(null)
   const mutation = useActualizarCodigos(cuenta.id, { onSuccess: onActualizado })
 

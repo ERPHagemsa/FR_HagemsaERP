@@ -57,9 +57,14 @@ export function CrearCuentaVista() {
   // código: la concatenación normalizada de ambos.
   const [codigoCuentaPrefijo, setCodigoCuentaPrefijo] = useState("TH");
   const [codigoCuentaSufijo, setCodigoCuentaSufijo] = useState("");
-  const codigoCuenta = normalizarCodigo(
-    `${codigoCuentaPrefijo}${codigoCuentaSufijo}`,
-  );
+  // Sin sufijo NO hay codigo de cuenta: el prefijo por si solo es solo la marca
+  // de la empresa, no un codigo. Si se concatenara igual, "TH" contaria como
+  // codigo cargado y obligaria a completar tambien el de socio, volviendo
+  // imposible dejar ambos vacios (que es lo normal: son opcionales).
+  const codigoCuenta =
+    codigoCuentaSufijo.trim() === ""
+      ? ""
+      : normalizarCodigo(`${codigoCuentaPrefijo}${codigoCuentaSufijo}`);
   const [error, setError] = useState<string | null>(null);
 
   const crearMutation = useCrearCuenta();
