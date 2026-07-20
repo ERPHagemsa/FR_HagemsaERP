@@ -48,6 +48,10 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table"
 import { formatearFechaDeTimestamp } from "@/modulos/comercial/utilidades/formato-fecha"
+import {
+  BuscarClienteBc01Panel,
+  type ClienteElegido,
+} from "../../solicitudes-cliente/componentes/buscar-cliente-bc01-panel"
 
 import {
   useCrearTarifarioManualMutation,
@@ -83,8 +87,9 @@ function SheetCrearManual({
 }) {
   const router = useRouter()
   const [moneda, setMoneda] = useState<Moneda>("PEN")
-  const [idClienteExterno, setIdClienteExterno] = useState("")
-  const [nombreClienteExterno, setNombreClienteExterno] = useState("")
+  // El cliente se elige del maestro de BC-01, no se escribe: antes habia que
+  // pegar a mano su uuid, que nadie conoce de memoria.
+  const [cliente, setCliente] = useState<ClienteElegido | null>(null)
   const [vigenciaInicio, setVigenciaInicio] = useState("")
   const [vigenciaFin, setVigenciaFin] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -99,8 +104,10 @@ function SheetCrearManual({
     const resultado = await crear
       .mutateAsync({
         moneda,
-        idClienteExterno: idClienteExterno.trim() || undefined,
-        nombreClienteExterno: nombreClienteExterno.trim() || undefined,
+        // publicId (uuid) y no el id entero: es el identificador estable de
+        // BC-01, el mismo que la solicitud de cliente guarda como origen.
+        idClienteExterno: cliente?.publicId,
+        nombreClienteExterno: cliente?.nombre,
         vigenciaInicio: vigenciaInicio || undefined,
         vigenciaFin: vigenciaFin || undefined,
         tarifas: [],
@@ -150,22 +157,12 @@ function SheetCrearManual({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cli-nombre">Cliente (nombre, opcional)</Label>
-            <Input
-              id="cli-nombre"
-              value={nombreClienteExterno}
-              onChange={(e) => setNombreClienteExterno(e.target.value)}
-              placeholder="Razon social del cliente"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cli">Cliente (id externo, opcional)</Label>
-            <Input
-              id="cli"
-              value={idClienteExterno}
-              onChange={(e) => setIdClienteExterno(e.target.value)}
-              placeholder="Id del cliente en Socio de Negocio"
+            <Label>Cliente (opcional)</Label>
+            <BuscarClienteBc01Panel
+              valor={cliente}
+              onElegir={setCliente}
+              onQuitar={() => setCliente(null)}
+              ayuda="Busca el cliente en Socio de Negocio por razon social o documento."
             />
           </div>
 

@@ -16,9 +16,7 @@ import { listarProspectos } from "../../prospectos/servicios/prospectos-api";
 import type { Prospecto } from "../../prospectos/tipos/prospecto.tipos";
 import { buscarClientesBc01 } from "../servicios/solicitudes-cliente-api";
 import type { ClienteBc01, TipoOrigen } from "../tipos/solicitud-cliente.tipos";
-
-// Un término solo de dígitos se busca como documento; si no, como nombre.
-const esDocumento = (t: string) => /^\d+$/.test(t.trim());
+import { esDocumento, etiquetaEstadoCliente } from "../utilidades/cliente-bc01";
 
 // El cliente de BC-01 no trae tipoDocumento; se infiere del número.
 function inferirTipoDocumento(doc: string): "RUC" | "DNI" | "CE" {
@@ -26,13 +24,6 @@ function inferirTipoDocumento(doc: string): "RUC" | "DNI" | "CE" {
   if (/^\d{11}$/.test(n)) return "RUC";
   if (/^\d{8}$/.test(n)) return "DNI";
   return "CE";
-}
-
-function etiquetaEstadoCliente(c: ClienteBc01): string {
-  if (c.estado !== "ACTIVO" || c.estadoRegistro !== "ACTIVO") return "Inactivo";
-  if (c.estadoAprobacion === "APROBADO") return "Activo";
-  if (c.estadoAprobacion === "PENDIENTE_APROBACION") return "Pendiente aprob.";
-  return "Rechazado";
 }
 
 type DatosIdentidadResuelta = {
