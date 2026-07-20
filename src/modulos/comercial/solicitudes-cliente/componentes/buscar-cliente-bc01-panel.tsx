@@ -31,6 +31,8 @@ type Props = {
   onQuitar: () => void;
   /** Texto de ayuda bajo el buscador. */
   ayuda?: string;
+  /** Id del input, para que el <Label> de quien lo usa pueda apuntarle. */
+  idInput?: string;
 };
 
 /**
@@ -47,6 +49,7 @@ export function BuscarClienteBc01Panel({
   onElegir,
   onQuitar,
   ayuda,
+  idInput,
 }: Props) {
   const [termino, setTermino] = React.useState("");
   const [aplicado, setAplicado] = React.useState<string | null>(null);
@@ -64,7 +67,12 @@ export function BuscarClienteBc01Panel({
   );
 
   const lista = clientes.data ?? [];
-  const cargando = clientes.isLoading;
+  // isFetching y NO isLoading: `useConsulta` deja isLoading en false cuando ya
+  // hay datos cargados (para que una lista no parpadee al refrescar). Acá eso
+  // significaría que la SEGUNDA búsqueda no muestra nada en curso — sin spinner,
+  // con el botón habilitado y con los resultados del término anterior en
+  // pantalla como si fueran del nuevo.
+  const cargando = clientes.isFetching;
   const sinResultados = Boolean(aplicado) && !cargando && lista.length === 0;
 
   function buscar() {
@@ -121,6 +129,7 @@ export function BuscarClienteBc01Panel({
 
       <div className="flex items-end gap-2">
         <Input
+          id={idInput}
           placeholder="Razón social o documento…"
           value={termino}
           onChange={(e) => setTermino(e.target.value)}
@@ -161,7 +170,13 @@ export function BuscarClienteBc01Panel({
         </p>
       ) : null}
 
-      {!cargando && lista.length > 0 ? (
+      {/*
+        Se exige `aplicado`: `useConsulta` conserva `data` aunque la consulta se
+        deshabilite, así que al elegir un cliente (que limpia la búsqueda) y
+        luego quitarlo, la lista del término anterior volvería a aparecer bajo
+        un buscador vacío.
+      */}
+      {!cargando && aplicado && lista.length > 0 ? (
         <ul className="flex max-h-64 min-w-0 flex-col gap-2 overflow-y-auto">
           {lista.map((c) => (
             <li

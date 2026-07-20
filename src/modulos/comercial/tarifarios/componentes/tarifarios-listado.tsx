@@ -157,8 +157,9 @@ function SheetCrearManual({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label>Cliente (opcional)</Label>
+            <Label htmlFor="cli-buscar">Cliente (opcional)</Label>
             <BuscarClienteBc01Panel
+              idInput="cli-buscar"
               valor={cliente}
               onElegir={setCliente}
               onQuitar={() => setCliente(null)}
