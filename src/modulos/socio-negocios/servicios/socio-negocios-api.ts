@@ -1,27 +1,95 @@
-import { requestJson } from "@/compartido/api"
+import { clienteSocioNegocios } from "@/compartido/api/clientes-backend"
 
 import type {
+  AprobarSocioDeNegocioRequest,
+  ClientePorDocumentoResponse,
+  ConsultarSapPorDocumentoQuery,
+  ConsultarEventosSocioDeNegocioQuery,
+  ConsultarHistorialSocioDeNegocioQuery,
+  ConsultarPersonalQuery,
   ConsultarSociosDeNegocioQuery,
   DarDeBajaSocioDeNegocioRequest,
   EstadoBcResponse,
+  EventoSocioDeNegocioResponse,
   ExportarSociosDeNegocioQuery,
+  HistorialSocioDeNegocioResponse,
+  LineaHistoricaPersonalResponse,
   ModificarSocioDeNegocioRequest,
+  PaginatedResponse,
+  PersonalActivoResponse,
+  PersonalListadoResponse,
+  ReactivarSocioDeNegocioRequest,
+  RechazarSocioDeNegocioRequest,
+  ReemplazarSocioDeNegocioRequest,
+  ReenviarAprobacionSocioDeNegocioRequest,
   RegistrarClienteDesdeComercialRequest,
+  RegistrarDesdeSapRequest,
   RegistrarSocioDeNegocioRequest,
   ReporteSociosDeNegocioResponse,
+  RespuestaDto,
+  ResumenSociosDeNegocioResponse,
+  SapBusinessPartnerResponse,
+  SapBusinessPartnerResumenResponse,
+  SapSessionQuery,
   SocioDeNegocioResponse,
+  SocioEmpresaListadoResponse,
+  TipoSocioDeNegocio,
 } from "../tipos/socio-negocio"
 
 const BASE_ENDPOINT = "/socios-de-negocio"
 
+type RespuestaPaginadaBackend<T> = {
+  datos: T[]
+  paginacion: {
+    totalItems?: number
+    totalPaginas?: number
+    paginaActual?: number
+    tamanioPagina?: number
+    pagina?: number
+    limite?: number
+    total?: number
+    tieneSiguiente?: boolean
+    tieneAnterior?: boolean
+  }
+}
+
+function normalizarRespuestaPaginada<T>(
+  respuesta: RespuestaPaginadaBackend<T>,
+): PaginatedResponse<T> {
+  const paginacion = respuesta.paginacion
+  const pagina = paginacion.pagina ?? paginacion.paginaActual ?? 1
+  const limite = paginacion.limite ?? paginacion.tamanioPagina ?? respuesta.datos.length
+  const total = paginacion.total ?? paginacion.totalItems ?? respuesta.datos.length
+  const totalPaginas = paginacion.totalPaginas ?? Math.max(1, Math.ceil(total / Math.max(limite, 1)))
+
+  return {
+    datos: respuesta.datos,
+    paginacion: {
+      pagina,
+      limite,
+      total,
+      totalPaginas,
+      tieneSiguiente: paginacion.tieneSiguiente ?? pagina < totalPaginas,
+      tieneAnterior: paginacion.tieneAnterior ?? pagina > 1,
+    },
+  }
+}
+
 function crearQueryString(
-  query?: ConsultarSociosDeNegocioQuery | ExportarSociosDeNegocioQuery
-) {
+  query?:
+    | ConsultarSociosDeNegocioQuery
+    | ConsultarPersonalQuery
+    | ExportarSociosDeNegocioQuery
+    | ConsultarHistorialSocioDeNegocioQuery
+    | ConsultarEventosSocioDeNegocioQuery
+    | ConsultarSapPorDocumentoQuery
+    | SapSessionQuery,
+): string {
   const params = new URLSearchParams()
 
   Object.entries(query ?? {}).forEach(([key, value]) => {
-    if (value) {
-      params.set(key, value)
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value))
     }
   })
 
@@ -29,106 +97,320 @@ function crearQueryString(
   return queryString ? `?${queryString}` : ""
 }
 
-export function obtenerEstadoBcSocioDeNegocio() {
-  return requestJson<EstadoBcResponse>({
-    servicio: "socioNegocios",
-    endpoint: `${BASE_ENDPOINT}/estado`,
-    init: {
-      cache: "no-store",
-    },
-    mensajeErrorDefault: "No se pudo obtener el estado del BC de socios de negocio",
-  })
+export async function obtenerEstadoBcSocioDeNegocio(): Promise<EstadoBcResponse> {
+  const { data } = await clienteSocioNegocios.get<RespuestaDto<EstadoBcResponse>>(
+    `${BASE_ENDPOINT}/estado`,
+  )
+  return data.datos
 }
 
-export function registrarSocioDeNegocio(
-  payload: RegistrarSocioDeNegocioRequest
-) {
-  return requestJson<SocioDeNegocioResponse>({
-    servicio: "socioNegocios",
-    endpoint: BASE_ENDPOINT,
-    init: {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo registrar el socio de negocio",
-  })
+export async function obtenerResumenSociosDeNegocio(): Promise<ResumenSociosDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<ResumenSociosDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/resumen`)
+  return data.datos
 }
 
-export function registrarClienteDesdeComercial(
-  payload: RegistrarClienteDesdeComercialRequest
-) {
-  return requestJson<SocioDeNegocioResponse>({
-    servicio: "socioNegocios",
-    endpoint: `${BASE_ENDPOINT}/desde-comercial/prospecto-convertido-a-cliente`,
-    init: {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo registrar el cliente desde Comercial",
-  })
+export async function registrarSocioDeNegocio(
+  payload: RegistrarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.post<RespuestaDto<SocioDeNegocioResponse>>(
+    BASE_ENDPOINT,
+    payload,
+  )
+  return data.datos
 }
 
-export function modificarSocioDeNegocio(
+export async function registrarClienteDesdeComercial(
+  payload: RegistrarClienteDesdeComercialRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.post<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/desde-comercial/prospecto-convertido-a-cliente`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function modificarSocioDeNegocio(
+  id: string | number,
+  payload: ModificarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.put<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function reemplazarSocioDeNegocio(
+  id: string | number,
+  payload: ReemplazarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.post<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/reemplazo`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function aprobarSocioDeNegocio(
+  id: string | number,
+  payload: AprobarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/aprobar`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function rechazarSocioDeNegocio(
+  id: string | number,
+  payload: RechazarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/rechazar`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function reenviarAprobacionSocioDeNegocio(
+  id: string | number,
+  payload: ReenviarAprobacionSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/reenviar-aprobacion`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function darDeBajaSocioDeNegocio(
+  id: string | number,
+  payload: DarDeBajaSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/baja`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function reactivarSocioDeNegocio(
+  id: string | number,
+  payload: ReactivarSocioDeNegocioRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}/reactivar`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function consultarSociosDeNegocio(
+  query?: ConsultarSociosDeNegocioQuery,
+): Promise<PaginatedResponse<SocioDeNegocioResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<SocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarClientesSociosDeNegocio(
+  query?: ConsultarSociosDeNegocioQuery,
+): Promise<PaginatedResponse<SocioEmpresaListadoResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<SocioEmpresaListadoResponse>
+  >(`${BASE_ENDPOINT}/clientes${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarProveedoresSociosDeNegocio(
+  query?: ConsultarSociosDeNegocioQuery,
+): Promise<PaginatedResponse<SocioEmpresaListadoResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<SocioEmpresaListadoResponse>
+  >(`${BASE_ENDPOINT}/proveedores${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarPersonalSociosDeNegocio(
+  query?: ConsultarPersonalQuery,
+): Promise<PaginatedResponse<PersonalListadoResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<PersonalListadoResponse>
+  >(`${BASE_ENDPOINT}/personal${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+// Query del endpoint real de BC01 `GET /personal/activos`. OJO: su contrato es
+// distinto al de /socios-de-negocio/personal — usa `buscar` (min 3 chars,
+// startsWith sobre documento/primerNombre/apellidoPaterno), `pagina` (default 1)
+// y `tamano` (default 10, max 100).
+export interface ConsultarPersonalActivosQuery {
+  buscar?: string
+  pagina?: number
+  tamano?: number
+}
+
+// Personal ACTIVO de BC01. A diferencia de `consultarPersonalSociosDeNegocio`
+// (que va por /socios-de-negocio/personal), este pega al endpoint real de BC01
+// `GET /personal/activos` a traves del proxy sin prefijo (/api/socio-negocios/*).
+// Se usa para el buscador de socio (vincular socio a una cuenta).
+export async function consultarPersonalActivosBc01(
+  query?: ConsultarPersonalActivosQuery,
+): Promise<PaginatedResponse<PersonalActivoResponse>> {
+  const params = new URLSearchParams()
+  if (query?.buscar) params.set("buscar", query.buscar)
+  if (query?.pagina !== undefined) params.set("pagina", String(query.pagina))
+  if (query?.tamano !== undefined) params.set("tamano", String(query.tamano))
+  const qs = params.toString()
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<PersonalActivoResponse>
+  >(`/socio-negocios/personal/activos${qs ? `?${qs}` : ""}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarSapBusinessPartnerPorDocumento(
+  numeroDocumento: string,
+  query: ConsultarSapPorDocumentoQuery,
+): Promise<SapBusinessPartnerResumenResponse | null> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<SapBusinessPartnerResumenResponse | null>
+  >(
+    `${BASE_ENDPOINT}/sap/business-partners/documento/${encodeURIComponent(
+      numeroDocumento,
+    )}${crearQueryString(query)}`,
+  )
+  return data.datos
+}
+
+export async function consultarSapBusinessPartnerPorCodigo(
+  codigoInternoSap: string,
+  query?: SapSessionQuery,
+): Promise<SapBusinessPartnerResponse | null> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<SapBusinessPartnerResponse | null>
+  >(
+    `${BASE_ENDPOINT}/sap/business-partners/${encodeURIComponent(
+      codigoInternoSap,
+    )}${crearQueryString(query)}`,
+  )
+  return data.datos
+}
+
+export async function registrarSocioDesdeSap(
+  numeroDocumento: string,
+  payload: RegistrarDesdeSapRequest,
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.post<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/desde-sap/documento/${encodeURIComponent(numeroDocumento)}`,
+    payload,
+  )
+  return data.datos
+}
+
+export async function obtenerClientePorDocumento(
+  numeroDocumento: string,
+): Promise<ClientePorDocumentoResponse> {
+  const { data } = await clienteSocioNegocios.get<RespuestaDto<ClientePorDocumentoResponse>>(
+    `${BASE_ENDPOINT}/clientes/por-documento/${encodeURIComponent(numeroDocumento)}`,
+  )
+  return data.datos
+}
+
+export async function consultarHistorialSociosDeNegocio(
+  query?: ConsultarHistorialSocioDeNegocioQuery,
+): Promise<PaginatedResponse<HistorialSocioDeNegocioResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<HistorialSocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/historial${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarHistorialSocioDeNegocio(
+  id: string | number,
+  query?: ConsultarHistorialSocioDeNegocioQuery,
+): Promise<PaginatedResponse<HistorialSocioDeNegocioResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<HistorialSocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/${id}/historial${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarEventosSociosDeNegocio(
+  query?: ConsultarEventosSocioDeNegocioQuery,
+): Promise<PaginatedResponse<EventoSocioDeNegocioResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<EventoSocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/eventos${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function consultarEventosSocioDeNegocio(
+  id: string | number,
+  query?: ConsultarEventosSocioDeNegocioQuery,
+): Promise<PaginatedResponse<EventoSocioDeNegocioResponse>> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaPaginadaBackend<EventoSocioDeNegocioResponse>
+  >(`${BASE_ENDPOINT}/${id}/eventos${crearQueryString(query)}`)
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function exportarSociosDeNegocio(
+  query: ExportarSociosDeNegocioQuery,
+): Promise<PaginatedResponse<ReporteSociosDeNegocioResponse>> {
+  const { data } =
+    await clienteSocioNegocios.get<
+      RespuestaPaginadaBackend<ReporteSociosDeNegocioResponse>
+    >(
+      `${BASE_ENDPOINT}/exportar${crearQueryString(query)}`,
+    )
+  return normalizarRespuestaPaginada(data)
+}
+
+export async function obtenerSocioDeNegocio(
   id: string,
-  payload: ModificarSocioDeNegocioRequest
-) {
-  return requestJson<SocioDeNegocioResponse>({
-    servicio: "socioNegocios",
-    endpoint: `${BASE_ENDPOINT}/${id}`,
-    init: {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo modificar el socio de negocio",
-  })
+): Promise<SocioDeNegocioResponse> {
+  const { data } = await clienteSocioNegocios.get<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${id}`,
+  )
+  return data.datos
 }
 
-export function darDeBajaSocioDeNegocio(
+export async function obtenerSocioDeNegocioPorTipo(
   id: string,
-  payload: DarDeBajaSocioDeNegocioRequest
-) {
-  return requestJson<SocioDeNegocioResponse>({
-    servicio: "socioNegocios",
-    endpoint: `${BASE_ENDPOINT}/${id}/baja`,
-    init: {
-      method: "PATCH",
-      body: JSON.stringify(payload),
-    },
-    mensajeErrorDefault: "No se pudo dar de baja el socio de negocio",
-  })
+  tipo: TipoSocioDeNegocio,
+): Promise<SocioDeNegocioResponse> {
+  const segmentosPorTipo: Record<TipoSocioDeNegocio, string> = {
+    CLIENTE: "clientes",
+    PROVEEDOR: "proveedores",
+    PERSONAL: "personal",
+  }
+  const { data } = await clienteSocioNegocios.get<RespuestaDto<SocioDeNegocioResponse>>(
+    `${BASE_ENDPOINT}/${segmentosPorTipo[tipo]}/${id}`,
+  )
+  return data.datos
 }
 
-export function consultarSociosDeNegocio(
-  query?: ConsultarSociosDeNegocioQuery
-) {
-  return requestJson<SocioDeNegocioResponse[]>({
-    servicio: "socioNegocios",
-    endpoint: `${BASE_ENDPOINT}${crearQueryString(query)}`,
-    init: {
-      cache: "no-store",
-    },
-    mensajeErrorDefault: "No se pudo consultar socios de negocio",
-  })
+export async function obtenerLineaHistoricaPersonal(
+  id: string | number,
+): Promise<LineaHistoricaPersonalResponse> {
+  const { data } = await clienteSocioNegocios.get<
+    RespuestaDto<LineaHistoricaPersonalResponse>
+  >(`${BASE_ENDPOINT}/personal/${id}/linea-historica`)
+  return data.datos
 }
 
-export function exportarSociosDeNegocio(query: ExportarSociosDeNegocioQuery) {
-  return requestJson<ReporteSociosDeNegocioResponse>({
-    servicio: "socioNegocios",
-    endpoint: `${BASE_ENDPOINT}/exportar${crearQueryString(query)}`,
-    init: {
-      cache: "no-store",
-    },
-    mensajeErrorDefault: "No se pudo exportar socios de negocio",
-  })
-}
+export async function obtenerSocioDeNegocioDetalle(
+  id: string,
+  tipo?: TipoSocioDeNegocio,
+): Promise<SocioDeNegocioResponse> {
+  if (tipo) {
+    return obtenerSocioDeNegocioPorTipo(id, tipo)
+  }
 
-export function obtenerSocioDeNegocio(id: string) {
-  return requestJson<SocioDeNegocioResponse>({
-    servicio: "socioNegocios",
-    endpoint: `${BASE_ENDPOINT}/${id}`,
-    init: {
-      cache: "no-store",
-    },
-    mensajeErrorDefault: "No se pudo obtener el socio de negocio",
-  })
+  const socio = await obtenerSocioDeNegocio(id)
+  return obtenerSocioDeNegocioPorTipo(id, socio.tipo)
 }

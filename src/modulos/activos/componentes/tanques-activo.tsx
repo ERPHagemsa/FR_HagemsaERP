@@ -2,12 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 import { IconGasStation, IconPlus, IconTrash } from "@tabler/icons-react";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
+import { cn } from "@/compartido/utilidades";
 import {
   Table,
   TableBody,
@@ -16,11 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
-import { cn } from "@/compartido/utilidades";
 import {
-  crearTanquePorCodigo,
-  eliminarTanquePorCodigo,
-} from "../servicios/activos-api";
+  useCrearTanqueActivoMutation,
+  useEliminarTanqueActivoMutation,
+} from "../servicios/activos-queries";
 import type { TanqueActivo, TipoTanqueActivo } from "../tipos/activo.tipos";
 
 type Props = {
@@ -29,57 +31,53 @@ type Props = {
   editable?: boolean;
 };
 
-const tiposTanque: TipoTanqueActivo[] = ["DIESEL", "UREA"];
-
 export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
   const router = useRouter();
+  const [tanquesActuales, setTanquesActuales] = React.useState(tanques);
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [tipoTanque, setTipoTanque] = React.useState<TipoTanqueActivo>("DIESEL");
   const [isSaving, setIsSaving] = React.useState(false);
-  const [deletingId, setDeletingId] = React.useState<string | null>(null);
-  const [message, setMessage] = React.useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const crearTanqueMutation = useCrearTanqueActivoMutation(codigo);
+  const eliminarTanqueMutation = useEliminarTanqueActivoMutation(codigo);
 
-  const totalDiesel = sumarCapacidad(tanques, "DIESEL");
-  const totalUrea = sumarCapacidad(tanques, "UREA");
+  React.useEffect(() => {
+    setTanquesActuales(tanques);
+  }, [tanques]);
+
+  const totalDiesel = sumarCapacidad(tanquesActuales, "DIESEL");
+  const totalUrea = sumarCapacidad(tanquesActuales, "UREA");
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const tipoTanqueSeleccionado =
+      formData.get("tipoTanque") === "UREA" ? "UREA" : "DIESEL";
     const capacidad = Number(formData.get("capacidad"));
     const orden = Number(formData.get("orden") || 1);
     const observacion = String(formData.get("observacion") ?? "").trim();
 
-    setMessage(null);
     setIsSaving(true);
 
     try {
-      await crearTanquePorCodigo(codigo, {
-        tipoTanque,
+      const tanqueCreado = await crearTanqueMutation.mutateAsync({
+        tipoTanque: tipoTanqueSeleccionado,
         capacidad,
         orden,
         observacion: observacion || undefined,
       });
 
+      setTanquesActuales((actuales) =>
+        [...actuales, tanqueCreado].sort((a, b) => a.orden - b.orden)
+      );
       form.reset();
       setTipoTanque("DIESEL");
       setMostrarFormulario(false);
-      setMessage({
-        type: "success",
-        text: "Tanque registrado correctamente.",
-      });
+      toast.success("Tanque registrado correctamente.");
       router.refresh();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "No se pudo registrar el tanque.",
-      });
+      toast.error(extraerMensajeError(error, "No se pudo registrar el tanque."));
     } finally {
       setIsSaving(false);
     }
@@ -92,24 +90,17 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
 
     if (!confirmado) return;
 
-    setMessage(null);
     setDeletingId(tanque.id);
 
     try {
-      await eliminarTanquePorCodigo(codigo, tanque.id);
-      setMessage({
-        type: "success",
-        text: "Tanque eliminado correctamente.",
-      });
+      await eliminarTanqueMutation.mutateAsync(tanque.id);
+      setTanquesActuales((actuales) =>
+        actuales.filter((item) => item.id !== tanque.id)
+      );
+      toast.success("Tanque eliminado correctamente.");
       router.refresh();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "No se pudo eliminar el tanque.",
-      });
+      toast.error(extraerMensajeError(error, "No se pudo eliminar el tanque."));
     } finally {
       setDeletingId(null);
     }
@@ -121,8 +112,9 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
         <div>
           <p className="font-semibold">Tanques del activo</p>
           <p className="text-sm text-muted-foreground">
-            {tanques.length} tanque{tanques.length === 1 ? "" : "s"} registrado
-            {tanques.length === 1 ? "" : "s"}
+            {tanquesActuales.length} tanque
+            {tanquesActuales.length === 1 ? "" : "s"} registrado
+            {tanquesActuales.length === 1 ? "" : "s"}
           </p>
         </div>
         {editable ? (
@@ -146,44 +138,13 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
         <ResumenTanque label="Urea" total={totalUrea} unidad="litros" tipo="UREA" />
       </div>
 
-      {editable && message ? (
-        <div
-          className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
-            message.type === "success"
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
-              : "border-destructive/40 bg-destructive/10 text-destructive"
-          )}
-        >
-          {message.text}
-        </div>
-      ) : null}
-
       {editable && mostrarFormulario ? (
         <form
           onSubmit={onSubmit}
           className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4"
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <label className="grid gap-2">
-              <span className="text-sm font-medium text-foreground">
-                Tipo tanque <span className="text-destructive">*</span>
-              </span>
-              <select
-                className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-                name="tipoTanque"
-                onChange={(event) =>
-                  setTipoTanque(event.target.value as TipoTanqueActivo)
-                }
-                value={tipoTanque}
-              >
-                {tiposTanque.map((tipo) => (
-                  <option key={tipo} value={tipo}>
-                    {formatear(tipo)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <TipoTanqueSelector tipoTanque={tipoTanque} onChange={setTipoTanque} />
 
             <Field
               label="Capacidad"
@@ -193,12 +154,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
               step="0.01"
               type="number"
             />
-            <Field
-              label="Unidad"
-              name="unidadMedida"
-              readOnly
-              value={tipoTanque === "DIESEL" ? "GALON" : "LITRO"}
-            />
+            <UnidadTanqueDisplay tipoTanque={tipoTanque} />
             <Field label="Orden" min="1" name="orden" step="1" type="number" />
           </div>
           <Field
@@ -235,14 +191,14 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tanques.map((tanque) => (
+            {tanquesActuales.map((tanque) => (
               <TableRow key={tanque.id}>
                 <TableCell>{tanque.orden}</TableCell>
                 <TableCell>
                   <Badge
                     className={
                       tanque.tipoTanque === "DIESEL"
-                        ? "bg-red-600 text-white"
+                        ? "bg-primary text-primary-foreground"
                         : "bg-sky-600 text-white"
                     }
                   >
@@ -252,7 +208,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
                 <TableCell>{formatearNumero(tanque.capacidad)}</TableCell>
                 <TableCell>{formatear(tanque.unidadMedida)}</TableCell>
                 <TableCell>{tanque.observacion ?? "-"}</TableCell>
-                <TableCell>{formatearFecha(tanque.createdAt)}</TableCell>
+                <TableCell>{formatearFecha(tanque.fechaCreacion)}</TableCell>
                 {editable ? (
                   <TableCell>
                     <Button
@@ -269,7 +225,7 @@ export function TanquesActivo({ codigo, tanques, editable = true }: Props) {
                 ) : null}
               </TableRow>
             ))}
-            {!tanques.length ? (
+            {!tanquesActuales.length ? (
               <TableRow>
                 <TableCell
                   colSpan={editable ? 7 : 6}
@@ -300,7 +256,7 @@ function ResumenTanque({
   return (
     <div className="rounded-xl border border-border bg-muted/20 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <span className="flex size-9 items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 text-red-600">
+        <span className="flex size-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary">
           <IconGasStation className="size-5" />
         </span>
         <p className="font-semibold">{label}</p>
@@ -329,6 +285,54 @@ function Field({
         {required ? <span className="ml-1 text-destructive">*</span> : null}
       </Label>
       <Input id={`tanque-${name}`} name={name} required={required} {...props} />
+    </div>
+  );
+}
+
+function TipoTanqueSelector({
+  tipoTanque,
+  onChange,
+}: {
+  tipoTanque: TipoTanqueActivo;
+  onChange: (tipo: TipoTanqueActivo) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label>
+        Tipo tanque <span className="text-destructive">*</span>
+      </Label>
+      <input name="tipoTanque" type="hidden" value={tipoTanque} readOnly />
+      <div className="grid h-9 grid-cols-2 rounded-lg border border-input bg-background p-0.5">
+        {(["DIESEL", "UREA"] as TipoTanqueActivo[]).map((tipo) => (
+          <button
+            key={tipo}
+            type="button"
+            onClick={() => onChange(tipo)}
+            className={cn(
+              "rounded-md px-3 text-sm font-medium text-muted-foreground transition",
+              tipoTanque === tipo && "bg-primary text-primary-foreground"
+            )}
+          >
+            {tipo === "DIESEL" ? "Diesel" : "Urea"}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UnidadTanqueDisplay({ tipoTanque }: { tipoTanque: TipoTanqueActivo }) {
+  const unidad = tipoTanque === "UREA" ? "Litros" : "Galones";
+
+  return (
+    <div className="grid gap-2">
+      <Label>Unidad</Label>
+      <div
+        key={unidad}
+        className="flex h-9 items-center rounded-lg border border-input bg-muted/40 px-3 text-sm font-medium text-foreground"
+      >
+        {unidad}
+      </div>
     </div>
   );
 }

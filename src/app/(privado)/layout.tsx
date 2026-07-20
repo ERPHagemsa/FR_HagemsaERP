@@ -1,9 +1,24 @@
+import { redirect } from "next/navigation"
+
+import { obtenerSesionActual } from "@/compartido/autenticacion/sesion-servidor"
 import { AppShell } from "@/compartido/componentes/app-shell"
 
-export default function PrivadoLayout({
+// Guard server-side para todo el area privada: si no hay sesion (cookie
+// httpOnly de access ausente o invalida), redirige a /login conservando la
+// ruta destino en `next`. El gate corre antes de renderizar cualquier hijo
+// para no exponer estructura ni datos del area autenticada.
+//
+// /admin/* tiene ademas su propio gate que exige SUPER_ADMIN.
+
+export default async function PrivadoLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const sesion = await obtenerSesionActual()
+  if (!sesion) {
+    redirect("/login")
+  }
+
   return <AppShell>{children}</AppShell>
 }

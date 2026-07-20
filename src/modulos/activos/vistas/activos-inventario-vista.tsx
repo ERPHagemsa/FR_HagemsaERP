@@ -1,39 +1,33 @@
-import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
+"use client";
 
-import { ActivosInventarioListado } from "../componentes/activos-inventario-listado";
-import { obtenerActivos } from "../servicios/activos-api";
+import Link from "next/link";
+import { IconPlus } from "@tabler/icons-react";
 
-export async function ActivosInventarioVista() {
-  const resultado = await obtenerActivos()
-    .then((activos) => ({ activos, error: null }))
-    .catch((error: unknown) => ({
-      activos: [],
-      error:
-        error instanceof Error
-          ? error.message
-          : "No se pudo cargar el inventario de activos",
-    }));
+import { Button } from "@/compartido/componentes/ui/button";
 
+import { ActivosTabla } from "../componentes/activos-tabla";
+
+export function ActivosInventarioVista() {
+  // La tabla consulta directo al backend (filtros, orden, paginacion y
+  // resumen server-side); la vista solo aporta el encabezado de la pagina.
   return (
     <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-        <section className="rounded-xl border border-border bg-card px-5 py-4">
-          <p className="text-sm font-medium text-muted-foreground">BC-02</p>
-          <h1 className="text-2xl font-semibold">Inventario de activos</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Listado detallado para consultar ID inventario, datos tecnicos,
-            estados y trazabilidad visible.
-          </p>
-        </section>
+      <div className="flex w-full flex-col gap-5">
+        <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-normal">
+              Listar activos
+            </h1>
+          </div>
+          <Button asChild className="w-full sm:w-auto">
+            <Link href="/activos/nuevo">
+              <IconPlus />
+              Nuevo
+            </Link>
+          </Button>
+        </div>
 
-        {resultado.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>No se pudo cargar inventario</AlertTitle>
-            <AlertDescription>{resultado.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <ActivosInventarioListado activos={resultado.activos} />
+        <ActivosTabla />
       </div>
     </main>
   );

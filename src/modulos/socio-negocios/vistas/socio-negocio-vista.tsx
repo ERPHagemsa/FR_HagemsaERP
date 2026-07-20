@@ -1,32 +1,41 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/compartido/componentes/ui/alert-dialog"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
-import { Checkbox } from "@/compartido/componentes/ui/checkbox"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/compartido/componentes/ui/card"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/compartido/componentes/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
 } from "@/compartido/componentes/ui/empty"
+import { Field } from "@/compartido/componentes/ui/field"
+import { Input } from "@/compartido/componentes/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/compartido/componentes/ui/input-group"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import {
   Table,
@@ -36,225 +45,181 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { cn } from "@/compartido/utilidades/utils"
 import {
-  Add01Icon,
-  ChartUpIcon,
-  CheckmarkCircle01Icon,
-  Download01Icon,
-  Loading03Icon,
-  MoreVerticalCircle01Icon,
-  Search01Icon,
-  UserGroupIcon,
-} from "@hugeicons/core-free-icons"
+  Building2,
+  CircleDashed,
+  Clock,
+  Download,
+  Filter,
+  Package,
+  Plus,
+  Search,
+  User,
+} from "lucide-react"
 
 import {
   useExportarSociosDeNegocioQuery,
   useSociosDeNegocioQuery,
 } from "../servicios/socio-negocios-queries"
+import { PaginationControls } from "../componentes/pagination-controls"
+import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
+import { EstadoSincronizacionSapBadge } from "../componentes/estado-sincronizacion-sap-badge"
 import type {
   ConsultarSociosDeNegocioQuery,
-  FormatoExportacionSocios,
+  ReporteSociosDeNegocioResponse,
 } from "../tipos/socio-negocio"
-
-type Metrica = {
-  etiqueta: string
-  valor: string
-  detalle: string
-}
-
-type SocioNegocioVistaProps = {
-  titulo: string
-  etiqueta: string
-  accionPrincipal?: string
-  crearHref?: string
-  metricas: Metrica[]
-  filtros?: ConsultarSociosDeNegocioQuery
-  formatoExportacion?: FormatoExportacionSocios
-}
-
-const estadoVariant = {
-  ACTIVO: "default",
-  INACTIVO: "secondary",
-} as const
-
-function obtenerVisualMetrica(etiqueta: string, index: number) {
-  const texto = etiqueta.toLowerCase()
-
-  if (index === 0) {
-    return {
-      icon: UserGroupIcon,
-      iconClassName: "bg-primary-foreground/15 text-primary-foreground ring-primary-foreground/20",
-      cardClassName: "border-primary bg-primary text-primary-foreground",
-      descriptionClassName: "text-primary-foreground/75",
-      detailClassName: "text-primary-foreground/80",
-      badgeClassName:
-        "border-primary-foreground/25 bg-primary-foreground/10 text-primary-foreground",
-      badge: "Total",
-    }
-  }
-
-  if (texto.includes("activo")) {
-    return {
-      icon: CheckmarkCircle01Icon,
-      iconClassName: "bg-primary/10 text-primary ring-primary/15",
-      cardClassName: "border-border bg-card text-card-foreground",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName: "border-primary/20 bg-primary/5 text-primary",
-      badge: "Operativo",
-    }
-  }
-
-  if (
-    texto.includes("inactivo") ||
-    texto.includes("observ") ||
-    texto.includes("baja") ||
-    texto.includes("pendiente")
-  ) {
-    return {
-      icon: Loading03Icon,
-      iconClassName: "bg-muted text-foreground ring-border",
-      cardClassName: "border-border bg-card text-card-foreground",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName: "border-border bg-muted text-foreground",
-      badge: "Seguimiento",
-    }
-  }
-
-  if (texto.includes("export") || texto.includes("formato")) {
-    return {
-      icon: Download01Icon,
-      iconClassName: "bg-primary/10 text-primary ring-primary/15",
-      cardClassName: "border-border bg-card text-card-foreground",
-      descriptionClassName: "text-muted-foreground",
-      detailClassName: "text-muted-foreground",
-      badgeClassName: "border-primary/20 bg-primary/5 text-primary",
-      badge: "Reporte",
-    }
-  }
-
-  return {
-    icon: ChartUpIcon,
-    iconClassName: "bg-accent text-accent-foreground ring-border",
-    cardClassName: "border-border bg-card text-card-foreground",
-    descriptionClassName: "text-muted-foreground",
-    detailClassName: "text-muted-foreground",
-    badgeClassName: "border-border bg-accent text-accent-foreground",
-    badge: "Control",
-  }
-}
-
-function obtenerMensajeError(error: unknown) {
-  return error instanceof Error ? error.message : "No se pudo completar la operacion."
-}
-
-function formatearFecha(fecha?: string) {
-  if (!fecha) {
-    return "-"
-  }
-
-  const valor = new Date(fecha)
-
-  if (Number.isNaN(valor.getTime())) {
-    return fecha
-  }
-
-  return new Intl.DateTimeFormat("es-PE", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(valor)
-}
+import {
+  puedeGestionarAsignacionesPersonal,
+  puedeResolverAprobacionSocio,
+} from "../tipos/socio-negocio"
+import { AccionesSocio } from "./socio-negocio-listado/acciones-socio"
+import {
+  EstadoAprobacionBadge,
+  EstadoRegistroBadge,
+  EstadoSocioBadge,
+  type ErrorOperacion,
+  type SocioNegocioVistaProps,
+  ResumenListado,
+  descargarReporte,
+  formatearFecha,
+  limpiarFiltros,
+  obtenerClaseContenidoSocio,
+  obtenerClaseFilaSocio,
+  obtenerFiltrosActivos,
+  obtenerMensajeError,
+  obtenerSiguienteAccion,
+  obtenerValorFiltro,
+} from "./socio-negocio-listado/utilidades"
 
 export function SocioNegocioVista({
   titulo,
-  etiqueta,
-  accionPrincipal = "Nuevo registro",
+  accionPrincipal = "Nuevo",
   crearHref,
-  metricas,
   filtros,
-  formatoExportacion = "EXCEL",
 }: SocioNegocioVistaProps) {
-  const [hydrated, setHydrated] = useState(false)
   const [reporteGenerado, setReporteGenerado] = useState<string | null>(null)
-  const sociosQuery = useSociosDeNegocioQuery(filtros)
-  const exportacionQuery = useExportarSociosDeNegocioQuery(
+  const [mensajeOperacion, setMensajeOperacion] = useState<string | null>(null)
+  const [errorOperacion, setErrorOperacion] = useState<ErrorOperacion | null>(null)
+  const [paginaActual, setPaginaActual] = useState(1)
+  const [registrosPorPagina, setRegistrosPorPagina] = useState(20)
+  const [filtrosFormulario, setFiltrosFormulario] =
+    useState<ConsultarSociosDeNegocioQuery>(() =>
+      limpiarFiltros({
+        ...filtros,
+      }),
+    )
+  const [filtrosAplicados, setFiltrosAplicados] =
+    useState<ConsultarSociosDeNegocioQuery>(() => filtrosFormulario)
+
+  const filtrosConPaginacion = useMemo(() => ({
+    ...filtrosAplicados,
+    page: paginaActual,
+    pageSize: registrosPorPagina,
+  }), [filtrosAplicados, paginaActual, registrosPorPagina])
+
+  const sociosQuery = useSociosDeNegocioQuery(filtrosConPaginacion)
+  const exportacionExcelQuery = useExportarSociosDeNegocioQuery(
     {
-      ...filtros,
-      formato: formatoExportacion,
+      ...filtrosAplicados,
+      formato: "EXCEL",
     },
     false
   )
-  const socios = sociosQuery.data ?? []
+  const exportacionPdfQuery = useExportarSociosDeNegocioQuery(
+    {
+      ...filtrosAplicados,
+      formato: "PDF",
+    },
+    false
+  )
+  const socios = useMemo(() => Array.isArray(sociosQuery.data?.datos) ? sociosQuery.data.datos : [], [sociosQuery.data])
+  const metaPaginacion = sociosQuery.data?.paginacion
+  const conteoVisible = useMemo(
+    () => ({
+      clientes: socios.filter((socio) => socio.tipo === "CLIENTE").length,
+      proveedores: socios.filter((socio) => socio.tipo === "PROVEEDOR").length,
+      personal: socios.filter((socio) => socio.tipo === "PERSONAL").length,
+    }),
+    [socios],
+  )
+  const indicadoresOperacion = useMemo(
+    () => ({
+      pendientesAprobacion: socios.filter((socio) =>
+        puedeResolverAprobacionSocio(socio),
+      ).length,
+      pendientesSap: socios.filter((socio) =>
+        socio.estadoSincronizacionSap === "PENDIENTE" ||
+        socio.estadoSincronizacionSap === "FALLIDO",
+      ).length,
+    }),
+    [socios],
+  )
+  const filtrosActivos = useMemo(
+    () => obtenerFiltrosActivos(filtrosAplicados),
+    [filtrosAplicados],
+  )
   const cargando = sociosQuery.isLoading
   const error = sociosQuery.error ? obtenerMensajeError(sociosQuery.error) : null
+  const tipoBloqueado = Boolean(filtros?.tipo)
+  const totalResultados = metaPaginacion?.total ?? socios.length
+  const textoResultados = metaPaginacion
+    ? `Pagina ${metaPaginacion.pagina} de ${metaPaginacion.totalPaginas || 1}`
+    : `${socios.length} visibles`
 
-  useEffect(() => {
-    setHydrated(true)
-  }, [])
-
-  const metricasVista = useMemo(() => {
-    const activos = socios.filter((socio) => socio.estado === "ACTIVO").length
-    const inactivos = socios.filter((socio) => socio.estado === "INACTIVO").length
-
-    if (!sociosQuery.data) {
-      return metricas
-    }
-
-    return [
-      {
-        etiqueta: "Registros consultados",
-        valor: String(socios.length),
-        detalle: "Resultado recibido desde /socios-de-negocio.",
-      },
-      {
-        etiqueta: "Activos",
-        valor: String(activos),
-        detalle: "Socios en estado ACTIVO para el filtro aplicado.",
-      },
-      {
-        etiqueta: "Inactivos",
-        valor: String(inactivos),
-        detalle: "Socios en estado INACTIVO para el filtro aplicado.",
-      },
-    ]
-  }, [metricas, socios, sociosQuery.data])
-
-  async function exportar() {
+  async function exportar(formato: ReporteSociosDeNegocioResponse["formato"]) {
     setReporteGenerado(null)
-    const resultado = await exportacionQuery.refetch()
+    const resultado =
+      formato === "PDF"
+        ? await exportacionPdfQuery.refetch()
+        : await exportacionExcelQuery.refetch()
+    const reporte = resultado.data?.datos[0]
 
-    if (resultado.data) {
+    if (reporte) {
+      descargarReporte(reporte)
       setReporteGenerado(
-        `${resultado.data.nombreArchivo} generado en formato ${resultado.data.formato}.`
+        `${reporte.nombreArchivo} descargado en formato ${reporte.formato}.`
       )
     }
   }
 
-  if (!hydrated) {
-    return (
-      <>
-        <SiteHeader
-          title={titulo}
-          breadcrumbs={[
-            { title: "Socio de Negocio", href: "/socio-negocios" },
-            { title: titulo },
-          ]}
-        />
-        <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-          <div className="flex w-full flex-col gap-5">
-            <Skeleton className="h-28 w-full" />
-            <section className="grid gap-4 md:grid-cols-3">
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-32 w-full" />
-              <Skeleton className="h-32 w-full" />
-            </section>
-            <Skeleton className="h-96 w-full" />
-          </div>
-        </main>
-      </>
+  function actualizarFiltro<K extends keyof ConsultarSociosDeNegocioQuery>(
+    key: K,
+    value: ConsultarSociosDeNegocioQuery[K] | "TODOS",
+  ) {
+    setFiltrosFormulario((actual) => {
+      const siguiente = { ...actual }
+
+      if (value === "TODOS" || value === "") {
+        delete siguiente[key]
+      } else {
+        siguiente[key] = value as ConsultarSociosDeNegocioQuery[K]
+      }
+
+      return limpiarFiltros({
+        ...siguiente,
+        ...(filtros?.tipo ? { tipo: filtros.tipo } : {}),
+      })
+    })
+  }
+
+  function aplicarFiltros() {
+    setPaginaActual(1)
+    setFiltrosAplicados(
+      limpiarFiltros({
+        ...filtrosFormulario,
+        ...(filtros?.tipo ? { tipo: filtros.tipo } : {}),
+      }),
     )
+  }
+
+  function limpiarBusqueda() {
+    const filtrosBase = limpiarFiltros({
+      ...filtros,
+    })
+    setPaginaActual(1)
+    setFiltrosFormulario(filtrosBase)
+    setFiltrosAplicados(filtrosBase)
   }
 
   return (
@@ -268,6 +233,59 @@ export function SocioNegocioVista({
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
+          <SocioNegocioPageHeader
+            title="Listado de Socios de Negocio"
+            description="Busca, filtra y opera el maestro de socios con una vista clara para trabajo diario."
+            meta={
+              <>
+                <Badge variant="secondary">{totalResultados} registros</Badge>
+                <Badge variant="outline">{textoResultados}</Badge>
+                {filtrosActivos.length > 0 ? (
+                  <Badge variant="outline">{filtrosActivos.length} filtros activos</Badge>
+                ) : null}
+              </>
+            }
+            actions={
+              crearHref ? (
+                <Button asChild className="w-full sm:w-auto">
+                  <Link href={crearHref}>
+                    <Plus data-icon="inline-start" />
+                    {accionPrincipal}
+                  </Link>
+                </Button>
+              ) : null
+            }
+            />
+
+          <section className="grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-xl border border-primary/15 bg-card p-4 shadow-xs">
+              <div className="flex flex-col gap-1">
+                <h2 className="text-sm font-semibold">Flujo recomendado</h2>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Registra o edita el socio, valida aprobaciones pendientes y usa el historial para auditar cada cambio.
+                </p>
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-xs font-medium text-muted-foreground">1. Buscar</p>
+                  <p className="mt-1 text-sm">Filtra por nombre, documento, tipo o SAP.</p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-xs font-medium text-muted-foreground">2. Resolver</p>
+                  <p className="mt-1 text-sm">Aprueba, corrige, anula o reactiva desde acciones.</p>
+                </div>
+                <div className="rounded-lg border border-border bg-background p-3">
+                  <p className="text-xs font-medium text-muted-foreground">3. Auditar</p>
+                  <p className="mt-1 text-sm">Consulta historial y descarga reportes filtrados.</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+              <ResumenListado icon={Clock} label="Por aprobar" value={indicadoresOperacion.pendientesAprobacion} />
+              <ResumenListado icon={CircleDashed} label="SAP pendiente" value={indicadoresOperacion.pendientesSap} />
+            </div>
+          </section>
+
           {error ? (
             <Alert variant="destructive">
               <AlertTitle>Error de API</AlertTitle>
@@ -282,84 +300,235 @@ export function SocioNegocioVista({
             </Alert>
           ) : null}
 
-          <section className="grid gap-4 md:grid-cols-3">
-            {metricasVista.map((metrica, index) => {
-              const visual = obtenerVisualMetrica(metrica.etiqueta, index)
+          {mensajeOperacion ? (
+            <Alert>
+              <AlertTitle>Operacion completada</AlertTitle>
+              <AlertDescription>{mensajeOperacion}</AlertDescription>
+            </Alert>
+          ) : null}
 
-              return (
-              <Card key={metrica.etiqueta} className={visual.cardClassName}>
-                <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
-                  <div className="flex flex-col gap-1">
-                    <CardDescription className={visual.descriptionClassName}>
-                      {metrica.etiqueta}
-                    </CardDescription>
-                    <CardTitle className="text-3xl">{metrica.valor}</CardTitle>
+          <section className="flex flex-col gap-4">
+            <div className="overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground">
+              <div className="flex flex-col gap-1 border-b border-border px-5 py-4">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <h2 className="text-base font-semibold">Buscar y filtrar</h2>
+                    <p className="text-sm leading-5 text-muted-foreground">
+                      Combina criterios para encontrar rapidamente el registro que necesitas.
+                    </p>
                   </div>
-                  <span
-                    className={`flex size-10 shrink-0 items-center justify-center rounded-lg ring-1 ${visual.iconClassName}`}
-                  >
-                    <HugeiconsIcon icon={visual.icon} strokeWidth={2} />
-                  </span>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between gap-3">
-                  <p className={`text-sm leading-5 ${visual.detailClassName}`}>
-                    {metrica.detalle}
-                  </p>
-                  <Badge
-                    variant="outline"
-                    className={`shrink-0 ${visual.badgeClassName}`}
-                  >
-                    {visual.badge}
-                  </Badge>
-                </CardContent>
-              </Card>
-            )})}
-          </section>
-
-          <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-            <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-base font-semibold">Socios de negocio</h2>
-                <p className="text-sm text-muted-foreground">{etiqueta}</p>
+                  <div className="grid gap-2 sm:grid-cols-3 lg:w-[400px]">
+                    <ResumenListado icon={Building2} label="Clientes" value={conteoVisible.clientes} />
+                    <ResumenListado icon={Package} label="Proveedores" value={conteoVisible.proveedores} />
+                    <ResumenListado icon={User} label="Personal" value={conteoVisible.personal} />
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={sociosQuery.isFetching}
-                  onClick={() => void sociosQuery.refetch()}
+              <div className="flex flex-col gap-3 border-b border-border bg-muted/20 px-4 py-4">
+                <form
+                  className="grid gap-3 md:grid-cols-2 xl:grid-cols-6"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    aplicarFiltros()
+                  }}
                 >
-                  <HugeiconsIcon
-                    data-icon="inline-start"
-                    icon={Search01Icon}
-                    strokeWidth={2}
-                  />
-                  {sociosQuery.isFetching ? "Consultando..." : "Consultar"}
-                </Button>
-                {crearHref ? (
-                  <Button asChild size="sm">
-                    <Link href={crearHref}>
-                      <HugeiconsIcon
-                        data-icon="inline-start"
-                        icon={Add01Icon}
-                        strokeWidth={2}
+                  <Field className="md:col-span-2 xl:col-span-2">
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <Search />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        value={obtenerValorFiltro(filtrosFormulario, "razonSocial")}
+                        placeholder="Razon social, nombre comercial o contacto"
+                        onChange={(event) =>
+                          actualizarFiltro("razonSocial", event.target.value)
+                        }
                       />
-                      {accionPrincipal}
-                    </Link>
-                  </Button>
-                ) : null}
+                    </InputGroup>
+                  </Field>
+                  <Field>
+                    <Input
+                      value={obtenerValorFiltro(
+                        filtrosFormulario,
+                        "numeroDocumento",
+                      )}
+                      placeholder="RUC/DNI"
+                      onChange={(event) =>
+                        actualizarFiltro("numeroDocumento", event.target.value)
+                      }
+                    />
+                  </Field>
+                  <Field>
+                    <Select
+                      value={filtrosFormulario.tipo ?? "TODOS"}
+                      disabled={tipoBloqueado}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "tipo",
+                          value as ConsultarSociosDeNegocioQuery["tipo"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Tipo: todos</SelectItem>
+                          <SelectItem value="CLIENTE">Cliente</SelectItem>
+                          <SelectItem value="PROVEEDOR">Proveedor</SelectItem>
+                          <SelectItem value="PERSONAL">Personal</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <Select
+                      value={filtrosFormulario.estado ?? "TODOS"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "estado",
+                          value as ConsultarSociosDeNegocioQuery["estado"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Estado: todos</SelectItem>
+                          <SelectItem value="ACTIVO">Activo</SelectItem>
+                          <SelectItem value="INACTIVO">Inactivo</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <Select
+                      value={filtrosFormulario.estadoRegistro ?? "ACTIVO"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "estadoRegistro",
+                          value as ConsultarSociosDeNegocioQuery["estadoRegistro"],
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Registro" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="ACTIVO">Vigentes</SelectItem>
+                          <SelectItem value="ANULADO">Anulados</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <Select
+                      value={filtrosFormulario.origen ?? "TODOS"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "origen",
+                          value as ConsultarSociosDeNegocioQuery["origen"] | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Origen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">Origen: todos</SelectItem>
+                          <SelectItem value="MANUAL">Manual</SelectItem>
+                          <SelectItem value="COMERCIAL">Comercial</SelectItem>
+                          <SelectItem value="SAP">SAP</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field>
+                    <Select
+                      value={filtrosFormulario.estadoSincronizacionSap ?? "TODOS"}
+                      onValueChange={(value) =>
+                        actualizarFiltro(
+                          "estadoSincronizacionSap",
+                          value as
+                            | ConsultarSociosDeNegocioQuery["estadoSincronizacionSap"]
+                            | "TODOS",
+                        )
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Sincronizacion SAP" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="TODOS">SAP: todas</SelectItem>
+                          <SelectItem value="SINCRONIZADO">Sincronizado</SelectItem>
+                          <SelectItem value="PENDIENTE">Pendiente</SelectItem>
+                          <SelectItem value="PROCESANDO">Procesando</SelectItem>
+                          <SelectItem value="FALLIDO">Fallido</SelectItem>
+                          <SelectItem value="NO_INICIADA">No iniciada</SelectItem>
+                          <SelectItem value="NO_APLICA">No aplica</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <div className="flex flex-wrap gap-2 md:col-span-2 xl:col-span-2">
+                    <Button type="submit" size="sm" disabled={sociosQuery.isFetching}>
+                      <Search data-icon="inline-start" />
+                      {sociosQuery.isFetching ? "Consultando..." : "Aplicar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={limpiarBusqueda}
+                    >
+                      Limpiar
+                    </Button>
+                  </div>
+                </form>
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+                  <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <Filter data-icon="inline-start" />
+                    Filtros activos
+                  </span>
+                  {filtrosActivos.length > 0 ? (
+                    filtrosActivos.map((filtro) => (
+                      <Badge key={`${filtro.key}-${filtro.value}`} variant="secondary">
+                        {filtro.label}: {filtro.value}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-muted-foreground">
+                      Sin filtros adicionales. Se muestran registros vigentes por defecto.
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+                  <span className="mr-auto text-sm text-muted-foreground">
+                    Exporta el resultado filtrado para reportes o revision interna.
+                  </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={exportacionQuery.isFetching}
-                    onClick={() => void exportar()}
+                    disabled={exportacionExcelQuery.isFetching}
+                    onClick={() => void exportar("EXCEL")}
                   >
-                    <HugeiconsIcon
-                      data-icon="inline-start"
-                      icon={Download01Icon}
-                      strokeWidth={2}
-                    />
-                    {exportacionQuery.isFetching ? "Exportando..." : "Exportar"}
+                    <Download data-icon="inline-start" />
+                    {exportacionExcelQuery.isFetching ? "Descargando..." : "Excel"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={exportacionPdfQuery.isFetching}
+                    onClick={() => void exportar("PDF")}
+                  >
+                    <Download data-icon="inline-start" />
+                    {exportacionPdfQuery.isFetching ? "Descargando..." : "PDF"}
                   </Button>
               </div>
             </div>
@@ -374,111 +543,204 @@ export function SocioNegocioVista({
                 <EmptyHeader>
                   <EmptyTitle>Sin socios de negocio</EmptyTitle>
                   <EmptyDescription>
-                    No existen registros para el filtro aplicado.
+                    No existen registros para el filtro aplicado. Limpia la busqueda o crea un nuevo socio si corresponde.
                   </EmptyDescription>
                 </EmptyHeader>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={limpiarBusqueda}>
+                    Limpiar busqueda
+                  </Button>
+                  {crearHref ? (
+                    <Button asChild size="sm">
+                      <Link href={crearHref}>
+                        <Plus data-icon="inline-start" />
+                        {accionPrincipal}
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
               </Empty>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50 hover:bg-muted/50">
-                      <TableHead className="w-10">
-                        <Checkbox aria-label="Seleccionar todos" />
-                      </TableHead>
+                    <TableRow className="bg-background hover:bg-transparent">
+                      <TableHead className="w-10">Acciones</TableHead>
+                      <TableHead className="text-right">ID</TableHead>
                       <TableHead>Codigo SAP</TableHead>
                       <TableHead>Socio</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Estado</TableHead>
-                      <TableHead>Documento</TableHead>
-                      <TableHead>Contacto</TableHead>
-                      <TableHead>Celular</TableHead>
                       <TableHead>Registro</TableHead>
-                      <TableHead>Baja</TableHead>
-                      <TableHead className="w-10" />
+                      <TableHead>Aprobacion</TableHead>
+                      <TableHead>Asignacion vigente</TableHead>
+                      <TableHead>Siguiente accion</TableHead>
+                      <TableHead>Sincronizacion SAP</TableHead>
+                      <TableHead>Origen</TableHead>
+                      <TableHead>Documento</TableHead>
+                      <TableHead>Creacion</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {socios.map((socio) => (
-                      <TableRow key={socio.id}>
-                        <TableCell>
-                          <Checkbox aria-label={`Seleccionar ${socio.razonSocial}`} />
+                    {socios.map((socio) => {
+                      const claseContenido = obtenerClaseContenidoSocio(socio)
+                      const inactivo = socio.estado === "INACTIVO"
+                      const anulado = socio.estadoRegistro === "ANULADO"
+                      const puedeGestionarAsignaciones =
+                        puedeGestionarAsignacionesPersonal(socio)
+                      return (
+                          <TableRow key={socio.id} className={obtenerClaseFilaSocio(socio)}>
+                          <TableCell>
+                            <AccionesSocio
+                              socio={socio}
+                              onActualizado={() => void sociosQuery.refetch()}
+                              onMensaje={(mensaje) => {
+                                setErrorOperacion(null)
+                                setMensajeOperacion(mensaje)
+                              }}
+                              onError={(error) => {
+                                setMensajeOperacion(null)
+                                setErrorOperacion(error)
+                              }}
+                            />
+                          </TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          <span className={claseContenido}>{socio.id}</span>
                         </TableCell>
                         <TableCell className="font-mono text-xs">
-                          {socio.codigoInternoSap}
+                          <span className={claseContenido}>{socio.codigoInternoSap}</span>
                         </TableCell>
                         <TableCell>
-                          <div className="flex min-w-48 flex-col">
-                            <span className="font-medium">{socio.razonSocial}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {socio.nombreComercial || "Sin nombre comercial"}
-                            </span>
+                          <div className="flex min-w-48 items-center gap-2">
+                            {inactivo || anulado ? (
+                              <span
+                                className={cn(
+                                  "size-2 shrink-0 rounded-full",
+                                  anulado ? "bg-destructive" : "bg-destructive/60",
+                                )}
+                                aria-hidden
+                                title={anulado ? "Registro anulado" : "Socio inactivo"}
+                              />
+                            ) : null}
+                            <div className="flex min-w-0 flex-col">
+                              <span className={cn("font-medium", claseContenido)}>
+                                {socio.razonSocial}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {socio.nombreComercial || "Sin nombre comercial"}
+                              </span>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{socio.tipo}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={estadoVariant[socio.estado]}>
-                            {socio.estado}
+                          <Badge
+                            variant="outline"
+                            className="h-6 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
+                          >
+                            {socio.tipo}
                           </Badge>
                         </TableCell>
-                        <TableCell>{socio.numeroDocumento}</TableCell>
                         <TableCell>
-                          <div className="flex min-w-44 flex-col">
-                            <span>{socio.contacto || "Sin contacto"}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {socio.correo || "Sin correo"}
-                            </span>
-                          </div>
+                          <span className={claseContenido}>
+                            <EstadoSocioBadge estado={socio.estado} />
+                          </span>
                         </TableCell>
-                        <TableCell>{socio.numeroCelular || "-"}</TableCell>
+                        <TableCell>
+                          <span className={claseContenido}>
+                            <EstadoRegistroBadge estadoRegistro={socio.estadoRegistro} />
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <EstadoAprobacionBadge estado={socio.estadoAprobacion} />
+                        </TableCell>
+                        <TableCell>
+                          {puedeGestionarAsignaciones ? (
+                            <Button asChild variant="outline" size="sm">
+                              <Link href={`/socio-negocios/${socio.id}/asignaciones`}>
+                                Ver asignaciones
+                              </Link>
+                            </Button>
+                          ) : socio.tipo === "PERSONAL" ? (
+                            <span className="text-sm text-muted-foreground">
+                              No disponible
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No aplica</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="whitespace-nowrap">
+                            {obtenerSiguienteAccion(socio)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {socio.estadoSincronizacionSap ? (
+                            <EstadoSincronizacionSapBadge
+                              estado={socio.estadoSincronizacionSap}
+                              ultimoError={socio.ultimoErrorSincronizacionSap}
+                            />
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No aplica</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{socio.origen}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={claseContenido}>{socio.numeroDocumento}</span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex min-w-40 flex-col">
-                            <span>{formatearFecha(socio.registradoEn)}</span>
+                            <span className={claseContenido}>
+                              {formatearFecha(socio.fechaCreacion)}
+                            </span>
                             <span className="text-xs text-muted-foreground">
-                              {socio.registradoPorId || "Sin usuario"}
+                              {socio.usuarioCreacion || "Sin usuario"}
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex min-w-44 flex-col">
-                            <span>
-                              {socio.fechaBaja ? formatearFecha(socio.fechaBaja) : "-"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {socio.motivoBaja || "Sin baja registrada"}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" aria-label="Acciones">
-                                <HugeiconsIcon
-                                  icon={MoreVerticalCircle01Icon}
-                                  strokeWidth={2}
-                                />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuGroup>
-                                <DropdownMenuItem>Ver ficha</DropdownMenuItem>
-                                <DropdownMenuItem>Modificar</DropdownMenuItem>
-                                <DropdownMenuItem>Dar de baja</DropdownMenuItem>
-                              </DropdownMenuGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                        </TableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </div>
             )}
+            {socios.length > 0 && metaPaginacion ? (
+              <PaginationControls
+                meta={metaPaginacion}
+                registrosPorPagina={registrosPorPagina}
+                onPageChange={setPaginaActual}
+                onPageSizeChange={(pageSize) => {
+                  setRegistrosPorPagina(pageSize)
+                  setPaginaActual(1)
+                }}
+              />
+            ) : null}
+            </div>
           </section>
         </div>
       </main>
+
+      <AlertDialog
+        open={errorOperacion !== null}
+        onOpenChange={(open) => !open && setErrorOperacion(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{errorOperacion?.titulo}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {errorOperacion?.descripcion}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setErrorOperacion(null)}>
+              Entendido
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </>
   )
 }

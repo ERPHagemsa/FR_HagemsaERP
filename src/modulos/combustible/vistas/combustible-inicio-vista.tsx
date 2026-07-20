@@ -20,14 +20,15 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Separator } from "@/compartido/componentes/ui/separator";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
+import { extraerMensajeError } from "@/compartido/api";
 
-import { formatearError, formatearFecha } from "../componentes/formato";
+import { formatearFecha } from "../componentes/formato";
 import { useHealthCombustibleQuery } from "../servicios/combustible-queries";
 
 export function CombustibleInicioVista() {
   const healthQuery = useHealthCombustibleQuery();
   const health = healthQuery.data ?? null;
-  const error = healthQuery.error ? formatearError(healthQuery.error) : null;
+  const error = healthQuery.error ? extraerMensajeError(healthQuery.error) : null;
   const cargando = healthQuery.isLoading;
 
   return (

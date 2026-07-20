@@ -11,7 +11,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      {children}
+      <div suppressHydrationWarning>
+        {children}
+      </div>
     </NextThemesProvider>
   )
 }

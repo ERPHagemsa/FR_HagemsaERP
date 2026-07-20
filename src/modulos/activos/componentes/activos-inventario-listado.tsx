@@ -15,6 +15,10 @@ import {
 } from "@/compartido/componentes/ui/card";
 import { Input } from "@/compartido/componentes/ui/input";
 import { cn } from "@/compartido/utilidades";
+import {
+  useCatalogosActivos,
+  type CatalogosActivos,
+} from "../ganchos/use-catalogos-activos";
 import type { Activo } from "../tipos/activo.tipos";
 
 type Props = {
@@ -22,6 +26,7 @@ type Props = {
 };
 
 export function ActivosInventarioListado({ activos }: Props) {
+  const catalogos = useCatalogosActivos();
   const [query, setQuery] = React.useState("");
   const [tipoActivo, setTipoActivo] = React.useState("TODOS");
   const [estadoActivo, setEstadoActivo] = React.useState("TODOS");
@@ -30,7 +35,7 @@ export function ActivosInventarioListado({ activos }: Props) {
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
 
   const activosVisibles = activos.filter(
-    (activo) => activo.estadoActivo !== "ELIMINADO"
+    (activo) => activo.estadoRegistro !== false
   );
   const normalizedQuery = query.trim().toUpperCase();
 
@@ -41,7 +46,7 @@ export function ActivosInventarioListado({ activos }: Props) {
       activo.codigo,
       activo.descripcion,
       activo.ubicacion,
-      vehiculo?.placaRodaje,
+      vehiculo?.placa,
       vehiculo?.marca,
       vehiculo?.modelo,
       vehiculo?.serieChasis,
@@ -55,15 +60,16 @@ export function ActivosInventarioListado({ activos }: Props) {
 
     return (
       textoBusqueda.includes(normalizedQuery) &&
-      (tipoActivo === "TODOS" || activo.tipoActivo === tipoActivo) &&
-      (estadoActivo === "TODOS" || activo.estadoActivo === estadoActivo) &&
+      (tipoActivo === "TODOS" ||
+        activo.tipoActivoReferenciaId === Number(tipoActivo)) &&
+      coincideEstadoActivo(activo.estadoActivo, estadoActivo) &&
       (estadoOperativo === "TODOS" ||
         vehiculo?.estadoOperativo === estadoOperativo)
     );
   });
 
   const ordenados = [...filtrados].sort(
-    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    (a, b) => new Date(b.fechaModificacion).getTime() - new Date(a.fechaModificacion).getTime()
   );
   const totalPaginas = Math.max(
     1,
@@ -80,12 +86,17 @@ export function ActivosInventarioListado({ activos }: Props) {
   }, [query, tipoActivo, estadoActivo, estadoOperativo, registrosPorPagina]);
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader className="border-b border-border">
-        <CardTitle>Listado detallado de inventario</CardTitle>
-        <CardDescription>
-          {filtrados.length} de {activosVisibles.length} activos visibles
-        </CardDescription>
+        <div className="flex items-center gap-3">
+          <span className="h-8 w-1 rounded-full bg-primary" />
+          <div>
+            <CardTitle>Listado detallado de inventario</CardTitle>
+            <CardDescription>
+              {filtrados.length} de {activosVisibles.length} activos visibles
+            </CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-5">
         <div className="grid gap-3 xl:grid-cols-[minmax(260px,1fr)_repeat(3,180px)]">
@@ -107,16 +118,19 @@ export function ActivosInventarioListado({ activos }: Props) {
             label="Tipo"
             value={tipoActivo}
             onChange={setTipoActivo}
-            values={["TODOS", "VEHICULO", "EQUIPO", "HERRAMIENTA", "DISPOSITIVO", "OTRO"]}
+            values={["TODOS", ...catalogos.tiposActivo.map((opcion) => String(opcion.id))]}
+            etiquetas={Object.fromEntries(
+              catalogos.tiposActivo.map((opcion) => [String(opcion.id), opcion.nombre])
+            )}
           />
           <FiltroSelect
             label="Estado"
             value={estadoActivo}
             onChange={setEstadoActivo}
-            values={["TODOS", "ACTIVO", "INACTIVO", "SINIESTRADO"]}
+            values={["TODOS", "ACTIVO", "BAJA"]}
           />
           <FiltroSelect
-            label="Operativo"
+            label="Condicion"
             value={estadoOperativo}
             onChange={setEstadoOperativo}
             values={["TODOS", "OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]}
@@ -125,7 +139,7 @@ export function ActivosInventarioListado({ activos }: Props) {
 
         <div className="grid gap-3">
           {visibles.map((activo) => (
-            <InventarioItem key={activo.id} activo={activo} />
+            <InventarioItem key={activo.id} activo={activo} catalogos={catalogos} />
           ))}
           {!ordenados.length ? (
             <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
@@ -183,18 +197,26 @@ export function ActivosInventarioListado({ activos }: Props) {
   );
 }
 
-function InventarioItem({ activo }: { activo: Activo }) {
+function InventarioItem({
+  activo,
+  catalogos,
+}: {
+  activo: Activo;
+  catalogos: CatalogosActivos;
+}) {
   const vehiculo = activo.vehiculo;
 
   return (
-    <article className="rounded-xl border border-border bg-card/60 p-4">
+    <article className="rounded-xl border border-border bg-card/60 p-4 transition-colors hover:border-primary/40">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">ID inventario</Badge>
+            <Badge className="border-primary/30 bg-primary/10 text-primary" variant="outline">
+              ID inventario
+            </Badge>
             <span
               className="max-w-full truncate font-mono text-xs text-muted-foreground"
-              title={activo.id}
+              title={String(activo.id)}
             >
               {activo.id}
             </span>
@@ -202,7 +224,12 @@ function InventarioItem({ activo }: { activo: Activo }) {
           <h3 className="mt-2 text-lg font-semibold">{activo.codigo}</h3>
           <p className="text-sm text-muted-foreground">{activo.descripcion}</p>
         </div>
-        <Button asChild size="sm" variant="outline">
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          className="border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+        >
           <Link href={`/activos/${activo.codigo}`}>
             <IconEye />
             Ver detalle
@@ -211,14 +238,20 @@ function InventarioItem({ activo }: { activo: Activo }) {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Dato label="Placa" value={vehiculo?.placaRodaje} />
-        <Dato label="Tipo" value={formatear(activo.tipoActivo)} />
+        <Dato label="Placa" value={vehiculo?.placa} />
+        <Dato
+          label="Tipo"
+          value={catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId)}
+        />
         <Dato label="Ubicacion" value={activo.ubicacion} />
-        <Dato label="Estado activo" value={formatear(activo.estadoActivo)} />
-        <Dato label="Operativo" value={formatear(vehiculo?.estadoOperativo)} />
+        <Dato label="Estado activo" value={formatearEstadoActivo(activo.estadoActivo)} />
+        <Dato label="Condicion activo" value={formatear(vehiculo?.estadoOperativo)} />
         <Dato
           label="Calibracion"
-          value={formatear(vehiculo?.estadoCalibracion)}
+          value={catalogos.nombrePorId(
+            "ESTADO_CALIBRACION",
+            vehiculo?.estadoCalibracionReferenciaId
+          )}
         />
         <Dato label="Marca" value={vehiculo?.marca} />
         <Dato label="Modelo" value={vehiculo?.modelo} />
@@ -226,8 +259,8 @@ function InventarioItem({ activo }: { activo: Activo }) {
         <Dato label="Categoria" value={vehiculo?.categoria} />
         <Dato label="Serie chasis" value={vehiculo?.serieChasis} />
         <Dato label="Serie motor" value={vehiculo?.serieMotor} />
-        <Dato label="Creacion" value={formatearFecha(activo.createdAt)} />
-        <Dato label="Ultima modificacion" value={formatearFecha(activo.updatedAt)} />
+        <Dato label="Creacion" value={formatearFecha(activo.fechaCreacion)} />
+        <Dato label="Ultima modificacion" value={formatearFecha(activo.fechaModificacion)} />
       </div>
     </article>
   );
@@ -244,15 +277,30 @@ function Dato({ label, value }: { label: string; value?: string | number | null 
   );
 }
 
+function coincideEstadoActivo(estadoActivo: string, filtro: string) {
+  if (filtro === "TODOS") return true;
+  if (filtro === "BAJA") return estadoActivo !== "ACTIVO";
+  return estadoActivo === filtro;
+}
+
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return formatear(value);
+}
+
 function FiltroSelect({
   label,
   value,
   values,
+  etiquetas,
   onChange,
 }: {
   label: string;
   value: string;
   values: string[];
+  etiquetas?: Record<string, string>;
   onChange: (value: string) => void;
 }) {
   return (
@@ -268,7 +316,7 @@ function FiltroSelect({
       >
         {values.map((item) => (
           <option key={item} value={item}>
-            {item === "TODOS" ? "Todos" : formatear(item)}
+            {item === "TODOS" ? "Todos" : etiquetas?.[item] ?? formatear(item)}
           </option>
         ))}
       </select>

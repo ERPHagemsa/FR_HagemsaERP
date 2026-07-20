@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import {
   IconAlertCircle,
   IconArrowLeft,
@@ -52,7 +52,9 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 
-import { formatearError, formatearFecha } from "../componentes/formato";
+import { extraerMensajeError } from "@/compartido/api";
+
+import { formatearFecha } from "../componentes/formato";
 import {
   useCrearSolicitudCombustibleMutation,
   useManifiestosQuery,
@@ -68,8 +70,14 @@ export function SolicitudesCombustibleVista() {
   const manifiestosQuery = useManifiestosQuery();
   const solicitudesQuery = useSolicitudesCombustibleQuery();
   const crearSolicitudMutation = useCrearSolicitudCombustibleMutation();
-  const manifiestos = manifiestosQuery.data ?? [];
+  const manifiestos = useMemo(
+    () => manifiestosQuery.data ?? [],
+    [manifiestosQuery.data],
+  );
   const solicitudes = solicitudesQuery.data ?? [];
+  const manifiestoSeleccionadoId = manifiestoId || manifiestos[0]?.id || "";
+  const errorConsulta = manifiestosQuery.error ?? solicitudesQuery.error;
+  const mensajeError = error ?? (errorConsulta ? extraerMensajeError(errorConsulta) : null);
   const cargando = manifiestosQuery.isLoading || solicitudesQuery.isLoading;
   const actualizando =
     manifiestosQuery.isFetching || solicitudesQuery.isFetching;
@@ -81,18 +89,6 @@ export function SolicitudesCombustibleVista() {
     void solicitudesQuery.refetch();
   }
 
-  useEffect(() => {
-    setManifiestoId((actual) => actual || manifiestos[0]?.id || "");
-  }, [manifiestos]);
-
-  useEffect(() => {
-    const queryError = manifiestosQuery.error ?? solicitudesQuery.error;
-
-    if (queryError) {
-      setError(formatearError(queryError));
-    }
-  }, [manifiestosQuery.error, solicitudesQuery.error]);
-
   async function crearSolicitud(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMensaje(null);
@@ -100,7 +96,7 @@ export function SolicitudesCombustibleVista() {
 
     try {
       const solicitud = await crearSolicitudMutation.mutateAsync({
-        manifiestoId,
+        manifiestoId: manifiestoSeleccionadoId,
         placa: placa.trim().toUpperCase(),
         litrosSolicitados: Number(litrosSolicitados),
       });
@@ -108,8 +104,8 @@ export function SolicitudesCombustibleVista() {
       setPlaca("");
       setLitrosSolicitados("120");
       setMensaje(`Solicitud ${solicitud.id} creada correctamente.`);
-    } catch (err: unknown) {
-      setError(formatearError(err));
+    } catch (err) {
+      setError(extraerMensajeError(err, "No se pudo crear la solicitud."));
     }
   }
 
@@ -156,7 +152,7 @@ export function SolicitudesCombustibleVista() {
                 <Field>
                   <FieldLabel htmlFor="manifiesto">Manifiesto</FieldLabel>
                   <Select
-                    value={manifiestoId}
+                    value={manifiestoSeleccionadoId}
                     onValueChange={setManifiestoId}
                     required
                   >
@@ -201,7 +197,7 @@ export function SolicitudesCombustibleVista() {
                   />
                 </Field>
 
-                <Button type="submit" disabled={guardando || !manifiestoId}>
+                <Button type="submit" disabled={guardando || !manifiestoSeleccionadoId}>
                   <IconSend data-icon="inline-start" />
                   {guardando ? "Creando..." : "Crear solicitud"}
                 </Button>
@@ -213,9 +209,9 @@ export function SolicitudesCombustibleVista() {
                   </Alert>
                 ) : null}
 
-                {error ? (
+                {mensajeError ? (
                   <Field data-invalid>
-                    <FieldError>{error}</FieldError>
+                    <FieldError>{mensajeError}</FieldError>
                   </Field>
                 ) : null}
               </FieldGroup>
@@ -276,11 +272,11 @@ export function SolicitudesCombustibleVista() {
               </Table>
             )}
 
-            {error && !cargando ? (
+            {mensajeError && !cargando ? (
               <Alert variant="destructive" className="mt-4">
                 <IconAlertCircle />
                 <AlertTitle>Error de API</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{mensajeError}</AlertDescription>
               </Alert>
             ) : null}
           </CardContent>

@@ -1,0 +1,649 @@
+"use client";
+
+import * as React from "react";
+import { toast } from "sonner";
+
+import {
+  esError409,
+  esError404,
+  esErrorValidacion,
+  extraerMensajeError,
+  obtenerErroresPorCampo,
+  useConsulta,
+} from "@/compartido/api";
+import { Loader2, Pencil } from "lucide-react";
+
+import { Button } from "@/compartido/componentes/ui/button";
+import { CampoFecha } from "@/compartido/componentes/campo-fecha";
+import { aISODate } from "@/compartido/utilidades";
+import { FieldLegend, FieldSet } from "@/compartido/componentes/ui/field";
+import { Label } from "@/compartido/componentes/ui/label";
+import { Textarea } from "@/compartido/componentes/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select";
+
+import { consultarProspecto } from "../../prospectos/servicios/prospectos-api";
+import { useRegistrarSCMutation } from "../servicios/solicitudes-cliente-queries";
+import { BuscarOrigenPanel } from "./buscar-origen-panel";
+import type { CanalEntrada, OrigenTipo } from "../../cotizaciones/tipos/cotizaciones.tipos";
+import {
+  issuesAErroresCampo,
+  schemaRegistrarSC,
+} from "../../cotizaciones/tipos/cotizaciones.schemas";
+
+// ---------------------------------------------------------------------------
+// Helper para leer el valor de un campo del formulario
+// ---------------------------------------------------------------------------
+
+function getValue(root: HTMLElement, name: string): string {
+  return (
+    (
+      root.querySelector(`[name="${name}"]`) as
+        | HTMLInputElement
+        | HTMLSelectElement
+        | HTMLTextAreaElement
+        | null
+    )?.value.trim() ?? ""
+  );
+}
+
+const REGEX_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function esUuid(valor: string): boolean {
+  return REGEX_UUID.test(valor.trim());
+}
+
+// ---------------------------------------------------------------------------
+// Tipos del contexto compartido del formulario
+// (NO incluye el formularioRef para no contaminar la prop de render)
+// ---------------------------------------------------------------------------
+
+export interface ContextoCamposNuevaSolicitud {
+  isSaving: boolean;
+  erroresCampo: Record<string, string>;
+  origenIdValue: string;
+  origenTipoValue: OrigenTipo;
+  origenNombreValue: string;
+  tipoDocumentoValue: string;
+  numeroDocumentoValue: string;
+  contactoOrigenIdValue: string;
+  // Snapshot del contacto para mostrar: prospecto → contacto por defecto (auto,
+  // ya no se elige); cliente → correo que trajo BC-01.
+  nombreContacto: string | null;
+  correoContacto: string | null;
+  fechaRequeridaValue: Date | undefined;
+  cargandoContactos: boolean;
+  errorContactos: unknown;
+  setFechaRequeridaValue: (fecha: Date | undefined) => void;
+  limpiarErrorCampo: (name: string) => void;
+  limpiarOrigen: () => void;
+  onIdentidadResuelta: (identidad: {
+    origenTipo: OrigenTipo;
+    origenId: string;
+    nombre?: string;
+    tipoDocumento?: string;
+    numeroDocumento?: string;
+    correo?: string | null;
+  }) => void;
+  onSubmit: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// Hook: encapsula toda la logica del formulario de nueva SC
+// ---------------------------------------------------------------------------
+
+export interface UseFormularioNuevaSolicitudOpciones {
+  /** Callback que se llama con el id de la SC creada. El caller decide que hacer (navegar, cerrar panel, etc.). */
+  onExito: (id: string) => void;
+}
+
+export interface RetornoFormularioNuevaSolicitud {
+  /** Ref del <form> — cada consumidor la adjunta a su propia etiqueta <form ref={formularioRef}>. */
+  formularioRef: React.RefObject<HTMLFormElement | null>;
+  /** Contexto de campos (sin ref) — pasalo directamente a CamposNuevaSolicitud. */
+  campos: ContextoCamposNuevaSolicitud;
+}
+
+export function useFormularioNuevaSolicitud({
+  onExito,
+}: UseFormularioNuevaSolicitudOpciones): RetornoFormularioNuevaSolicitud {
+  const formularioRef = React.useRef<HTMLFormElement>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [erroresCampo, setErroresCampo] = React.useState<Record<string, string>>({});
+  const [origenIdValue, setOrigenIdValue] = React.useState("");
+  const [origenTipoValue, setOrigenTipoValue] = React.useState<OrigenTipo>("PROSPECTO");
+  const [origenNombreValue, setOrigenNombreValue] = React.useState("");
+  const [tipoDocumentoValue, setTipoDocumentoValue] = React.useState("");
+  const [numeroDocumentoValue, setNumeroDocumentoValue] = React.useState("");
+  // Correo del cliente de BC-01 (para mostrar). En PROSPECTO el correo se deriva
+  // del contacto por defecto cargado.
+  const [correoValue, setCorreoValue] = React.useState<string | null>(null);
+  const [contactoElegido, setContactoElegido] = React.useState<string | null>(null);
+  const [fechaRequeridaValue, setFechaRequeridaValue] = React.useState<Date | undefined>(undefined);
+
+  const registrarMutation = useRegistrarSCMutation();
+
+  const origenEsProspectoValido =
+    origenTipoValue === "PROSPECTO" && esUuid(origenIdValue);
+
+  const {
+    data: prospecto,
+    isLoading: cargandoContactos,
+    error: errorContactos,
+  } = useConsulta(
+    () => consultarProspecto(origenIdValue.trim()),
+    [origenIdValue],
+    { enabled: origenEsProspectoValido }
+  );
+
+  const contactos = origenEsProspectoValido ? prospecto?.contactos ?? [] : [];
+  // Contacto por defecto: el principal, o el primero si no hay principal. Ya no
+  // se elige a mano — se autocompleta.
+  const contactoPorDefecto =
+    contactos.find((c) => c.esPrincipal)?.id ?? contactos[0]?.id ?? "";
+  const contactoOrigenIdValue = contactoElegido ?? contactoPorDefecto;
+
+  // Nombre/correo del contacto para mostrar. PROSPECTO: del contacto por defecto
+  // (los contactos del prospecto siempre traen email). CLIENTE: el correo de BC-01.
+  const contactoActual =
+    contactos.find((c) => c.id === contactoOrigenIdValue) ?? null;
+  const nombreContacto =
+    origenTipoValue === "PROSPECTO" ? (contactoActual?.nombre ?? null) : null;
+  const correoContacto =
+    origenTipoValue === "PROSPECTO"
+      ? (contactoActual?.email ?? null)
+      : correoValue;
+
+  function limpiarErrorCampo(name: string) {
+    setErroresCampo((prev) => {
+      if (!prev[name]) return prev;
+      const siguiente = { ...prev };
+      delete siguiente[name];
+      return siguiente;
+    });
+  }
+
+  function limpiarOrigen() {
+    setOrigenIdValue("");
+    setOrigenTipoValue("PROSPECTO");
+    setOrigenNombreValue("");
+    setContactoElegido(null);
+    setCorreoValue(null);
+    setTipoDocumentoValue("");
+    setNumeroDocumentoValue("");
+    setErroresCampo((prev) => {
+      const siguiente = { ...prev };
+      delete siguiente["origenId"];
+      delete siguiente["contactoOrigenId"];
+      return siguiente;
+    });
+  }
+
+  function onIdentidadResuelta({
+    origenTipo,
+    origenId,
+    nombre,
+    tipoDocumento,
+    numeroDocumento,
+    correo,
+  }: {
+    origenTipo: OrigenTipo;
+    origenId: string;
+    nombre?: string;
+    tipoDocumento?: string;
+    numeroDocumento?: string;
+    correo?: string | null;
+  }) {
+    setOrigenTipoValue(origenTipo);
+    setOrigenIdValue(origenId);
+    setOrigenNombreValue(nombre ?? "");
+    setContactoElegido(null);
+    setCorreoValue(correo ?? null);
+    if (tipoDocumento) setTipoDocumentoValue(tipoDocumento);
+    if (numeroDocumento) setNumeroDocumentoValue(numeroDocumento);
+    limpiarErrorCampo("origenId");
+    limpiarErrorCampo("contactoOrigenId");
+  }
+
+  function aplicarErrorApi(err: unknown) {
+    if (esError409(err)) {
+      if (origenTipoValue === "PROSPECTO") {
+        setErroresCampo((prev) => ({
+          ...prev,
+          contactoOrigenId: "El contacto seleccionado no pertenece al origen indicado.",
+        }));
+        toast.error("El contacto seleccionado no pertenece al origen indicado.");
+      } else {
+        toast.error("El cliente indicado esta inactivo y no puede usarse como origen.");
+      }
+      return;
+    }
+    if (esError404(err)) {
+      toast.error("El prospecto o cliente indicado no existe.");
+      return;
+    }
+    if (esErrorValidacion(err)) {
+      toast.error(extraerMensajeError(err, "No se pudo registrar la solicitud"));
+      return;
+    }
+    const erroresPorCampoApi = obtenerErroresPorCampo(err);
+    const camposConError = Object.keys(erroresPorCampoApi);
+    if (camposConError.length > 0) {
+      const nuevosMensajes: Record<string, string> = {};
+      for (const campo of camposConError) {
+        nuevosMensajes[campo] = erroresPorCampoApi[campo].mensaje;
+      }
+      setErroresCampo(nuevosMensajes);
+      toast.error("Revisa los campos marcados en el formulario.");
+      return;
+    }
+    toast.error(extraerMensajeError(err, "No se pudo registrar la solicitud"));
+  }
+
+  async function onSubmitAsync() {
+    const root = formularioRef.current;
+    if (!root) return;
+
+    setErroresCampo({});
+    setIsSaving(true);
+
+    try {
+      const canalEntrada = getValue(root, "canalEntrada") as CanalEntrada;
+      const descripcionServicio = getValue(root, "descripcionServicio");
+      const fechaRequerida = fechaRequeridaValue
+        ? aISODate(fechaRequeridaValue)
+        : undefined;
+      const observaciones = getValue(root, "observaciones") || undefined;
+
+      const datos =
+        origenTipoValue === "PROSPECTO"
+          ? {
+              origenTipo: "PROSPECTO" as const,
+              origenId: origenIdValue,
+              contactoOrigenId: contactoOrigenIdValue,
+              canalEntrada,
+              descripcionServicio,
+              fechaRequerida,
+              observaciones,
+            }
+          : {
+              origenTipo: "CLIENTE" as const,
+              origenId: origenIdValue,
+              tipoDocumento: tipoDocumentoValue as "RUC" | "DNI" | "CE",
+              numeroDocumento: numeroDocumentoValue,
+              canalEntrada,
+              descripcionServicio,
+              fechaRequerida,
+              observaciones,
+            };
+
+      const resultado = schemaRegistrarSC.safeParse(datos);
+      if (!resultado.success) {
+        const errores = issuesAErroresCampo(resultado.error);
+        setErroresCampo(errores);
+        // No dejar el submit "mudo": mostrar el primer error de validación.
+        const primerError = Object.values(errores)[0];
+        toast.error(primerError ?? "Revisa los datos del formulario.");
+        setIsSaving(false);
+        return;
+      }
+
+      try {
+        const respuesta = await registrarMutation.mutateAsync(resultado.data);
+        onExito(respuesta.id);
+      } catch (err) {
+        aplicarErrorApi(err);
+      }
+    } catch (err) {
+      toast.error(extraerMensajeError(err, "No se pudo registrar la solicitud"));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function onSubmit() {
+    void onSubmitAsync();
+  }
+
+  const campos: ContextoCamposNuevaSolicitud = {
+    isSaving,
+    erroresCampo,
+    origenIdValue,
+    origenTipoValue,
+    origenNombreValue,
+    tipoDocumentoValue,
+    numeroDocumentoValue,
+    contactoOrigenIdValue,
+    nombreContacto,
+    correoContacto,
+    fechaRequeridaValue,
+    cargandoContactos,
+    errorContactos,
+    setFechaRequeridaValue,
+    limpiarErrorCampo,
+    limpiarOrigen,
+    onIdentidadResuelta,
+    onSubmit,
+  };
+
+  return { formularioRef, campos };
+}
+
+// ---------------------------------------------------------------------------
+// CamposNuevaSolicitud — presentacional, reutilizable en pagina y Sheet
+// ---------------------------------------------------------------------------
+
+export function CamposNuevaSolicitud({
+  campos,
+}: {
+  campos: ContextoCamposNuevaSolicitud;
+}) {
+  const {
+    isSaving,
+    erroresCampo,
+    origenIdValue,
+    origenTipoValue,
+    origenNombreValue,
+    tipoDocumentoValue,
+    numeroDocumentoValue,
+    nombreContacto,
+    correoContacto,
+    fechaRequeridaValue,
+    cargandoContactos,
+    errorContactos,
+    setFechaRequeridaValue,
+    limpiarErrorCampo,
+    limpiarOrigen,
+    onIdentidadResuelta,
+  } = campos;
+
+  return (
+    <div className="grid gap-y-6 md:grid-cols-2 md:items-start md:gap-x-10">
+      {/* Columna izquierda: origen de la solicitud + canal de entrada */}
+      <div className="flex min-w-0 flex-col gap-4">
+        <SeccionTitulo
+          titulo="Datos del origen"
+          descripcion="Prospecto o cliente que origina la solicitud."
+        />
+
+        {origenIdValue ? (
+          <OrigenSeleccionado
+            origenTipoValue={origenTipoValue}
+            origenNombreValue={origenNombreValue}
+            tipoDocumentoValue={tipoDocumentoValue}
+            numeroDocumentoValue={numeroDocumentoValue}
+            nombreContacto={nombreContacto}
+            correoContacto={correoContacto}
+            cargandoContactos={cargandoContactos}
+            errorContactos={errorContactos}
+            limpiarOrigen={limpiarOrigen}
+          />
+        ) : (
+          <>
+            <BuscarOrigenPanel onIdentidadResuelta={onIdentidadResuelta} />
+            {erroresCampo["origenId"] ? (
+              <p className="text-xs text-destructive">
+                Selecciona un origen válido (prospecto o cliente).
+              </p>
+            ) : null}
+          </>
+        )}
+
+        <CampoSelect
+          label="Canal de entrada"
+          name="canalEntrada"
+          requerido
+          opciones={[
+            { valor: "CORREO", etiqueta: "Correo electronico" },
+            { valor: "LLAMADA", etiqueta: "Llamada telefonica" },
+            { valor: "PRESENCIAL", etiqueta: "Visita presencial" },
+            { valor: "OTRO", etiqueta: "Otro" },
+          ]}
+          defaultValue="CORREO"
+          error={erroresCampo["canalEntrada"]}
+          disabled={isSaving}
+        />
+      </div>
+
+      {/* Columna derecha: datos del servicio solicitado */}
+      <div className="flex min-w-0 flex-col gap-4">
+        <SeccionTitulo
+          titulo="Servicio solicitado"
+          descripcion="Detalle del servicio requerido por el cliente."
+        />
+        <CampoTextarea
+          label="Descripcion"
+          name="descripcionServicio"
+          requerido
+          placeholder="Describe el servicio requerido..."
+          error={erroresCampo["descripcionServicio"]}
+          disabled={isSaving}
+          onChange={() => limpiarErrorCampo("descripcionServicio")}
+        />
+        <CampoFecha
+          label="Fecha requerida del servicio"
+          value={fechaRequeridaValue}
+          onSelect={(fecha) => {
+            setFechaRequeridaValue(fecha);
+            limpiarErrorCampo("fechaRequerida");
+          }}
+          error={erroresCampo["fechaRequerida"]}
+          disabled={isSaving}
+        />
+        <CampoTextarea
+          label="Observaciones"
+          name="observaciones"
+          placeholder="Observaciones adicionales..."
+          error={erroresCampo["observaciones"]}
+          disabled={isSaving}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sub-componentes de formulario
+// ---------------------------------------------------------------------------
+
+function OrigenSeleccionado({
+  origenTipoValue,
+  origenNombreValue,
+  tipoDocumentoValue,
+  numeroDocumentoValue,
+  nombreContacto,
+  correoContacto,
+  cargandoContactos,
+  errorContactos,
+  limpiarOrigen,
+}: {
+  origenTipoValue: OrigenTipo;
+  origenNombreValue: string;
+  tipoDocumentoValue: string;
+  numeroDocumentoValue: string;
+  nombreContacto: string | null;
+  correoContacto: string | null;
+  cargandoContactos: boolean;
+  errorContactos: unknown;
+  limpiarOrigen: () => void;
+}) {
+  const leyenda =
+    origenTipoValue === "PROSPECTO" ? "Prospecto seleccionado" : "Cliente seleccionado";
+
+  return (
+    <FieldSet className="min-w-0 gap-3 rounded-lg border border-border px-4 pb-4 pt-1">
+      <FieldLegend
+        variant="label"
+        className="px-1.5 font-semibold uppercase tracking-wide text-muted-foreground data-[variant=label]:text-xs"
+      >
+        {leyenda}
+      </FieldLegend>
+
+      {/* Header: nombre + boton Cambiar */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className="text-xs font-medium text-muted-foreground">Razon social</p>
+          <p className="text-sm font-medium text-foreground break-words">
+            {origenNombreValue ? origenNombreValue : (
+              <span className="text-muted-foreground">Sin razon social registrada</span>
+            )}
+          </p>
+          {tipoDocumentoValue && numeroDocumentoValue ? (
+            <div className="mt-1 flex flex-col gap-0.5">
+              <p className="text-xs font-medium text-muted-foreground">Documento</p>
+              <p className="text-sm text-foreground break-words">
+                {tipoDocumentoValue} {numeroDocumentoValue}
+              </p>
+            </div>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={limpiarOrigen}
+          className="shrink-0"
+        >
+          <Pencil className="size-3.5" />
+          Cambiar
+        </Button>
+      </div>
+
+      {/* Contacto/correo — auto (ya no se elige). Prospecto: contacto por
+          defecto (principal o el primero). Cliente: correo de BC-01. */}
+      <div className="grid gap-0.5 border-t border-border/60 pt-3">
+        <p className="text-xs font-medium text-muted-foreground">
+          {origenTipoValue === "PROSPECTO" ? "Contacto" : "Correo del cliente"}
+        </p>
+        {origenTipoValue === "PROSPECTO" && cargandoContactos ? (
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" /> Cargando contacto…
+          </p>
+        ) : origenTipoValue === "PROSPECTO" && errorContactos ? (
+          <p className="text-xs text-destructive">
+            No se pudo cargar el contacto del prospecto.
+          </p>
+        ) : (
+          <>
+            {origenTipoValue === "PROSPECTO" && nombreContacto ? (
+              <p className="text-sm text-foreground break-words">{nombreContacto}</p>
+            ) : null}
+            <p
+              className={
+                correoContacto
+                  ? "text-sm text-foreground break-words"
+                  : "text-sm text-muted-foreground"
+              }
+            >
+              {correoContacto ?? "Sin correo registrado"}
+            </p>
+          </>
+        )}
+      </div>
+    </FieldSet>
+  );
+}
+
+function SeccionTitulo({
+  titulo,
+  descripcion,
+}: {
+  titulo: string;
+  descripcion?: string;
+}) {
+  return (
+    <div className="border-b border-border pb-4">
+      <p className="text-sm font-semibold text-foreground">{titulo}</p>
+      {descripcion ? (
+        <p className="mt-1 text-xs text-muted-foreground">{descripcion}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function CampoSelect({
+  label,
+  name,
+  requerido = false,
+  opciones,
+  defaultValue,
+  value,
+  onValueChange,
+  error,
+  disabled,
+}: {
+  label: string;
+  name: string;
+  requerido?: boolean;
+  opciones: { valor: string; etiqueta: string }[];
+  defaultValue?: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  error?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={name}>
+        {label}
+        {requerido ? <span className="ml-1 text-destructive">*</span> : null}
+      </Label>
+      <Select
+        name={name}
+        defaultValue={value === undefined ? defaultValue : undefined}
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+      >
+        <SelectTrigger id={name} aria-invalid={Boolean(error)} className="w-full">
+          <SelectValue placeholder="Selecciona una opcion" />
+        </SelectTrigger>
+        <SelectContent>
+          {opciones.map((opcion) => (
+            <SelectItem key={opcion.valor} value={opcion.valor}>
+              {opcion.etiqueta}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
+}
+
+function CampoTextarea({
+  label,
+  name,
+  requerido = false,
+  error,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  label: string;
+  name: string;
+  requerido?: boolean;
+  error?: string;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={name}>
+        {label}
+        {requerido ? <span className="ml-1 text-destructive">*</span> : null}
+      </Label>
+      <Textarea
+        id={name}
+        name={name}
+        rows={3}
+        aria-invalid={Boolean(error)}
+        className="min-h-24"
+        {...props}
+      />
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
+}

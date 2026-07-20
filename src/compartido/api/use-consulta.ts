@@ -1,0 +1,157 @@
+"use client"
+
+import { useCallback, useEffect, useRef, useState } from "react"
+
+// Hook generico para consultas asincronas (reemplaza useQuery de TanStack).
+//
+// USO:
+//   const { data, isLoading, isError, error, refetch } = useConsulta(
+//     () => obtenerCuentas(query),
+//     [query.estado, query.busqueda, ...],
+//     { enabled: Boolean(cuentaId) },
+//   )
+//
+// Caracteristicas:
+//   - Cancela la request anterior si las deps cambian o el componente se desmonta.
+//   - Expone refetch() para forzar una recarga manual. Devuelve { data, error }
+//     con el resultado de esa recarga (similar a refetch() de TanStack).
+//   - Soporta `enabled: false` para no disparar la query.
+//   - NO tiene cache compartido entre hooks (a diferencia de TanStack). Cada
+//     instancia es independiente.
+//
+// isLoading vs isFetching (misma semantica que TanStack):
+//   - isFetching: hay un fetch en vuelo, sea la carga inicial o un refetch.
+//     Usalo para indicadores sutiles (deshabilitar un boton, "Consultando...").
+//   - isLoading: solo la carga inicial, cuando todavia NO hay datos que mostrar.
+//     Usalo para el skeleton.
+//
+// La distincion no es cosmetica: un refetch NO debe poner isLoading en true. Si
+// lo hiciera, la vista cambia a su rama de skeleton y React desmonta el subarbol
+// de datos, perdiendo el estado local de lo que colgaba de ahi (dialogos
+// abiertos, formularios a medio llenar, un secreto mostrado una unica vez).
+
+export interface ResultadoRefetch<T> {
+  readonly data: T | null
+  readonly error: unknown
+}
+
+export interface ResultadoConsulta<T> {
+  readonly data: T | null
+  // Solo la carga inicial (no hay datos todavia). Para el skeleton.
+  readonly isLoading: boolean
+  // Cualquier fetch en vuelo, incluido un refetch sobre datos ya cargados.
+  readonly isFetching: boolean
+  readonly isError: boolean
+  readonly isSuccess: boolean
+  readonly error: unknown
+  readonly refetch: () => Promise<ResultadoRefetch<T>>
+}
+
+export interface OpcionesConsulta {
+  readonly enabled?: boolean
+  // Clave de invalidacion. Si se setea, esta consulta se suscribe a un registro
+  // global: cualquier componente puede llamar invalidarConsulta(clave) para
+  // forzar su refetch SIN pasar refetch por props (sincroniza server-state a
+  // traves del arbol). Distintas instancias con la misma clave se refetchean juntas.
+  readonly clave?: string
+}
+
+// ---------------------------------------------------------------------------
+// Invalidacion por clave (server-state, sin prop-drilling)
+// ---------------------------------------------------------------------------
+// Registro global: clave -> set de refetchs suscritos. Permite que un mutador en
+// cualquier punto del arbol dispare el refetch de todas las consultas que
+// comparten una clave (ej. todas las listas de "comercial/solicitudes-cliente").
+// Es un registro de invalidacion, NO un cache compartido: cada hook sigue con su
+// propio estado/fetch; lo unico que se comparte es la senal "estos datos cambiaron".
+const registroInvalidacion = new Map<string, Set<() => void>>()
+
+// Fuerza el refetch de todas las consultas suscritas a `clave`. No-op si no hay
+// ninguna montada. Llamar tras una mutacion exitosa (crear / editar / eliminar).
+export function invalidarConsulta(clave: string): void {
+  const suscritos = registroInvalidacion.get(clave)
+  if (!suscritos) return
+  suscritos.forEach((refetch) => {
+    void refetch()
+  })
+}
+
+export function useConsulta<T>(
+  fn: () => Promise<T>,
+  deps: ReadonlyArray<unknown>,
+  opciones: OpcionesConsulta = {},
+): ResultadoConsulta<T> {
+  const { enabled = true, clave } = opciones
+
+  const [data, setData] = useState<T | null>(null)
+  const [isFetching, setIsFetching] = useState<boolean>(enabled)
+  const [error, setError] = useState<unknown>(null)
+
+  const fnRef = useRef(fn)
+  fnRef.current = fn
+
+  const generacionRef = useRef(0)
+
+  const ejecutar = useCallback(async (): Promise<ResultadoRefetch<T>> => {
+    const generacion = ++generacionRef.current
+    setIsFetching(true)
+    setError(null)
+    try {
+      const resultado = await fnRef.current()
+      if (generacionRef.current === generacion) {
+        setData(resultado)
+      }
+      return { data: resultado, error: null }
+    } catch (err) {
+      if (generacionRef.current === generacion) {
+        setError(err)
+      }
+      return { data: null, error: err }
+    } finally {
+      if (generacionRef.current === generacion) {
+        setIsFetching(false)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!enabled) {
+      setIsFetching(false)
+      return
+    }
+    void ejecutar()
+    return () => {
+      generacionRef.current++
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, ...deps])
+
+  // Suscripcion al registro de invalidacion por clave. `ejecutar` es estable
+  // (useCallback []), asi que esto corre una vez por clave y, al dispararse,
+  // refetchea con los deps vigentes (via fnRef.current).
+  useEffect(() => {
+    if (!clave) return
+    let suscritos = registroInvalidacion.get(clave)
+    if (!suscritos) {
+      suscritos = new Set()
+      registroInvalidacion.set(clave, suscritos)
+    }
+    suscritos.add(ejecutar)
+    return () => {
+      suscritos.delete(ejecutar)
+      if (suscritos.size === 0) registroInvalidacion.delete(clave)
+    }
+  }, [clave, ejecutar])
+
+  return {
+    data,
+    // Un refetch sobre datos ya cargados deja isLoading en false: la vista sigue
+    // mostrando los datos viejos en vez de saltar al skeleton y desmontarse.
+    isLoading: isFetching && data === null,
+    isFetching,
+    isError: error !== null,
+    isSuccess: error === null && data !== null,
+    error,
+    refetch: ejecutar,
+  }
+}

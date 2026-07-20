@@ -1,0 +1,307 @@
+"use client";
+
+import * as React from "react";
+import { Loader2 } from "lucide-react";
+
+import { esError409 } from "@/compartido/api";
+import { Button } from "@/compartido/componentes/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/compartido/componentes/ui/dialog";
+import { Input } from "@/compartido/componentes/ui/input";
+import { Label } from "@/compartido/componentes/ui/label";
+import { Textarea } from "@/compartido/componentes/ui/textarea";
+import { SelectorAprobadores } from "./selector-aprobadores";
+import { AvisoEnvioCorreo } from "@/compartido/componentes/aviso-envio-correo";
+import { normalizarErrorAccion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-error-handler";
+import { useConsultarCotizacion } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries";
+
+import {
+  invalidarAprobaciones,
+  useAprobadoresCuentasQuery,
+  useAprobarMutation,
+  useRechazarMutation,
+} from "../servicios/aprobaciones-queries";
+import { schemaAprobar, schemaRechazar } from "../tipos/aprobaciones.schemas";
+
+/** El porton es binario: dejar salir la cotizacion, o no dejarla salir. */
+export type AccionResolver = "aprobar" | "rechazar";
+
+/**
+ * Dialogo controlado: no trae trigger propio. Quien lo usa decide desde donde
+ * se dispara (menu `⋯` de la tabla, botones del detalle) y es dueño del estado
+ * de apertura. Montarlo bajo demanda —solo cuando hay una accion elegida— hace
+ * que el estado del formulario nazca limpio en cada apertura.
+ */
+type Props = {
+  idSolicitud: string;
+  /** Cotización de la solicitud; se usa para precargar el correo del cliente al aprobar. */
+  idCotizacion: string;
+  accion: AccionResolver;
+  abierto: boolean;
+  onAbiertoChange: (abierto: boolean) => void;
+};
+
+const CONFIG: Record<AccionResolver, {
+  titulo: string;
+  descripcion: string;
+  label: string;
+  placeholder: string;
+  boton: string;
+  procesando: string;
+  obligatorio: boolean;
+  destructivo?: boolean;
+}> = {
+  aprobar: {
+    titulo: "Aprobar solicitud",
+    descripcion: "La cotización pasará a enviada si la solicitud se aprueba.",
+    label: "Comentario",
+    placeholder: "Comentario opcional para el historial...",
+    boton: "Aprobar",
+    procesando: "Aprobando...",
+    obligatorio: false,
+  },
+  rechazar: {
+    titulo: "Rechazar solicitud",
+    descripcion:
+      "La cotización volverá a borrador para que el ejecutivo la corrija y la reenvíe.",
+    label: "Motivo",
+    // El motivo carga toda la semantica: tanto "no procede" como "ajustá la
+    // linea 3". Por eso el placeholder invita a ser especifico.
+    placeholder: "Indica qué hay que corregir o por qué se rechaza...",
+    boton: "Rechazar",
+    procesando: "Rechazando...",
+    obligatorio: true,
+    destructivo: true,
+  },
+};
+
+export function DialogoResolverSolicitud({
+  idSolicitud,
+  idCotizacion,
+  accion,
+  abierto,
+  onAbiertoChange,
+}: Props) {
+  const config = CONFIG[accion];
+  const aprobar = useAprobarMutation(idSolicitud);
+  const rechazar = useRechazarMutation(idSolicitud);
+
+  // Solo al aprobar se consulta el detalle para precargar el correo del cliente;
+  // con id vacío la query queda deshabilitada (enabled: Boolean(id)).
+  const { data: cotizacion, isLoading: cargandoCorreoCliente } =
+    useConsultarCotizacion(accion === "aprobar" ? idCotizacion : "");
+  const correoClienteSugerido = cotizacion?.correoClienteSugerido ?? "";
+
+  const [texto, setTexto] = React.useState("");
+  // El correo mostrado es lo que editó el usuario o, si no tocó nada (null), el
+  // sugerido. Así se precarga sin pisar una edición manual y sin efectos.
+  const [correoEditado, setCorreoEditado] = React.useState<string | null>(null);
+  const correoCliente = correoEditado ?? correoClienteSugerido;
+  // Mismo criterio que el correo del cliente de arriba: `null` = sin tocar, así
+  // que valen todos los aprobadores. Derivado, sin efecto que sincronice estado
+  // con estado (la consulta resuelve después de abrir el diálogo).
+  const [seleccionManual, setSeleccionManual] = React.useState<string[] | null>(
+    null,
+  );
+  const [errorCampo, setErrorCampo] = React.useState<string | null>(null);
+  const [errorCorreoCliente, setErrorCorreoCliente] = React.useState<string | null>(null);
+  const [errorCorreosComercial, setErrorCorreosComercial] = React.useState<string | null>(null);
+  const [errorForm, setErrorForm] = React.useState<string | null>(null);
+  const [isPending, setIsPending] = React.useState(false);
+  // Solo se consulta con el diálogo abierto. Los destinatarios salen de acá y no
+  // se escriben a mano: quién recibe el aviso lo define auth. Sin la lista no se
+  // puede aprobar (el SelectorAprobadores muestra el motivo).
+  const aprobadores = useAprobadoresCuentasQuery(abierto);
+
+  // Todos marcados por defecto. El ejecutivo responsable NO está en esta lista:
+  // lo resuelve el backend por su cuenta y siempre recibe el aviso.
+  const correosComercial = React.useMemo(
+    () => seleccionManual ?? (aprobadores.data ?? []).map((c) => c.email),
+    [seleccionManual, aprobadores.data],
+  );
+
+  async function onConfirmar(event: React.FormEvent) {
+    event.preventDefault();
+    setErrorCampo(null);
+    setErrorCorreoCliente(null);
+    setErrorCorreosComercial(null);
+    setErrorForm(null);
+
+    setIsPending(true);
+    try {
+      const valor = texto.trim();
+      if (accion === "aprobar") {
+        const resultado = schemaAprobar.safeParse({
+          comentario: valor || undefined,
+          correoCliente: correoCliente.trim(),
+          correosComercial,
+        });
+        if (!resultado.success) {
+          // Encamina cada error a su campo (correoCliente / correosComercial /
+          // comentario) para mostrarlo junto al control correspondiente.
+          for (const issue of resultado.error.issues) {
+            const campo = issue.path[0];
+            if (campo === "correoCliente") setErrorCorreoCliente(issue.message);
+            else if (campo === "correosComercial") setErrorCorreosComercial(issue.message);
+            else setErrorCampo(issue.message);
+          }
+          return;
+        }
+        await aprobar.mutateAsync(resultado.data);
+      } else {
+        const resultado = schemaRechazar.safeParse({ motivo: valor });
+        if (!resultado.success) {
+          setErrorCampo(resultado.error.issues[0]?.message ?? "El motivo es obligatorio.");
+          return;
+        }
+        await rechazar.mutateAsync(resultado.data);
+      }
+      onAbiertoChange(false);
+    } catch (err) {
+      if (esError409(err)) {
+        setErrorForm("La solicitud ya fue resuelta por otra operación.");
+        invalidarAprobaciones();
+      } else {
+        const { mensaje } = normalizarErrorAccion(err, "No se pudo resolver la solicitud");
+        setErrorForm(mensaje);
+      }
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <Dialog open={abierto} onOpenChange={onAbiertoChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{config.titulo}</DialogTitle>
+          <DialogDescription>{config.descripcion}</DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={onConfirmar} className="flex flex-col gap-4">
+          {accion === "aprobar" ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor={`correo-cliente-${idSolicitud}`}>
+                  Correo del cliente <span className="text-destructive">*</span>
+                </Label>
+                {/*
+                  El correo sugerido tarda ~1s (el detalle de la cotización se
+                  pide al abrir). Sin señal, el campo se veía vacío y editable: o
+                  parecía que no había correo, o quien empezaba a escribir perdía
+                  lo tipeado cuando llegaba el sugerido (`correoEditado` gana, así
+                  que en realidad quedaba lo suyo — pero el salto igual desconcierta).
+                  Se bloquea mientras carga y el spinner dice por qué.
+                */}
+                <div className="relative">
+                  <Input
+                    id={`correo-cliente-${idSolicitud}`}
+                    type="email"
+                    value={cargandoCorreoCliente ? "" : correoCliente}
+                    onChange={(event) => {
+                      setCorreoEditado(event.target.value);
+                      if (errorCorreoCliente) setErrorCorreoCliente(null);
+                    }}
+                    placeholder={
+                      cargandoCorreoCliente ? "" : "contacto@cliente.com"
+                    }
+                    disabled={isPending || cargandoCorreoCliente}
+                    aria-busy={cargandoCorreoCliente}
+                    aria-invalid={Boolean(errorCorreoCliente)}
+                  />
+                  {cargandoCorreoCliente ? (
+                    <span className="absolute inset-y-0 left-3 flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                      Buscando el correo del cliente…
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Recibe la cotización aprobada con el PDF adjunto.
+                </p>
+                {errorCorreoCliente ? (
+                  <p className="text-xs text-destructive">{errorCorreoCliente}</p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label>
+                  Avisar a <span className="text-destructive">*</span>
+                </Label>
+                <SelectorAprobadores
+                  cuentas={aprobadores.data}
+                  cargando={aprobadores.isLoading}
+                  error={aprobadores.isError}
+                  seleccionados={correosComercial}
+                  onChange={(nuevos) => {
+                    setSeleccionManual(nuevos);
+                    if (errorCorreosComercial) setErrorCorreosComercial(null);
+                  }}
+                  disabled={isPending}
+                />
+                <p className="text-xs text-muted-foreground">
+                  El ejecutivo responsable de la cotización recibe el aviso
+                  siempre.
+                </p>
+                {errorCorreosComercial ? (
+                  <p className="text-xs text-destructive">{errorCorreosComercial}</p>
+                ) : null}
+              </div>
+            </>
+          ) : null}
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`resolver-${accion}-${idSolicitud}`}>
+              {config.label}{" "}
+              {config.obligatorio ? <span className="text-destructive">*</span> : <span className="text-muted-foreground">(opcional)</span>}
+            </Label>
+            <Textarea
+              id={`resolver-${accion}-${idSolicitud}`}
+              rows={3}
+              value={texto}
+              onChange={(event) => {
+                setTexto(event.target.value);
+                if (errorCampo) setErrorCampo(null);
+              }}
+              placeholder={config.placeholder}
+              disabled={isPending}
+              aria-invalid={Boolean(errorCampo)}
+              className="min-h-20"
+            />
+            {errorCampo ? <p className="text-xs text-destructive">{errorCampo}</p> : null}
+          </div>
+
+          {errorForm ? (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{errorForm}</p>
+          ) : null}
+
+          {/* Solo al aprobar: rechazar no genera PDF ni encola correo, así que
+              responde de inmediato y el aviso solo confundiría. */}
+          <AvisoEnvioCorreo visible={isPending && accion === "aprobar"} />
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onAbiertoChange(false)} disabled={isPending}>
+              Cancelar
+            </Button>
+            {/* Bloqueado mientras carga el correo sugerido: apretar antes lo
+                mandaria vacio y el formulario responderia con un error de
+                validacion que no es culpa de nadie. */}
+            <Button
+              type="submit"
+              variant={config.destructivo ? "destructive" : "default"}
+              disabled={isPending || cargandoCorreoCliente}
+            >
+              {isPending ? config.procesando : config.boton}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

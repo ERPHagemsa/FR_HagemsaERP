@@ -74,8 +74,20 @@
   --chart-3: oklch(0.577 0.245 27.325);
   --chart-4: oklch(0.505 0.213 27.518);
   --chart-5: oklch(0.444 0.177 26.899);
+  /* Paleta dataviz del dashboard comercial (design D8, tarea 2.3/2.4). Cada
+     widget referencia estas vars vía ChartConfig (`color: "var(--dataviz-x)"`).
+     Contraste validado (WCAG, tarea 2.4) contra el fondo de Card en claro
+     (--card: oklch(1 0 0), blanco): teal 3.74:1, rose 4.70:1, amber 3.19:1 —
+     los 3 superan el umbral 3:1 de objetos gráficos no-textuales (WCAG 2.1
+     SC 1.4.11), el umbral aplicable a barras/donut/segmentos de gráfica.
+     `amber` queda por debajo de 4.5:1 (umbral de texto): no usar este color
+     para texto/etiquetas en claro, solo para relleno de gráfica. */
+  --dataviz-teal: #0d9488;
+  --dataviz-rose: #e11d48;
+  --dataviz-amber: #d97706;
   --radius: 0.45rem;
-  --sidebar: oklch(1 0 0);
+  /* Sin fondo propio: el sidebar comparte el fondo de la pagina. */
+  --sidebar: var(--background);
   --sidebar-foreground: oklch(0.148 0.004 228.8);
   --sidebar-primary: oklch(0.577 0.245 27.325);
   --sidebar-primary-foreground: oklch(0.971 0.013 17.38);
@@ -140,35 +152,68 @@
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.148 0.004 228.8);
-  --foreground: oklch(0.987 0.002 197.1);
-  --card: oklch(0.218 0.008 223.9);
-  --card-foreground: oklch(0.987 0.002 197.1);
-  --popover: oklch(0.218 0.008 223.9);
-  --popover-foreground: oklch(0.987 0.002 197.1);
+  /* Superficies neutras y mas oscuras (sin tinte azulado). Los tokens de marca
+     (primary, destructive, charts, sidebar-primary) se mantienen en el rojo
+     HAGEMSA a proposito. */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.444 0.177 26.899);
   --primary-foreground: oklch(0.971 0.013 17.38);
-  --secondary: oklch(0.274 0.006 286.033);
+  --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.275 0.011 216.9);
-  --muted-foreground: oklch(0.723 0.014 214.4);
-  --accent: oklch(0.275 0.011 216.9);
-  --accent-foreground: oklch(0.987 0.002 197.1);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.56 0.021 213.5);
+  --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.808 0.114 19.571);
   --chart-2: oklch(0.637 0.237 25.331);
   --chart-3: oklch(0.577 0.245 27.325);
   --chart-4: oklch(0.505 0.213 27.518);
   --chart-5: oklch(0.444 0.177 26.899);
-  --sidebar: oklch(0.218 0.008 223.9);
-  --sidebar-foreground: oklch(0.987 0.002 197.1);
+  /* Paleta dataviz aclarada para el fondo oscuro de Card (--card: oklch(0.205 0 0)):
+     contraste validado (tarea 2.4) teal 9.62:1, rose 6.66:1, amber 10.73:1 —
+     los 3 superan holgadamente tanto el umbral gráfico (3:1) como el de texto
+     (4.5:1), a diferencia de los hex del mockup en claro que solo alcanzan el
+     umbral gráfico. */
+  --dataviz-teal: #2dd4bf;
+  --dataviz-rose: #fb7185;
+  --dataviz-amber: #fbbf24;
+  /* Sin fondo propio: el sidebar comparte el fondo de la pagina. */
+  --sidebar: var(--background);
+  --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.637 0.237 25.331);
   --sidebar-primary-foreground: oklch(0.971 0.013 17.38);
-  --sidebar-accent: oklch(0.275 0.011 216.9);
-  --sidebar-accent-foreground: oklch(0.987 0.002 197.1);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.56 0.021 213.5);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* El shell del dashboard (app-shell.tsx) fija el area de contenido con
+   overflow-hidden para que el scroll interno no mueva el sidebar. Eso mismo
+   recorta cualquier pagina que use window.print(): el navegador solo imprime
+   lo que cabe en ese contenedor de altura fija, el resto queda en blanco.
+   Al imprimir, quitamos ese recorte y ocultamos el sidebar/header para que
+   cualquier vista con `print:` (como la hoja de etiquetas QR) pueda usar
+   toda la pagina. */
+@media print {
+  [data-slot="sidebar-inset"] {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-rail"] {
+    display: none !important;
+  }
 }

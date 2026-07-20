@@ -1,0 +1,38 @@
+schema: spec-driven
+
+context: |
+  Proyecto: FR_HagemsaERP — frontend del ERP Hagemsa (área Comercial, BC-03).
+  Tech stack: Next.js 16.2.6 (App Router, RSC), React 19.2.4, TypeScript 5 (strict, noEmit).
+  Data/HTTP: axios + cliente-http propio; proxy catch-all en src/app/api/comercial/[[...path]]/route.ts.
+  Validación: zod 4.
+  Arquitectura: feature-first (vertical slices) en src/modulos/<modulo>/{componentes,servicios,ganchos,tipos,vistas}.
+    Lo transversal vive en src/compartido/. Backend BC03 en localhost:3000 (NEXT_PUBLIC_COMERCIAL_API_URL=.../api/v1).
+  Testing: sin test runner configurado — Standard Mode. El gate es build + lint + verify adversarial.
+  Estilo: código 100% en español (carpetas, identificadores, comentarios, copy). Extender en español.
+  Navegación: el menú lateral es hardcodeado en src/compartido/componentes/app-sidebar.tsx — registrar rutas nuevas ahí.
+  Entrega: commits directos a la rama `desarrollo`, sin PRs ni ramas encadenadas.
+
+rules:
+  proposal:
+    - Incluir plan de rollback para cambios riesgosos
+    - Documentar impacto sobre flujos existentes (ej. cambio de semántica de "enviar")
+  specs:
+    - Usar Given/When/Then para escenarios
+    - Usar keywords RFC 2119 (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Espejar el contrato de la API real (docs/api/API-Aprobaciones.md del backend)
+    - Documentar decisiones de arquitectura con su fundamento
+  tasks:
+    - Agrupar por fase, numeración jerárquica
+    - Tareas completables en una sesión
+  apply:
+    - Seguir los patrones de código existentes en src/modulos/comercial
+    - Validar reglas de negocio con zod en el front (no depender del 400 del backend)
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: "pnpm build"
+    coverage_threshold: 0
+  archive:
+    - Advertir antes de mergear deltas destructivos

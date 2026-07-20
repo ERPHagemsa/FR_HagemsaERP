@@ -2,12 +2,30 @@
 
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { IconFilePlus, IconRefresh } from "@tabler/icons-react";
+import { toast } from "sonner";
+import {
+  IconExternalLink,
+  IconFilePlus,
+  IconFileUpload,
+  IconTrash,
+  IconUsersPlus,
+} from "@tabler/icons-react";
 
+import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
+import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/compartido/componentes/ui/dialog";
 import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
+import { Textarea } from "@/compartido/componentes/ui/textarea";
 import {
   Table,
   TableBody,
@@ -16,18 +34,41 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table";
-import { cn } from "@/compartido/utilidades";
-import { crearDocumentoPorCodigo } from "../servicios/activos-api";
+import {
+  obtenerArchivoDocumentoCompartidoPorCodigo,
+  obtenerArchivoDocumentoPorCodigo,
+  obtenerTiposDocumento,
+} from "../servicios/activos-api";
+import {
+  useCrearDocumentoActivoMutation,
+  useEliminarDocumentoActivoMutation,
+  useQuitarCoberturaDocumentoCompartidoMutation,
+  useAgregarCoberturasDocumentoCompartidoMutation,
+} from "../servicios/activos-queries";
 import type {
   DocumentoActivo,
   EstadoDocumentoActivo,
+  MetadataOrigenCambio,
   TipoDocumentoActivo,
 } from "../tipos/activo.tipos";
+import type { TipoDocumentoMaestro } from "../tipos/carga-masiva.tipos";
 
 type Props = {
   codigo: string;
   documentos: DocumentoActivo[];
   editable?: boolean;
+  /** Se llama tras crear o eliminar, para que el contenedor recargue la lista. */
+  onCambio?: () => void;
+  /** Vista reducida (ej. dentro del panel lateral): oculta columnas secundarias. */
+  compacto?: boolean;
+  /** Trazabilidad del historial: desde que proceso se gestiona (ej. inventario fisico). */
+  origen?: MetadataOrigenCambio;
+};
+
+type EstadoDocumentosOptimistas = {
+  codigo: string;
+  creados: DocumentoActivo[];
+  eliminadosIds: number[];
 };
 
 const tiposDocumento: TipoDocumentoActivo[] = [
@@ -41,54 +82,302 @@ const tiposDocumento: TipoDocumentoActivo[] = [
   "OTRO",
 ];
 
-export function DocumentosActivo({ codigo, documentos, editable = true }: Props) {
+export function DocumentosActivo({
+  codigo,
+  documentos,
+  editable = true,
+  onCambio,
+  compacto = false,
+  origen,
+}: Props) {
   const router = useRouter();
+  const { usuario } = useSesion();
   const [mostrarFormulario, setMostrarFormulario] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [message, setMessage] = React.useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [abriendoId, setAbriendoId] = React.useState<number | null>(null);
+  const [archivoNombre, setArchivoNombre] = React.useState("");
+  const [archivoDataUrl, setArchivoDataUrl] = React.useState("");
+  const [documentosOptimistas, setDocumentosOptimistas] =
+    React.useState<EstadoDocumentosOptimistas>({
+      codigo,
+      creados: [],
+      eliminadosIds: [],
+    });
+  const [tiposMaestro, setTiposMaestro] = React.useState<TipoDocumentoMaestro[]>(
+    [],
+  );
+  const [tipoSeleccionado, setTipoSeleccionado] = React.useState<string>("SOAT");
+  const crearDocumentoMutation = useCrearDocumentoActivoMutation(codigo);
+  const eliminarDocumentoMutation = useEliminarDocumentoActivoMutation(
+    codigo,
+    origen
+  );
+  const quitarCoberturaMutation = useQuitarCoberturaDocumentoCompartidoMutation(
+    codigo,
+    origen
+  );
+  const agregarCoberturasMutation =
+    useAgregarCoberturasDocumentoCompartidoMutation(codigo, origen);
+  // Documento compartido al que se le estan agregando activos (null = modal cerrado).
+  const [coberturaDoc, setCoberturaDoc] =
+    React.useState<DocumentoActivo | null>(null);
+  const [identificadoresTexto, setIdentificadoresTexto] = React.useState("");
+
+  async function agregarCoberturas() {
+    if (!coberturaDoc) return;
+    // Acepta placas/codigos separados por coma, espacio o salto de linea.
+    const identificadores = identificadoresTexto
+      .split(/[\s,;]+/)
+      .map((valor) => valor.trim())
+      .filter((valor) => valor.length > 0);
+
+    if (identificadores.length === 0) {
+      toast.error("Escribe al menos una placa o codigo.");
+      return;
+    }
+
+    try {
+      const resultado = await agregarCoberturasMutation.mutateAsync({
+        documentoCompartidoId: coberturaDoc.id,
+        identificadores,
+      });
+      const partes: string[] = [];
+      if (resultado.agregados) partes.push(`${resultado.agregados} agregado(s)`);
+      if (resultado.yaCubiertos)
+        partes.push(`${resultado.yaCubiertos} ya cubierto(s)`);
+      if (resultado.sinActivo)
+        partes.push(`${resultado.sinActivo} sin activo`);
+      toast.success(`Coberturas actualizadas: ${partes.join(", ") || "sin cambios"}.`);
+      if (resultado.sinActivo) {
+        const noResueltos = resultado.detalles
+          .filter((detalle) => detalle.estado === "SIN_ACTIVO")
+          .map((detalle) => detalle.identificador)
+          .join(", ");
+        toast.warning(`Sin activo: ${noResueltos}`);
+      }
+      setCoberturaDoc(null);
+      setIdentificadoresTexto("");
+      onCambio?.();
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        extraerMensajeError(error, "No se pudieron agregar las coberturas.")
+      );
+    }
+  }
+
+  const documentosLocales = React.useMemo(() => {
+    const documentosCreados =
+      documentosOptimistas.codigo === codigo ? documentosOptimistas.creados : [];
+    const documentosEliminadosIds =
+      documentosOptimistas.codigo === codigo
+        ? documentosOptimistas.eliminadosIds
+        : [];
+    const eliminados = new Set(documentosEliminadosIds);
+    const base = documentos.filter((documento) => !eliminados.has(documento.id));
+    const idsBase = new Set(base.map((documento) => documento.id));
+    const creados = documentosCreados.filter(
+      (documento) => !eliminados.has(documento.id) && !idsBase.has(documento.id)
+    );
+    // Dedup defensivo por id: evita que un id repetido (ej. una doble
+    // creacion que se cuele pese a la guarda de envio) rompa el key de
+    // React en la tabla.
+    const vistos = new Set<number>();
+    return [...base, ...creados].filter((documento) => {
+      if (vistos.has(documento.id)) return false;
+      vistos.add(documento.id);
+      return true;
+    });
+  }, [codigo, documentos, documentosOptimistas]);
+
+  React.useEffect(() => {
+    let activo = true;
+    obtenerTiposDocumento()
+      .then((tipos) => {
+        if (activo) {
+          setTiposMaestro(tipos);
+          const primerTipo = tipos.filter((t) => t.activo)[0]?.codigo;
+          if (primerTipo) {
+            setTipoSeleccionado(primerTipo);
+          }
+        }
+      })
+      .catch(() => {
+        // Si falla, se usa la lista de respaldo (comportamiento anterior).
+      });
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  const opcionesTipo = React.useMemo(() => {
+    if (tiposMaestro.length > 0) {
+      return tiposMaestro
+        .filter((tipo) => tipo.activo)
+        .map((tipo) => ({
+          codigo: tipo.codigo,
+          nombre: tipo.nombre,
+          alcance: tipo.alcance,
+          requiereVencimiento: tipo.requiereVencimiento,
+        }));
+    }
+    return tiposDocumento.map((codigo) => ({
+      codigo,
+      nombre: formatear(codigo),
+      alcance: "INDIVIDUAL" as const,
+      requiereVencimiento: false,
+    }));
+  }, [tiposMaestro]);
+
+  const metaTipo = opcionesTipo.find((tipo) => tipo.codigo === tipoSeleccionado);
+  const requiereVencimiento = metaTipo?.requiereVencimiento ?? false;
+  const esCompartido = metaTipo?.alcance === "COMPARTIDO";
+  // Guarda sincrona: `disabled={isSaving}` no alcanza a llegar al DOM antes
+  // de que un doble clic rapido dispare un segundo evento submit (React
+  // recien deshabilita el boton tras el commit del render). El ref se
+  // actualiza al instante, sin esperar ese ciclo.
+  const enviandoRef = React.useRef(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (enviandoRef.current) return;
+    enviandoRef.current = true;
     const form = event.currentTarget;
-    setMessage(null);
     setIsSaving(true);
 
     const formData = new FormData(form);
+    const fechaEmision = String(formData.get("fechaEmision") ?? "");
     const fechaVencimiento = String(formData.get("fechaVencimiento") ?? "");
     const observacion = String(formData.get("observacion") ?? "").trim();
+    const archivoUrl = archivoDataUrl || "pendiente-storage";
+
+    if (!archivoDataUrl) {
+      toast.error("Selecciona un documento desde tu equipo.");
+      setIsSaving(false);
+      enviandoRef.current = false;
+      return;
+    }
+
+    if (requiereVencimiento && !fechaVencimiento) {
+      toast.error("Este tipo de documento requiere fecha de vencimiento.");
+      setIsSaving(false);
+      enviandoRef.current = false;
+      return;
+    }
+
+    if (fechaVencimiento && fechaEmision && fechaVencimiento < fechaEmision) {
+      toast.error(
+        "La fecha de vencimiento no puede ser anterior a la fecha de emision."
+      );
+      setIsSaving(false);
+      enviandoRef.current = false;
+      return;
+    }
 
     try {
-      await crearDocumentoPorCodigo(codigo, {
-        tipoDocumento: String(formData.get("tipoDocumento")) as TipoDocumentoActivo,
+      const documentoCreado = await crearDocumentoMutation.mutateAsync({
+        tipoDocumento: tipoSeleccionado as TipoDocumentoActivo,
         numero: String(formData.get("numero") ?? "").trim(),
-        fechaEmision: String(formData.get("fechaEmision") ?? ""),
+        fechaEmision,
         fechaVencimiento: fechaVencimiento || undefined,
-        archivoUrl: String(formData.get("archivoUrl") ?? "").trim(),
+        archivoUrl,
+        nombreArchivo: archivoNombre || undefined,
         observacion: observacion || undefined,
         usuarioCarga:
           String(formData.get("usuarioCarga") ?? "").trim() || "usuario.activos",
+        ...(origen ?? {}),
+      });
+      setDocumentosOptimistas((actual) => {
+        const base =
+          actual.codigo === codigo
+            ? actual
+            : { codigo, creados: [], eliminadosIds: [] };
+        const creados = base.creados.some(
+          (documento) => documento.id === documentoCreado.id
+        )
+          ? base.creados.map((documento) =>
+              documento.id === documentoCreado.id ? documentoCreado : documento
+            )
+          : [...base.creados, documentoCreado];
+        return { ...base, creados };
       });
 
       form.reset();
+      setArchivoNombre("");
+      setArchivoDataUrl("");
       setMostrarFormulario(false);
-      setMessage({
-        type: "success",
-        text: "Documento registrado correctamente.",
-      });
+      toast.success("Documento registrado correctamente.");
+      onCambio?.();
       router.refresh();
     } catch (error) {
-      setMessage({
-        type: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "No se pudo registrar el documento.",
-      });
+      toast.error(extraerMensajeError(error, "No se pudo registrar el documento."));
     } finally {
       setIsSaving(false);
+      enviandoRef.current = false;
+    }
+  }
+
+  async function onArchivoChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = event.target.files?.[0];
+
+    if (!archivo) {
+      setArchivoNombre("");
+      setArchivoDataUrl("");
+      return;
+    }
+
+    if (archivo.size > 10 * 1024 * 1024) {
+      event.target.value = "";
+      setArchivoNombre("");
+      setArchivoDataUrl("");
+      toast.error("El documento supera 10 MB. Selecciona uno mas ligero.");
+      return;
+    }
+
+    setArchivoNombre(archivo.name);
+    setArchivoDataUrl(await fileToDataUrl(archivo));
+  }
+
+  async function eliminarDocumento(documento: DocumentoActivo) {
+    setDeletingId(documento.id);
+
+    try {
+      if (documento.alcance === "COMPARTIDO") {
+        await quitarCoberturaMutation.mutateAsync(documento.id);
+        toast.success("Se quito este activo del documento compartido.");
+      } else {
+        await eliminarDocumentoMutation.mutateAsync(documento.id);
+        toast.success("Documento eliminado correctamente.");
+      }
+      setDocumentosOptimistas((actual) => {
+        const base =
+          actual.codigo === codigo
+            ? actual
+            : { codigo, creados: [], eliminadosIds: [] };
+        const eliminadosIds = base.eliminadosIds.includes(documento.id)
+          ? base.eliminadosIds
+          : [...base.eliminadosIds, documento.id];
+        return { ...base, eliminadosIds };
+      });
+      onCambio?.();
+      router.refresh();
+    } catch (error) {
+      toast.error(extraerMensajeError(error, "No se pudo eliminar el documento."));
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function abrirSustento(documento: DocumentoActivo) {
+    setAbriendoId(documento.id);
+
+    try {
+      await obtenerYAbrirArchivoDocumento(codigo, documento);
+    } catch (error) {
+      toast.error(extraerMensajeError(error, "No se pudo abrir el sustento."));
+    } finally {
+      setAbriendoId(null);
     }
   }
 
@@ -98,8 +387,9 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
         <div>
           <p className="font-semibold">Documentos del activo</p>
           <p className="text-sm text-muted-foreground">
-            {documentos.length} documento{documentos.length === 1 ? "" : "s"} registrado
-            {documentos.length === 1 ? "" : "s"}
+            {documentosLocales.length} documento
+            {documentosLocales.length === 1 ? "" : "s"} registrado
+            {documentosLocales.length === 1 ? "" : "s"}
           </p>
         </div>
         {editable ? (
@@ -113,48 +403,76 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
         ) : null}
       </div>
 
-      {editable && message ? (
-        <div
-          className={cn(
-            "rounded-xl border px-4 py-3 text-sm",
-            message.type === "success"
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700"
-              : "border-destructive/40 bg-destructive/10 text-destructive"
-          )}
-        >
-          {message.text}
-        </div>
-      ) : null}
-
       {editable && mostrarFormulario ? (
         <form
           onSubmit={onSubmit}
-          className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4"
+          className="@container grid gap-4 rounded-xl border border-border bg-muted/20 p-4"
         >
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <SelectField
-              name="tipoDocumento"
-              label="Tipo documento"
-              values={tiposDocumento}
-              required
-            />
+          <div className="grid gap-4 @lg:grid-cols-2 @3xl:grid-cols-3">
+            <label className="grid gap-2">
+              <span className="text-sm font-medium text-foreground">
+                Tipo documento<span className="ml-1 text-destructive">*</span>
+              </span>
+              <select
+                className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+                name="tipoDocumento"
+                required
+                value={tipoSeleccionado}
+                onChange={(event) => setTipoSeleccionado(event.target.value)}
+              >
+                {opcionesTipo.map((tipo) => (
+                  <option key={tipo.codigo} value={tipo.codigo}>
+                    {tipo.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Field name="numero" label="Numero" required />
             <Field name="fechaEmision" label="Fecha emision" type="date" required />
-            <Field name="fechaVencimiento" label="Fecha vencimiento" type="date" />
             <Field
-              name="archivoUrl"
-              label="Archivo o URL"
-              placeholder="https://..."
-              type="url"
-              required
+              name="fechaVencimiento"
+              label="Fecha vencimiento"
+              type="date"
+              required={requiereVencimiento}
             />
+            <div className="grid gap-2">
+              <Label htmlFor="documento-archivo">
+                Documento desde equipo
+                <span className="ml-1 text-destructive">*</span>
+              </Label>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <Button asChild type="button" variant="outline">
+                  <label htmlFor="documento-archivo" className="cursor-pointer">
+                    <IconFileUpload />
+                    Seleccionar documento
+                  </label>
+                </Button>
+                <Input
+                  id="documento-archivo"
+                  className="sr-only"
+                  type="file"
+                  onChange={onArchivoChange}
+                />
+                <span className="min-w-0 max-w-full truncate rounded-full border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+                  {archivoNombre || "Ningun documento seleccionado"}
+                </span>
+              </div>
+            </div>
             <Field
               name="usuarioCarga"
               label="Usuario responsable"
-              placeholder="usuario.activos"
-              required
+              value={usuario?.nombreUsuario ?? "usuario.activos"}
+              readOnly
+              className="cursor-default bg-muted/40 text-muted-foreground"
             />
           </div>
+          {esCompartido ? (
+            <p className="rounded-md border border-sky-200 bg-sky-50/60 px-3 py-2 text-xs text-sky-800 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300">
+              Este tipo es compartido (cubre varios activos). Aqui se guardara
+              solo en este activo. Para cubrir varias placas a la vez, usa la
+              Carga masiva de documentos.
+            </p>
+          ) : null}
           <Field
             name="observacion"
             label="Observacion"
@@ -180,51 +498,107 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
           <TableHeader>
             <TableRow>
               <TableHead>Tipo</TableHead>
-              <TableHead>Numero</TableHead>
+              <TableHead className={compacto ? "hidden" : undefined}>
+                Numero
+              </TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead>Emision</TableHead>
+              <TableHead className={compacto ? "hidden" : undefined}>
+                Emision
+              </TableHead>
               <TableHead>Vencimiento</TableHead>
-              <TableHead>Usuario</TableHead>
-              <TableHead>Archivo</TableHead>
+              <TableHead className={compacto ? "hidden" : undefined}>
+                Usuario
+              </TableHead>
+              <TableHead>Sustento</TableHead>
+              {editable ? <TableHead className="text-center">Accion</TableHead> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documentos.map((documento) => (
+            {documentosLocales.map((documento) => (
               <TableRow key={documento.id}>
                 <TableCell className="font-medium">
-                  {formatear(documento.tipoDocumento)}
+                  <span className="flex items-center gap-2">
+                    {formatear(documento.tipoDocumento)}
+                    {documento.alcance === "COMPARTIDO" ? (
+                      <Badge variant="outline" className="font-normal">
+                        Compartido
+                        {documento.coberturaTotal
+                          ? ` (${documento.coberturaTotal})`
+                          : ""}
+                      </Badge>
+                    ) : null}
+                  </span>
                 </TableCell>
-                <TableCell>{documento.numero ?? "-"}</TableCell>
+                <TableCell className={compacto ? "hidden" : undefined}>
+                  {documento.numero ?? "-"}
+                </TableCell>
                 <TableCell>
                   <EstadoDocumentoBadge value={documento.estadoDocumento} />
                 </TableCell>
-                <TableCell>{formatearFecha(documento.fechaEmision)}</TableCell>
+                <TableCell className={compacto ? "hidden" : undefined}>
+                  {formatearFecha(documento.fechaEmision)}
+                </TableCell>
                 <TableCell>{formatearFecha(documento.fechaVencimiento)}</TableCell>
-                <TableCell>
+                <TableCell className={compacto ? "hidden" : undefined}>
                   {documento.usuarioActualizacion ??
                     documento.usuarioCarga ??
                     "-"}
                 </TableCell>
                 <TableCell>
-                  {documento.archivoUrl ? (
-                    <a
-                      className="text-primary underline-offset-4 hover:underline"
-                      href={documento.archivoUrl}
-                      rel="noreferrer"
-                      target="_blank"
+                  {documento.tieneArchivo ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline disabled:opacity-60"
+                      disabled={abriendoId === documento.id}
+                      onClick={() => abrirSustento(documento)}
                     >
-                      Abrir
-                    </a>
+                      <IconExternalLink className="size-4" />
+                      {abriendoId === documento.id ? "Abriendo..." : "Ver"}
+                    </button>
                   ) : (
-                    "-"
+                    "Registrado"
                   )}
                 </TableCell>
+                {editable ? (
+                  <TableCell className="text-center">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      {documento.alcance === "COMPARTIDO" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setCoberturaDoc(documento);
+                            setIdentificadoresTexto("");
+                          }}
+                        >
+                          <IconUsersPlus />
+                          Agregar
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={deletingId === documento.id}
+                        onClick={() => eliminarDocumento(documento)}
+                      >
+                        <IconTrash />
+                        {deletingId === documento.id
+                          ? "Quitando..."
+                          : documento.alcance === "COMPARTIDO"
+                            ? "Quitar"
+                            : "Eliminar"}
+                      </Button>
+                    </div>
+                  </TableCell>
+                ) : null}
               </TableRow>
             ))}
-            {!documentos.length ? (
+            {!documentosLocales.length ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={editable ? 8 : 7}
                   className="h-24 text-center text-muted-foreground"
                 >
                   No hay documentos registrados para este activo.
@@ -234,8 +608,97 @@ export function DocumentosActivo({ codigo, documentos, editable = true }: Props)
           </TableBody>
         </Table>
       </div>
+
+      <Dialog
+        open={coberturaDoc !== null}
+        onOpenChange={(abierto) => {
+          if (!abierto) {
+            setCoberturaDoc(null);
+            setIdentificadoresTexto("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar activos al documento compartido</DialogTitle>
+            <DialogDescription>
+              {coberturaDoc
+                ? `Este documento (${formatear(
+                    coberturaDoc.tipoDocumento
+                  )}) cubre ${coberturaDoc.coberturaTotal ?? 1} activo(s). ` +
+                  "Escribe las placas o codigos de los activos a agregar, separados por coma, espacio o salto de linea."
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Label htmlFor="cobertura-identificadores">Placas o codigos</Label>
+            <Textarea
+              id="cobertura-identificadores"
+              rows={4}
+              placeholder="ABC-123, DEF-456, HG-CAM-001"
+              value={identificadoresTexto}
+              onChange={(event) => setIdentificadoresTexto(event.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setCoberturaDoc(null);
+                setIdentificadoresTexto("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={agregarCoberturas}
+              disabled={agregarCoberturasMutation.isPending}
+            >
+              {agregarCoberturasMutation.isPending
+                ? "Agregando..."
+                : "Agregar activos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+// El archivo ya no viaja en la lista de documentos (pesaba hasta 2 MB por
+// activo): se pide al backend recien cuando el usuario abre el sustento.
+// Lanza error si la descarga falla; el caller decide el toast.
+export async function obtenerYAbrirArchivoDocumento(
+  codigo: string,
+  documento: Pick<DocumentoActivo, "id" | "alcance">
+) {
+  const { archivoUrl } =
+    documento.alcance === "COMPARTIDO"
+      ? await obtenerArchivoDocumentoCompartidoPorCodigo(codigo, documento.id)
+      : await obtenerArchivoDocumentoPorCodigo(codigo, documento.id);
+
+  if (!archivoUrl) {
+    throw new Error("Este documento no tiene archivo adjunto.");
+  }
+
+  if (archivoUrl.startsWith("data:")) {
+    // base64 -> Blob para que el navegador lo abra como archivo real.
+    const blob = await (await fetch(archivoUrl)).blob();
+    window.open(URL.createObjectURL(blob), "_blank");
+  } else {
+    window.open(archivoUrl, "_blank", "noopener,noreferrer");
+  }
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 function EstadoDocumentoBadge({ value }: { value: EstadoDocumentoActivo }) {
@@ -272,38 +735,6 @@ function Field({
       </Label>
       <Input id={`documento-${name}`} name={name} required={required} {...props} />
     </div>
-  );
-}
-
-function SelectField({
-  label,
-  name,
-  values,
-  required = false,
-}: {
-  label: string;
-  name: string;
-  values: string[];
-  required?: boolean;
-}) {
-  return (
-    <label className="grid gap-2">
-      <span className="text-sm font-medium text-foreground">
-        {label}
-        {required ? <span className="ml-1 text-destructive">*</span> : null}
-      </span>
-      <select
-        className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-        name={name}
-        required={required}
-      >
-        {values.map((value) => (
-          <option key={value} value={value}>
-            {formatear(value)}
-          </option>
-        ))}
-      </select>
-    </label>
   );
 }
 

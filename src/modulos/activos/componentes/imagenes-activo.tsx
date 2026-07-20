@@ -3,7 +3,9 @@
 import * as React from "react";
 import { IconPhotoPlus, IconTrash } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
+import { extraerMensajeError } from "@/compartido/api";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
@@ -16,15 +18,29 @@ import { Input } from "@/compartido/componentes/ui/input";
 import { Label } from "@/compartido/componentes/ui/label";
 import { cn } from "@/compartido/utilidades";
 import {
-  crearImagenPorCodigo,
-  eliminarImagenPorCodigo,
-} from "../servicios/activos-api";
-import type { ImagenActivo, TipoImagenActivo } from "../tipos/activo.tipos";
+  useCrearImagenActivoMutation,
+  useEliminarImagenActivoMutation,
+} from "../servicios/activos-queries";
+import type {
+  ImagenActivo,
+  MetadataOrigenCambio,
+  TipoImagenActivo,
+} from "../tipos/activo.tipos";
 
 type Props = {
   codigo: string;
   imagenes: ImagenActivo[];
   editable?: boolean;
+  embedded?: boolean;
+  /** Trazabilidad del historial: desde que proceso se gestiona (ej. inventario fisico). */
+  origen?: MetadataOrigenCambio;
+  onCambio?: () => void;
+};
+
+type EstadoImagenesOptimistas = {
+  codigo: string;
+  creadas: ImagenActivo[];
+  eliminadasIds: number[];
 };
 
 const tiposImagen: TipoImagenActivo[] = [
@@ -32,9 +48,20 @@ const tiposImagen: TipoImagenActivo[] = [
   "LATERAL",
   "POSTERIOR",
   "INTERIOR",
-  "DOCUMENTO",
-  "OTRO",
+  "ADICIONAL_1",
+  "ADICIONAL_2",
 ];
+
+const etiquetasTipoImagen: Record<TipoImagenActivo, string> = {
+  FRONTAL: "Frontal",
+  LATERAL: "Lateral",
+  POSTERIOR: "Posterior",
+  INTERIOR: "Interior",
+  ADICIONAL_1: "Adicional 1",
+  ADICIONAL_2: "Adicional 2",
+  DOCUMENTO: "Documento",
+  OTRO: "Otro",
+};
 
 function isRenderableImageUrl(url: string) {
   return (
@@ -44,16 +71,46 @@ function isRenderableImageUrl(url: string) {
   );
 }
 
-export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
+export function ImagenesActivo({
+  codigo,
+  imagenes,
+  editable = true,
+  embedded = false,
+  origen,
+  onCambio,
+}: Props) {
   const router = useRouter();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [imagenesOptimistas, setImagenesOptimistas] =
+    React.useState<EstadoImagenesOptimistas>({
+      codigo,
+      creadas: [],
+      eliminadasIds: [],
+    });
   const [selectedFileName, setSelectedFileName] = React.useState<string | null>(
     null
   );
   const [localImageUrl, setLocalImageUrl] = React.useState<string | null>(null);
+  const crearImagenMutation = useCrearImagenActivoMutation(codigo);
+  const eliminarImagenMutation = useEliminarImagenActivoMutation(codigo, origen);
+
+  const imagenesLocales = React.useMemo(() => {
+    const imagenesCreadas =
+      imagenesOptimistas.codigo === codigo ? imagenesOptimistas.creadas : [];
+    const imagenesEliminadasIds =
+      imagenesOptimistas.codigo === codigo
+        ? imagenesOptimistas.eliminadasIds
+        : [];
+    const eliminadas = new Set(imagenesEliminadasIds);
+    const base = imagenes.filter((imagen) => !eliminadas.has(imagen.id));
+    const idsBase = new Set(base.map((imagen) => imagen.id));
+    const creadas = imagenesCreadas.filter(
+      (imagen) => !eliminadas.has(imagen.id) && !idsBase.has(imagen.id)
+    );
+    return [...base, ...creadas];
+  }, [codigo, imagenes, imagenesOptimistas]);
 
   function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -65,7 +122,7 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
     }
 
     if (!file.type.startsWith("image/")) {
-      setError("Selecciona un archivo de imagen valido.");
+      toast.error("Selecciona una imagen valida.");
       event.target.value = "";
       setSelectedFileName(null);
       setLocalImageUrl(null);
@@ -76,10 +133,9 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
     reader.onload = () => {
       setSelectedFileName(file.name);
       setLocalImageUrl(String(reader.result));
-      setError(null);
     };
     reader.onerror = () => {
-      setError("No se pudo leer la imagen seleccionada.");
+      toast.error("No se pudo leer la imagen seleccionada.");
       setSelectedFileName(null);
       setLocalImageUrl(null);
     };
@@ -88,32 +144,50 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
     setIsSaving(true);
 
     const form = event.currentTarget;
     const formData = new FormData(form);
     const orden = String(formData.get("orden") ?? "").trim();
-    const url = localImageUrl ?? String(formData.get("url") ?? "").trim();
+    const url = localImageUrl ?? "";
 
     try {
       if (!url) {
-        throw new Error("Selecciona una imagen o ingresa una URL.");
+        throw new Error("Selecciona una imagen desde tu equipo.");
       }
 
-      await crearImagenPorCodigo(codigo, {
+      const imagenCreada = await crearImagenMutation.mutateAsync({
         tipoImagen: String(formData.get("tipoImagen")) as TipoImagenActivo,
         url,
+        nombreArchivo: selectedFileName ?? undefined,
         descripcion:
           String(formData.get("descripcion") ?? "").trim() || undefined,
         orden: orden ? Number(orden) : undefined,
+        ...(origen ?? {}),
+      });
+      setImagenesOptimistas((actual) => {
+        const base =
+          actual.codigo === codigo
+            ? actual
+            : { codigo, creadas: [], eliminadasIds: [] };
+        const creadas = base.creadas.some(
+          (imagen) => imagen.id === imagenCreada.id
+        )
+          ? base.creadas.map((imagen) =>
+              imagen.id === imagenCreada.id ? imagenCreada : imagen
+            )
+          : [...base.creadas, imagenCreada];
+        return { ...base, creadas };
       });
       form.reset();
+      if (fileInputRef.current) fileInputRef.current.value = "";
       setSelectedFileName(null);
       setLocalImageUrl(null);
+      toast.success("Imagen registrada correctamente.");
+      onCambio?.();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo registrar la imagen");
+      toast.error(extraerMensajeError(err, "No se pudo registrar la imagen"));
     } finally {
       setIsSaving(false);
     }
@@ -126,28 +200,32 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
 
     if (!confirmado) return;
 
-    setError(null);
     setDeletingId(imagen.id);
 
     try {
-      await eliminarImagenPorCodigo(codigo, imagen.id);
+      await eliminarImagenMutation.mutateAsync(imagen.id);
+      setImagenesOptimistas((actual) => {
+        const base =
+          actual.codigo === codigo
+            ? actual
+            : { codigo, creadas: [], eliminadasIds: [] };
+        const eliminadasIds = base.eliminadasIds.includes(imagen.id)
+          ? base.eliminadasIds
+          : [...base.eliminadasIds, imagen.id];
+        return { ...base, eliminadasIds };
+      });
+      toast.success("Imagen eliminada correctamente.");
+      onCambio?.();
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo eliminar la imagen");
+      toast.error(extraerMensajeError(err, "No se pudo eliminar la imagen"));
     } finally {
       setDeletingId(null);
     }
   }
 
-  return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <CardTitle className="flex items-center gap-2">
-          <IconPhotoPlus className="size-5 text-primary" />
-          Imagenes del activo
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-5 pt-5">
+  const contenido = (
+    <div className="grid gap-5">
         {editable ? (
         <form onSubmit={onSubmit} className="grid gap-4">
           <div className="grid gap-4 lg:grid-cols-[180px_1fr_1fr_120px_auto] lg:items-end">
@@ -163,13 +241,13 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
             >
               {tiposImagen.map((tipo) => (
                 <option key={tipo} value={tipo}>
-                  {tipo}
+                  {etiquetasTipoImagen[tipo]}
                 </option>
               ))}
             </select>
           </label>
           <div className="grid gap-2">
-            <Label htmlFor="imagen-archivo">Archivo desde equipo</Label>
+            <Label htmlFor="imagen-archivo">Imagen desde equipo</Label>
             <input
               ref={fileInputRef}
               id="imagen-archivo"
@@ -187,21 +265,11 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
                 Seleccionar imagen
               </Button>
               <Input
-                value={selectedFileName ?? "Ningun archivo seleccionado"}
+                value={selectedFileName ?? "Ninguna imagen seleccionada"}
                 readOnly
-                aria-label="Archivo seleccionado"
+                aria-label="Imagen seleccionada"
               />
             </div>
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="imagen-url">
-              URL de imagen
-            </Label>
-            <Input
-              id="imagen-url"
-              name="url"
-              placeholder="https://servidor/imagen.jpg"
-            />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="imagen-descripcion">Descripcion</Label>
@@ -233,15 +301,9 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
         </form>
         ) : null}
 
-        {editable && error ? (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
-
-        {imagenes.length ? (
+        {imagenesLocales.length ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {imagenes.map((imagen) => (
+            {imagenesLocales.map((imagen) => (
               <figure
                 key={imagen.id}
                 className="overflow-hidden rounded-xl border border-border bg-muted/20"
@@ -255,13 +317,15 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
                     />
                   ) : (
                     <div className="flex size-full items-center justify-center px-4 text-center text-sm text-muted-foreground">
-                      URL no disponible para previsualizar
+                      Imagen no disponible para previsualizar
                     </div>
                   )}
                 </div>
                 <figcaption className="grid gap-2 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <Badge variant="outline">{imagen.tipoImagen}</Badge>
+                    <Badge variant="outline">
+                      {etiquetasTipoImagen[imagen.tipoImagen] ?? imagen.tipoImagen}
+                    </Badge>
                     {editable ? (
                       <Button
                         type="button"
@@ -276,7 +340,7 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
                     ) : null}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {imagen.descripcion || "Sin descripcion"}
+                    {imagen.descripcion || imagen.nombreArchivo || "Sin descripcion"}
                   </p>
                 </figcaption>
               </figure>
@@ -287,7 +351,30 @@ export function ImagenesActivo({ codigo, imagenes, editable = true }: Props) {
             Este activo aun no tiene imagenes registradas.
           </div>
         )}
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <section className="mt-6 border-t border-border pt-5">
+        <h3 className="mb-4 flex items-center gap-2 text-base font-semibold">
+          <IconPhotoPlus className="size-5 text-primary" />
+          Imagenes del activo
+        </h3>
+        {contenido}
+      </section>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="border-b border-border">
+        <CardTitle className="flex items-center gap-2">
+          <IconPhotoPlus className="size-5 text-primary" />
+          Imagenes del activo
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-5">{contenido}</CardContent>
     </Card>
   );
 }

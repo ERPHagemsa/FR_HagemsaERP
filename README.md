@@ -11,6 +11,7 @@ El objetivo es tener un solo frontend para el ERP, pero consumiendo backends sep
 - `comercial`: ruta base del contexto comercial.
 - `despacho`: ruta base del contexto despacho.
 - `flota`: ruta base del contexto flota.
+- `socio-negocios`: BC-01 Socio de Negocio. Maestro de socios, personal, asignaciones, aprobaciones y consumo de configuracion general.
 
 ## Estructura base
 
@@ -125,7 +126,18 @@ src/modulos/activos/tipos/activo.tipos.ts
 
 ## Integracion con backends
 
-Cada modulo frontend consume su propio backend o microservicio. En desarrollo local se usan variables `NEXT_PUBLIC_*` para apuntar al puerto correspondiente.
+Cada modulo frontend consume su propio backend o microservicio. Las APIs que
+requieren JWT, como Socio de Negocios, usan variables server-only y pasan por
+un Route Handler que inyecta el bearer token.
+
+Para `socio-negocios` no se expone CRUD directo de configuracion general desde
+el navegador. El modulo consume:
+
+- BC-01 para asignaciones, aprobaciones e historial operativo.
+- BC-14 configuracion general solo en modo lectura para catalogos necesarios
+  para formularios y resolucion de aprobadores, como `cargo`, `area` y `sede`.
+- `usuarioAprobacionId` como identidad tecnica de quien aprobo; el cargo y el
+  area vigentes se resuelven por la asignacion activa del personal.
 
 Archivo recomendado:
 
@@ -138,7 +150,7 @@ Variables actuales y futuras:
 ```env
 NEXT_PUBLIC_ACTIVOS_API_URL=http://localhost:3000
 NEXT_PUBLIC_COMBUSTIBLE_API_URL=http://localhost:3003
-NEXT_PUBLIC_SOCIO_NEGOCIOS_API_URL=http://localhost:3005
+SOCIO_NEGOCIOS_API_URL=http://localhost:3005
 NEXT_PUBLIC_FLOTA_API_URL=http://localhost:3004
 ```
 
@@ -228,10 +240,24 @@ http://localhost:3001/activos/nuevo
 http://localhost:3001/activos/ACT-000001
 ```
 
+## Autenticacion
+
+El frontend habla con el Auth Service de HAGEMSA (servicio centralizado).
+
+Flujo:
+
+1. El usuario hace login en `/login`. El Route Handler `/api/auth/login` llama al Auth Service real (`AUTH_SERVICE_URL/api/auth/login`), recibe `accessToken` + `refreshToken` y los guarda en dos cookies httpOnly (`hagemsa_access`, `hagemsa_refresh`). El navegador nunca ve los JWTs.
+2. El middleware (`src/proxy.ts`) protege todas las rutas privadas y refresca el access token automaticamente cuando faltan menos de 60s para expirar.
+3. Para saber quien es el usuario en componentes React, usar el hook `useSesion()` de `@/modulos/autenticacion/ganchos/use-sesion`. Devuelve `{ usuario, estaCargando, estaAutenticado }`.
+4. Para mostrar/ocultar UI por rol, usar `useTieneRol("SUPER_ADMIN")` o el componente `<RolGuard rol="...">`.
+5. Logout: `POST /api/auth/logout` revoca la sesion en el Auth Service y borra las cookies locales.
+
+Configurar `AUTH_SERVICE_URL` en `.env.local` (ver `.env.local.example`).
+
 ## Pendientes conocidos
 
-- Definir autenticacion y envio de token JWT hacia los backends.
 - Definir si se consumira cada microservicio directo o mediante API Gateway.
+- Migrar las llamadas a los backends de BC al patron de proxy server-side (`/app/api/<bc>/[...path]/route.ts`) para que el JWT viaje server-side y no quede expuesto al JS del navegador.
 - Implementar carga real de archivos para imagenes/documentos cuando exista storage o endpoint multipart.
 - Completar contratos de integracion con Combustible, Flota y otros bounded contexts.
 - Agregar pruebas unitarias o de componentes para los flujos principales.

@@ -2,10 +2,30 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
+import {
+  BadgeCheck,
+  Boxes,
+  Briefcase,
+  Car,
+  CircleDot,
+  Fuel,
+  MapPin,
+  ReceiptText,
+  Settings,
+  ShieldCheck,
+  Truck,
+  Users,
+  Wallet,
+  Warehouse,
+  Wrench,
+} from "lucide-react"
 
 import { NavMain } from "@/compartido/componentes/nav-main"
 import { NavUser } from "@/compartido/componentes/nav-user"
 import { ThemeToggle } from "@/compartido/componentes/theme-toggle"
+import { usePermisos } from "@/modulos/autenticacion/ganchos/use-permisos"
+import { useTieneRol } from "@/modulos/autenticacion/ganchos/use-tiene-rol"
 import {
   Sidebar,
   SidebarContent,
@@ -14,24 +34,25 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/compartido/componentes/ui/sidebar"
-import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  Analytics01Icon,
-  Building03Icon,
-  Car01Icon,
-  CheckListIcon,
-  FuelStationIcon,
-  Invoice01Icon,
-  LegalDocument01Icon,
-  Route01Icon,
-  Settings02Icon,
-  ToolsIcon,
-  TruckIcon,
-  UserGroupIcon,
-} from "@hugeicons/core-free-icons"
 
-const data = {
+type ModuloNav = {
+  title: string
+  url?: string
+  icon?: React.ReactNode
+  // Prefijo de los codigos de permiso del modulo (`<modulo>:<recurso>:<accion>`,
+  // ej. "bc02"). Si la cuenta tiene permisos de modulo en su JWT, solo ve los
+  // modulos cuyo prefijo coincide. Los modulos sin prefijo declarado quedan
+  // ocultos para cuentas restringidas hasta que definan sus permisos.
+  prefijoPermiso?: string
+  items: { title: string; url: string }[]
+}
+
+const data: {
+  user: { name: string; email: string; avatar: string }
+  navMain: ModuloNav[]
+} = {
   user: {
     name: "Hagemsa",
     email: "operaciones@hagemsa.local",
@@ -39,31 +60,37 @@ const data = {
   },
   navMain: [
     {
-      title: "Activos",
-      icon: <HugeiconsIcon icon={Analytics01Icon} strokeWidth={2} />,
+      title: "Socio de Negocios",
+      url: "/socio-negocios",
+      icon: <Users />,
       items: [
-        { title: "Registro de activos", url: "/activos" },
-        { title: "Inventario de activos", url: "/activos/inventario" },
-        { title: "Nuevo activo", url: "/activos/nuevo" },
-        { title: "Estados", url: "#" },
-        { title: "Documentos", url: "#" },
+        { title: "Listar clientes", url: "/socio-negocios/clientes" },
+        { title: "Listar proveedores", url: "/socio-negocios/proveedores" },
+        { title: "Listar personal", url: "/socio-negocios/personal" },
+        { title: "Horarios y regímenes", url: "/socio-negocios/tareo" },
+        { title: "Historial", url: "/socio-negocios/historial" },
       ],
     },
     {
-      title: "Socio de Negocios",
-      icon: <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} />,
+      title: "Activos",
+      url: "/activos",
+      prefijoPermiso: "bc02",
+      icon: <Boxes />,
       items: [
-        { title: "Resumen", url: "/socio-negocios" },
-        { title: "Clientes", url: "/socio-negocios/clientes" },
-        { title: "Proveedores", url: "/socio-negocios/proveedores" },
-        { title: "Personal", url: "/socio-negocios/personal" },
-        { title: "Consultas", url: "/socio-negocios/consultas" },
-        { title: "Reportes", url: "/socio-negocios/reportes" },
+        { title: "Nuevo activo", url: "/activos/nuevo" },
+        { title: "Listado de activos", url: "/activos/inventario" },
+        { title: "Replaqueo", url: "/activos/nuevo-acople" },
+        { title: "Carga masiva activos", url: "/activos/carga-masiva" },
+        { title: "Carga masiva documentos", url: "/activos/carga-masiva-documentos" },
+        { title: "Inventario fisico", url: "/activos/inventario-fisico" },
+        { title: "Inspeccion", url: "/activos/inspeccion" },
+        { title: "Administrador de maestros", url: "/activos/maestros" },
+        { title: "Etiquetas QR", url: "/activos/etiquetas" },
       ],
     },
     {
       title: "TMS-Operaciones",
-      icon: <HugeiconsIcon icon={TruckIcon} strokeWidth={2} />,
+      icon: <Truck />,
       items: [
         { title: "Ordenes de Servicio", url: "#" },
         { title: "Manifiestos", url: "#" },
@@ -73,7 +100,7 @@ const data = {
     },
     {
       title: "WMS-Almacen",
-      icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
+      icon: <Warehouse />,
       items: [
         { title: "Inventario", url: "#" },
         { title: "Ingresos", url: "#" },
@@ -83,16 +110,30 @@ const data = {
     },
     {
       title: "Gestion Comercial",
-      icon: <HugeiconsIcon icon={Building03Icon} strokeWidth={2} />,
+      url: "/comercial",
+      icon: <Briefcase />,
       items: [
-        { title: "Cotizaciones", url: "/comercial" },
-        { title: "Tarifarios", url: "#" },
-        { title: "Contratos", url: "#" },
+        { title: "Prospectos", url: "/comercial/prospectos" },
+        { title: "Historial de prospectos", url: "/comercial/prospectos/historial" },
+        { title: "Solicitudes de cliente", url: "/comercial/solicitudes-cliente" },
+        { title: "Tarifarios", url: "/comercial/tarifarios" },
+        { title: "Contratos", url: "/comercial/contratos" },
+        { title: "Ubicaciones", url: "/comercial/ubicaciones" },
+        { title: "Calendario de ganadas", url: "/comercial/calendario" },
+        { title: "Modalidades", url: "/comercial/catalogos/modalidades" },
+        { title: "Cargos Adicionales", url: "/comercial/catalogos/cargos-adicionales" },
+        { title: "Condiciones", url: "/comercial/catalogos/condiciones" },
+        { title: "Motivos de respuesta", url: "/comercial/catalogos/motivos" },
+        { title: "Tipos de Unidad", url: "/comercial/catalogos/tipos-unidad" },
+        // Listado global de cotizaciones: vista secundaria/reporte. El camino principal
+        // para cotizar es Solicitudes de cliente (la cotizacion nace de una SC).
+        { title: "Todas las cotizaciones", url: "/comercial/cotizaciones" },
+        { title: "Aprobación de cotizaciones", url: "/comercial/aprobaciones" },
       ],
     },
     {
       title: "Seguimiento y Monitoreo",
-      icon: <HugeiconsIcon icon={Route01Icon} strokeWidth={2} />,
+      icon: <MapPin />,
       items: [
         { title: "Tracking GPS", url: "#" },
         { title: "Checkpoints", url: "#" },
@@ -102,17 +143,20 @@ const data = {
     },
     {
       title: "Flota y Disponibilidad",
-      icon: <HugeiconsIcon icon={Car01Icon} strokeWidth={2} />,
+      url: "/flota",
+      icon: <Car />,
       items: [
-        { title: "Unidades", url: "#" },
+        { title: "Unidades", url: "/flota/unidades" },
         { title: "Conductores", url: "#" },
-        { title: "Disponibilidad", url: "/flota" },
+        { title: "Disponibilidad", url: "#" },
         { title: "Prestamos", url: "#" },
+        { title: "Inspecciones", url: "/flota/checklist/inspecciones" },
+        { title: "Mantenedores de checklist", url: "/flota/checklist/mantenedores" },
       ],
     },
     {
       title: "Acreditaciones",
-      icon: <HugeiconsIcon icon={LegalDocument01Icon} strokeWidth={2} />,
+      icon: <BadgeCheck />,
       items: [
         { title: "Homologaciones", url: "#" },
         { title: "Documentos", url: "#" },
@@ -121,7 +165,7 @@ const data = {
     },
     {
       title: "Mantenimiento de Flota",
-      icon: <HugeiconsIcon icon={ToolsIcon} strokeWidth={2} />,
+      icon: <Wrench />,
       items: [
         { title: "Ordenes", url: "#" },
         { title: "Preventivos", url: "#" },
@@ -130,7 +174,7 @@ const data = {
     },
     {
       title: "Gestion de Neumaticos",
-      icon: <HugeiconsIcon icon={Route01Icon} strokeWidth={2} />,
+      icon: <CircleDot />,
       items: [
         { title: "Inventario", url: "#" },
         { title: "Rotaciones", url: "#" },
@@ -139,7 +183,7 @@ const data = {
     },
     {
       title: "Control de Combustible",
-      icon: <HugeiconsIcon icon={FuelStationIcon} strokeWidth={2} />,
+      icon: <Fuel />,
       items: [
         { title: "Asignaciones", url: "/combustible" },
         { title: "Vales", url: "/combustible/solicitudes" },
@@ -149,7 +193,7 @@ const data = {
     },
     {
       title: "Valorizacion y Facturacion",
-      icon: <HugeiconsIcon icon={Invoice01Icon} strokeWidth={2} />,
+      icon: <ReceiptText />,
       items: [
         { title: "Valorizaciones", url: "#" },
         { title: "Facturas", url: "#" },
@@ -158,7 +202,7 @@ const data = {
     },
     {
       title: "Liquidacion de Viaticos",
-      icon: <HugeiconsIcon icon={CheckListIcon} strokeWidth={2} />,
+      icon: <Wallet />,
       items: [
         { title: "Viaticos", url: "#" },
         { title: "Rendiciones", url: "#" },
@@ -166,49 +210,94 @@ const data = {
       ],
     },
     {
-      title: "Configuracion",
-      icon: <HugeiconsIcon icon={Settings02Icon} strokeWidth={2} />,
+      title: "CS-Configuración General",
+      url: "/configuracion",
+      icon: <Settings />,
       items: [
-        { title: "Usuarios y roles", url: "#" },
-        { title: "Parametros ERP", url: "#" },
-        { title: "Preferencias", url: "#" },
+        { title: "Inicio", url: "/configuracion" },
+        { title: "Ubicaciones", url: "/configuracion/ubicaciones" },
+        { title: "Sedes y áreas", url: "/configuracion/sedes-areas" },
+        { title: "Cargos", url: "/configuracion/cargos" },
+        { title: "Almacenes", url: "/configuracion/almacenes" },
+        { title: "Regímenes", url: "/configuracion/regimenes" },
+        { title: "Cuentas y contratos", url: "/configuracion/cuentas-contratos" },
+        { title: "Peajes", url: "/configuracion/peajes" },
+        { title: "Rutas", url: "/configuracion/rutas" },
+        { title: "Costos operativos", url: "/configuracion/costos-operativos" },
+        { title: "Reportes", url: "/configuracion/reportes" },
       ],
     },
   ],
 }
 
+// Bloque de IAM y administracion (gestion de identidades, accesos y auditoria
+// del Auth Service). Visible solo para SUPER_ADMIN — todas sus rutas estan
+// ademas protegidas server-side en /(privado)/admin/layout.tsx.
+const navAdmin = {
+  title: "IAM y administracion",
+  icon: <ShieldCheck />,
+  items: [
+    { title: "Cuentas", url: "/admin/cuentas" },
+    { title: "Roles", url: "/admin/roles" },
+    { title: "Permisos", url: "/admin/permisos" },
+    { title: "Clientes de servicio", url: "/admin/service-clients" },
+    { title: "Auditoria", url: "/admin/auditoria" },
+  ],
+}
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const esSuperAdmin = useTieneRol("SUPER_ADMIN")
+  const permisos = usePermisos()
+
+  // Filtrado del menu por permisos del JWT (solo UI; el backend autoriza de
+  // verdad). Reglas:
+  //  1. SUPER_ADMIN ve todo.
+  //  2. Cuentas SIN permisos de modulo (JWT sin roles o roles sin permisos,
+  //     excluyendo los "auth:*" de IAM) ven todo — compatibilidad mientras el
+  //     resto de cuentas/modulos adopta permisos.
+  //  3. Cuentas restringidas (ej. solo "bc02:*") ven UNICAMENTE los modulos
+  //     cuyo prefijoPermiso coincide con alguno de sus permisos.
+  const prefijosUsuario = new Set(
+    permisos
+      .map((permiso) => permiso.split(":")[0])
+      .filter((prefijo) => prefijo && prefijo !== "auth"),
+  )
+  const navFiltrado =
+    esSuperAdmin || prefijosUsuario.size === 0
+      ? data.navMain
+      : data.navMain.filter(
+          (modulo) =>
+            modulo.prefijoPermiso && prefijosUsuario.has(modulo.prefijoPermiso),
+        )
+  const navMain = esSuperAdmin ? [...navFiltrado, navAdmin] : navFiltrado
+  const { setOpenMobile } = useSidebar()
+
   return (
-    <Sidebar
-      collapsible="offcanvas"
-      className="border-none p-0 group-data-[variant=floating]:p-0 [&_[data-slot=sidebar-inner]]:rounded-none [&_[data-slot=sidebar-inner]]:bg-sidebar [&_[data-slot=sidebar-inner]]:shadow-none [&_[data-slot=sidebar-inner]]:ring-0"
-      {...props}
-    >
-      <SidebarHeader className="border-b border-sidebar-border/60 p-3">
+    <Sidebar collapsible="icon" {...props}>
+      <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
+              size="lg"
               asChild
-              className="h-auto rounded-2xl bg-transparent px-0 py-0 text-sidebar-foreground shadow-none ring-0 hover:bg-transparent hover:text-sidebar-foreground active:bg-transparent active:text-sidebar-foreground data-[slot=sidebar-menu-button]:p-0!"
+              className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <Link
-                href="/"
-                className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-colors hover:bg-sidebar-accent"
-              >
-                <span className="flex size-14 shrink-0 items-center justify-center">
-                  <img
+              <Link href="/" onClick={() => setOpenMobile(false)}>
+                <span className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-accent">
+                  <Image
                     src="/logo/logo.svg"
                     alt="Hagemsa"
-                    className="size-full object-contain"
+                    width={24}
+                    height={24}
+                    className="size-6 object-contain"
                   />
                 </span>
-                <span className="min-w-0 flex flex-1 flex-col gap-0.5">
-                  <span className="truncate text-[15px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground">
+                <span className="grid flex-1 text-left leading-tight">
+                  <span className="truncate text-sm font-semibold">
                     Hagemsa ERP
                   </span>
-                  <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-sidebar-foreground/52">
-                    <span className="size-1.5 rounded-full bg-primary" />
-                    Operacion
+                  <span className="truncate text-xs text-muted-foreground">
+                    Operación
                   </span>
                 </span>
               </Link>
@@ -216,14 +305,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent className="px-1.5 py-3">
-        <NavMain items={data.navMain} />
+
+      <SidebarContent>
+        <NavMain items={navMain} />
       </SidebarContent>
-      <SidebarFooter className="gap-2 border-t border-sidebar-border/70 p-2.5">
-        <ThemeToggle
-          showLabel
-          className="border-sidebar-border/80 bg-sidebar-accent/70 text-sidebar-foreground hover:bg-sidebar-accent"
-        />
+
+      <SidebarFooter>
+        <ThemeToggle showLabel />
         <NavUser user={data.user} />
       </SidebarFooter>
     </Sidebar>

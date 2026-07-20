@@ -3,27 +3,61 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 import {
   IconArrowDown,
   IconArrowUp,
+  IconDownload,
+  IconDotsVertical,
   IconEye,
+  IconHistory,
   IconPencil,
-  IconPlus,
   IconRefresh,
   IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
+import {
+  AlertTriangle,
+  Boxes,
+  CheckCircle2,
+  CircleAlert,
+  CircleDashed,
+  QrCode,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 
+import { extraerMensajeError } from "@/compartido/api";
+import { useConsulta } from "@/compartido/api/use-consulta";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/compartido/componentes/ui/alert";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/compartido/componentes/ui/card";
+import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { Input } from "@/compartido/componentes/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/compartido/componentes/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/compartido/componentes/ui/select";
 import {
   Table,
   TableBody,
@@ -33,248 +67,580 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades";
-import { cambiarEstadoActivo } from "../servicios/activos-api";
+import {
+  useCatalogosActivos,
+  type CatalogosActivos,
+} from "../ganchos/use-catalogos-activos";
+import {
+  useCambiarEstadoRegistroMutation,
+  useCrearActivoMutation,
+} from "../servicios/activos-queries";
+import {
+  obtenerActivos,
+  obtenerActivosListado,
+  type ListadoActivosParams,
+} from "../servicios/activos-api";
+import { obtenerEtiquetaPorId, resolverEtiquetaPorToken } from "../servicios/etiquetas-api";
+import { exportarMaestroActivosExcel } from "../servicios/activos-maestro-excel";
+import { LectorQrEtiqueta } from "./lector-qr-etiqueta";
 import type {
   Activo,
+  CrearActivoPayload,
   EstadoActivo,
-  EstadoCalibracion,
   EstadoOperativo,
 } from "../tipos/activo.tipos";
 
-type Props = {
-  activos: Activo[];
+export type FiltroRegistro = "ACTIVO" | "ANULADO" | "TODOS";
+
+type FiltrosActivos = {
+  query: string;
+  tipoActivo: string;
+  estadoActivo: string;
+  estadoOperativo: string;
+  estadoCalibracion: string;
+  estadoRegistro: FiltroRegistro;
+  fechaDesde: string;
+  fechaHasta: string;
 };
 
-export function ActivosTabla({ activos }: Props) {
+const FILTROS_INICIALES: FiltrosActivos = {
+  query: "",
+  tipoActivo: "TODOS",
+  // Por defecto se muestran solo los activos en estado ACTIVO; los de baja
+  // se consultan cambiando el filtro Estado a "Baja" o "todos".
+  estadoActivo: "ACTIVO",
+  estadoOperativo: "TODOS",
+  estadoCalibracion: "TODOS",
+  estadoRegistro: "ACTIVO",
+  fechaDesde: "",
+  fechaHasta: "",
+};
+
+/**
+ * Traduce el estado de filtros de la UI a los query params que entiende
+ * GET /activos. "TODOS" significa "no enviar el filtro".
+ */
+function construirParamsListado(
+  filtros: FiltrosActivos,
+  pagina: number,
+  limite: number,
+  orden: "reciente" | "antigua"
+): ListadoActivosParams {
+  return {
+    busqueda: filtros.query.trim() || undefined,
+    tipoActivoReferenciaId:
+      filtros.tipoActivo !== "TODOS" ? Number(filtros.tipoActivo) : undefined,
+    estadoActivo:
+      filtros.estadoActivo !== "TODOS"
+        ? (filtros.estadoActivo as ListadoActivosParams["estadoActivo"])
+        : undefined,
+    estadoOperativo:
+      filtros.estadoOperativo !== "TODOS"
+        ? (filtros.estadoOperativo as EstadoOperativo)
+        : undefined,
+    estadoCalibracionReferenciaId:
+      filtros.estadoCalibracion !== "TODOS"
+        ? Number(filtros.estadoCalibracion)
+        : undefined,
+    estadoRegistro:
+      filtros.estadoRegistro === "TODOS"
+        ? undefined
+        : filtros.estadoRegistro !== "ANULADO",
+    incluirAnulados: filtros.estadoRegistro === "TODOS" || undefined,
+    fechaModificacionDesde: filtros.fechaDesde || undefined,
+    fechaModificacionHasta: filtros.fechaHasta || undefined,
+    orden:
+      orden === "reciente" ? "MODIFICACION_RECIENTE" : "MODIFICACION_ANTIGUA",
+    pagina,
+    limite,
+  };
+}
+
+export function ActivosTabla() {
   const router = useRouter();
-  const [query, setQuery] = React.useState("");
-  const [tipoActivo, setTipoActivo] = React.useState("TODOS");
-  const [estadoActivo, setEstadoActivo] = React.useState("TODOS");
-  const [estadoOperativo, setEstadoOperativo] = React.useState("TODOS");
-  const [estadoCalibracion, setEstadoCalibracion] = React.useState("TODOS");
-  const [fechaDesde, setFechaDesde] = React.useState("");
-  const [fechaHasta, setFechaHasta] = React.useState("");
+  const catalogos = useCatalogosActivos();
+  const [filtrosFormulario, setFiltrosFormulario] =
+    React.useState<FiltrosActivos>(FILTROS_INICIALES);
+  const [filtrosAplicados, setFiltrosAplicados] =
+    React.useState<FiltrosActivos>(FILTROS_INICIALES);
   const [pagina, setPagina] = React.useState(1);
   const [registrosPorPagina, setRegistrosPorPagina] = React.useState(10);
   const [ordenModificacion, setOrdenModificacion] = React.useState<
     "reciente" | "antigua"
   >("reciente");
+  const debounceQueryRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activoParaBorrar, setActivoParaBorrar] = React.useState<Activo | null>(
     null
   );
+  const [activoParaReintegrar, setActivoParaReintegrar] =
+    React.useState<Activo | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const [deleteError, setDeleteError] = React.useState<string | null>(null);
+  const [isReintegrating, setIsReintegrating] = React.useState(false);
+  const [lectorQrAbierto, setLectorQrAbierto] = React.useState(false);
+  const cambiarEstadoRegistroMutation = useCambiarEstadoRegistroMutation();
+  const crearActivoMutation = useCrearActivoMutation();
 
-  const activosVisibles = activos.filter(
-    (activo) => activo.estadoActivo !== "ELIMINADO"
+  // Filtros, orden, paginacion y resumen se resuelven en el BACKEND: cada
+  // cambio aplicado dispara una consulta nueva a GET /activos. La tabla ya no
+  // filtra nada en el cliente (antes traia todo y filtraba localmente, lo que
+  // producia conteos inconsistentes entre tarjetas, listado y paginas).
+  const consulta = useConsulta(
+    () =>
+      obtenerActivosListado(
+        construirParamsListado(
+          filtrosAplicados,
+          pagina,
+          registrosPorPagina,
+          ordenModificacion
+        )
+      ),
+    [filtrosAplicados, pagina, registrosPorPagina, ordenModificacion]
   );
-  const normalizedQuery = query.trim().toUpperCase();
-  const filtrados = activosVisibles.filter((activo) => {
-    const placa = activo.vehiculo?.placaRodaje ?? "";
-    const marca = activo.vehiculo?.marca ?? "";
-    const modelo = activo.vehiculo?.modelo ?? "";
-    const fechaModificacion = normalizarFecha(activo.updatedAt);
-    const coincideTexto = [activo.codigo, activo.descripcion, placa, marca, modelo]
-      .join(" ")
-      .toUpperCase()
-      .includes(normalizedQuery);
 
-    return (
-      coincideTexto &&
-      (tipoActivo === "TODOS" || activo.tipoActivo === tipoActivo) &&
-      (estadoActivo === "TODOS" || activo.estadoActivo === estadoActivo) &&
-      (estadoOperativo === "TODOS" ||
-        activo.vehiculo?.estadoOperativo === estadoOperativo) &&
-      (estadoCalibracion === "TODOS" ||
-        activo.vehiculo?.estadoCalibracion === estadoCalibracion) &&
-      (!fechaDesde || fechaModificacion >= fechaDesde) &&
-      (!fechaHasta || fechaModificacion <= fechaHasta)
-    );
-  });
+  const visibles = consulta.data?.datos ?? [];
+  const paginacion = consulta.data?.paginacion;
+  const resumen = {
+    total: paginacion?.total ?? 0,
+    operativos: consulta.data?.resumen?.operativos ?? 0,
+    mantenimiento: consulta.data?.resumen?.mantenimiento ?? 0,
+    noCalibrados: consulta.data?.resumen?.noCalibrados ?? 0,
+  };
 
   const hayFiltros =
-    query ||
-    tipoActivo !== "TODOS" ||
-    estadoActivo !== "TODOS" ||
-    estadoOperativo !== "TODOS" ||
-    estadoCalibracion !== "TODOS" ||
-    fechaDesde ||
-    fechaHasta;
+    filtrosAplicados.query ||
+    filtrosAplicados.tipoActivo !== "TODOS" ||
+    filtrosAplicados.estadoActivo !== FILTROS_INICIALES.estadoActivo ||
+    filtrosAplicados.estadoOperativo !== "TODOS" ||
+    filtrosAplicados.estadoCalibracion !== "TODOS" ||
+    filtrosAplicados.estadoRegistro !== "ACTIVO" ||
+    filtrosAplicados.fechaDesde ||
+    filtrosAplicados.fechaHasta;
 
-  const ordenados = [...filtrados].sort((a, b) => {
-    const fechaA = new Date(a.updatedAt).getTime();
-    const fechaB = new Date(b.updatedAt).getTime();
+  const totalPaginas = Math.max(1, paginacion?.totalPaginas ?? 1);
+  const paginaActual = paginacion?.pagina ?? pagina;
+  const totalParaTexto = paginacion?.total ?? 0;
+  const desdeVisible = totalParaTexto
+    ? (paginaActual - 1) * registrosPorPagina + 1
+    : 0;
+  const hastaVisible = Math.min(
+    paginaActual * registrosPorPagina,
+    totalParaTexto
+  );
 
-    return ordenModificacion === "reciente"
-      ? fechaB - fechaA
-      : fechaA - fechaB;
-  });
+  function actualizarFiltro<K extends keyof FiltrosActivos>(
+    key: K,
+    value: FiltrosActivos[K]
+  ) {
+    setFiltrosFormulario((actual) => ({ ...actual, [key]: value }));
+  }
 
-  const totalPaginas = Math.max(1, Math.ceil(ordenados.length / registrosPorPagina));
-  const inicioPagina = (pagina - 1) * registrosPorPagina;
-  const finPagina = inicioPagina + registrosPorPagina;
-  const visibles = ordenados.slice(inicioPagina, finPagina);
-  const desdeVisible = ordenados.length ? inicioPagina + 1 : 0;
-  const hastaVisible = Math.min(finPagina, ordenados.length);
+  function actualizarQuery(valor: string) {
+    setFiltrosFormulario((actual) => ({ ...actual, query: valor }));
+    if (debounceQueryRef.current) clearTimeout(debounceQueryRef.current);
+    debounceQueryRef.current = setTimeout(() => {
+      setPagina(1);
+      setFiltrosAplicados((actual) => ({ ...actual, query: valor }));
+    }, 300);
+  }
 
-  React.useEffect(() => {
+  function aplicarFiltros() {
     setPagina(1);
-  }, [
-    query,
-    tipoActivo,
-    estadoActivo,
-    estadoOperativo,
-    estadoCalibracion,
-    fechaDesde,
-    fechaHasta,
-    registrosPorPagina,
-  ]);
+    setFiltrosAplicados(filtrosFormulario);
+  }
 
   function limpiarFiltros() {
-    setQuery("");
-    setTipoActivo("TODOS");
-    setEstadoActivo("TODOS");
-    setEstadoOperativo("TODOS");
-    setEstadoCalibracion("TODOS");
-    setFechaDesde("");
-    setFechaHasta("");
+    setPagina(1);
+    setFiltrosFormulario(FILTROS_INICIALES);
+    setFiltrosAplicados(FILTROS_INICIALES);
+  }
+
+  /**
+   * Reporte "Base de Activos Vehiculares" formato FT-AS-006: .xlsx real con
+   * estilos. Exporta TODO el listado segun el filtro Vigentes/Anulados/Todos
+   * (trae los datos del servidor), no solo la pagina visible.
+   */
+  async function exportarExcel() {
+    try {
+      const estadoRegistro =
+        filtrosAplicados.estadoRegistro === "TODOS"
+          ? ("TODOS" as const)
+          : filtrosAplicados.estadoRegistro !== "ANULADO";
+      const todos = await obtenerActivos({ estadoRegistro });
+      await exportarMaestroActivosExcel(todos, {
+        tipoActivo: (id) => catalogos.nombrePorId("TIPO_ACTIVO", id),
+        calibracion: (id) => catalogos.nombrePorId("ESTADO_CALIBRACION", id),
+      });
+      toast.success(`Excel generado con ${todos.length} activos.`);
+    } catch (err) {
+      toast.error(extraerMensajeError(err, "No se pudo generar el Excel."));
+    }
+  }
+
+  async function exportarPdf() {
+    // Trae del servidor TODO el conjunto filtrado (no solo la pagina visible).
+    let activosExportar: Activo[];
+    try {
+      const respuesta = await obtenerActivosListado({
+        ...construirParamsListado(
+          filtrosAplicados,
+          1,
+          500,
+          ordenModificacion
+        ),
+      });
+      activosExportar = [...respuesta.datos];
+    } catch (err) {
+      toast.error(extraerMensajeError(err, "No se pudo generar el PDF."));
+      return;
+    }
+
+    const filas = activosExportar
+      .map(
+        (activo) => `
+          <tr>
+            <td>${escaparHtml(activo.codigo)}</td>
+            <td>${escaparHtml(
+              [activo.vehiculo?.marca, activo.vehiculo?.modelo]
+                .filter(Boolean)
+                .join(" ") || activo.descripcion
+            )}</td>
+            <td>${escaparHtml(activo.vehiculo?.placa ?? "")}</td>
+            <td>${escaparHtml(
+              catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId)
+            )}</td>
+            <td>${escaparHtml(activo.ubicacion)}</td>
+            <td>${escaparHtml(formatearEstadoActivo(activo.estadoActivo))}</td>
+            <td>${escaparHtml(formatear(activo.vehiculo?.estadoOperativo))}</td>
+            <td>${escaparHtml(formatearFecha(activo.fechaModificacion))}</td>
+          </tr>`
+      )
+      .join("");
+    const ventana = window.open("", "_blank");
+    if (!ventana) {
+      toast.error("No se pudo abrir la vista PDF. Revisa el bloqueador de ventanas.");
+      return;
+    }
+
+    ventana.document.write(`<!doctype html>
+      <html>
+        <head>
+          <title>Listado de activos</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+            h1 { font-size: 20px; margin: 0 0 12px; }
+            p { margin: 0 0 16px; color: #4b5563; }
+            table { width: 100%; border-collapse: collapse; font-size: 11px; }
+            th, td { border: 1px solid #d1d5db; padding: 6px; text-align: left; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>Listado de activos</h1>
+          <p>${activosExportar.length} activos exportados - ${new Date().toLocaleString("es-PE")}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Codigo</th>
+                <th>Unidad</th>
+                <th>Placa</th>
+                <th>Tipo</th>
+                <th>Ubicacion</th>
+                <th>Estado</th>
+                <th>Condicion</th>
+                <th>Modificado</th>
+              </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>
+        </body>
+      </html>`);
+    ventana.document.close();
+    ventana.focus();
+    ventana.print();
   }
 
   async function confirmarBorrado() {
     if (!activoParaBorrar) return;
 
-    setDeleteError(null);
     setIsDeleting(true);
 
     try {
-      await cambiarEstadoActivo(activoParaBorrar.id, {
-        estadoActivo: "ELIMINADO",
-        motivo: "Borrado desde maestro de activos",
-        usuario: "activos.web",
+      await cambiarEstadoRegistroMutation.mutateAsync({
+        id: activoParaBorrar.id,
+        payload: {
+          estadoRegistro: false,
+          motivo: "Borrado desde maestro de activos",
+          usuario: "activos.web",
+        },
       });
       setActivoParaBorrar(null);
-      router.refresh();
+      toast.success("Activo borrado", {
+        description: `${activoParaBorrar.codigo} fue retirado del maestro visible.`,
+      });
+      void consulta.refetch();
     } catch (error) {
-      setDeleteError(
-        error instanceof Error ? error.message : "No se pudo borrar el activo"
-      );
+      toast.error(extraerMensajeError(error, "No se pudo borrar el activo"));
     } finally {
       setIsDeleting(false);
     }
   }
 
+  async function confirmarReintegro() {
+    if (!activoParaReintegrar) return;
+
+    setIsReintegrating(true);
+
+    try {
+      await crearActivoMutation.mutateAsync(
+        crearPayloadReintegro(activoParaReintegrar)
+      );
+      setActivoParaReintegrar(null);
+      setPagina(1);
+      setFiltrosFormulario((actual) => ({
+        ...actual,
+        estadoRegistro: "ACTIVO",
+      }));
+      // Cambiar filtrosAplicados ya dispara el refetch del listado.
+      setFiltrosAplicados((actual) => ({
+        ...actual,
+        estadoRegistro: "ACTIVO",
+      }));
+      toast.success("Activo reintegrado", {
+        description: `${activoParaReintegrar.codigo} vuelve a estar disponible en el listado de activos.`,
+      });
+    } catch (error) {
+      toast.error(extraerMensajeError(error, "No se pudo reintegrar el activo"));
+    } finally {
+      setIsReintegrating(false);
+    }
+  }
+
+  async function buscarActivoPorQr(
+    identificador:
+      | { tipo: "token"; valor: string }
+      | { tipo: "id"; valor: number },
+  ) {
+    setLectorQrAbierto(false);
+    try {
+      const etiqueta =
+        identificador.tipo === "token"
+          ? await resolverEtiquetaPorToken(identificador.valor)
+          : await obtenerEtiquetaPorId(identificador.valor);
+      if (!etiqueta.activo) {
+        toast.error("La etiqueta fue encontrada, pero aun no esta vinculada a un activo.");
+        return;
+      }
+      toast.success(`Activo encontrado: ${etiqueta.activo.codigo}`);
+      router.push(`/activos/${etiqueta.activo.codigo}`);
+    } catch (error) {
+      toast.error(extraerMensajeError(error, "No se pudo buscar el activo por QR."));
+    }
+  }
+
   return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <CardTitle>Maestro de unidades</CardTitle>
-            <CardDescription>
-              {filtrados.length} de {activosVisibles.length} activos visibles
-            </CardDescription>
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{resumen.total} registros</Badge>
+            <h2 className="text-lg font-semibold">Consulta de activos</h2>
           </div>
-          <Button asChild>
-            <Link href="/activos/nuevo">
-              <IconPlus />
-              Nuevo activo
-            </Link>
-          </Button>
+          <p className="text-sm text-muted-foreground">
+            Busca y filtra el maestro de unidades.
+            {consulta.isFetching ? " Consultando..." : ` ${totalParaTexto} resultados.`}
+          </p>
         </div>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4 pt-5">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="grid min-w-64 flex-1 gap-1.5">
-            <span className="text-xs font-medium text-muted-foreground">
-              Busqueda
-            </span>
-            <div className="relative">
-              <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Codigo, placa, marca o modelo"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <ResumenMini
+            icon={Boxes}
+            label="Total"
+            value={resumen.total}
+            tono="text-foreground"
+          />
+          <ResumenMini
+            icon={CheckCircle2}
+            label="Operativos"
+            value={resumen.operativos}
+            tono="text-emerald-600 dark:text-emerald-400"
+          />
+          <ResumenMini
+            icon={Wrench}
+            label="Mantenimiento"
+            value={resumen.mantenimiento}
+            tono="text-amber-500 dark:text-amber-400"
+          />
+          <ResumenMini
+            icon={AlertTriangle}
+            label="No calibrados"
+            value={resumen.noCalibrados}
+            tono="text-destructive"
+          />
+        </div>
+      </div>
+
+      <Card className="overflow-hidden">
+        <CardContent className="flex flex-col gap-4 p-0">
+        <form
+          className="flex flex-col border-b border-border"
+          onSubmit={(event) => {
+            event.preventDefault();
+            aplicarFiltros();
+          }}
+        >
+          <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+            <div className="flex flex-1 flex-wrap items-center gap-2">
+              <div className="relative w-56">
+                <IconSearch className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="h-9 w-full rounded-4xl pl-9"
+                  placeholder="Codigo, placa, marca o modelo"
+                  value={filtrosFormulario.query}
+                  onChange={(event) => actualizarQuery(event.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9"
+                onClick={() => setLectorQrAbierto(true)}
+              >
+                <QrCode className="size-4" />
+                Buscar QR
+              </Button>
+              <FiltroSelect
+                ariaLabel="Tipo de activo"
+                value={filtrosFormulario.tipoActivo}
+                onChange={(value) => actualizarFiltro("tipoActivo", value)}
+                values={[
+                  { value: "TODOS", label: "Tipo: todos" },
+                  ...catalogos.tiposActivo.map((opcion) => ({
+                    value: String(opcion.id),
+                    label: opcion.nombre,
+                  })),
+                ]}
+              />
+              <FiltroSelect
+                ariaLabel="Estado del activo"
+                value={filtrosFormulario.estadoActivo}
+                onChange={(value) => actualizarFiltro("estadoActivo", value)}
+                values={[
+                  { value: "TODOS", label: "Estado: todos" },
+                  { value: "ACTIVO", label: "Activo" },
+                  { value: "BAJA", label: "Baja" },
+                ]}
+              />
+              <FiltroSelect
+                ariaLabel="Condicion activo"
+                value={filtrosFormulario.estadoOperativo}
+                onChange={(value) => actualizarFiltro("estadoOperativo", value)}
+                values={[
+                  { value: "TODOS", label: "Condicion: todos" },
+                  { value: "OPERATIVO", label: "Operativo" },
+                  { value: "MANTENIMIENTO", label: "Mantenimiento" },
+                  { value: "NO_OPERATIVO", label: "No operativo" },
+                ]}
+              />
+              <FiltroSelect
+                ariaLabel="Estado de calibracion"
+                value={filtrosFormulario.estadoCalibracion}
+                onChange={(value) => actualizarFiltro("estadoCalibracion", value)}
+                values={[
+                  { value: "TODOS", label: "Calibracion: todos" },
+                  ...catalogos.estadosCalibracion.map((opcion) => ({
+                    value: String(opcion.id),
+                    label: opcion.nombre,
+                  })),
+                ]}
+              />
+              <FiltroSelect
+                ariaLabel="Estado de registro"
+                value={filtrosFormulario.estadoRegistro}
+                onChange={(value) =>
+                  actualizarFiltro("estadoRegistro", value as FiltroRegistro)
+                }
+                values={[
+                  { value: "ACTIVO", label: "Vigentes" },
+                  { value: "ANULADO", label: "Anulados" },
+                  { value: "TODOS", label: "Registro: todos" },
+                ]}
+              />
+              <FiltroFecha
+                value={filtrosFormulario.fechaDesde}
+                max={filtrosFormulario.fechaHasta || undefined}
+                onChange={(value) => actualizarFiltro("fechaDesde", value)}
+                ariaLabel="Fecha desde"
+              />
+              <FiltroFecha
+                value={filtrosFormulario.fechaHasta}
+                min={filtrosFormulario.fechaDesde || undefined}
+                onChange={(value) => actualizarFiltro("fechaHasta", value)}
+                ariaLabel="Fecha hasta"
               />
             </div>
+            <div className="flex items-center gap-1.5">
+              <Button type="submit" size="sm">
+                <IconSearch />
+                Aplicar
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={limpiarFiltros}>
+                <IconRefresh />
+                Limpiar
+              </Button>
+              <div className="mx-1 h-5 w-px bg-border" />
+              <Button type="button" variant="outline" size="sm" onClick={exportarExcel}>
+                <IconDownload />
+                Excel
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={exportarPdf}>
+                <IconDownload />
+                PDF
+              </Button>
+            </div>
           </div>
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Tipo"
-            value={tipoActivo}
-            onChange={setTipoActivo}
-            values={[
-              "TODOS",
-              "VEHICULO",
-              "EQUIPO",
-              "HERRAMIENTA",
-              "DISPOSITIVO",
-              "OTRO",
-            ]}
-          />
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Estado"
-            value={estadoActivo}
-            onChange={setEstadoActivo}
-            values={["TODOS", "ACTIVO", "INACTIVO", "SINIESTRADO"]}
-          />
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Operativo"
-            value={estadoOperativo}
-            onChange={setEstadoOperativo}
-            values={["TODOS", "OPERATIVO", "MANTENIMIENTO", "NO_OPERATIVO"]}
-          />
-          <FiltroSelect
-            className="min-w-36 flex-1"
-            label="Calibracion"
-            value={estadoCalibracion}
-            onChange={setEstadoCalibracion}
-            values={["TODOS", "CALIBRADA", "NO_CALIBRADA", "PENDIENTE", "OBSERVADA"]}
-          />
-          <FiltroFecha
-            className="min-w-36 flex-1"
-            label="Desde"
-            value={fechaDesde}
-            max={fechaHasta || undefined}
-            onChange={setFechaDesde}
-          />
-          <FiltroFecha
-            className="min-w-36 flex-1"
-            label="Hasta"
-            value={fechaHasta}
-            min={fechaDesde || undefined}
-            onChange={setFechaHasta}
-          />
+        </form>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">Fase 1: maestro base</Badge>
+            {!hayFiltros ? (
+              <span className="text-sm text-muted-foreground">Sin filtros activos</span>
+            ) : null}
+          </div>
         </div>
 
-        {hayFiltros ? (
-          <div className="flex justify-end">
-            <Button type="button" className="h-8" onClick={limpiarFiltros}>
-              <IconRefresh />
-              Limpiar filtros
-            </Button>
-          </div>
+        {consulta.isError ? (
+          <Alert variant="destructive" className="mx-4">
+            <AlertTitle>No se pudo cargar el listado</AlertTitle>
+            <AlertDescription>
+              {extraerMensajeError(
+                consulta.error,
+                "No se pudo consultar el maestro de activos"
+              )}
+            </AlertDescription>
+          </Alert>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">Fase 1: maestro base</Badge>
-          {!hayFiltros ? (
-            <span className="text-sm text-muted-foreground">Sin filtros activos</span>
-          ) : null}
-        </div>
-
-        <div className="overflow-hidden rounded-xl border border-border">
+        {consulta.isLoading ? (
+          <div className="mx-4 mb-4 flex flex-col gap-2">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        ) : (
+        <>
+        <div className="mx-4 overflow-hidden rounded-xl border border-border">
           <Table className="w-full table-fixed [&_td]:px-2 [&_th]:px-2">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[10%]">Código</TableHead>
-                <TableHead className="w-[15%]">Unidad</TableHead>
+                <TableHead className="w-[7%] text-center">
+                  Accion
+                </TableHead>
+                <TableHead className="w-[9%]">Código</TableHead>
+                <TableHead className="w-[14%]">Unidad</TableHead>
                 <TableHead className="w-[9%]">Placa</TableHead>
                 <TableHead className="w-[7%]">Tipo</TableHead>
                 <TableHead className="w-[13%]">Ubicacion</TableHead>
                 <TableHead className="w-[8%]">Estado</TableHead>
-                <TableHead className="w-[9%]">Operativo</TableHead>
+                <TableHead className="w-[9%]">Condicion</TableHead>
                 <TableHead className="w-[9%]">Calibracion</TableHead>
                 <TableHead className="w-[9%]">
                   <button
@@ -299,41 +665,154 @@ export function ActivosTabla({ activos }: Props) {
                     )}
                   </button>
                 </TableHead>
-                <TableHead className="w-[11%] text-center">
-                  Acción
-                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibles.map((activo) => (
-                <TableRow key={activo.id}>
-                  <TableCell className="truncate font-medium">{activo.codigo}</TableCell>
+              {visibles.map((activo) => {
+                const esAnulado = activo.estadoRegistro === false;
+
+                return (
+                <TableRow
+                  key={activo.id}
+                  className={cn(
+                    esAnulado &&
+                      "bg-destructive/5 text-muted-foreground hover:bg-destructive/10"
+                  )}
+                >
+                  <TableCell className="text-center">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="outline"
+                          aria-label={`Acciones de ${activo.codigo}`}
+                        >
+                          <IconDotsVertical />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="min-w-56">
+                        <DropdownMenuGroup>
+                          {esAnulado ? (
+                            <>
+                              <DropdownMenuItem asChild>
+                                <Link href={`/activos/${activo.codigo}/historial`}>
+                                  <IconHistory />
+                                  Auditar
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onSelect={() => {
+                                  setActivoParaReintegrar(activo);
+                                }}
+                              >
+                                <IconRefresh />
+                                Reintegrar
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <>
+                              <DropdownMenuItem asChild>
+                                <Link href={`/activos/${activo.codigo}`}>
+                                  <IconEye />
+                                  Ver
+                                </Link>
+                              </DropdownMenuItem>
+                              {/* Un activo replaqueado es referencia
+                                  historica: editarlo permitiria reactivar
+                                  o alterar data que ya vive en el nuevo. */}
+                              {!activo.activoReemplazo ? (
+                                <DropdownMenuItem asChild>
+                                  <Link href={`/activos/${activo.codigo}/editar`}>
+                                    <IconPencil />
+                                    Editar
+                                  </Link>
+                                </DropdownMenuItem>
+                              ) : null}
+                              <DropdownMenuItem asChild>
+                                <Link href={`/activos/${activo.codigo}/historial`}>
+                                  <IconHistory />
+                                  Auditar
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onSelect={() => {
+                                  setActivoParaBorrar(activo);
+                                }}
+                              >
+                                <IconTrash />
+                                Borrar
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuGroup>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                  <TableCell className="truncate font-medium">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <span className={cn("truncate", esAnulado && "line-through")}>
+                        {activo.codigo}
+                      </span>
+                      <Badge
+                        className={cn(
+                          "w-fit gap-1 text-[11px]",
+                          activo.etiquetaActual
+                            ? "border-primary/30 bg-primary/10 text-primary"
+                            : "text-muted-foreground"
+                        )}
+                        variant="outline"
+                      >
+                        <QrCode className="size-3" />
+                        {activo.etiquetaActual?.codigo ?? "Sin etiqueta"}
+                      </Badge>
+                      {!esAnulado && activo.activoOrigenId ? (
+                        <Badge
+                          className="w-fit border-primary/30 bg-primary/10 text-[11px] text-primary"
+                          variant="outline"
+                        >
+                          Origen historico
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex min-w-0 flex-col gap-1">
-                      <span className="truncate font-medium">
+                      <span className={cn("truncate font-medium", esAnulado && "line-through")}>
                         {[activo.vehiculo?.marca, activo.vehiculo?.modelo]
                           .filter(Boolean)
                           .join(" ") || activo.descripcion}
                       </span>
                       <span className="truncate text-xs text-muted-foreground">
-                        {activo.vehiculo?.carroceria ?? activo.descripcion}
+                        {esAnulado
+                          ? "Registro anulado"
+                          : activo.vehiculo?.carroceria ?? activo.descripcion}
                       </span>
                     </div>
                   </TableCell>
                   <TableCell className="truncate">
-                    {activo.vehiculo?.placaRodaje ?? "Sin placa"}
+                    {activo.vehiculo?.placa ?? "Sin placa"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{formatear(activo.tipoActivo)}</Badge>
+                    <Badge variant="outline">
+                      {catalogos.nombrePorId("TIPO_ACTIVO", activo.tipoActivoReferenciaId)}
+                    </Badge>
                   </TableCell>
                   <TableCell className="truncate">
                     {activo.ubicacion}
                   </TableCell>
                   <TableCell>
-                    <EstadoBadge
-                      value={activo.estadoActivo}
-                      variant={estadoActivoVariant(activo.estadoActivo)}
-                    />
+                    {esAnulado ? (
+                      <EstadoBadge value="ANULADO" variant="destructive" />
+                    ) : (
+                      <EstadoBadge
+                        value={activo.estadoActivo}
+                        variant={estadoActivoVariant(activo.estadoActivo)}
+                      />
+                    )}
                   </TableCell>
                   <TableCell>
                     <EstadoBadge
@@ -345,48 +824,25 @@ export function ActivosTabla({ activos }: Props) {
                   </TableCell>
                   <TableCell>
                     <EstadoBadge
-                      value={activo.vehiculo?.estadoCalibracion ?? "SIN_DETALLE"}
+                      value={
+                        catalogos.nombrePorId(
+                          "ESTADO_CALIBRACION",
+                          activo.vehiculo?.estadoCalibracionReferenciaId
+                        ) || "SIN_DETALLE"
+                      }
                       variant={estadoCalibracionVariant(
-                        activo.vehiculo?.estadoCalibracion
+                        activo.vehiculo?.estadoCalibracionReferenciaId,
+                        catalogos
                       )}
                     />
                   </TableCell>
                   <TableCell className="truncate text-sm text-muted-foreground">
-                    {formatearFecha(activo.updatedAt)}
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="mx-auto flex w-fit justify-center gap-1">
-                      <Button asChild size="icon-sm" variant="outline">
-                        <Link href={`/activos/${activo.codigo}`}>
-                          <IconEye />
-                          <span className="sr-only">Ver</span>
-                        </Link>
-                      </Button>
-                      <Button asChild size="icon-sm">
-                        <Link href={`/activos/${activo.codigo}/editar`}>
-                          <IconPencil />
-                          <span className="sr-only">Editar</span>
-                        </Link>
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="destructive"
-                        title="Borrar activo"
-                        onClick={() => {
-                          setDeleteError(null);
-                          setActivoParaBorrar(activo);
-                        }}
-                        disabled={activo.estadoActivo === "ELIMINADO"}
-                      >
-                        <IconTrash />
-                        <span className="sr-only">Borrar</span>
-                      </Button>
-                    </div>
+                    {formatearFecha(activo.fechaModificacion)}
                   </TableCell>
                 </TableRow>
-              ))}
-              {!ordenados.length ? (
+                );
+              })}
+              {!visibles.length ? (
                 <TableRow>
                   <TableCell
                     colSpan={10}
@@ -400,9 +856,9 @@ export function ActivosTabla({ activos }: Props) {
           </Table>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-border pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
+        <div className="mx-4 flex flex-col gap-3 border-t border-border pb-4 pt-4 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
           <div>
-            Mostrando {desdeVisible}-{hastaVisible} de {ordenados.length} activos
+            Mostrando {desdeVisible}-{hastaVisible} de {totalParaTexto} activos
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2">
@@ -410,9 +866,10 @@ export function ActivosTabla({ activos }: Props) {
               <select
                 className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
                 value={registrosPorPagina}
-                onChange={(event) =>
-                  setRegistrosPorPagina(Number(event.target.value))
-                }
+                onChange={(event) => {
+                  setPagina(1);
+                  setRegistrosPorPagina(Number(event.target.value));
+                }}
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>
@@ -423,19 +880,19 @@ export function ActivosTabla({ activos }: Props) {
               type="button"
               variant="outline"
               size="sm"
-              disabled={pagina === 1}
+              disabled={!paginacion?.tieneAnterior || consulta.isFetching}
               onClick={() => setPagina((actual) => Math.max(1, actual - 1))}
             >
               Anterior
             </Button>
             <span className="min-w-20 text-center">
-              {pagina} / {totalPaginas}
+              {paginaActual} / {totalPaginas}
             </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={pagina === totalPaginas}
+              disabled={!paginacion?.tieneSiguiente || consulta.isFetching}
               onClick={() =>
                 setPagina((actual) => Math.min(totalPaginas, actual + 1))
               }
@@ -444,20 +901,16 @@ export function ActivosTabla({ activos }: Props) {
             </Button>
           </div>
         </div>
+        </>
+        )}
         {activoParaBorrar ? (
           <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
             <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl">
               <h3 className="text-lg font-semibold">Confirmar borrado</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                El activo {activoParaBorrar.codigo} se retirara del maestro
-                visible y no podra usarse en procesos operativos. Deseas
-                continuar?
+                Esta seguro que desea eliminar el activo {activoParaBorrar.codigo},
+                tenga en cuenta que esta informacion ya no se podra recuperar.
               </p>
-              {deleteError ? (
-                <div className="mt-4 rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-sm text-destructive">
-                  {deleteError}
-                </div>
-              ) : null}
               <div className="mt-5 flex justify-end gap-2">
                 <Button
                   type="button"
@@ -473,19 +926,79 @@ export function ActivosTabla({ activos }: Props) {
                   onClick={confirmarBorrado}
                   disabled={isDeleting}
                 >
-                  {isDeleting ? "Procesando..." : "Borrar activo"}
+                  {isDeleting ? "Procesando..." : "Borrar"}
                 </Button>
               </div>
             </div>
           </div>
         ) : null}
-      </CardContent>
-    </Card>
+        {activoParaReintegrar ? (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
+            <div className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl">
+              <h3 className="text-lg font-semibold">Confirmar reintegro</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Se creara un nuevo registro activo para{" "}
+                {activoParaReintegrar.codigo} con los datos del registro anulado.
+                Deseas continuar?
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setActivoParaReintegrar(null)}
+                  disabled={isReintegrating}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  onClick={confirmarReintegro}
+                  disabled={isReintegrating}
+                >
+                  {isReintegrating ? "Procesando..." : "Reintegrar activo"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        </CardContent>
+      </Card>
+
+      <LectorQrEtiqueta
+        abierto={lectorQrAbierto}
+        onCerrar={() => setLectorQrAbierto(false)}
+        onTokenLeido={(identificador) => void buscarActivoPorQr(identificador)}
+        titulo="Buscar activo por QR"
+        descripcion="Toma una foto del QR de la unidad para abrir su ficha de consulta."
+      />
+    </section>
   );
 }
 
 type BadgeVariant = React.ComponentProps<typeof Badge>["variant"];
 
+function crearPayloadReintegro(activo: Activo): CrearActivoPayload {
+  return {
+    codigo: activo.codigo,
+    tipoActivoReferenciaId: activo.tipoActivoReferenciaId,
+    descripcion: activo.descripcion,
+    ubicacion: activo.ubicacion,
+    estadoActivo: "ACTIVO",
+    observacion: activo.observacion ?? undefined,
+    valorUnidad: activo.valorUnidad,
+    moneda: activo.moneda,
+    proveedor: activo.proveedor,
+    numeroFactura: activo.numeroFactura,
+    fechaFactura: activo.fechaFactura,
+    vehiculo: activo.vehiculo
+      ? {
+          ...activo.vehiculo,
+          estadoCalibracionReferenciaId:
+            activo.vehiculo.estadoCalibracionReferenciaId ?? 0,
+        }
+      : undefined,
+  };
+}
 
 function formatearFecha(value: string) {
   return new Intl.DateTimeFormat("es-PE", {
@@ -495,8 +1008,30 @@ function formatearFecha(value: string) {
   }).format(new Date(value));
 }
 
-function normalizarFecha(value: string) {
-  return new Date(value).toISOString().slice(0, 10);
+function ResumenMini({
+  icon: Icon,
+  label,
+  value,
+  tono,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  tono: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+        <Icon className={cn("size-4", tono)} />
+      </span>
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate text-[11px] text-muted-foreground">
+          {label}
+        </span>
+        <span className="text-lg font-semibold leading-none">{value}</span>
+      </div>
+    </div>
+  );
 }
 
 function EstadoBadge({
@@ -506,16 +1041,43 @@ function EstadoBadge({
   value: string;
   variant: BadgeVariant;
 }) {
+  const { Icono, iconClassName } = estiloEstado(variant);
   return (
-    <Badge className="max-w-44" variant={variant}>
-      <span className="truncate">{formatear(value)}</span>
+    <Badge
+      variant="outline"
+      className="h-6 max-w-44 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground"
+    >
+      <Icono className={cn("size-3.5 shrink-0", iconClassName)} />
+      <span className="truncate">{formatearEstadoActivo(value)}</span>
     </Badge>
   );
 }
 
+/**
+ * Color e icono semanticos del estado: el variant ya clasifica el estado
+ * (default = bueno, destructive = alerta, secondary = neutral); aqui solo se
+ * pinta. Verde para lo bueno, rojo solo para lo malo, gris para lo neutral,
+ * para que se distingan de un vistazo (antes todo salia rojo).
+ */
+function estiloEstado(variant: BadgeVariant): {
+  Icono: LucideIcon;
+  iconClassName: string;
+} {
+  if (variant === "default") {
+    return {
+      Icono: CheckCircle2,
+      iconClassName: "text-emerald-600 dark:text-emerald-400",
+    };
+  }
+  if (variant === "destructive") {
+    return { Icono: CircleAlert, iconClassName: "text-destructive" };
+  }
+  return { Icono: CircleDashed, iconClassName: "text-muted-foreground" };
+}
+
 function estadoActivoVariant(value: EstadoActivo): BadgeVariant {
   if (value === "ACTIVO") return "default";
-  if (value === "SINIESTRADO" || value === "ELIMINADO") return "destructive";
+  if (value === "SINIESTRADO") return "destructive";
   return "secondary";
 }
 
@@ -528,14 +1090,21 @@ function estadoOperativoVariant(
 }
 
 function estadoCalibracionVariant(
-  value: EstadoCalibracion | null | undefined
+  value: number | null | undefined,
+  catalogos: CatalogosActivos
 ): BadgeVariant {
-  if (value === "CALIBRADA") return "default";
-  if (value === "OBSERVADA" || value === "NO_CALIBRADA") return "destructive";
+  if (value == null) return "secondary";
+  if (value === catalogos.idPorNombre("ESTADO_CALIBRACION", "Calibrada")) return "default";
+  if (
+    value === catalogos.idPorNombre("ESTADO_CALIBRACION", "Observada") ||
+    value === catalogos.idPorNombre("ESTADO_CALIBRACION", "No calibrada")
+  )
+    return "destructive";
   return "secondary";
 }
 
-function formatear(value: string) {
+function formatear(value?: string | null) {
+  if (!value) return "-";
   return value
     .toLowerCase()
     .split("_")
@@ -543,65 +1112,73 @@ function formatear(value: string) {
     .join(" ");
 }
 
+function formatearEstadoActivo(value?: string | null) {
+  if (value === "ACTIVO") return "Activo";
+  if (value === "SINIESTRADO") return "Baja / Siniestro";
+  if (value === "INACTIVO") return "Baja / De baja";
+  return formatear(value);
+}
+
+function escaparHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function FiltroSelect({
-  className,
-  label,
+  ariaLabel,
   value,
   values,
   onChange,
 }: {
-  className?: string;
-  label: string;
+  ariaLabel: string;
   value: string;
-  values: string[];
+  values: Array<{ value: string; label: string }>;
   onChange: (value: string) => void;
 }) {
   return (
-    <label className={cn("grid gap-1.5", className)}>
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <select
-        className={cn(
-          "h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
-        )}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {values.map((item) => (
-          <option key={item} value={item}>
-            {item === "TODOS" ? "Todos" : formatear(item)}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger aria-label={ariaLabel} className="h-9 w-40">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {values.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 }
 
 function FiltroFecha({
-  className,
-  label,
   value,
   min,
   max,
   onChange,
+  ariaLabel,
 }: {
-  className?: string;
-  label: string;
   value: string;
   min?: string;
   max?: string;
   onChange: (value: string) => void;
+  ariaLabel: string;
 }) {
   return (
-    <label className={cn("grid gap-1.5", className)}>
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <Input
-        className="h-9"
-        type="date"
-        value={value}
-        min={min}
-        max={max}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
+    <Input
+      aria-label={ariaLabel}
+      className="h-9 w-40 rounded-4xl"
+      type="date"
+      value={value}
+      min={min}
+      max={max}
+      onChange={(event) => onChange(event.target.value)}
+    />
   );
 }
