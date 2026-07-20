@@ -29,7 +29,7 @@ export function LoginVista() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const motivo = searchParams.get("motivo")
-  const [identificador, setIdentificador] = useState("")
+  const [nombreUsuario, setNombreUsuario] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
@@ -40,7 +40,7 @@ export function LoginVista() {
     setError(null)
 
     try {
-      await clienteHttp.post("/api/auth/login", { identificador, password })
+      await clienteHttp.post("/api/auth/login", { nombreUsuario, password })
       router.replace(searchParams.get("next") || "/")
       router.refresh()
     } catch (err) {
@@ -89,15 +89,18 @@ export function LoginVista() {
             <form onSubmit={(event) => void iniciarSesion(event)}>
               <FieldGroup>
                 <Field>
-                  <FieldLabel htmlFor="identificador">
-                    Usuario o correo
+                  {/* Solo nombre de usuario: el correo dejo de ser unico y no
+                      identifica una cuenta. */}
+                  <FieldLabel htmlFor="nombreUsuario">
+                    Nombre de usuario
                   </FieldLabel>
                   <Input
-                    id="identificador"
+                    id="nombreUsuario"
                     autoComplete="username"
                     type="text"
-                    value={identificador}
-                    onChange={(event) => setIdentificador(event.target.value)}
+                    maxLength={30}
+                    value={nombreUsuario}
+                    onChange={(event) => setNombreUsuario(event.target.value)}
                     required
                   />
                 </Field>

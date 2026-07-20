@@ -12,6 +12,7 @@ import { extraerMensajeError } from "@/compartido/api";
 import { Button } from "@/compartido/componentes/ui/button";
 import {
   Field,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -167,6 +168,10 @@ export function CrearCuentaVista() {
                     required
                     maxLength={255}
                   />
+                  <FieldDescription>
+                    Puede repetirse entre cuentas. Se usa para notificaciones y
+                    para recuperar la contrasena, no para iniciar sesion.
+                  </FieldDescription>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="nombreUsuario">
@@ -185,6 +190,10 @@ export function CrearCuentaVista() {
                     pattern="[A-Za-z][A-Za-z0-9._\-]{2,29}"
                     title="3 a 30 caracteres, empieza con letra y solo letras, digitos, punto, guion o guion bajo"
                   />
+                  <FieldDescription>
+                    Unico e irrepetible: es la credencial con la que la persona
+                    inicia sesion.
+                  </FieldDescription>
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="nombreCompleto">
