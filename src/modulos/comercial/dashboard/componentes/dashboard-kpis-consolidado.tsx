@@ -14,7 +14,6 @@ import {
 
 import { extraerMensajeError } from "@/compartido/api";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
-import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { cn } from "@/compartido/utilidades";
 import { useResumenCotizacionesQuery } from "@/modulos/comercial/cotizaciones/servicios/cotizaciones-queries";
 import { useResumenSolicitudesQuery } from "@/modulos/comercial/solicitudes-cliente/servicios/solicitudes-cliente-queries";
@@ -52,7 +51,7 @@ export function DashboardKpisConsolidado({
   periodo,
   idEjecutivoResponsable,
 }: PropsPeriodoEjecutivo) {
-  const { data, isLoading, isError, error } = useKpisConsolidadoQuery({
+  const { data, isError, error } = useKpisConsolidadoQuery({
     ...periodo,
     idEjecutivoResponsable,
   });
@@ -70,33 +69,38 @@ export function DashboardKpisConsolidado({
 
   return (
     <div className={GRID_KPIS}>
-      {isLoading || !data ? (
-        Array.from({ length: 2 }).map((_, i) => (
-          <Skeleton key={i} className="h-[104px] w-full rounded-2xl" />
-        ))
-      ) : (
-        <>
-          <TarjetaKpi
-            etiqueta="Solicitudes"
-            descripcion="Recibidas en el período"
-            icono={Inbox}
-            claseIcono="text-sky-500"
-          >
-            <ValorSimple>{data.actividad.totalSolicitudes}</ValorSimple>
-          </TarjetaKpi>
-          <TarjetaKpi
-            etiqueta="Cotizadas"
-            descripcion="Con al menos una cotización"
-            icono={FileText}
-            claseIcono="text-indigo-500"
-          >
-            <ValorSimple>{data.actividad.cotizadas}</ValorSimple>
-          </TarjetaKpi>
-        </>
-      )}
-      <TarjetaCiclo periodo={periodo} idEjecutivoResponsable={idEjecutivoResponsable} />
-      <TarjetasPipelineCotizaciones idEjecutivoResponsable={idEjecutivoResponsable} />
+      {/* Orden por CICLO DE VIDA comercial: la solicitud entra → todavía sin
+          cotizar → cotizada → esperando aprobación interna → enviada/por vencer
+          → tiempo hasta ganarla. Solicitudes/Cotizadas dependen de
+          kpis-consolidado (muestran "…" mientras carga); el resto trae su
+          propia data. */}
+      <TarjetaKpi
+        etiqueta="Solicitudes"
+        descripcion="Recibidas en el período"
+        icono={Inbox}
+        claseIcono="text-sky-500"
+      >
+        {data ? (
+          <ValorSimple>{data.actividad.totalSolicitudes}</ValorSimple>
+        ) : (
+          <ValorCargando />
+        )}
+      </TarjetaKpi>
       <TarjetaSinCotizar />
+      <TarjetaKpi
+        etiqueta="Cotizadas"
+        descripcion="Con al menos una cotización"
+        icono={FileText}
+        claseIcono="text-indigo-500"
+      >
+        {data ? (
+          <ValorSimple>{data.actividad.cotizadas}</ValorSimple>
+        ) : (
+          <ValorCargando />
+        )}
+      </TarjetaKpi>
+      <TarjetasPipelineCotizaciones idEjecutivoResponsable={idEjecutivoResponsable} />
+      <TarjetaCiclo periodo={periodo} idEjecutivoResponsable={idEjecutivoResponsable} />
     </div>
   );
 }
@@ -193,6 +197,15 @@ function TarjetasPipelineCotizaciones({
   return (
     <>
       <TarjetaKpiLink
+        etiqueta="Esperando aprobación"
+        descripcion="Requieren aprobación interna"
+        icono={ClipboardCheck}
+        claseIcono="text-violet-500"
+        href="/comercial/cotizaciones?bucket=pendientesAprobacion"
+      >
+        {cargando ? <ValorCargando /> : <ValorSimple>{data.pendientesAprobacion}</ValorSimple>}
+      </TarjetaKpiLink>
+      <TarjetaKpiLink
         etiqueta="Por vencer"
         descripcion="Enviadas que vencen en ≤3 días"
         icono={AlarmClock}
@@ -200,15 +213,6 @@ function TarjetasPipelineCotizaciones({
         href="/comercial/cotizaciones?bucket=porVencer"
       >
         {cargando ? <ValorCargando /> : <ValorSimple>{data.porVencer}</ValorSimple>}
-      </TarjetaKpiLink>
-      <TarjetaKpiLink
-        etiqueta="Esperando aprobación"
-        descripcion="Requieren aprobación interna"
-        icono={ClipboardCheck}
-        claseIcono="text-indigo-500"
-        href="/comercial/cotizaciones?bucket=pendientesAprobacion"
-      >
-        {cargando ? <ValorCargando /> : <ValorSimple>{data.pendientesAprobacion}</ValorSimple>}
       </TarjetaKpiLink>
     </>
   );
@@ -228,7 +232,7 @@ function TarjetaSinCotizar() {
       etiqueta="Sin cotizar"
       descripcion="Solicitudes sin cotización"
       icono={FileQuestion}
-      claseIcono="text-sky-500"
+      claseIcono="text-rose-500"
       href="/comercial/solicitudes-cliente?bucket=disponibles"
     >
       {cargando ? <ValorCargando /> : <ValorSimple>{data.disponibles}</ValorSimple>}
@@ -252,7 +256,7 @@ function TarjetaCiclo({ periodo, idEjecutivoResponsable }: PropsPeriodoEjecutivo
       etiqueta="Tiempo para ganar"
       descripcion="Días desde crear hasta ganar"
       icono={Timer}
-      claseIcono="text-violet-500"
+      claseIcono="text-emerald-500"
     >
       {isLoading || !data ? (
         <span className="text-sm text-muted-foreground">…</span>
