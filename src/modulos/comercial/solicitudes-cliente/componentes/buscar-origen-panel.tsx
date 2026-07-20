@@ -79,7 +79,11 @@ export function BuscarOrigenPanel({ onIdentidadResuelta }: Props) {
   const prospectosActivos = listaProspectos.filter((p) => p.estadoRegistro);
   const prospectosEliminados = listaProspectos.filter((p) => !p.estadoRegistro);
   const listaClientes = clientes.data ?? [];
-  const cargando = prospectos.isLoading || clientes.isLoading;
+  // isFetching y NO isLoading: `useConsulta` deja isLoading en false cuando ya
+  // hay datos, así que a partir de la segunda búsqueda no se veía nada en curso
+  // —sin spinner, con el botón habilitado— y seguían en pantalla los resultados
+  // del término anterior.
+  const cargando = prospectos.isFetching || clientes.isFetching;
   const hayResultadosUtiles =
     prospectosActivos.length > 0 || listaClientes.length > 0;
   // "Sin resultados" (con opción de crear) SOLO cuando no hay nada, ni activos ni

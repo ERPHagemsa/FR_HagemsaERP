@@ -101,12 +101,19 @@ export function BuscarClienteBc01Panel({
             <Building2 className="size-4" />
           </span>
           <div className="min-w-0">
+            {/*
+              Un valor puede venir de afuera con solo el id (por ejemplo, un
+              filtro llegado por querystring): se muestra el id hasta que se
+              elija un cliente de la lista, en vez de una ficha en blanco.
+            */}
             <p className="truncate text-sm font-medium text-foreground">
-              {valor.nombre}
+              {valor.nombre || valor.publicId}
             </p>
-            <p className="truncate text-xs text-muted-foreground tabular-nums">
-              {valor.numeroDocumento}
-            </p>
+            {valor.numeroDocumento ? (
+              <p className="truncate text-xs text-muted-foreground tabular-nums">
+                {valor.numeroDocumento}
+              </p>
+            ) : null}
           </div>
         </div>
         <Button
