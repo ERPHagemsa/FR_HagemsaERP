@@ -46,7 +46,14 @@ const BADGE_TEXTO: Record<EstadoEtiqueta, string> = {
  * endpoint (slice `asignacion` en construccion) — el lector y la resolucion
  * del token ya funcionan de punta a punta.
  */
-export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
+export function EtiquetaActivoSeccion({
+  activoId,
+  activoDeBaja = false,
+}: {
+  activoId: number;
+  /** El activo esta INACTIVO o SINIESTRADO: no tiene sentido reemprimir/reemplazar su QR. */
+  activoDeBaja?: boolean;
+}) {
   const [lectorAbierto, setLectorAbierto] = useState(false);
   const [etiquetaLeida, setEtiquetaLeida] = useState<Etiqueta | null>(null);
   const [errorLectura, setErrorLectura] = useState<string | null>(null);
@@ -139,6 +146,7 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
         <Button
           type="button"
           variant="outline"
+          disabled={vinculadas.isLoading || (Boolean(etiquetaActual) && activoDeBaja)}
           onClick={() => {
             setEtiquetaLeida(null);
             setErrorLectura(null);
@@ -150,6 +158,12 @@ export function EtiquetaActivoSeccion({ activoId }: { activoId: number }) {
           {etiquetaActual ? "Reemplazar etiqueta" : "Vincular etiqueta QR"}
         </Button>
       </div>
+
+      {etiquetaActual && activoDeBaja ? (
+        <p className="text-xs text-muted-foreground">
+          El activo esta dado de baja: no se puede reemplazar su etiqueta QR.
+        </p>
+      ) : null}
 
       {resolviendo ? <Skeleton className="h-16 w-full" /> : null}
 

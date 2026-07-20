@@ -1461,7 +1461,10 @@ export function ActivoFormulario({
         {/* La etiqueta es un identificador operativo: se consulta antes del
             resumen y solo existe cuando el activo ya fue creado. */}
         {isEdit && activo?.id ? (
-          <EtiquetaActivoSeccion activoId={activo.id} />
+          <EtiquetaActivoSeccion
+            activoId={activo.id}
+            activoDeBaja={estadoActivoGrupo === "BAJA"}
+          />
         ) : null}
         <ResumenRegistro
           activeTab={activeTab}
