@@ -42,6 +42,39 @@ function normalizarCodigo(valor: string): string {
     .slice(0, 20);
 }
 
+// Marcas combinantes Unicode (U+0300-U+036F): lo que NFD separa de la letra
+// base. Se arma con fromCharCode para no dejar caracteres invisibles en el
+// fuente. El target del proyecto es ES2017, que no admite \p{Diacritic}.
+const DIACRITICOS = new RegExp(
+  "[" + String.fromCharCode(0x300) + "-" + String.fromCharCode(0x36f) + "]",
+  "g",
+);
+
+// Convierte tildes y diacriticos a su letra base: "José" -> "Jose", "ñ" -> "n".
+// Se transforma en vez de borrar el caracter para no mutilar lo escrito: si se
+// eliminara, "josé" quedaria "jos".
+function quitarDiacriticos(valor: string): string {
+  return valor.normalize("NFD").replace(DIACRITICOS, "");
+}
+
+// Correo: minusculas, sin espacios ni tildes. Conserva solo los caracteres que
+// una direccion admite (letras, digitos y @ . _ - +); el resto se descarta.
+function normalizarEmail(valor: string): string {
+  return quitarDiacriticos(valor)
+    .toLowerCase()
+    .replace(/[^a-z0-9@._+-]/g, "")
+    .slice(0, 255);
+}
+
+// Nombre de usuario: minusculas, sin espacios ni tildes. Refleja la regla del
+// dominio (^[a-z][a-z0-9._-]{2,29}$), que admite guion bajo, punto y guion.
+function normalizarNombreUsuario(valor: string): string {
+  return quitarDiacriticos(valor)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "")
+    .slice(0, 30);
+}
+
 export function CrearCuentaVista() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -169,11 +202,12 @@ export function CrearCuentaVista() {
                     type="email"
                     autoComplete="off"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(normalizarEmail(e.target.value))}
                     required
                     maxLength={255}
                   />
                   <FieldDescription>
+                    Se normaliza solo: minusculas y sin espacios ni tildes.
                     Puede repetirse entre cuentas. Se usa para notificaciones y
                     para recuperar la contrasena, no para iniciar sesion.
                   </FieldDescription>
@@ -188,14 +222,19 @@ export function CrearCuentaVista() {
                     type="text"
                     autoComplete="off"
                     value={nombreUsuario}
-                    onChange={(e) => setNombreUsuario(e.target.value)}
+                    onChange={(e) =>
+                      setNombreUsuario(normalizarNombreUsuario(e.target.value))
+                    }
                     required
                     minLength={3}
                     maxLength={30}
-                    pattern="[A-Za-z][A-Za-z0-9._\-]{2,29}"
+                    // El input ya fuerza minusculas, asi que el patron no
+                    // contempla mayusculas: solo valida el resto de la regla.
+                    pattern="[a-z][a-z0-9._\-]{2,29}"
                     title="3 a 30 caracteres, empieza con letra y solo letras, digitos, punto, guion o guion bajo"
                   />
                   <FieldDescription>
+                    Se normaliza solo: minusculas, sin espacios ni tildes.
                     Unico e irrepetible: es la credencial con la que la persona
                     inicia sesion.
                   </FieldDescription>
