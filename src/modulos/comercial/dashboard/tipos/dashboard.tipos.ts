@@ -94,12 +94,13 @@ export type FiltrosDashboardPeriodoEjecutivo = RangoPeriodo & {
 export type FiltrosDashboardRanking = RangoPeriodo;
 
 /**
- * Filtros de tendencia-mensual: SIN periodo (D6, la ventana es `meses` fijo
- * hacia atras, no `desde`/`hasta`), CON ejecutivo.
+ * Filtros de tendencia: AHORA sigue el filtro global de periodo (`desde`/`hasta`)
+ * como el resto de los widgets, mas ejecutivo. El backend decide la granularidad
+ * (dia vs mes) segun el largo del rango y corta en hoy — el front no manda
+ * `granularidad`, la recibe en la respuesta.
  */
-export type FiltrosDashboardTendencia = {
+export type FiltrosDashboardTendencia = RangoPeriodo & {
   idEjecutivoResponsable?: string;
-  meses?: number;
 };
 
 /** Filtros de acciones-pendientes: SOLO ejecutivo, sin periodo. */
@@ -117,16 +118,6 @@ export type TotalPorMoneda = {
   usd: number;
 };
 
-/** espejo de WinRateResultado, BC03 calcular-win-rate.use-case.ts:6-24 — GET /dashboard/win-rate */
-export type WinRateRespuesta = {
-  ganadas: number;
-  perdidas: number;
-  /** `null` sin cierres GANADA/PERDIDA en el periodo — no confundir con `0`. */
-  winRate: number | null;
-  /** Puntos porcentuales (actual − anterior), ya calculado por backend. `null`-safe. */
-  variacionVsMesAnterior: number | null;
-};
-
 /** espejo de CicloCierreResultado, BC03 calcular-ciclo-cierre.use-case.ts:6-19 — GET /dashboard/ciclo-cierre */
 export type CicloCierreRespuesta = {
   /** `null` sin cierres GANADA en el periodo. */
@@ -139,17 +130,33 @@ export type CicloCierreRespuesta = {
   variacionVsMesAnterior: number | null;
 };
 
+/** Granularidad que el backend eligió para la serie de tendencia (segun el largo del rango). */
+export type GranularidadTendencia = "dia" | "mes";
+
 /**
- * espejo de PuntoTendenciaMensual, BC03 dashboard.repository.ts:28-33
- * GET /dashboard/tendencia-mensual devuelve `PuntoTendenciaMensual[]` PELADO
- * (sin envelope). La ventana siempre trae un punto por mes (meses sin
- * cierres llegan en `0`, no se omiten).
+ * Punto de la serie de tendencia. `fecha` es el inicio del bucket en ISO date
+ * (`yyyy-MM-dd`): el día mismo si `granularidad='dia'`, o el 1° del mes si
+ * `'mes'`. Se formatea en el front partiendo el string (sin `new Date`, para
+ * NO caer en el corrimiento de timezone).
  */
-export type PuntoTendenciaMensual = {
-  anio: number;
-  mes: number;
-  ganado: TotalPorMoneda;
-  perdido: TotalPorMoneda;
+export type PuntoTendencia = {
+  fecha: string;
+  ganadas: number;
+  perdidas: number;
+};
+
+/**
+ * espejo de TendenciaResultado, BC03 dashboard.repository.ts.
+ * GET /dashboard/tendencia-mensual devuelve un OBJETO (ya no un array pelado):
+ * CONTEO de cotizaciones ganadas vs. perdidas a lo largo del período elegido —
+ * ya NO montos por moneda (la plata vive en los KPIs y en el ranking). El
+ * backend decide `granularidad` por el largo del rango (corto → `dia`, largo →
+ * `mes`) y corta en hoy. La serie es continua: los buckets sin cierres llegan
+ * en `0`, no se omiten.
+ */
+export type TendenciaRespuesta = {
+  granularidad: GranularidadTendencia;
+  puntos: PuntoTendencia[];
 };
 
 /**

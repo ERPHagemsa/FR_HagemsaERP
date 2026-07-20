@@ -67,7 +67,7 @@ export function DashboardMotivosRespuestaCliente({
   const negociaciones = motivos.filter((motivo) => motivo.tipo === "NEGOCIACION");
 
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Respuesta del cliente</CardTitle>
         <AyudaMetrica descripcion={DASHBOARD_AYUDA.motivosRespuestaCliente} />

@@ -39,7 +39,7 @@ export function DashboardCicloCierre({
   });
 
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Ciclo de cierre del período</CardTitle>
         <AyudaMetrica descripcion={DASHBOARD_AYUDA.cicloCierre} />

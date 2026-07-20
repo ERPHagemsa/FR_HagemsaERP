@@ -11,7 +11,6 @@ import {
   obtenerMotivosRespuestaCliente,
   obtenerRankingEjecutivos,
   obtenerTendenciaMensual,
-  obtenerWinRate,
 } from "./dashboard-api";
 import {
   CLAVE_DASHBOARD_ACCIONES,
@@ -22,7 +21,6 @@ import {
   CLAVE_DASHBOARD_MOTIVOS_RESPUESTA,
   CLAVE_DASHBOARD_RANKING,
   CLAVE_DASHBOARD_TENDENCIA,
-  CLAVE_DASHBOARD_WIN_RATE,
 } from "../../claves-consulta";
 
 import type {
@@ -40,17 +38,6 @@ import type {
 // (D10).
 // ---------------------------------------------------------------------------
 
-// win-rate: recalcula con período y ejecutivo.
-export function useWinRateQuery(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-) {
-  return useConsulta(
-    () => obtenerWinRate(filtros),
-    [JSON.stringify(filtros)],
-    { clave: CLAVE_DASHBOARD_WIN_RATE }
-  );
-}
-
 // ciclo-cierre: recalcula con período y ejecutivo.
 export function useCicloCierreQuery(
   filtros: FiltrosDashboardPeriodoEjecutivo = {}
@@ -62,7 +49,8 @@ export function useCicloCierreQuery(
   );
 }
 
-// tendencia-mensual: SIN período en deps (D6) — solo ejecutivo/meses.
+// tendencia: AHORA recalcula con período (desde/hasta) y ejecutivo, como el
+// resto — el JSON.stringify de filtros ya cubre el período en las deps.
 export function useTendenciaMensualQuery(
   filtros: FiltrosDashboardTendencia = {}
 ) {

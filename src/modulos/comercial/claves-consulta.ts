@@ -36,7 +36,6 @@ export const CLAVE_CALENDARIO_GANADAS = "comercial/cotizaciones/calendario-ganad
 // Dashboard (Fase 2b, design D3) — una clave por endpoint de agregacion `/dashboard/*`.
 // Solo lectura: ninguna mutacion de este BC invalida estas claves hoy; existen por
 // consistencia con el patron y por si una accion futura quisiera invalidar cross-tree.
-export const CLAVE_DASHBOARD_WIN_RATE = "comercial/dashboard/win-rate";
 export const CLAVE_DASHBOARD_CICLO = "comercial/dashboard/ciclo-cierre";
 export const CLAVE_DASHBOARD_TENDENCIA = "comercial/dashboard/tendencia-mensual";
 export const CLAVE_DASHBOARD_RANKING = "comercial/dashboard/ranking-ejecutivos";

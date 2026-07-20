@@ -5,12 +5,10 @@
  * verdad del texto y evitar duplicarlo entre widgets.
  */
 export const DASHBOARD_AYUDA = {
-  winRate:
-    "Porcentaje de cotizaciones cerradas que se ganaron. Se calcula sobre las ganadas y perdidas del período; las que siguen abiertas no se cuentan. Un valor más alto indica mejor conversión. La variación compara contra el período anterior.",
   cicloCierre:
     "Promedio de días desde que se crea una cotización hasta que se gana. Menos días indica un cierre más rápido. La variación compara contra el período anterior.",
   tendencia:
-    "Monto ganado y perdido mes a mes durante los últimos meses. Permite ver la evolución del cierre en el tiempo. Este gráfico siempre muestra los últimos meses y no depende del período seleccionado.",
+    "Cantidad de cotizaciones ganadas o perdidas a lo largo del período. Tocá 'Ganadas' o 'Perdidas' arriba para cambiar qué serie dibuja el gráfico; los números de cada botón son el total del período. Cuenta cotizaciones, no dinero (el dinero está en los KPIs y en el ranking). Se ajusta al filtro de arriba: si el rango es corto lo muestra por día y si es largo por mes, cortando siempre en la fecha de hoy.",
   ranking:
     "Compara a los ejecutivos por monto ganado en el período. Incluye el monto ganado, la utilidad y el margen (S/ y US$), el win rate, y dos divisiones (cotizados sobre el total y ganadas sobre enviadas, ver la ayuda de cada columna). Muestra siempre al equipo completo.",
   efectividadCotizadas:

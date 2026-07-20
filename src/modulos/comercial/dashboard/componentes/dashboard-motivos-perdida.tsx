@@ -55,7 +55,7 @@ export function DashboardMotivosPerdida({
   }));
 
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Motivos de pérdida del período</CardTitle>
         <AyudaMetrica descripcion={DASHBOARD_AYUDA.motivosPerdida} />

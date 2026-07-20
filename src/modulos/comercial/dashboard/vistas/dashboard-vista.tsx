@@ -12,7 +12,6 @@ import { DashboardMotivosRespuestaCliente } from "../componentes/dashboard-motiv
 import { DashboardRanking } from "../componentes/dashboard-ranking";
 import { DashboardSelectorPeriodo } from "../componentes/dashboard-selector-periodo";
 import { DashboardTendencia } from "../componentes/dashboard-tendencia";
-import { DashboardWinRate } from "../componentes/dashboard-win-rate";
 import { resolverPeriodoPreset } from "../utilidades/periodo-preset";
 import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
 
@@ -21,12 +20,19 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  * estados — `idEjecutivoResponsable` (Fase 1, sin cambios de contrato) y
  * `periodo` (nuevo, default preset "este-mes") — y los baja por props a los
  * widgets con la propagación exacta de design D5:
- * - `periodo` + `idEjecutivoResponsable`: win-rate, ciclo-cierre,
- *   motivos-perdida, embudo.
+ * - `periodo` + `idEjecutivoResponsable`: tendencia, ciclo-cierre,
+ *   motivos-perdida, embudo. (La tendencia ANTES tenía ventana propia fija;
+ *   ahora sigue el período como el resto y el backend adapta la granularidad.)
  * - solo `periodo`: ranking (el endpoint ignora el filtro de ejecutivo,
  *   D-restricción verificada).
- * - solo `idEjecutivoResponsable`: tendencia (ventana propia `meses`, D6) y
- *   acciones (no dependiente de período).
+ * - solo `idEjecutivoResponsable`: acciones (no dependiente de período).
+ *
+ * `DashboardWinRate` (donut ganadas/perdidas del período) se ELIMINÓ —
+ * pedido de producto: era una foto redundante. La tendencia mensual ahora
+ * grafica cotizaciones ganadas vs. perdidas apiladas, así que la proporción
+ * de éxito se lee en el tiempo dentro de ese gráfico y el donut sobraba. La
+ * tendencia comparte fila con `DashboardCicloCierre` (2/3 y 1/3) para no
+ * dejar a este último solo y vacío a lo ancho.
  *
  * Cambio dashboard-kpis-motivos-respuesta-front: agrega
  * `DashboardKpisConsolidado` (ancho completo, primero — resume el período)
@@ -48,7 +54,7 @@ export function DashboardVista() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end gap-4">
         <DashboardFiltroEjecutivo
           idEjecutivoResponsable={idEjecutivoResponsable}
@@ -62,18 +68,18 @@ export function DashboardVista() {
         idEjecutivoResponsable={idEjecutivoResponsable}
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DashboardWinRate
-          periodo={periodo}
-          idEjecutivoResponsable={idEjecutivoResponsable}
-        />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DashboardTendencia
+            periodo={periodo}
+            idEjecutivoResponsable={idEjecutivoResponsable}
+          />
+        </div>
         <DashboardCicloCierre
           periodo={periodo}
           idEjecutivoResponsable={idEjecutivoResponsable}
         />
       </div>
-
-      <DashboardTendencia idEjecutivoResponsable={idEjecutivoResponsable} />
 
       <DashboardRanking periodo={periodo} />
 

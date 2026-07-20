@@ -65,7 +65,7 @@ export function DashboardEmbudo({
     : [];
 
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Embudo de conversión del período</CardTitle>
         <AyudaMetrica descripcion={DASHBOARD_AYUDA.embudo} />

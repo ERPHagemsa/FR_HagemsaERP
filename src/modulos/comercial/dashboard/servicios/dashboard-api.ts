@@ -11,9 +11,8 @@ import type {
   KpisConsolidadoRespuesta,
   MotivosPerdidaRespuesta,
   MotivosRespuestaClienteRespuesta,
-  PuntoTendenciaMensual,
   RankingEjecutivoRespuesta,
-  WinRateRespuesta,
+  TendenciaRespuesta,
 } from "../tipos/dashboard.tipos";
 
 // ---------------------------------------------------------------------------
@@ -22,17 +21,6 @@ import type {
 // cotizaciones-api.ts (params opcionales, axios omite `undefined` del query
 // string). Todos exigen `bc03:dashboard:leer` — aplicado backend-side.
 // ---------------------------------------------------------------------------
-
-// GET /dashboard/win-rate — ganadas/perdidas/winRate (null-safe) del período.
-export async function obtenerWinRate(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-): Promise<WinRateRespuesta> {
-  const { data } = await clienteComercial.get<WinRateRespuesta>(
-    "/dashboard/win-rate",
-    { params: filtros }
-  );
-  return data;
-}
 
 // GET /dashboard/ciclo-cierre — promedio de días creación→cierre GANADA del período.
 export async function obtenerCicloCierre(
@@ -45,14 +33,14 @@ export async function obtenerCicloCierre(
   return data;
 }
 
-// GET /dashboard/tendencia-mensual — serie de N meses ganado vs. perdido.
-// Restricción verificada (design D6): el use case IGNORA desde/hasta — su
-// ventana es siempre `meses` hacia atrás. Por eso esta función NO acepta
-// período, solo idEjecutivoResponsable/meses.
+// GET /dashboard/tendencia-mensual — conteo de cotizaciones ganadas vs. perdidas
+// a lo largo del período (desde/hasta) + ejecutivo. El backend decide la
+// granularidad (día si el rango es corto, mes si es largo) y corta en hoy;
+// devuelve `{ granularidad, puntos }`.
 export async function obtenerTendenciaMensual(
   filtros: FiltrosDashboardTendencia = {}
-): Promise<PuntoTendenciaMensual[]> {
-  const { data } = await clienteComercial.get<PuntoTendenciaMensual[]>(
+): Promise<TendenciaRespuesta> {
+  const { data } = await clienteComercial.get<TendenciaRespuesta>(
     "/dashboard/tendencia-mensual",
     { params: filtros }
   );

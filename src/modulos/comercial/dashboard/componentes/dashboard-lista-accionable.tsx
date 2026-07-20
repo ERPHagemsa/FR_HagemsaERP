@@ -32,7 +32,7 @@ export function DashboardListaAccionable({
   ayuda,
 }: DashboardListaAccionableProps) {
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{titulo}</CardTitle>
         {ayuda ? <AyudaMetrica descripcion={ayuda} /> : null}

@@ -67,7 +67,7 @@ export function DashboardRanking({ periodo }: Props) {
   const filas = [...(data ?? [])].sort((a, b) => b.ganado.pen - a.ganado.pen);
 
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Ranking de ejecutivos</CardTitle>
         <AyudaMetrica descripcion={DASHBOARD_AYUDA.ranking} />
