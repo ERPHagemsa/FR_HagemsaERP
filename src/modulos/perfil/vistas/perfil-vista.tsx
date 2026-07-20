@@ -187,9 +187,13 @@ function SeccionCodigos({
   const [codigoCuentaSufijo, setCodigoCuentaSufijo] = useState(
     () => separarCodigoCuenta(codigoCuentaInicial).sufijo,
   );
-  const codigoCuenta = normalizarCodigo(
-    `${codigoCuentaPrefijo}${codigoCuentaSufijo}`,
-  );
+  // Sin sufijo NO hay código de cuenta: el prefijo por sí solo es la marca de la
+  // empresa, no un código. Si se concatenara igual, "TH" contaría como código
+  // cargado y `ambosVacios` nunca sería true, así que no se podrían quitar.
+  const codigoCuenta =
+    codigoCuentaSufijo.trim() === ''
+      ? ''
+      : normalizarCodigo(`${codigoCuentaPrefijo}${codigoCuentaSufijo}`);
 
   // Vista previa del código de negocio de la cotización. Debe reflejar el formato
   // real del backend: `${codigoCuenta}-${codigoSocio}-${numero(4)}-${anio(4)}`

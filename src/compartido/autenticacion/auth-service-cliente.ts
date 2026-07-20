@@ -41,8 +41,10 @@ function construirHeadersCliente(
   return Object.keys(headers).length > 0 ? headers : undefined
 }
 
+// El nombre de usuario es la unica llave de acceso: el correo dejo de ser unico
+// y por lo tanto no identifica una cuenta.
 export async function loginContraAuthService(
-  identificador: string,
+  nombreUsuario: string,
   password: string,
   ipCliente: string | null,
   userAgenteCliente: string | null,
@@ -50,7 +52,7 @@ export async function loginContraAuthService(
   const headers = construirHeadersCliente(ipCliente, userAgenteCliente)
   const { data } = await cliente.post<RespuestaRecurso<RespuestaTokensAuth>>(
     "/api/auth/login",
-    { identificador, password },
+    { nombreUsuario, password },
     headers ? { headers } : undefined,
   )
   return data.datos

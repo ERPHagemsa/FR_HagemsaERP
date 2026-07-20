@@ -123,54 +123,16 @@ export async function revocarPermisoDeRol(
   )
 }
 
-// Resultado de la operacion bulk. Conserva el detalle de que codigos fallaron
-// para que la UI pueda mostrar al admin que cambios no se aplicaron y queden
-// pendientes (en vez de hacer rollback automatico, que requiere transacciones
-// en el backend).
-export interface ResultadoEditarPermisosRol {
-  readonly agregados: ReadonlyArray<string>
-  readonly removidos: ReadonlyArray<string>
-  readonly fallaronAgregar: ReadonlyArray<{ codigo: string; error: unknown }>
-  readonly fallaronRemover: ReadonlyArray<{ codigo: string; error: unknown }>
-}
-
-// Aplica un set final de permisos a un rol calculando el diff contra el set
-// actual y disparando los add/remove necesarios en paralelo. No envuelve en
-// transaccion — si una llamada falla, las otras igual se aplican. La UI debe
-// refetchear el rol al terminar para reflejar el estado real.
-export async function editarPermisosRol(
+// Deja el rol con EXACTAMENTE estos permisos: un solo PUT, atomico en el
+// backend (todo-o-nada). El body describe el estado final, no un delta.
+//
+// Antes esto calculaba el diff y disparaba un request por permiso en paralelo.
+// Cada uno leia el rol, sumaba lo suyo y reescribia el set completo, asi que
+// se pisaban entre si y solo sobrevivia el ultimo: se guardaba una cantidad
+// variable de permisos, siempre menor a la seleccionada.
+export async function reemplazarPermisosDeRol(
   rolId: string,
-  codigosActuales: ReadonlyArray<string>,
-  codigosFinales: ReadonlyArray<string>,
-): Promise<ResultadoEditarPermisosRol> {
-  const setActual = new Set(codigosActuales)
-  const setFinal = new Set(codigosFinales)
-  const aAgregar = codigosFinales.filter((c) => !setActual.has(c))
-  const aRemover = codigosActuales.filter((c) => !setFinal.has(c))
-
-  const agregados: string[] = []
-  const removidos: string[] = []
-  const fallaronAgregar: { codigo: string; error: unknown }[] = []
-  const fallaronRemover: { codigo: string; error: unknown }[] = []
-
-  await Promise.all([
-    ...aAgregar.map(async (codigo) => {
-      try {
-        await agregarPermisoARol(rolId, { codigoPermiso: codigo })
-        agregados.push(codigo)
-      } catch (error) {
-        fallaronAgregar.push({ codigo, error })
-      }
-    }),
-    ...aRemover.map(async (codigo) => {
-      try {
-        await revocarPermisoDeRol(rolId, codigo)
-        removidos.push(codigo)
-      } catch (error) {
-        fallaronRemover.push({ codigo, error })
-      }
-    }),
-  ])
-
-  return { agregados, removidos, fallaronAgregar, fallaronRemover }
+  codigos: ReadonlyArray<string>,
+): Promise<void> {
+  await clienteHttp.put(`/api/admin/roles/${rolId}/permisos`, { codigos })
 }

@@ -9,14 +9,13 @@ import {
   agregarPermisoARol,
   crearPermiso,
   crearRol,
-  editarPermisosRol,
   eliminarPermiso,
   eliminarRol,
   obtenerPermisos,
   obtenerRol,
   obtenerRoles,
+  reemplazarPermisosDeRol,
   revocarPermisoDeRol,
-  type ResultadoEditarPermisosRol,
 } from "../servicios/roles-api"
 import type {
   ActualizarPermisoPayload,
@@ -134,21 +133,19 @@ export function useRevocarPermisoDeRol(
   })
 }
 
-// Aplica un set final de permisos al rol — el servicio calcula el diff y
-// dispara add/remove en paralelo. El componente debe refetchear el rol con
-// onSuccess para reflejar fallos parciales (no hay transaccion).
+// Deja el rol con exactamente los permisos recibidos (editor masivo). Un solo
+// PUT atomico: o se aplica todo o no se aplica nada, asi que no hay estados
+// parciales que reconciliar en la UI.
 export interface OpcionesEditarPermisosBulk {
-  readonly onSuccess?: (resultado: ResultadoEditarPermisosRol) => unknown
+  readonly onSuccess?: () => unknown
 }
 
 export function useEditarPermisosRol(
   rolId: string,
-  codigosActuales: ReadonlyArray<string>,
   opciones: OpcionesEditarPermisosBulk = {},
 ) {
-  return useMutar<ReadonlyArray<string>, ResultadoEditarPermisosRol>({
-    fn: (codigosFinales) =>
-      editarPermisosRol(rolId, codigosActuales, codigosFinales),
-    onSuccess: (resultado) => opciones.onSuccess?.(resultado),
+  return useMutar<ReadonlyArray<string>, void>({
+    fn: (codigosFinales) => reemplazarPermisosDeRol(rolId, codigosFinales),
+    onSuccess: () => opciones.onSuccess?.(),
   })
 }

@@ -80,6 +80,9 @@ export interface SuspenderCuentaPayload {
 // nombreCompleto y documentoIdentidad estan listados como modificables. Email
 // y tipoCuenta NO son editables (el backend no lo expone — son inmutables).
 export interface ActualizarCuentaPayload {
+  // El correo es editable y puede repetirse entre cuentas. El nombre de usuario
+  // NO: es la llave de acceso y es inmutable.
+  email?: string
   nombreCompleto?: string
   documentoIdentidad?: string | null
 }
