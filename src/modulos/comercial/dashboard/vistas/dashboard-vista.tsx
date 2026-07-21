@@ -6,7 +6,6 @@ import { DashboardEmbudo } from "../componentes/dashboard-embudo";
 import { DashboardFiltroEjecutivo } from "../componentes/dashboard-filtro-ejecutivo";
 import { DashboardKpisConsolidado } from "../componentes/dashboard-kpis-consolidado";
 import { DashboardMotivosPerdida } from "../componentes/dashboard-motivos-perdida";
-import { DashboardMotivosRespuestaCliente } from "../componentes/dashboard-motivos-respuesta-cliente";
 import { DashboardRanking } from "../componentes/dashboard-ranking";
 import { DashboardResultados } from "../componentes/dashboard-resultados";
 import { DashboardSelectorPeriodo } from "../componentes/dashboard-selector-periodo";
@@ -20,9 +19,8 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  * `periodo` (nuevo, default preset "este-mes") — y los baja por props a los
  * widgets con la propagación exacta de design D5:
  * - `periodo` + `idEjecutivoResponsable`: tendencia, motivos-perdida, embudo,
- *   motivos-respuesta-cliente, y el tile de ciclo-cierre (que ahora vive DENTRO
- *   del strip de KPIs). La tendencia sigue el período y el backend adapta la
- *   granularidad.
+ *   y el tile de ciclo-cierre (que ahora vive DENTRO del strip de KPIs). La
+ *   tendencia sigue el período y el backend adapta la granularidad.
  * - solo `periodo`: ranking (el endpoint ignora el filtro de ejecutivo,
  *   D-restricción verificada).
  *
@@ -41,15 +39,13 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  * `DashboardMotivosPerdida` (2/3 y 1/3: la tendencia lleva más ancho por su
  * header de totales; motivos entra bien en 1/3). Debajo va un bloque de dos
  * columnas (2/3 + 1/3): la columna izquierda de 2/3 apila `DashboardResultados`
- * y `DashboardRanking`; la columna derecha de 1/3 apila
- * `DashboardMotivosRespuestaCliente` (arriba) y `DashboardEmbudo` (abajo).
+ * y `DashboardRanking`; la columna derecha de 1/3 lleva `DashboardEmbudo`.
  *
- * Cambio dashboard-kpis-motivos-respuesta-front: agrega
- * `DashboardKpisConsolidado` (ancho completo, primero — resume el período)
- * y `DashboardMotivosRespuestaCliente` (ancho completo, pegado a la fila
- * motivos-perdida/embudo — misma zona diagnóstica de "por qué no ganamos").
- * Ambos con `periodo` + `idEjecutivoResponsable`, igual que los widgets
- * vecinos.
+ * `DashboardMotivosRespuestaCliente` (catálogo de respuesta del cliente) se
+ * ELIMINÓ: su backend quedó roto tras la migración multi-motivo, y las pérdidas
+ * ya las cubre `DashboardMotivosPerdida` (que incluye los rechazos del catálogo
+ * del cliente). El endpoint `/dashboard/motivos-respuesta-cliente` se retira en
+ * paralelo en el backend.
  *
  * `DashboardKpisDinero` (Ganado/Pipeline/Ticket promedio) se ELIMINÓ —
  * pedido explícito de producto: era ilegible y su dato principal (Ganado)
@@ -103,16 +99,10 @@ export function DashboardVista() {
           />
           <DashboardRanking periodo={periodo} />
         </div>
-        <div className="flex flex-col gap-4">
-          <DashboardMotivosRespuestaCliente
-            periodo={periodo}
-            idEjecutivoResponsable={idEjecutivoResponsable}
-          />
-          <DashboardEmbudo
-            periodo={periodo}
-            idEjecutivoResponsable={idEjecutivoResponsable}
-          />
-        </div>
+        <DashboardEmbudo
+          periodo={periodo}
+          idEjecutivoResponsable={idEjecutivoResponsable}
+        />
       </div>
     </div>
   );

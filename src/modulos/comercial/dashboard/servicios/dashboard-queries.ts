@@ -7,7 +7,6 @@ import {
   obtenerEmbudoConversion,
   obtenerKpisConsolidado,
   obtenerMotivosPerdida,
-  obtenerMotivosRespuestaCliente,
   obtenerRankingEjecutivos,
   obtenerTendenciaMensual,
 } from "./dashboard-api";
@@ -16,7 +15,6 @@ import {
   CLAVE_DASHBOARD_EMBUDO,
   CLAVE_DASHBOARD_KPIS_CONSOLIDADO,
   CLAVE_DASHBOARD_MOTIVOS,
-  CLAVE_DASHBOARD_MOTIVOS_RESPUESTA,
   CLAVE_DASHBOARD_RANKING,
   CLAVE_DASHBOARD_TENDENCIA,
 } from "../../claves-consulta";
@@ -28,7 +26,7 @@ import type {
 } from "../tipos/dashboard.tipos";
 
 // ---------------------------------------------------------------------------
-// Tríada de acceso a datos del dashboard (design D1/D3): 7 hooks useConsulta,
+// Tríada de acceso a datos del dashboard (design D1/D3): 6 hooks useConsulta,
 // cada uno con su clave (solo lectura, sin invalidarConsulta — D3) y deps
 // derivadas de sus filtros (patrón [JSON.stringify(filtros)], igual que
 // cotizaciones-queries.ts). Un useConsulta por widget: carga/error aislados
@@ -100,16 +98,5 @@ export function useKpisConsolidadoQuery(
     () => obtenerKpisConsolidado(filtros),
     [JSON.stringify(filtros)],
     { clave: CLAVE_DASHBOARD_KPIS_CONSOLIDADO }
-  );
-}
-
-// motivos-respuesta-cliente: recalcula con período y ejecutivo.
-export function useMotivosRespuestaClienteQuery(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-) {
-  return useConsulta(
-    () => obtenerMotivosRespuestaCliente(filtros),
-    [JSON.stringify(filtros)],
-    { clave: CLAVE_DASHBOARD_MOTIVOS_RESPUESTA }
   );
 }

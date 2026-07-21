@@ -43,4 +43,3 @@ export const CLAVE_DASHBOARD_MOTIVOS = "comercial/dashboard/motivos-perdida";
 export const CLAVE_DASHBOARD_EMBUDO = "comercial/dashboard/embudo-conversion";
 // dashboard-kpis-motivos-respuesta-front: endpoints posteriores a Fase 2b.
 export const CLAVE_DASHBOARD_KPIS_CONSOLIDADO = "comercial/dashboard/kpis-consolidado";
-export const CLAVE_DASHBOARD_MOTIVOS_RESPUESTA = "comercial/dashboard/motivos-respuesta-cliente";

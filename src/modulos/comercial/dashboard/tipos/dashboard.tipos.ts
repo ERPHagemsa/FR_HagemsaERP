@@ -320,28 +320,3 @@ export type KpisConsolidadoRespuesta = {
   actividad: ActividadPeriodo;
   cerrado: CerradoPeriodo;
 };
-
-/** espejo del enum TipoMotivoRespuesta de BC03. */
-export type TipoMotivoRespuesta = "RECHAZO" | "NEGOCIACION";
-
-/**
- * espejo de MotivoRespuestaClienteAgrupado, BC03.
- * A diferencia de `MotivoPerdidaAgrupado` (texto libre del ejecutivo,
- * agrupacion best-effort) esto viene de un CATALOGO cerrado elegido por el
- * CLIENTE: `codigo` es estable, `etiqueta` es el texto a mostrar.
- */
-export type MotivoRespuestaClienteAgrupado = {
-  codigo: string;
-  etiqueta: string;
-  tipo: TipoMotivoRespuesta;
-  cantidad: number;
-};
-
-/**
- * espejo de MotivosRespuestaClienteResultado — GET /dashboard/motivos-respuesta-cliente.
- * Lista PLANA ya ordenada por (tipo, cantidad DESC): el frontend particiona
- * por `tipo` preservando ese orden, no reordena.
- */
-export type MotivosRespuestaClienteRespuesta = {
-  motivos: MotivoRespuestaClienteAgrupado[];
-};

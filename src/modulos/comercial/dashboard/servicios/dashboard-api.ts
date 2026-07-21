@@ -8,13 +8,12 @@ import type {
   FiltrosDashboardTendencia,
   KpisConsolidadoRespuesta,
   MotivosPerdidaRespuesta,
-  MotivosRespuestaClienteRespuesta,
   RankingEjecutivoRespuesta,
   TendenciaRespuesta,
 } from "../tipos/dashboard.tipos";
 
 // ---------------------------------------------------------------------------
-// Tríada de acceso a datos del dashboard (design D1): 7 funciones raw, una
+// Tríada de acceso a datos del dashboard (design D1): 6 funciones raw, una
 // por endpoint `/dashboard/*` de BC03, espejando el estilo de
 // cotizaciones-api.ts (params opcionales, axios omite `undefined` del query
 // string). Todos exigen `bc03:dashboard:leer` — aplicado backend-side.
@@ -89,19 +88,6 @@ export async function obtenerKpisConsolidado(
 ): Promise<KpisConsolidadoRespuesta> {
   const { data } = await clienteComercial.get<KpisConsolidadoRespuesta>(
     "/dashboard/kpis-consolidado",
-    { params: filtros }
-  );
-  return data;
-}
-
-// GET /dashboard/motivos-respuesta-cliente — catálogo RECHAZO/NEGOCIACION
-// elegido por el cliente (distinto del texto libre de motivos-perdida).
-// Cambio dashboard-kpis-motivos-respuesta-front.
-export async function obtenerMotivosRespuestaCliente(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-): Promise<MotivosRespuestaClienteRespuesta> {
-  const { data } = await clienteComercial.get<MotivosRespuestaClienteRespuesta>(
-    "/dashboard/motivos-respuesta-cliente",
     { params: filtros }
   );
   return data;
