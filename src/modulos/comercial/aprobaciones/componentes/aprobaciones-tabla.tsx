@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/compartido/componentes/ui/select";
 import { cn } from "@/compartido/utilidades";
+import { useTienePermiso } from "@/modulos/autenticacion/ganchos/use-permisos";
 import { formatearFechaHora } from "@/modulos/comercial/utilidades/formato-fecha";
 
 import { useAprobadoresQuery } from "../servicios/aprobaciones-queries";
@@ -133,6 +134,12 @@ export function AprobacionesTabla({ items, filtros, total }: Props) {
 
   const { data: aprobadores } = useAprobadoresQuery();
 
+  // Resolver una solicitud requiere el permiso de accion, no solo pertenecer al
+  // modulo: el equipo comercial ve las aprobaciones (bc03:aprobacion:leer), pero
+  // solo el aprobador (y el Admin) las resuelve (bc03:aprobacion:resolver). Es
+  // solo UI; el backend autoriza de verdad con 403 en el endpoint de resolucion.
+  const puedeResolver = useTienePermiso("bc03:aprobacion:resolver");
+
   function construirUrl(params: Record<string, string | number | undefined>) {
     const sp = new URLSearchParams();
     for (const [k, v] of Object.entries(params)) {
@@ -191,8 +198,10 @@ export function AprobacionesTabla({ items, filtros, total }: Props) {
   function accionesAprobacion(item: ItemAprobacion): AccionTabla<ItemAprobacion>[] {
     // Solo una solicitud EN_APROBACION se puede resolver: las terminales son
     // registro historico. `oculta` las saca del menu en vez de dejarlas fallar
-    // con un 422 del backend.
-    const pendiente = (fila: ItemAprobacion) => fila.estado !== "EN_APROBACION";
+    // con un 422 del backend. Ademas, sin el permiso de resolucion la accion no
+    // se ofrece (solo lectura para el resto del equipo comercial).
+    const noResoluble = (fila: ItemAprobacion) =>
+      !puedeResolver || fila.estado !== "EN_APROBACION";
 
     return [
       {
@@ -203,7 +212,7 @@ export function AprobacionesTabla({ items, filtros, total }: Props) {
       {
         etiqueta: "Aprobar",
         icono: CircleCheck,
-        oculta: pendiente,
+        oculta: noResoluble,
         alSeleccionar: () =>
           setResolucion({
             idSolicitud: item.id,
@@ -215,7 +224,7 @@ export function AprobacionesTabla({ items, filtros, total }: Props) {
         etiqueta: "Rechazar",
         icono: CircleX,
         destructiva: true,
-        oculta: pendiente,
+        oculta: noResoluble,
         alSeleccionar: () =>
           setResolucion({
             idSolicitud: item.id,

@@ -2,7 +2,10 @@
 
 import * as React from "react";
 
-import type { DraftLinea, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
+import type {
+  DraftLinea,
+  DraftSeccion,
+} from "../servicios/cotizaciones-editor.utils";
 
 // Tabla de una seccion con el MISMO layout del PDF de cotizacion:
 //   Ruta | Unidad | Descripcion | Monto total   (+ Acciones, opcional en edicion)
@@ -28,7 +31,7 @@ function formatear(monto: number, moneda: string): string {
 }
 
 export type CargoVista = {
-  nombre: string;              // qué cargo es (del catalogo)
+  nombre: string; // qué cargo es (del catalogo)
   descripcion?: string | null; // texto libre opcional
   monto: number;
   // Cantidad del cargo (se muestra en la columna Cant. cuando `conPrecios`).
@@ -58,7 +61,12 @@ export type SeccionVista = {
   ruta: string;
   lineas: LineaVista[];
   cargosSeccion: CargoVista[];
+  // `subtotal` es el BRUTO (antes de descuento). Cuando `descuentoPct` es > 0 la
+  // tabla agrega las filas de descuento y neto; con 0 (o sin él) muestra solo el
+  // SUB - TOTAL de siempre.
   subtotal: number;
+  descuentoPct?: number;
+  subtotalNeto?: number;
 };
 
 export function TablaCotizacion({
@@ -78,11 +86,15 @@ export function TablaCotizacion({
   mostrarRuta?: boolean;
 }) {
   const filasDeLinea = (l: LineaVista) => 1 + l.cargos.length;
-  const totalFilasLineas = seccion.lineas.reduce((s, l) => s + filasDeLinea(l), 0);
+  const totalFilasLineas = seccion.lineas.reduce(
+    (s, l) => s + filasDeLinea(l),
+    0,
+  );
   // Columnas base: (Ruta) + Unidad + Descripcion + Monto (+ Cant/P.base/Venta con
   // precios, + Acciones). El grupo de precios se inserta entre Descripcion y Monto.
   const extraPrecios = conPrecios ? 3 : 0;
-  const numColumnas = (mostrarRuta ? 4 : 3) + extraPrecios + (conAcciones ? 1 : 0);
+  const numColumnas =
+    (mostrarRuta ? 4 : 3) + extraPrecios + (conAcciones ? 1 : 0);
 
   // La celda Ruta (rowspan) cubre TODAS las filas de la seccion: sus lineas (con
   // cargos de linea) Y los cargos de la seccion, para que estos ultimos queden
@@ -101,10 +113,16 @@ export function TablaCotizacion({
     <table className="w-full border-collapse text-sm [&_td]:border [&_td]:border-border/60 [&_th]:border [&_th]:border-border/60">
       <colgroup>
         {mostrarRuta ? (
-          <col style={{ width: conPrecios ? "15%" : conAcciones ? "19%" : "21%" }} />
+          <col
+            style={{ width: conPrecios ? "15%" : conAcciones ? "19%" : "21%" }}
+          />
         ) : null}
-        <col style={{ width: conPrecios ? "11%" : conAcciones ? "13%" : "14%" }} />
-        <col style={{ width: conPrecios ? "31%" : conAcciones ? "45%" : "50%" }} />
+        <col
+          style={{ width: conPrecios ? "11%" : conAcciones ? "13%" : "14%" }}
+        />
+        <col
+          style={{ width: conPrecios ? "31%" : conAcciones ? "45%" : "50%" }}
+        />
         {conPrecios ? (
           <>
             <col style={{ width: "8%" }} />
@@ -176,13 +194,17 @@ export function TablaCotizacion({
                         className="whitespace-nowrap px-3 py-2 text-right tabular-nums"
                         onClick={linea.onSeleccionar}
                       >
-                        {linea.precioBase != null ? formatear(linea.precioBase, moneda) : "—"}
+                        {linea.precioBase != null
+                          ? formatear(linea.precioBase, moneda)
+                          : "—"}
                       </td>
                       <td
                         className="whitespace-nowrap px-3 py-2 text-right tabular-nums"
                         onClick={linea.onSeleccionar}
                       >
-                        {linea.precioVenta != null ? formatear(linea.precioVenta, moneda) : "—"}
+                        {linea.precioVenta != null
+                          ? formatear(linea.precioVenta, moneda)
+                          : "—"}
                       </td>
                     </>
                   ) : null}
@@ -250,19 +272,68 @@ export function TablaCotizacion({
           </tr>
         ))}
 
-        {/* Sub-total de la seccion */}
-        <tr className="bg-muted/30">
-          <td colSpan={2} className="border-0 bg-background" />
-          <td colSpan={1 + extraPrecios} className="px-3 py-2 text-right font-semibold">
-            SUB - TOTAL
-          </td>
-          <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
-            {formatear(seccion.subtotal, moneda)}
-          </td>
-          {conAcciones ? <td className="border-0 bg-background" /> : null}
-        </tr>
+        {/* Con descuento: una fila "DESCUENTO COMERCIAL x%" con el monto
+            descontado, ARRIBA del SUB - TOTAL, que pasa a mostrar el neto (lo
+            que efectivamente entra al total). Sin descuento, solo el SUB - TOTAL
+            de siempre con el bruto. */}
+        {seccion.descuentoPct && seccion.subtotalNeto != null ? (
+          <FilaCierre
+            etiqueta={`DESCUENTO COMERCIAL ${formatearPct(seccion.descuentoPct)}`}
+            monto={`- ${formatear(seccion.subtotal - seccion.subtotalNeto, moneda)}`}
+            extraPrecios={extraPrecios}
+            conAcciones={conAcciones}
+            rojo
+          />
+        ) : null}
+        <FilaCierre
+          etiqueta="SUB - TOTAL"
+          monto={formatear(seccion.subtotalNeto ?? seccion.subtotal, moneda)}
+          extraPrecios={extraPrecios}
+          conAcciones={conAcciones}
+        />
       </tbody>
     </table>
+  );
+}
+
+// Porcentaje sin decimales de mas: "10%" y no "10.00%".
+function formatearPct(pct: number): string {
+  return `${Number(pct.toFixed(2))}%`;
+}
+
+// Una fila de cierre de seccion (SUB - TOTAL / DESCUENTO / NETO): misma grilla
+// que las de datos para que la columna de monto quede alineada.
+function FilaCierre({
+  etiqueta,
+  monto,
+  extraPrecios,
+  conAcciones,
+  rojo = false,
+}: {
+  etiqueta: string;
+  monto: string;
+  extraPrecios: number;
+  conAcciones?: boolean;
+  // La fila de descuento va en rojo para distinguir la deduccion del subtotal.
+  rojo?: boolean;
+}) {
+  const color = rojo ? "text-destructive" : "";
+  return (
+    <tr className="bg-muted/30">
+      <td colSpan={2} className="border-0 bg-background" />
+      <td
+        colSpan={1 + extraPrecios}
+        className={`px-3 py-2 text-right font-semibold ${color}`}
+      >
+        {etiqueta}
+      </td>
+      <td
+        className={`whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums ${color}`}
+      >
+        {monto}
+      </td>
+      {conAcciones ? <td className="border-0 bg-background" /> : null}
+    </tr>
   );
 }
 
@@ -327,7 +398,11 @@ function valorDim(valor: number | null, unidad: string): string {
 // Dimensiones de las cargas fisicas en una grilla de 8 columnas (4 pares
 // etiqueta+valor) alineada tipo Excel: mantiene L/A/H/P alineados verticalmente
 // entre todos los items. Layout UNICO usado tanto en edicion como en lectura.
-export function GrillaDimensionesCargas({ items }: { items: DimensionesCarga[] }) {
+export function GrillaDimensionesCargas({
+  items,
+}: {
+  items: DimensionesCarga[];
+}) {
   if (items.length === 0) {
     return <span className="text-muted-foreground">—</span>;
   }
@@ -336,16 +411,26 @@ export function GrillaDimensionesCargas({ items }: { items: DimensionesCarga[] }
       {items.map((it, idx) => (
         <React.Fragment key={it.clave}>
           <span
-            className={idx === 0 ? "col-span-8 font-medium" : "col-span-8 mt-1.5 font-medium"}
+            className={
+              idx === 0
+                ? "col-span-8 font-medium"
+                : "col-span-8 mt-1.5 font-medium"
+            }
           >
             {it.nombre || "Carga"}
           </span>
           <span className="text-muted-foreground/70">L:</span>
-          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.largoM, "m")}</span>
+          <span className="pr-3 text-right text-muted-foreground">
+            {valorDim(it.largoM, "m")}
+          </span>
           <span className="text-muted-foreground/70">A:</span>
-          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.anchoM, "m")}</span>
+          <span className="pr-3 text-right text-muted-foreground">
+            {valorDim(it.anchoM, "m")}
+          </span>
           <span className="text-muted-foreground/70">H:</span>
-          <span className="pr-3 text-right text-muted-foreground">{valorDim(it.altoM, "m")}</span>
+          <span className="pr-3 text-right text-muted-foreground">
+            {valorDim(it.altoM, "m")}
+          </span>
           <span className="text-muted-foreground/70">P:</span>
           <span className="text-right text-muted-foreground">
             {valorDim(it.peso, it.unidadPeso)}
@@ -381,7 +466,9 @@ export function CeldaDescripcionLinea({ linea }: { linea: DraftLinea }) {
   }));
   return (
     <div className="flex flex-col gap-1">
-      {linea.descripcion ? <span className="font-medium">{linea.descripcion}</span> : null}
+      {linea.descripcion ? (
+        <span className="font-medium">{linea.descripcion}</span>
+      ) : null}
       {cargas.length > 0 ? <GrillaDimensionesCargas items={items} /> : null}
     </div>
   );

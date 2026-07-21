@@ -111,6 +111,7 @@ const data: {
     {
       title: "Gestion Comercial",
       url: "/comercial",
+      prefijoPermiso: "bc03",
       icon: <Briefcase />,
       items: [
         { title: "Prospectos", url: "/comercial/prospectos" },

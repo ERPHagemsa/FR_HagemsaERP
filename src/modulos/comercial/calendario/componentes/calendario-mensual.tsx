@@ -13,6 +13,13 @@ import {
 import { es } from "date-fns/locale";
 
 import { cn } from "@/compartido/utilidades/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/compartido/componentes/ui/popover";
 
 import type { EventoCalendario } from "../tipos/calendario.tipos";
 import { EventoChip } from "./evento-chip";
@@ -94,9 +101,11 @@ export function CalendarioMensual({ mesVisible, eventosPorDia }: Props) {
                   <EventoChip key={`${clave}-${evento.id}`} evento={evento} />
                 ))}
                 {restantes > 0 ? (
-                  <span className="px-1.5 text-xs text-muted-foreground">
-                    +{restantes} más
-                  </span>
+                  <PopoverDiaCompleto
+                    dia={dia}
+                    eventos={eventos}
+                    restantes={restantes}
+                  />
                 ) : null}
               </div>
             </div>
@@ -104,5 +113,48 @@ export function CalendarioMensual({ mesVisible, eventosPorDia }: Props) {
         })}
       </div>
     </div>
+  );
+}
+
+// Desplegable "+N mas" (estilo Google Calendar): el texto pasa a ser un boton
+// que abre un popover anclado a la celda con TODOS los eventos del dia —no solo
+// los ocultos— reusando el mismo EventoChip, para que el evento que no entraba
+// en la celda quede clickeable igual que los visibles. La lista tiene scroll
+// propio: un dia con muchos eventos no estira el popover sin limite.
+function PopoverDiaCompleto({
+  dia,
+  eventos,
+  restantes,
+}: {
+  dia: Date;
+  eventos: EventoCalendario[];
+  restantes: number;
+}) {
+  // Fecha larga en español con la inicial en mayuscula (mismo criterio que
+  // EventoChip); `capitalize` de CSS mayusculizaria tambien "De"/"Julio".
+  const fecha = format(dia, "EEEE, d 'de' MMMM", { locale: es });
+  const titulo = fecha.charAt(0).toUpperCase() + fecha.slice(1);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="self-start rounded-md px-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          +{restantes} más
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 gap-3">
+        <PopoverHeader>
+          <PopoverTitle className="text-sm">{titulo}</PopoverTitle>
+        </PopoverHeader>
+        <div className="flex max-h-72 flex-col gap-1 overflow-y-auto">
+          {eventos.map((evento) => (
+            <EventoChip key={evento.id} evento={evento} />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

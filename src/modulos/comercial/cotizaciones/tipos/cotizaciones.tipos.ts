@@ -48,7 +48,10 @@ export type BucketCotizacion =
   | "pendientesAprobacion"
   | "enviadas"
   | "ganadas"
-  | "perdidas";
+  | "perdidas"
+  // Transversal (no partición): ENVIADA cuya versión vigente vence en <=3 días.
+  // Subconjunto de "enviadas"; comparte predicado con el conteo `porVencer` del resumen.
+  | "porVencer";
 
 // Ref del ejecutivo (snapshot { id, nombre }). id = AuthContext.accountId
 // (no es un correo); sin token MVP = { id: "mvp-sin-auth", nombre: "Usuario MVP" }.
@@ -226,7 +229,11 @@ export type Seccion = {
   id: string;
   nombre: string | null;
   orden: number;
-  subtotal: number;
+  subtotal: number; // bruto (venta con margen, antes de descuento)
+  // Descuento comercial de la seccion. Opcionales: una cotizacion servida por un
+  // backend anterior a esta feature no los trae, y los consumidores degradan a 0.
+  descuentoPct?: number; // en %. 0 (o ausente) = sin descuento
+  subtotalNeto?: number; // subtotal − descuento; es lo que entra al montoTotal
   cargosAdicionales: CargoAdicional[]; // nuevos: suman al subtotal
 };
 
@@ -351,11 +358,14 @@ export type CotizacionResumen = {
 
 // Contadores agregados del pipeline. Invariante backend:
 //   enPreparacion + enviadas + ganadas + perdidas === total
+// `porVencer` es TRANSVERSAL: cotizaciones ENVIADA cuya validez vence en <=3 dias.
+// Es un subconjunto de `enviadas`, por eso NO entra en la suma de `total`.
 export type ResumenCotizaciones = {
   total: number;
   enPreparacion: number;
   pendientesAprobacion: number;
   enviadas: number;
+  porVencer: number;
   ganadas: number;
   perdidas: number;
 };
@@ -624,6 +634,9 @@ export type PayloadLinea = {
 export type PayloadSeccion = {
   nombre?: string;
   orden?: number;
+  // Descuento comercial de la seccion, en %. El backend lo aplica sobre la
+  // venta; tope 99.99. Se omite (o 0) cuando la seccion no lleva descuento.
+  descuentoPct?: number;
   lineas?: PayloadLinea[];
   cargosAdicionales?: PayloadCargoAdicional[];
 };

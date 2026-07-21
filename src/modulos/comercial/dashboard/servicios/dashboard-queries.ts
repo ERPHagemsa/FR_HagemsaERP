@@ -3,62 +3,38 @@
 import { useConsulta } from "@/compartido/api";
 
 import {
-  obtenerAccionesPendientes,
   obtenerCicloCierre,
   obtenerEmbudoConversion,
-  obtenerKpisMonetarios,
+  obtenerEsperandoRespuesta,
+  obtenerKpisConsolidado,
   obtenerMotivosPerdida,
   obtenerRankingEjecutivos,
   obtenerTendenciaMensual,
-  obtenerWinRate,
 } from "./dashboard-api";
 import {
-  CLAVE_DASHBOARD_ACCIONES,
   CLAVE_DASHBOARD_CICLO,
   CLAVE_DASHBOARD_EMBUDO,
-  CLAVE_DASHBOARD_KPIS,
+  CLAVE_DASHBOARD_ESPERANDO_RESPUESTA,
+  CLAVE_DASHBOARD_KPIS_CONSOLIDADO,
   CLAVE_DASHBOARD_MOTIVOS,
   CLAVE_DASHBOARD_RANKING,
   CLAVE_DASHBOARD_TENDENCIA,
-  CLAVE_DASHBOARD_WIN_RATE,
 } from "../../claves-consulta";
 
 import type {
-  FiltrosDashboardAcciones,
+  FiltrosDashboardEjecutivo,
   FiltrosDashboardPeriodoEjecutivo,
   FiltrosDashboardRanking,
   FiltrosDashboardTendencia,
 } from "../tipos/dashboard.tipos";
 
 // ---------------------------------------------------------------------------
-// Tríada de acceso a datos del dashboard (design D1/D3): 8 hooks useConsulta,
+// Tríada de acceso a datos del dashboard (design D1/D3): 7 hooks useConsulta,
 // cada uno con su clave (solo lectura, sin invalidarConsulta — D3) y deps
 // derivadas de sus filtros (patrón [JSON.stringify(filtros)], igual que
 // cotizaciones-queries.ts). Un useConsulta por widget: carga/error aislados
 // (D10).
 // ---------------------------------------------------------------------------
-
-// kpis-monetarios: recalcula con período y ejecutivo.
-export function useKpisMonetariosQuery(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-) {
-  return useConsulta(
-    () => obtenerKpisMonetarios(filtros),
-    [JSON.stringify(filtros)],
-    { clave: CLAVE_DASHBOARD_KPIS }
-  );
-}
-
-// win-rate: recalcula con período y ejecutivo.
-export function useWinRateQuery(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-) {
-  return useConsulta(
-    () => obtenerWinRate(filtros),
-    [JSON.stringify(filtros)],
-    { clave: CLAVE_DASHBOARD_WIN_RATE }
-  );
-}
 
 // ciclo-cierre: recalcula con período y ejecutivo.
 export function useCicloCierreQuery(
@@ -71,7 +47,8 @@ export function useCicloCierreQuery(
   );
 }
 
-// tendencia-mensual: SIN período en deps (D6) — solo ejecutivo/meses.
+// tendencia: AHORA recalcula con período (desde/hasta) y ejecutivo, como el
+// resto — el JSON.stringify de filtros ya cubre el período en las deps.
 export function useTendenciaMensualQuery(
   filtros: FiltrosDashboardTendencia = {}
 ) {
@@ -116,13 +93,25 @@ export function useEmbudoConversionQuery(
   );
 }
 
-// acciones-pendientes: SIN período — solo ejecutivo.
-export function useAccionesPendientesQuery(
-  filtros: FiltrosDashboardAcciones = {}
+// kpis-consolidado: recalcula con período y ejecutivo.
+export function useKpisConsolidadoQuery(
+  filtros: FiltrosDashboardPeriodoEjecutivo = {}
 ) {
   return useConsulta(
-    () => obtenerAccionesPendientes(filtros),
+    () => obtenerKpisConsolidado(filtros),
     [JSON.stringify(filtros)],
-    { clave: CLAVE_DASHBOARD_ACCIONES }
+    { clave: CLAVE_DASHBOARD_KPIS_CONSOLIDADO }
+  );
+}
+
+// esperando-respuesta: estado ACTUAL, SOLO ejecutivo (sin período) — las deps
+// cambian solo con el filtro de ejecutivo, no con el selector de fechas.
+export function useEsperandoRespuestaQuery(
+  filtros: FiltrosDashboardEjecutivo = {}
+) {
+  return useConsulta(
+    () => obtenerEsperandoRespuesta(filtros),
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_DASHBOARD_ESPERANDO_RESPUESTA }
   );
 }

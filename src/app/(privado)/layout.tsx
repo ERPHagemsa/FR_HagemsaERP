@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation"
 
-import { obtenerSesionActual } from "@/compartido/autenticacion/sesion-servidor"
+import {
+  mapearPayloadAUsuario,
+  obtenerSesionActual,
+} from "@/compartido/autenticacion/sesion-servidor"
 import { AppShell } from "@/compartido/componentes/app-shell"
 
 // Guard server-side para todo el area privada: si no hay sesion (cookie
@@ -20,5 +23,9 @@ export default async function PrivadoLayout({
     redirect("/login")
   }
 
-  return <AppShell>{children}</AppShell>
+  // Siembra el contexto de sesion en el cliente con lo que el servidor ya
+  // resolvio del JWT: el sidebar nace filtrado y no parpadea "ve todo".
+  const usuario = mapearPayloadAUsuario(sesion)
+
+  return <AppShell sesionInicial={usuario}>{children}</AppShell>
 }

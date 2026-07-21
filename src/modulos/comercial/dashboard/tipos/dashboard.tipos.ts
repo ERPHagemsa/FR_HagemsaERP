@@ -24,28 +24,6 @@ export type DashboardFiltroEjecutivoProps = {
   alCambiar: (idEjecutivoResponsable: IdEjecutivoFiltro) => void;
 };
 
-/** Item generico de una lista accionable: id + etiqueta + enlace de detalle. */
-export type DashboardItemAccionable = {
-  id: string;
-  titulo: string;
-  subtitulo?: string;
-  enlace: string;
-};
-
-/**
- * Props del widget presentacional generico de lista accionable (design D5):
- * base compartida por las listas "por aprobar", "sin cotizar" y "por vencer".
- */
-export type DashboardListaAccionableProps = {
-  titulo: string;
-  items: DashboardItemAccionable[];
-  isLoading: boolean;
-  isError: boolean;
-  mensajeError?: string;
-  enlaceVerTodas?: string;
-  ayuda?: string;
-};
-
 // ---------------------------------------------------------------------------
 // Selector global de periodo (design D5/D6)
 // ---------------------------------------------------------------------------
@@ -94,16 +72,22 @@ export type FiltrosDashboardPeriodoEjecutivo = RangoPeriodo & {
 export type FiltrosDashboardRanking = RangoPeriodo;
 
 /**
- * Filtros de tendencia-mensual: SIN periodo (D6, la ventana es `meses` fijo
- * hacia atras, no `desde`/`hasta`), CON ejecutivo.
+ * Filtros de tendencia: AHORA sigue el filtro global de periodo (`desde`/`hasta`)
+ * como el resto de los widgets, mas ejecutivo. El backend decide la granularidad
+ * (dia vs mes) segun el largo del rango y corta en hoy — el front no manda
+ * `granularidad`, la recibe en la respuesta.
  */
-export type FiltrosDashboardTendencia = {
+export type FiltrosDashboardTendencia = RangoPeriodo & {
   idEjecutivoResponsable?: string;
-  meses?: number;
 };
 
-/** Filtros de acciones-pendientes: SOLO ejecutivo, sin periodo. */
-export type FiltrosDashboardAcciones = {
+/**
+ * Filtros de esperando-respuesta: SOLO ejecutivo, SIN período. Es estado ACTUAL
+ * (cotizaciones enviadas al cliente que siguen abiertas HOY), no depende del
+ * rango de fechas — a diferencia del resto de widgets del dashboard. Coherente
+ * con los KPIs de acción del strip (Por vencer / Esperando aprobación / Sin cotizar).
+ */
+export type FiltrosDashboardEjecutivo = {
   idEjecutivoResponsable?: string;
 };
 
@@ -115,37 +99,6 @@ export type FiltrosDashboardAcciones = {
 export type TotalPorMoneda = {
   pen: number;
   usd: number;
-};
-
-/** espejo de ResumenDineroPorEstado, BC03 dashboard.repository.ts:11-15 */
-export type ResumenDineroPorEstado = {
-  ganado: TotalPorMoneda;
-  pipeline: TotalPorMoneda;
-  ticketPromedio: TotalPorMoneda;
-};
-
-/**
- * espejo de KpisMonetariosResultado, BC03 obtener-kpis-monetarios.use-case.ts:9-19
- * GET /dashboard/kpis-monetarios.
- *
- * OJO (design D12): `variacionVsMesAnterior` aqui NO es un delta ya
- * calculado — son los KPIs crudos del periodo inmediatamente anterior de
- * igual duracion. El frontend deriva el delta comparando `actual` contra
- * este campo (ver `utilidades/delta-monetario.ts`).
- */
-export type KpisMonetariosRespuesta = {
-  actual: ResumenDineroPorEstado;
-  variacionVsMesAnterior: ResumenDineroPorEstado;
-};
-
-/** espejo de WinRateResultado, BC03 calcular-win-rate.use-case.ts:6-24 — GET /dashboard/win-rate */
-export type WinRateRespuesta = {
-  ganadas: number;
-  perdidas: number;
-  /** `null` sin cierres GANADA/PERDIDA en el periodo — no confundir con `0`. */
-  winRate: number | null;
-  /** Puntos porcentuales (actual − anterior), ya calculado por backend. `null`-safe. */
-  variacionVsMesAnterior: number | null;
 };
 
 /** espejo de CicloCierreResultado, BC03 calcular-ciclo-cierre.use-case.ts:6-19 — GET /dashboard/ciclo-cierre */
@@ -160,35 +113,115 @@ export type CicloCierreRespuesta = {
   variacionVsMesAnterior: number | null;
 };
 
+/** Granularidad que el backend eligió para la serie de tendencia (segun el largo del rango). */
+export type GranularidadTendencia = "dia" | "mes";
+
 /**
- * espejo de PuntoTendenciaMensual, BC03 dashboard.repository.ts:28-33
- * GET /dashboard/tendencia-mensual devuelve `PuntoTendenciaMensual[]` PELADO
- * (sin envelope). La ventana siempre trae un punto por mes (meses sin
- * cierres llegan en `0`, no se omiten).
+ * Punto de la serie de tendencia. `fecha` es el inicio del bucket en ISO date
+ * (`yyyy-MM-dd`): el día mismo si `granularidad='dia'`, o el 1° del mes si
+ * `'mes'`. Se formatea en el front partiendo el string (sin `new Date`, para
+ * NO caer en el corrimiento de timezone).
  */
-export type PuntoTendenciaMensual = {
-  anio: number;
-  mes: number;
-  ganado: TotalPorMoneda;
-  perdido: TotalPorMoneda;
+export type PuntoTendencia = {
+  fecha: string;
+  ganadas: number;
+  perdidas: number;
 };
 
 /**
- * espejo de RankingEjecutivoResultado, BC03 obtener-ranking-ejecutivos.use-case.ts:9-15
- * (extiende DineroPorEjecutivo, dashboard.repository.ts:18-25).
+ * espejo de TendenciaResultado, BC03 dashboard.repository.ts.
+ * GET /dashboard/tendencia-mensual devuelve un OBJETO (ya no un array pelado):
+ * CONTEO de cotizaciones ganadas vs. perdidas a lo largo del período elegido —
+ * ya NO montos por moneda (la plata vive en los KPIs y en el ranking). El
+ * backend decide `granularidad` por el largo del rango (corto → `dia`, largo →
+ * `mes`) y corta en hoy. La serie es continua: los buckets sin cierres llegan
+ * en `0`, no se omiten.
+ */
+export type TendenciaRespuesta = {
+  granularidad: GranularidadTendencia;
+  puntos: PuntoTendencia[];
+};
+
+/**
+ * espejo de RankingEjecutivoResultado, BC03 obtener-ranking-ejecutivos.use-case.ts
+ * (extiende DineroPorEjecutivo, dashboard.repository.ts:60-77).
  * GET /dashboard/ranking-ejecutivos devuelve `RankingEjecutivoRespuesta[]` PELADO.
- * `cantidadCerradas` = ganadas + perdidas del periodo (denominador de winRate);
- * `cantidadGanadas` = solo ganadas (Gap #3 de design.md).
+ *
+ * Contrato corregido (BC03 `2bbb181`): el contrato anterior tenia un bug —
+ * `cantidadCreadas` (ancla UNICA a fecha de creacion) podia ser `0` mientras
+ * `ganado`/`utilidad` (ancla a fecha de CIERRE) traian plata, si la
+ * cotizacion se creo en un periodo y se cerro en otro. Eso mostraba filas
+ * con dinero y "Sin datos" a la vez. `cantidadCerradas` y `cantidadCreadas`
+ * YA NO EXISTEN.
+ *
+ * `cantidadDelPeriodo` reemplaza a `cantidadCreadas`: es el OR de 3 anclas
+ * (creada, enviada o cerrada dentro del rango), y es el DENOMINADOR de
+ * "Cotizados / Total". Por construccion, si `ganado.pen > 0` o
+ * `ganado.usd > 0`, `cantidadDelPeriodo > 0` siempre — ya no puede
+ * reproducirse el caso plata-con-denominador-cero.
+ *
+ * `cantidadGanadasDelPeriodo` comparte el MISMO cohorte que
+ * `cantidadDelPeriodo` pero su DENOMINADOR en el front es
+ * `cantidadEnviadas`, no `cantidadDelPeriodo` (cambio
+ * `dashboard-kpis-motivos-respuesta-front`: la columna "Ganadas / Enviadas"
+ * lee la tabla como un embudo, donde cada paso divide sobre el numerador del
+ * paso anterior). NO confundir con `cantidadGanadas`, que sigue anclada a
+ * fecha de CIERRE (alimenta el win rate clasico,
+ * `cantidadGanadas / (cantidadGanadas + cantidadPerdidas)`, ya calculado por
+ * el backend en el campo `winRate`) — ese es un cohorte y una condicion de
+ * "sin datos" distintos de los de esta fila.
+ *
+ * `cantidadPerdidas` esta anclada a CIERRE, igual que `cantidadGanadas`:
+ * juntas arman el denominador clasico de `winRate`, no el de las dos razones
+ * de esta fila.
+ *
+ * `cantidadEnviadas` esta sobre el conjunto de `cantidadDelPeriodo` (ya no
+ * sobre el viejo `cantidadCreadas`) y es el NUMERADOR de "Cotizados / Total"
+ * a la vez que el DENOMINADOR de "Ganadas / Enviadas".
+ *
+ * `utilidad` puede ser NEGATIVA (cotizacion ganada bajo costo): no es un
+ * error de datos, se muestra tal cual. El margen (`utilidad / ganado`) NO
+ * viene del backend para este endpoint — se calcula en el FRONT como
+ * fraccion 0..1, a diferencia de `margenPct` de `kpis-consolidado` (que
+ * llega en escala 0..100): no pasar por el mismo `/100` aca.
  */
 export type RankingEjecutivoRespuesta = {
   ejecutivoId: string;
   ejecutivoNombre: string;
   ganado: TotalPorMoneda;
   pipeline: TotalPorMoneda;
+  /** Ancla CIERRE. Numerador del `winRate` (= ganadas / (ganadas + perdidas + vencidas)). */
   cantidadGanadas: number;
-  cantidadCerradas: number;
-  /** `null` sin cierres del ejecutivo en el periodo (mismo patron que WinRateRespuesta). */
+  /** Ancla CIERRE. Parte del denominador del `winRate` (con ganadas y vencidas). El cliente rechazó. */
+  cantidadPerdidas: number;
+  /**
+   * Ancla CIERRE. Cotizaciones ENVIADAS que caducaron sin respuesta del
+   * cliente. Entra al denominador del `winRate`: vencer = se envió y no se
+   * cerró, cuenta como no-ganada. CANCELADA NO entra (era un borrador
+   * pre-envío que nunca compitió — el dominio solo permite cancelar desde
+   * BORRADOR).
+   */
+  cantidadVencidas: number;
+  /** `null` sin cierres terminales (ganadas + perdidas + vencidas = 0) del ejecutivo en el periodo. */
   winRate: number | null;
+  /**
+   * Cotizaciones con actividad en el periodo: creadas, enviadas o cerradas
+   * dentro de el (OR de 3 anclas). DENOMINADOR de "Cotizados / Total".
+   */
+  cantidadDelPeriodo: number;
+  /**
+   * Mismo cohorte que `cantidadDelPeriodo`. Numerador de "Cotizados / Total"
+   * Y DENOMINADOR de "Ganadas / Enviadas".
+   */
+  cantidadEnviadas: number;
+  /**
+   * Mismo cohorte que `cantidadDelPeriodo`, filtrado a GANADA. Numerador de
+   * "Ganadas / Enviadas" (el denominador de esa columna es `cantidadEnviadas`,
+   * no `cantidadDelPeriodo`).
+   */
+  cantidadGanadasDelPeriodo: number;
+  /** Utilidad del periodo por moneda (anclaje CIERRE). Puede ser negativa. */
+  utilidad: TotalPorMoneda;
 };
 
 /** espejo de MotivoPerdidaAgrupado, BC03 dashboard.repository.ts:41-47 */
@@ -217,24 +250,94 @@ export type EmbudoConversionRespuesta = {
   ganada: number;
 };
 
+// ---------------------------------------------------------------------------
+// kpis-consolidado (endpoint BC03 posterior a Fase 2b)
+// ---------------------------------------------------------------------------
+
 /**
- * espejo de AccionPendienteConMonto, BC03 dashboard.repository.ts:61-70.
- * `moneda` refleja el enum `Moneda` de BC03 (`PEN` | `USD`), `null` cuando la
- * accion no tiene monto asociado (ej. solicitud sin cotizar).
+ * espejo de PorcentajePorMoneda, BC03 obtener-kpis-consolidados.use-case.ts.
+ * OJO — a diferencia de `WinRateRespuesta.winRate` (fraccion 0..1), este
+ * valor llega YA multiplicado por 100: `20` significa `20%`, no `2000%`.
+ * Verificado contra el use case (`margen()`: `(utilidad / montoGanado) * 100`)
+ * y el e2e (`margenPct.pen` ~= 20 para un margen del 20%). NO pasar directo a
+ * `formatearPorcentaje` (que asume fraccion 0..1) sin dividir entre 100
+ * primero, con una variable nombrada que deje explicito el porque.
  */
-export type AccionPendiente = {
-  id: string;
-  referencia: string;
-  /** `null` para solicitudes sin cotizar: aun no tienen ejecutivo asignado. */
-  idEjecutivoResponsable: string | null;
-  nombreEjecutivoResponsable: string | null;
-  moneda: "PEN" | "USD" | null;
-  monto: number | null;
+export type PorcentajePorMoneda = {
+  pen: number;
+  usd: number;
 };
 
-/** espejo de AccionesPendientes, BC03 dashboard.repository.ts:72-76 — GET /dashboard/acciones-pendientes */
-export type AccionesPendientesRespuesta = {
-  porVencer72h: AccionPendiente[];
-  esperandoAprobacion: AccionPendiente[];
-  solicitudesSinCotizar: AccionPendiente[];
+/**
+ * espejo de ActividadPeriodo, BC03 obtener-kpis-consolidados.use-case.ts.
+ * Cohorte anclada a la CREACION de la solicitud. Sin moneda: son conteos.
+ *
+ * `perdidas`: solicitudes con al menos una cotizacion en estado PERDIDA y
+ * NINGUNA GANADA. VENCIDA y CANCELADA quedan FUERA a proposito (decision de
+ * negocio): "perdida" significa que el CLIENTE la rechazo, no que la
+ * cotizacion expiro o se cancelo internamente. Anclada a la misma fecha de
+ * CREACION que el resto del bloque, igual que `totalSolicitudes`/`cotizadas`/`ganadas`.
+ */
+export type ActividadPeriodo = {
+  totalSolicitudes: number;
+  cotizadas: number;
+  ganadas: number;
+  perdidas: number;
+};
+
+/**
+ * espejo de CerradoPeriodo, BC03 obtener-kpis-consolidados.use-case.ts.
+ * Cohorte anclada a la FECHA DE CIERRE — DISTINTA de `ActividadPeriodo`:
+ * jamas dividir un campo de una contra el de la otra.
+ * `montoGanado`/`utilidad` son SOLO cotizaciones GANADAS del periodo, no
+ * incluyen perdidas. `margenPct` NUNCA es `null` (es `0` cuando
+ * `montoGanado` es `0`) — a diferencia de `WinRateRespuesta.winRate`. Para
+ * distinguir "0% de margen con cierres reales" de "sin cierres" hay que
+ * mirar `montoGanado`, no `margenPct`.
+ */
+/**
+ * Variación vs el período anterior, por moneda. `null` = sin base de comparación
+ * (el período anterior fue `0` en esa moneda → el front no muestra chip).
+ */
+export type VariacionPorMoneda = {
+  pen: number | null;
+  usd: number | null;
+};
+
+export type CerradoPeriodo = {
+  montoGanado: TotalPorMoneda;
+  utilidad: TotalPorMoneda;
+  margenPct: PorcentajePorMoneda;
+  /**
+   * Variación vs el período anterior (misma duración, inmediatamente antes).
+   * `montoGanado`/`utilidad`: variación PORCENTUAL (`6.7` = +6.7%). `margenPct`:
+   * delta en PUNTOS PORCENTUALES (resta directa de los % en escala 0..100, ej.
+   * 20% vs 15% → `+5`). `null` cuando no hay base de comparación.
+   */
+  variacionVsAnterior: {
+    montoGanado: VariacionPorMoneda;
+    utilidad: VariacionPorMoneda;
+    margenPct: VariacionPorMoneda;
+  };
+};
+
+/**
+ * espejo de KpisConsolidadoResultado, BC03 obtener-kpis-consolidados.use-case.ts
+ * GET /dashboard/kpis-consolidado.
+ */
+export type KpisConsolidadoRespuesta = {
+  actividad: ActividadPeriodo;
+  cerrado: CerradoPeriodo;
+};
+
+/**
+ * espejo de CotizacionesEsperandoRespuesta, BC03 — GET /dashboard/esperando-respuesta.
+ * Estado ACTUAL de las cotizaciones enviadas al cliente que siguen abiertas
+ * (ENVIADA / EN_REVISION). `monto` por moneda separada, sin sumar ni convertir;
+ * `porVencer` es el subconjunto cuya versión vigente vence en ≤3 días.
+ */
+export type EsperandoRespuestaRespuesta = {
+  cantidad: number;
+  monto: TotalPorMoneda;
+  porVencer: number;
 };

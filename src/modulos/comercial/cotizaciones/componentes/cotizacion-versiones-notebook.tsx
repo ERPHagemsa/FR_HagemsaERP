@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ListChecks, Printer } from "lucide-react";
+import { ListChecks, Printer, TrendingDown, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -148,8 +148,15 @@ export function CotizacionVersionesNotebook({
               <span className="tabular-nums">
                 Base: {formatearMonto(version.montoBase)} {version.moneda}
               </span>
-              <span className="tabular-nums">
-                Ganancia: {formatearMonto(version.montoTotal - version.montoBase)} {version.moneda}
+              {/* Ganancia estilo Binance: verde con flecha arriba si es positiva,
+                  rojo con flecha abajo si es negativa (descuento mayor al margen →
+                  venta por debajo del costo; se permite, pero se avisa). */}
+              <span className="flex items-center gap-1">
+                Ganancia:
+                <Ganancia
+                  monto={version.montoTotal - version.montoBase}
+                  moneda={version.moneda}
+                />
               </span>
             </div>
           ) : null}
@@ -300,7 +307,10 @@ function SeccionBloque({
         <p className="px-3 py-2 text-sm text-muted-foreground">Sin lineas en esta seccion.</p>
       ) : (
         <TablaCotizacion
-          seccion={vistaLectura(lineas, cargos, seccion.subtotal)}
+          seccion={vistaLectura(lineas, cargos, seccion.subtotal, {
+            descuentoPct: seccion.descuentoPct ?? 0,
+            subtotalNeto: seccion.subtotalNeto ?? seccion.subtotal,
+          })}
           moneda={moneda}
           conPrecios
         />
@@ -320,6 +330,7 @@ function vistaLectura(
   lineas: Linea[],
   cargosSeccion: CargoAdicional[],
   subtotal: number,
+  descuento?: { descuentoPct: number; subtotalNeto: number },
 ): SeccionVista {
   const ordenadas = lineas.slice().sort((a, b) => a.orden - b.orden);
   return {
@@ -345,6 +356,8 @@ function vistaLectura(
       cantidad: c.cantidad,
     })),
     subtotal,
+    descuentoPct: descuento?.descuentoPct,
+    subtotalNeto: descuento?.subtotalNeto,
   };
 }
 
@@ -557,4 +570,28 @@ function formatearMonto(valor: number) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(valor);
+}
+
+// Ganancia estilo Binance: color + flecha segun el signo. Positiva = verde con
+// flecha arriba; negativa = rojo con flecha abajo; cero = neutro, sin flecha.
+// El monto se muestra en valor absoluto (la flecha ya comunica el signo).
+function Ganancia({ monto, moneda }: { monto: number; moneda: string }) {
+  if (monto === 0) {
+    return (
+      <span className="tabular-nums text-muted-foreground">
+        {formatearMonto(0)} {moneda}
+      </span>
+    );
+  }
+  const positiva = monto > 0;
+  const Icono = positiva ? TrendingUp : TrendingDown;
+  const color = positiva
+    ? "text-emerald-600 dark:text-emerald-500"
+    : "text-destructive";
+  return (
+    <span className={`flex items-center gap-1 font-medium tabular-nums ${color}`}>
+      <Icono className="size-3.5" aria-hidden />
+      {formatearMonto(Math.abs(monto))} {moneda}
+    </span>
+  );
 }
