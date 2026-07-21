@@ -5,6 +5,8 @@ import { LayersIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/compartido/componentes/ui/button";
 import { ConfirmarEliminar } from "@/compartido/componentes/ui/confirmar-eliminar";
+import { Input } from "@/compartido/componentes/ui/input";
+import { Label } from "@/compartido/componentes/ui/label";
 
 import type { CatalogoCargoAdicional, OrigenTipo } from "../tipos/cotizaciones.tipos";
 import type {
@@ -97,7 +99,8 @@ export function CotizacionSeccionesEditor({
     .slice()
     .sort((a, b) => Number(b.esDefecto) - Number(a.esDefecto) || a.orden - b.orden);
 
-  const total = secciones.reduce((acc, s) => acc + subtotalSeccion(s), 0);
+  // El total espeja el backend: suma el NETO de cada seccion (con su descuento).
+  const total = secciones.reduce((acc, s) => acc + subtotalNetoSeccion(s), 0);
   const totalLineas = secciones.reduce((acc, s) => acc + s.lineas.length, 0);
 
   // Crear seccion: abre el MISMO modal de datos (nombre + ruta con autocomplete
@@ -244,6 +247,9 @@ export function CotizacionSeccionesEditor({
               onAgregarLinea={() => abrirAgregarLinea(seccion)}
               onGuardarCargo={(cargo) => guardarCargoSeccion(seccion, cargo)}
               onEliminarCargo={(clave) => eliminarCargoSeccion(seccion, clave)}
+              onCambiarDescuento={(pct) =>
+                guardarSeccion({ ...seccion, descuentoPct: pct })
+              }
             />
           ))}
         </div>
@@ -320,11 +326,84 @@ function subtotalSeccion(s: DraftSeccion): number {
   return lineas + cargosSeccion + cargosLineas;
 }
 
+// Neto = bruto − descuento. Es lo que entra al total de la cotizacion (espeja el
+// calculo del backend, que suma subtotalNeto). Con descuento 0, neto == bruto.
+function subtotalNetoSeccion(s: DraftSeccion): number {
+  return subtotalSeccion(s) * (1 - (s.descuentoPct || 0) / 100);
+}
+
 // Nombre visible de la seccion (el bucket por defecto se muestra como "Sin agrupar").
 function nombreVisibleSeccion(seccion: DraftSeccion): string {
   return seccion.esDefecto
     ? "Sin agrupar"
     : seccion.nombre || "Seccion sin nombre";
+}
+
+// Control de descuento de una seccion: input del % + el desglose bruto → neto.
+// El descuento se aplica sobre la venta; la empresa lo absorbe contra su
+// ganancia. El aviso de "ganancia negativa" (descuento > margen) se muestra en
+// el detalle, con la ganancia que recalcula el backend — no se reestima acá para
+// no duplicar ese calculo.
+function DescuentoSeccion({
+  seccion,
+  moneda,
+  disabled,
+  onCambiar,
+}: {
+  seccion: DraftSeccion;
+  moneda: string;
+  disabled?: boolean;
+  onCambiar: (pct: number) => void;
+}) {
+  const bruto = subtotalSeccion(seccion);
+  const neto = subtotalNetoSeccion(seccion);
+  const pct = seccion.descuentoPct || 0;
+  const inputId = `descuento-${seccion.claveCliente}`;
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border px-3 py-2 text-sm">
+      <div className="flex items-center gap-2">
+        <Label htmlFor={inputId} className="text-xs text-muted-foreground">
+          Descuento
+        </Label>
+        <div className="relative">
+          <Input
+            id={inputId}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={99.99}
+            step="0.01"
+            disabled={disabled}
+            value={pct === 0 ? "" : pct}
+            placeholder="0"
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              // Vacio = sin descuento. Se topa en el rango que acepta el backend.
+              const n = v === "" ? 0 : Number(v);
+              if (Number.isNaN(n)) return;
+              onCambiar(Math.min(99.99, Math.max(0, n)));
+            }}
+            className="h-8 w-20 pr-6 text-right tabular-nums"
+            aria-label="Descuento de la seccion en porcentaje"
+          />
+          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+            %
+          </span>
+        </div>
+      </div>
+
+      {pct > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
+          <span className="line-through">{formatearMoneda(bruto, moneda)}</span>
+          <span aria-hidden>→</span>
+          <span className="font-medium text-foreground">
+            {formatearMoneda(neto, moneda)}
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function BloqueSeccion({
@@ -339,6 +418,7 @@ function BloqueSeccion({
   onAgregarLinea,
   onGuardarCargo,
   onEliminarCargo,
+  onCambiarDescuento,
 }: {
   seccion: DraftSeccion;
   moneda: string;
@@ -351,6 +431,7 @@ function BloqueSeccion({
   onAgregarLinea: () => void;
   onGuardarCargo: (cargo: DraftCargoAdicional) => void;
   onEliminarCargo: (clave: string) => void;
+  onCambiarDescuento: (pct: number) => void;
 }) {
   const sinLineas = seccion.lineas.length === 0;
 
@@ -501,6 +582,16 @@ function BloqueSeccion({
           Agregar cargo adicional
         </Button>
       </div>
+
+      {/* Descuento de la seccion: solo tiene sentido si hay algo que descontar. */}
+      {sinLineas && seccion.cargosAdicionales.length === 0 ? null : (
+        <DescuentoSeccion
+          seccion={seccion}
+          moneda={moneda}
+          disabled={disabled}
+          onCambiar={onCambiarDescuento}
+        />
+      )}
 
       {/* Stand by — su propia tabla, separada del costo (informativo, no suma). */}
       <TablaStandby entradas={entradasStandby(seccion)} moneda={moneda} />

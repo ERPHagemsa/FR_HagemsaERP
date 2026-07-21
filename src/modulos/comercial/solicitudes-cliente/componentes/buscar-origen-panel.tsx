@@ -16,9 +16,7 @@ import { listarProspectos } from "../../prospectos/servicios/prospectos-api";
 import type { Prospecto } from "../../prospectos/tipos/prospecto.tipos";
 import { buscarClientesBc01 } from "../servicios/solicitudes-cliente-api";
 import type { ClienteBc01, TipoOrigen } from "../tipos/solicitud-cliente.tipos";
-
-// Un término solo de dígitos se busca como documento; si no, como nombre.
-const esDocumento = (t: string) => /^\d+$/.test(t.trim());
+import { esDocumento, etiquetaEstadoCliente } from "../utilidades/cliente-bc01";
 
 // El cliente de BC-01 no trae tipoDocumento; se infiere del número.
 function inferirTipoDocumento(doc: string): "RUC" | "DNI" | "CE" {
@@ -26,13 +24,6 @@ function inferirTipoDocumento(doc: string): "RUC" | "DNI" | "CE" {
   if (/^\d{11}$/.test(n)) return "RUC";
   if (/^\d{8}$/.test(n)) return "DNI";
   return "CE";
-}
-
-function etiquetaEstadoCliente(c: ClienteBc01): string {
-  if (c.estado !== "ACTIVO" || c.estadoRegistro !== "ACTIVO") return "Inactivo";
-  if (c.estadoAprobacion === "APROBADO") return "Activo";
-  if (c.estadoAprobacion === "PENDIENTE_APROBACION") return "Pendiente aprob.";
-  return "Rechazado";
 }
 
 type DatosIdentidadResuelta = {
@@ -88,7 +79,11 @@ export function BuscarOrigenPanel({ onIdentidadResuelta }: Props) {
   const prospectosActivos = listaProspectos.filter((p) => p.estadoRegistro);
   const prospectosEliminados = listaProspectos.filter((p) => !p.estadoRegistro);
   const listaClientes = clientes.data ?? [];
-  const cargando = prospectos.isLoading || clientes.isLoading;
+  // isFetching y NO isLoading: `useConsulta` deja isLoading en false cuando ya
+  // hay datos, así que a partir de la segunda búsqueda no se veía nada en curso
+  // —sin spinner, con el botón habilitado— y seguían en pantalla los resultados
+  // del término anterior.
+  const cargando = prospectos.isFetching || clientes.isFetching;
   const hayResultadosUtiles =
     prospectosActivos.length > 0 || listaClientes.length > 0;
   // "Sin resultados" (con opción de crear) SOLO cuando no hay nada, ni activos ni

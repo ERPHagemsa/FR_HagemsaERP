@@ -229,7 +229,11 @@ export type Seccion = {
   id: string;
   nombre: string | null;
   orden: number;
-  subtotal: number;
+  subtotal: number; // bruto (venta con margen, antes de descuento)
+  // Descuento comercial de la seccion. Opcionales: una cotizacion servida por un
+  // backend anterior a esta feature no los trae, y los consumidores degradan a 0.
+  descuentoPct?: number; // en %. 0 (o ausente) = sin descuento
+  subtotalNeto?: number; // subtotal − descuento; es lo que entra al montoTotal
   cargosAdicionales: CargoAdicional[]; // nuevos: suman al subtotal
 };
 
@@ -630,6 +634,9 @@ export type PayloadLinea = {
 export type PayloadSeccion = {
   nombre?: string;
   orden?: number;
+  // Descuento comercial de la seccion, en %. El backend lo aplica sobre la
+  // venta; tope 99.99. Se omite (o 0) cuando la seccion no lleva descuento.
+  descuentoPct?: number;
   lineas?: PayloadLinea[];
   cargosAdicionales?: PayloadCargoAdicional[];
 };

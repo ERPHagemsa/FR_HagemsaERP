@@ -47,7 +47,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/compartido/componentes/ui/table"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/compartido/componentes/ui/popover"
 import { formatearFechaDeTimestamp } from "@/modulos/comercial/utilidades/formato-fecha"
+import {
+  BuscarClienteBc01Panel,
+  type ClienteElegido,
+} from "../../solicitudes-cliente/componentes/buscar-cliente-bc01-panel"
 
 import {
   useCrearTarifarioManualMutation,
@@ -83,8 +92,9 @@ function SheetCrearManual({
 }) {
   const router = useRouter()
   const [moneda, setMoneda] = useState<Moneda>("PEN")
-  const [idClienteExterno, setIdClienteExterno] = useState("")
-  const [nombreClienteExterno, setNombreClienteExterno] = useState("")
+  // El cliente se elige del maestro de BC-01, no se escribe: antes habia que
+  // pegar a mano su uuid, que nadie conoce de memoria.
+  const [cliente, setCliente] = useState<ClienteElegido | null>(null)
   const [vigenciaInicio, setVigenciaInicio] = useState("")
   const [vigenciaFin, setVigenciaFin] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -99,8 +109,10 @@ function SheetCrearManual({
     const resultado = await crear
       .mutateAsync({
         moneda,
-        idClienteExterno: idClienteExterno.trim() || undefined,
-        nombreClienteExterno: nombreClienteExterno.trim() || undefined,
+        // publicId (uuid) y no el id entero: es el identificador estable de
+        // BC-01, el mismo que la solicitud de cliente guarda como origen.
+        idClienteExterno: cliente?.publicId,
+        nombreClienteExterno: cliente?.nombre,
         vigenciaInicio: vigenciaInicio || undefined,
         vigenciaFin: vigenciaFin || undefined,
         tarifas: [],
@@ -150,22 +162,13 @@ function SheetCrearManual({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cli-nombre">Cliente (nombre, opcional)</Label>
-            <Input
-              id="cli-nombre"
-              value={nombreClienteExterno}
-              onChange={(e) => setNombreClienteExterno(e.target.value)}
-              placeholder="Razon social del cliente"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cli">Cliente (id externo, opcional)</Label>
-            <Input
-              id="cli"
-              value={idClienteExterno}
-              onChange={(e) => setIdClienteExterno(e.target.value)}
-              placeholder="Id del cliente en Socio de Negocio"
+            <Label htmlFor="cli-buscar">Cliente (opcional)</Label>
+            <BuscarClienteBc01Panel
+              idInput="cli-buscar"
+              valor={cliente}
+              onElegir={setCliente}
+              onQuitar={() => setCliente(null)}
+              ayuda="Busca el cliente en Socio de Negocio por razon social o documento."
             />
           </div>
 
@@ -221,7 +224,14 @@ export function TarifariosListado({ filtros, onFiltrosChange }: Props) {
   const porPagina = consulta.data?.porPagina ?? filtros.porPagina ?? 10
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina))
 
-  const [clienteLocal, setClienteLocal] = useState(filtros.idClienteExterno ?? "")
+  // El filtro puede llegar por URL (?idClienteExterno=<uuid>): en ese caso se
+  // conoce el id pero no el nombre, y se muestra el id hasta que se elija otro.
+  const [clienteFiltro, setClienteFiltro] = useState<ClienteElegido | null>(
+    filtros.idClienteExterno
+      ? { publicId: filtros.idClienteExterno, nombre: "", numeroDocumento: "" }
+      : null,
+  )
+  const [clienteAbierto, setClienteAbierto] = useState(false)
   const [estadoLocal, setEstadoLocal] = useState<string>(filtros.estado ?? "TODOS")
   const [origenLocal, setOrigenLocal] = useState<string>(filtros.tipoOrigen ?? "TODOS")
 
@@ -230,7 +240,7 @@ export function TarifariosListado({ filtros, onFiltrosChange }: Props) {
 
   function aplicarFiltros() {
     onFiltrosChange({
-      idClienteExterno: clienteLocal.trim() || undefined,
+      idClienteExterno: clienteFiltro?.publicId,
       estado: estadoLocal === "TODOS" ? undefined : (estadoLocal as EstadoTarifario),
       tipoOrigen:
         origenLocal === "TODOS" ? undefined : (origenLocal as TipoOrigenTarifa),
@@ -272,16 +282,36 @@ export function TarifariosListado({ filtros, onFiltrosChange }: Props) {
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid min-w-56 flex-1 gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Cliente</span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Id de cliente..."
-                value={clienteLocal}
-                onChange={(e) => setClienteLocal(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && aplicarFiltros()}
-              />
-            </div>
+            {/*
+              El filtro se elige del maestro de BC-01, igual que al crear: antes
+              pedia escribir el uuid del cliente, que nadie conoce de memoria.
+            */}
+            <Popover open={clienteAbierto} onOpenChange={setClienteAbierto}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start font-normal"
+                >
+                  <Search data-icon="inline-start" />
+                  <span className="truncate">
+                    {clienteFiltro
+                      ? clienteFiltro.nombre || clienteFiltro.publicId
+                      : "Todos los clientes"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-96">
+                <BuscarClienteBc01Panel
+                  valor={clienteFiltro}
+                  onElegir={(c) => {
+                    setClienteFiltro(c)
+                    setClienteAbierto(false)
+                  }}
+                  onQuitar={() => setClienteFiltro(null)}
+                  ayuda="Busca por razon social o documento para filtrar por cliente."
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="grid min-w-40 gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Origen</span>

@@ -45,6 +45,7 @@ import {
 import { useHistorialAprobacionesQuery } from "../../aprobaciones/servicios/aprobaciones-queries";
 import type { SolicitudAprobacion } from "../../aprobaciones/tipos/aprobaciones.tipos";
 import { PanelUbicacionesPorCompletar } from "@/modulos/comercial/ubicaciones/componentes/panel-ubicaciones-por-completar";
+import type { RutaSeccion } from "@/modulos/comercial/ubicaciones/componentes/panel-ubicaciones-por-completar";
 import { consultarCotizacion } from "../servicios/cotizaciones-api";
 import { CLAVE_COTIZACION_DETALLE } from "@/modulos/comercial/claves-consulta";
 import {
@@ -118,8 +119,8 @@ function CotizacionDetalleContenido({
       (solicitud) => solicitud.estado === "EN_APROBACION",
     ) ?? null;
 
-  // Origen/destino distintos de la ruta (para el panel de Ubicaciones tras ganar):
-  // los que tengan temporal están por completar; el resto ya vive en el maestro.
+  // Ruta de cada sección (para el panel de Ubicaciones tras ganar): los puntos
+  // que tengan temporal están por completar; el resto ya vive en el maestro.
   const rutasUbicacion = rutasDeVersion(vigente);
 
   return (
@@ -249,19 +250,70 @@ function CotizacionDetalleContenido({
   );
 }
 
-// Nombres de origen/destino distintos de las líneas de una versión (la ruta se
-// captura en las líneas de transporte, en `carga.origen/destino`). Insensible a
-// duplicados; conserva el nombre tal cual para cruzarlo con las temporales.
-function rutasDeVersion(version: Version | null): string[] {
+// Clave del grupo de líneas sin sección (cotización "plana", de una sola sección
+// sin nombre). No choca con un id real: los ids son uuid.
+const SIN_SECCION = "sin-seccion";
+
+/**
+ * Ruta de cada sección de una versión, conservando a qué sección pertenece y
+ * cuál punto es el origen y cuál el destino.
+ *
+ * La ruta es de la SECCIÓN, no de cada línea: se captura en las líneas de
+ * transporte (`carga.origen/destino`) pero todas las de una misma sección la
+ * comparten, así que se toma la primera que la traiga (mismo criterio que la
+ * tabla de la cotización y el PDF).
+ *
+ * Las secciones sin ruta —servicios que no son de transporte— quedan fuera: no
+ * aportan ubicaciones que registrar en el maestro.
+ */
+function rutasDeVersion(version: Version | null): RutaSeccion[] {
   if (!version) return [];
-  const nombres = new Map<string, string>(); // clave lower → nombre original
+
+  const lineasPorSeccion = new Map<string, typeof version.lineas>();
   for (const linea of version.lineas) {
-    for (const punto of [linea.carga?.origen, linea.carga?.destino]) {
-      const nombre = punto?.trim();
-      if (nombre) nombres.set(nombre.toLowerCase(), nombre);
+    // Las líneas sin sección son el caso "plano" (una cotización de una sola
+    // sección sin nombre); se agrupan bajo una clave propia.
+    const clave = linea.idSeccion ?? SIN_SECCION;
+    const acumuladas = lineasPorSeccion.get(clave) ?? [];
+    acumuladas.push(linea);
+    lineasPorSeccion.set(clave, acumuladas);
+  }
+
+  const secciones = version.secciones
+    .slice()
+    .sort((a, b) => a.orden - b.orden)
+    .map((seccion) => ({
+      id: seccion.id,
+      nombre: seccion.nombre,
+      lineas: lineasPorSeccion.get(seccion.id) ?? [],
+    }));
+
+  // Cualquier grupo que no corresponda a una sección declarada va igual al
+  // final, sin nombre: el caso "plano" (líneas sin sección) y, defensivamente,
+  // líneas que apunten a una sección que la versión no trajo. Preferimos
+  // mostrar la ubicación sin agrupar antes que perderla de vista.
+  const declaradas = new Set(version.secciones.map((s) => s.id));
+  for (const [clave, lineas] of lineasPorSeccion) {
+    if (!declaradas.has(clave) && lineas.length > 0) {
+      secciones.push({ id: clave, nombre: null, lineas });
     }
   }
-  return [...nombres.values()];
+
+  return secciones.flatMap(({ id, nombre, lineas }) => {
+    const conRuta = lineas
+      .slice()
+      .sort((a, b) => a.orden - b.orden)
+      .find((l) => l.carga?.origen?.trim() || l.carga?.destino?.trim());
+    if (!conRuta) return [];
+    return [
+      {
+        idSeccion: id,
+        nombreSeccion: nombre,
+        origen: conRuta.carga?.origen?.trim() || null,
+        destino: conRuta.carga?.destino?.trim() || null,
+      },
+    ];
+  });
 }
 
 // ---------------------------------------------------------------------------

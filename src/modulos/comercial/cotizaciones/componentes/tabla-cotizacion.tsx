@@ -58,7 +58,12 @@ export type SeccionVista = {
   ruta: string;
   lineas: LineaVista[];
   cargosSeccion: CargoVista[];
+  // `subtotal` es el BRUTO (antes de descuento). Cuando `descuentoPct` es > 0 la
+  // tabla agrega las filas de descuento y neto; con 0 (o sin él) muestra solo el
+  // SUB - TOTAL de siempre.
   subtotal: number;
+  descuentoPct?: number;
+  subtotalNeto?: number;
 };
 
 export function TablaCotizacion({
@@ -250,19 +255,64 @@ export function TablaCotizacion({
           </tr>
         ))}
 
-        {/* Sub-total de la seccion */}
-        <tr className="bg-muted/30">
-          <td colSpan={2} className="border-0 bg-background" />
-          <td colSpan={1 + extraPrecios} className="px-3 py-2 text-right font-semibold">
-            SUB - TOTAL
-          </td>
-          <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
-            {formatear(seccion.subtotal, moneda)}
-          </td>
-          {conAcciones ? <td className="border-0 bg-background" /> : null}
-        </tr>
+        {/* Sub-total de la seccion (bruto). Con descuento se convierte en la
+            primera de tres filas: SUB - TOTAL → DESCUENTO → NETO. */}
+        <FilaCierre
+          etiqueta="SUB - TOTAL"
+          monto={formatear(seccion.subtotal, moneda)}
+          extraPrecios={extraPrecios}
+          conAcciones={conAcciones}
+        />
+        {seccion.descuentoPct && seccion.subtotalNeto != null ? (
+          <>
+            <FilaCierre
+              etiqueta={`DESCUENTO (${formatearPct(seccion.descuentoPct)})`}
+              monto={`- ${formatear(seccion.subtotal - seccion.subtotalNeto, moneda)}`}
+              extraPrecios={extraPrecios}
+              conAcciones={conAcciones}
+            />
+            <FilaCierre
+              etiqueta="NETO"
+              monto={formatear(seccion.subtotalNeto, moneda)}
+              extraPrecios={extraPrecios}
+              conAcciones={conAcciones}
+            />
+          </>
+        ) : null}
       </tbody>
     </table>
+  );
+}
+
+// Porcentaje sin decimales de mas: "10%" y no "10.00%".
+function formatearPct(pct: number): string {
+  return `${Number(pct.toFixed(2))}%`;
+}
+
+// Una fila de cierre de seccion (SUB - TOTAL / DESCUENTO / NETO): misma grilla
+// que las de datos para que la columna de monto quede alineada.
+function FilaCierre({
+  etiqueta,
+  monto,
+  extraPrecios,
+  conAcciones,
+}: {
+  etiqueta: string;
+  monto: string;
+  extraPrecios: number;
+  conAcciones?: boolean;
+}) {
+  return (
+    <tr className="bg-muted/30">
+      <td colSpan={2} className="border-0 bg-background" />
+      <td colSpan={1 + extraPrecios} className="px-3 py-2 text-right font-semibold">
+        {etiqueta}
+      </td>
+      <td className="whitespace-nowrap px-3 py-2 text-right font-semibold tabular-nums">
+        {monto}
+      </td>
+      {conAcciones ? <td className="border-0 bg-background" /> : null}
+    </tr>
   );
 }
 
