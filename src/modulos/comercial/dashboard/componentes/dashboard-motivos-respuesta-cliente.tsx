@@ -156,9 +156,11 @@ function BloqueMotivosRespuesta({
             className="mx-auto aspect-square max-h-[200px]"
           >
             <PieChart>
+              {/* hideLabel: sin la línea superior redundante. Cada ítem ya
+                  muestra la descripción (config[codigo].label) + la cantidad. */}
               <ChartTooltip
                 cursor={false}
-                content={<ChartTooltipContent nameKey="codigo" />}
+                content={<ChartTooltipContent nameKey="codigo" hideLabel />}
               />
               <Pie
                 data={datos}
