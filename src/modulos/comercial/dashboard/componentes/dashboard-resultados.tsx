@@ -1,15 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
-import {
-  Banknote,
-  Coins,
-  Minus,
-  Percent,
-  TrendingDown,
-  TrendingUp,
-  type LucideIcon,
-} from "lucide-react";
+import { Banknote, Minus, TrendingDown, TrendingUp } from "lucide-react";
 
 import { extraerMensajeError } from "@/compartido/api";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
@@ -36,15 +27,20 @@ type PropsPeriodoEjecutivo = {
 };
 
 /**
- * Bloque "Lo ganado en el período": Monto de cotizaciones ganadas / Utilidad /
- * Margen, con look de tarjeta financiera (ícono en círculo suave, números
- * prominentes y un chip de variación vs. el período anterior por moneda).
- * Consume el MISMO `useKpisConsolidadoQuery` que el strip (campo `cerrado`).
+ * Bloque "Lo ganado en el período": NO son tres KPIs sueltos (Monto / Utilidad
+ * / Margen) sino UNA cadena contada como historia, porque los tres se derivan
+ * uno del otro — `Ganado − Costo = Utilidad` y `Margen = Utilidad / Ganado`.
+ * Por eso el diseño (Opción A, pedido explícito) es un relato por moneda: el
+ * Monto ganado como número HÉROE (lo que entró), una barra apilada
+ * utilidad/costo que muestra qué proporción de ese monto es ganancia, y una
+ * línea derivada "de eso, X es utilidad (Y% de margen)". Consume el MISMO
+ * `useKpisConsolidadoQuery` que el strip (campo `cerrado`).
  *
- * Reglas de dinero (design D9): PEN/USD SIEMPRE separados, sin sumar ni convertir.
- * El margen dice "Sin cierres" cuando `montoGanado` de esa moneda es `0` (mirar el
- * monto, no `margenPct`, que es `0` legítimo con cierres sin ganancia); `margenPct`
- * llega en escala 0..100 y se divide /100 con variable nombrada antes de formatear.
+ * Reglas de dinero (design D9): PEN/USD SIEMPRE en bloques separados, sin sumar
+ * ni convertir. El monto ganado es el titular (`text-2xl`); utilidad y margen
+ * quedan subordinados en la línea derivada. Las ayudas (utilidad/margen) se
+ * muestran UNA sola vez, ancladas al bloque PEN: explican la MÉTRICA, no la
+ * moneda, así que no se repiten en USD.
  *
  * Variación (`cerrado.variacionVsAnterior`): monto/utilidad en % de cambio,
  * margen en PUNTOS PORCENTUALES; `null` cuando el período anterior no da base de
@@ -77,70 +73,45 @@ export function DashboardResultados({
             </AlertDescription>
           </Alert>
         ) : isLoading || !data ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full" />
-            ))}
+          <div className="flex flex-col gap-5">
+            <Skeleton className="h-6 w-56" />
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            <Resultado
-              etiqueta="Monto de cotizaciones ganadas"
-              descripcion="Facturado en cotizaciones ganadas"
-              ayuda={DASHBOARD_AYUDA.montoGanado}
-              icono={Banknote}
-              claseIcono="text-emerald-500"
-              claseFondo="bg-emerald-500/10"
-            >
-              <LineaMoneda
-                valor={data.cerrado.montoGanado.pen}
+          <div className="flex flex-col gap-5">
+            <div className="flex items-center gap-2">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
+                <Banknote className="size-4 text-emerald-500" />
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">
+                Monto de cotizaciones ganadas
+              </span>
+              <AyudaMetrica descripcion={DASHBOARD_AYUDA.montoGanado} />
+            </div>
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
+              <BloqueMoneda
                 moneda="PEN"
-                variacion={data.cerrado.variacionVsAnterior.montoGanado.pen}
-              />
-              <LineaMoneda
-                valor={data.cerrado.montoGanado.usd}
-                moneda="USD"
-                variacion={data.cerrado.variacionVsAnterior.montoGanado.usd}
-              />
-            </Resultado>
-            <Resultado
-              etiqueta="Utilidad"
-              descripcion="Ganancia de las cotizaciones ganadas"
-              ayuda={DASHBOARD_AYUDA.utilidad}
-              icono={Coins}
-              claseIcono="text-teal-500"
-              claseFondo="bg-teal-500/10"
-            >
-              <LineaMoneda
-                valor={data.cerrado.utilidad.pen}
-                moneda="PEN"
-                variacion={data.cerrado.variacionVsAnterior.utilidad.pen}
-              />
-              <LineaMoneda
-                valor={data.cerrado.utilidad.usd}
-                moneda="USD"
-                variacion={data.cerrado.variacionVsAnterior.utilidad.usd}
-              />
-            </Resultado>
-            <Resultado
-              etiqueta="Margen"
-              descripcion="Ganancia sobre lo que cobraste"
-              ayuda={DASHBOARD_AYUDA.margen}
-              icono={Percent}
-              claseIcono="text-amber-500"
-              claseFondo="bg-amber-500/10"
-            >
-              <LineaMargen
                 montoGanado={data.cerrado.montoGanado.pen}
+                utilidad={data.cerrado.utilidad.pen}
                 margenPct={data.cerrado.margenPct.pen}
-                variacion={data.cerrado.variacionVsAnterior.margenPct.pen}
+                varMonto={data.cerrado.variacionVsAnterior.montoGanado.pen}
+                varUtilidad={data.cerrado.variacionVsAnterior.utilidad.pen}
+                varMargen={data.cerrado.variacionVsAnterior.margenPct.pen}
+                mostrarAyuda
               />
-              <LineaMargen
+              <BloqueMoneda
+                moneda="USD"
                 montoGanado={data.cerrado.montoGanado.usd}
+                utilidad={data.cerrado.utilidad.usd}
                 margenPct={data.cerrado.margenPct.usd}
-                variacion={data.cerrado.variacionVsAnterior.margenPct.usd}
+                varMonto={data.cerrado.variacionVsAnterior.montoGanado.usd}
+                varUtilidad={data.cerrado.variacionVsAnterior.utilidad.usd}
+                varMargen={data.cerrado.variacionVsAnterior.margenPct.usd}
               />
-            </Resultado>
+            </div>
           </div>
         )}
       </CardContent>
@@ -149,93 +120,97 @@ export function DashboardResultados({
 }
 
 /**
- * Columna del bloque: ícono en círculo suave + etiqueta arriba, las líneas de
- * valor en el medio (via `children`) y una descripción llana abajo.
+ * Un bloque-moneda del relato: cuenta la historia completa de UNA moneda de
+ * arriba a abajo — Monto ganado (héroe, lo que entró) → barra apilada
+ * utilidad/costo → línea derivada "de eso, X es utilidad (Y% de margen)".
+ *
+ * Si `montoGanado` es 0 no hubo cierres en esa moneda (mirar el monto, no
+ * `margenPct`, que puede ser 0 legítimo): se muestra el héroe en 0 y "Sin
+ * cierres", sin barra ni línea derivada.
+ *
+ * La utilidad puede ser NEGATIVA (cotización ganada bajo costo): se muestra en
+ * rojo y la barra cae a 0% verde (todo costo) — la barra no dibuja proporciones
+ * negativas, el número en rojo cuenta la historia real.
+ *
+ * `margenPct` llega del backend en escala 0..100 → se divide /100 con variable
+ * nombrada antes de formatear. La proporción verde de la barra es
+ * `utilidad / montoGanado` (= margen), clampada a [0,1].
  */
-function Resultado({
-  etiqueta,
-  descripcion,
-  ayuda,
-  icono: Icono,
-  claseIcono,
-  claseFondo,
-  children,
-}: {
-  etiqueta: string;
-  descripcion: string;
-  ayuda: string;
-  icono: LucideIcon;
-  claseIcono: string;
-  claseFondo: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <div
-          className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-full",
-            claseFondo
-          )}
-        >
-          <Icono className={cn("size-5", claseIcono)} />
-        </div>
-        <span className="flex-1 text-sm font-medium text-muted-foreground">{etiqueta}</span>
-        <AyudaMetrica descripcion={ayuda} />
-      </div>
-      <div className="flex flex-col gap-1">{children}</div>
-      <span className="text-xs text-muted-foreground">{descripcion}</span>
-    </div>
-  );
-}
-
-/** Una línea de monto por moneda: número prominente + chip de variación (%). */
-function LineaMoneda({
-  valor,
+function BloqueMoneda({
   moneda,
-  variacion,
-}: {
-  valor: number;
-  moneda: "PEN" | "USD";
-  variacion: number | null;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-2xl font-semibold tabular-nums">
-        {formatearMoneda(valor, moneda)}
-      </span>
-      <ChipVariacion valor={variacion} unidad="pct" />
-    </div>
-  );
-}
-
-/**
- * Línea de margen por moneda. La regla mira `montoGanado` (no `margenPct`, que es
- * `0` legítimo con cierres sin ganancia): si no hubo cierres en esa moneda, dice
- * "Sin cierres". `margenPct` llega en escala 0..100 → se divide /100 con variable
- * nombrada antes de formatear. La variación del margen va en PUNTOS PORCENTUALES.
- */
-function LineaMargen({
   montoGanado,
+  utilidad,
   margenPct,
-  variacion,
+  varMonto,
+  varUtilidad,
+  varMargen,
+  mostrarAyuda = false,
 }: {
+  moneda: "PEN" | "USD";
   montoGanado: number;
+  utilidad: number;
   margenPct: number;
-  variacion: number | null;
+  varMonto: number | null;
+  varUtilidad: number | null;
+  varMargen: number | null;
+  mostrarAyuda?: boolean;
 }) {
-  if (montoGanado === 0) {
-    return <span className="text-base font-normal text-muted-foreground">Sin cierres</span>;
-  }
-
+  const sinCierres = montoGanado === 0;
   const margenFraccion = margenPct / 100;
+  const proporcionUtilidad = sinCierres
+    ? 0
+    : Math.max(0, Math.min(1, utilidad / montoGanado));
+  const utilidadNegativa = utilidad < 0;
 
   return (
-    <div className="flex items-baseline justify-between gap-2">
-      <span className="text-2xl font-semibold tabular-nums">
-        {formatearPorcentaje(margenFraccion)}
-      </span>
-      <ChipVariacion valor={variacion} unidad="pp" />
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-2xl font-semibold tabular-nums">
+          {formatearMoneda(montoGanado, moneda)}
+        </span>
+        <ChipVariacion valor={varMonto} unidad="pct" />
+      </div>
+
+      {sinCierres ? (
+        <span className="text-sm text-muted-foreground">Sin cierres</span>
+      ) : (
+        <>
+          <div
+            className="flex h-1.5 overflow-hidden rounded-full bg-muted"
+            title="Proporción de lo ganado que es utilidad (verde) vs. costo (gris)"
+          >
+            <div
+              className="h-full rounded-full bg-emerald-500"
+              style={{ width: `${proporcionUtilidad * 100}%` }}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              De eso,
+              <span
+                className={cn(
+                  "font-medium tabular-nums",
+                  utilidadNegativa ? "text-rose-600 dark:text-rose-400" : "text-foreground"
+                )}
+              >
+                {formatearMoneda(utilidad, moneda)}
+              </span>
+              de utilidad
+              {mostrarAyuda ? <AyudaMetrica descripcion={DASHBOARD_AYUDA.utilidad} /> : null}
+              <ChipVariacion valor={varUtilidad} unidad="pct" />
+            </span>
+            <span className="text-muted-foreground/50">·</span>
+            <span className="inline-flex items-center gap-1">
+              <span className="font-medium tabular-nums text-foreground">
+                {formatearPorcentaje(margenFraccion)}
+              </span>
+              de margen
+              {mostrarAyuda ? <AyudaMetrica descripcion={DASHBOARD_AYUDA.margen} /> : null}
+              <ChipVariacion valor={varMargen} unidad="pp" />
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

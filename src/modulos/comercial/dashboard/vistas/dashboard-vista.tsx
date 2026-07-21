@@ -39,9 +39,10 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  * ancho en un solo número— y ahora es un tile más DENTRO del strip
  * (`DashboardKpisConsolidado`). La fila de la tendencia se comparte con
  * `DashboardMotivosPerdida` (2/3 y 1/3: la tendencia lleva más ancho por su
- * header de totales; motivos entra bien en 1/3). El `DashboardRanking` va 2/3 a
- * la izquierda (alto de dos filas) con el `DashboardEmbudo` y
- * `DashboardMotivosRespuestaCliente` apilados en la columna de 1/3.
+ * header de totales; motivos entra bien en 1/3). Debajo va un bloque de dos
+ * columnas (2/3 + 1/3): la columna izquierda de 2/3 apila `DashboardResultados`
+ * y `DashboardRanking`; la columna derecha de 1/3 apila
+ * `DashboardMotivosRespuestaCliente` (arriba) y `DashboardEmbudo` (abajo).
  *
  * Cambio dashboard-kpis-motivos-respuesta-front: agrega
  * `DashboardKpisConsolidado` (ancho completo, primero — resume el período)
@@ -55,10 +56,9 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  * ya está en `DashboardResultados`, que lo reemplaza. El endpoint
  * `/dashboard/kpis-monetarios` se retira en paralelo en el backend.
  *
- * `DashboardResultados` (Monto ganado / Utilidad / Margen) se saca del strip
- * apretado a su propio card con más aire, debajo de la fila de
- * tendencia/motivos-perdida; consume el mismo `kpis-consolidado` (campo
- * `cerrado`) con `periodo` + ejecutivo.
+ * `DashboardResultados` (Lo ganado en el período: Monto / Utilidad / Margen)
+ * vive en la columna de 2/3, arriba del `DashboardRanking` y a la misma anchura;
+ * consume el mismo `kpis-consolidado` (campo `cerrado`) con `periodo` + ejecutivo.
  */
 export function DashboardVista() {
   const [idEjecutivoResponsable, setIdEjecutivoResponsable] =
@@ -95,21 +95,20 @@ export function DashboardVista() {
         />
       </div>
 
-      <DashboardResultados
-        periodo={periodo}
-        idEjecutivoResponsable={idEjecutivoResponsable}
-      />
-
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <DashboardRanking periodo={periodo} />
-        </div>
-        <div className="flex flex-col gap-4">
-          <DashboardEmbudo
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          <DashboardResultados
             periodo={periodo}
             idEjecutivoResponsable={idEjecutivoResponsable}
           />
+          <DashboardRanking periodo={periodo} />
+        </div>
+        <div className="flex flex-col gap-4">
           <DashboardMotivosRespuestaCliente
+            periodo={periodo}
+            idEjecutivoResponsable={idEjecutivoResponsable}
+          />
+          <DashboardEmbudo
             periodo={periodo}
             idEjecutivoResponsable={idEjecutivoResponsable}
           />
