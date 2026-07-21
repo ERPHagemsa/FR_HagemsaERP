@@ -40,7 +40,7 @@ import {
 } from "@/compartido/componentes/ui/select";
 import { Separator } from "@/compartido/componentes/ui/separator";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
-import { PdfReferenciaPreview } from "./pdf-referencia-preview";
+import { PdfVistaPreviaVersion } from "./pdf-vista-previa-version";
 import {
   useAnularVersionMutation,
   usePublicarVersionMutation,
@@ -55,20 +55,6 @@ import type {
   SeccionVersion,
   TipoRespuestaItem,
 } from "../tipos/checklist.tipos";
-
-// ---------------------------------------------------------------------------
-// PDFs de referencia (formato impreso fijo de las 5 plantillas fieles) —
-// copiados a public/checklist-referencia/. Ver docs/modelos_checklist_pdfs en
-// BC04_Flota para el original.
-// ---------------------------------------------------------------------------
-
-const ARCHIVOS_PDF_REFERENCIA: Record<string, string> = {
-  CAMION: "CAMION.pdf",
-  CAMIONETA: "CAMIONETA.pdf",
-  CAMIONETA_ACIDO: "CAMIONETA_ACIDO.pdf",
-  REMOLQUE: "REMOLQUE.pdf",
-  REMOLQUE_ACIDO: "REMOLQUE_ACIDO.pdf",
-};
 
 const ETIQUETAS_TIPO_RESPUESTA: Record<TipoRespuestaItem, string> = {
   CONFORMIDAD: "Conformidad (C/NC/NA)",
@@ -683,7 +669,6 @@ export function PlantillaVersionEditor({
   const formulario = version?.presentacion?.formulario ?? null;
   const esPlantillaFiel = Boolean(formulario);
   const soloLectura = version?.publicada === true;
-  const archivoPdf = formulario ? ARCHIVOS_PDF_REFERENCIA[formulario] : undefined;
 
   const [errorGuardar, setErrorGuardar] = useState<string | null>(null);
   const guardar = useRedefinirEstructuraMutation(versionId, {
@@ -762,7 +747,7 @@ export function PlantillaVersionEditor({
   }
 
   return (
-    <div className={archivoPdf ? "grid gap-5 lg:grid-cols-[1fr_280px]" : "grid gap-5"}>
+    <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
       <div className="flex min-w-0 flex-col gap-5">
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-border">
@@ -776,14 +761,16 @@ export function PlantillaVersionEditor({
                   : "Borrador"}
             </Badge>
           </div>
-          {archivoPdf ? (
-            <Button variant="outline" size="sm" className="lg:hidden" asChild>
-              <a href={`/checklist-referencia/${archivoPdf}`} target="_blank" rel="noreferrer">
-                <ExternalLink data-icon="inline-start" />
-                Ver formato impreso de referencia
-              </a>
-            </Button>
-          ) : null}
+          <Button variant="outline" size="sm" className="lg:hidden" asChild>
+            <a
+              href={`/api/flota/plantillas-versiones/${versionId}/preview-pdf`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLink data-icon="inline-start" />
+              Ver vista previa (PDF)
+            </a>
+          </Button>
         </CardHeader>
       </Card>
 
@@ -887,11 +874,9 @@ export function PlantillaVersionEditor({
       />
       </div>
 
-      {archivoPdf ? (
-        <aside className="hidden lg:block">
-          <PdfReferenciaPreview archivo={archivoPdf} />
-        </aside>
-      ) : null}
+      <aside className="hidden lg:block">
+        <PdfVistaPreviaVersion versionId={versionId} dependencia={version.secciones} />
+      </aside>
     </div>
   );
 }

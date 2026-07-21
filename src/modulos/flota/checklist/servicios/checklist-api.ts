@@ -227,6 +227,17 @@ export async function obtenerVersionPlantilla(versionId: number): Promise<Planti
   return data.datos;
 }
 
+// Vista previa del PDF con la estructura ACTUAL (guardada) de la versión, en
+// blanco (sin respuestas) — mismo motor de impresión que una inspección real.
+// `responseType: "blob"` para no intentar parsear bytes de PDF como JSON.
+export async function obtenerVistaPreviaVersionPdf(versionId: number): Promise<Blob> {
+  const { data } = await clienteFlota.get<Blob>(
+    `/flota/plantillas-versiones/${versionId}/preview-pdf`,
+    { responseType: "blob" },
+  );
+  return data;
+}
+
 export async function redefinirEstructuraVersion(
   versionId: number,
   payload: RedefinirEstructuraPayload,
