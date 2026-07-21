@@ -346,62 +346,49 @@ function nombreVisibleSeccion(seccion: DraftSeccion): string {
 // no duplicar ese calculo.
 function DescuentoSeccion({
   seccion,
-  moneda,
   disabled,
   onCambiar,
 }: {
   seccion: DraftSeccion;
-  moneda: string;
   disabled?: boolean;
   onCambiar: (pct: number) => void;
 }) {
-  const bruto = subtotalSeccion(seccion);
-  const neto = subtotalNetoSeccion(seccion);
+  // El input SOLO fija el %. El desglose bruto → neto ya lo muestra la tabla de la
+  // seccion (fila "DESCUENTO COMERCIAL x%" + SUB - TOTAL neto), asi que aca no se
+  // repite.
   const pct = seccion.descuentoPct || 0;
   const inputId = `descuento-${seccion.claveCliente}`;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border px-3 py-2 text-sm">
-      <div className="flex items-center gap-2">
-        <Label htmlFor={inputId} className="text-xs text-muted-foreground">
-          Descuento
-        </Label>
-        <div className="relative">
-          <Input
-            id={inputId}
-            type="number"
-            inputMode="decimal"
-            min={0}
-            max={99.99}
-            step="0.01"
-            disabled={disabled}
-            value={pct === 0 ? "" : pct}
-            placeholder="0"
-            onChange={(e) => {
-              const v = e.target.value.trim();
-              // Vacio = sin descuento. Se topa en el rango que acepta el backend.
-              const n = v === "" ? 0 : Number(v);
-              if (Number.isNaN(n)) return;
-              onCambiar(Math.min(99.99, Math.max(0, n)));
-            }}
-            className="h-8 w-20 pr-6 text-right tabular-nums"
-            aria-label="Descuento de la seccion en porcentaje"
-          />
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-            %
-          </span>
-        </div>
+    <div className="flex flex-wrap items-center gap-2 border-t border-border px-3 py-2 text-sm">
+      <Label htmlFor={inputId} className="text-xs text-muted-foreground">
+        Descuento comercial
+      </Label>
+      <div className="relative">
+        <Input
+          id={inputId}
+          type="number"
+          inputMode="decimal"
+          min={0}
+          max={99.99}
+          step="0.01"
+          disabled={disabled}
+          value={pct === 0 ? "" : pct}
+          placeholder="0"
+          onChange={(e) => {
+            const v = e.target.value.trim();
+            // Vacio = sin descuento. Se topa en el rango que acepta el backend.
+            const n = v === "" ? 0 : Number(v);
+            if (Number.isNaN(n)) return;
+            onCambiar(Math.min(99.99, Math.max(0, n)));
+          }}
+          className="h-8 w-20 pr-6 text-right tabular-nums"
+          aria-label="Descuento de la seccion en porcentaje"
+        />
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+          %
+        </span>
       </div>
-
-      {pct > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
-          <span className="line-through">{formatearMoneda(bruto, moneda)}</span>
-          <span aria-hidden>→</span>
-          <span className="font-medium text-foreground">
-            {formatearMoneda(neto, moneda)}
-          </span>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -587,7 +574,6 @@ function BloqueSeccion({
       {sinLineas && seccion.cargosAdicionales.length === 0 ? null : (
         <DescuentoSeccion
           seccion={seccion}
-          moneda={moneda}
           disabled={disabled}
           onCambiar={onCambiarDescuento}
         />
@@ -649,6 +635,11 @@ function vistaDeSeccion(
       acciones: accionesCargo?.(c),
     })),
     subtotal: subtotalSeccion(seccion),
+    // Descuento a la tabla: asi la fila "DESCUENTO COMERCIAL x%" + el SUB - TOTAL
+    // neto se ven igual que en la vista de lectura y el PDF. El neto se computa
+    // del draft (no hay campo persistido en el editor).
+    descuentoPct: seccion.descuentoPct,
+    subtotalNeto: subtotalNetoSeccion(seccion),
   };
 }
 
