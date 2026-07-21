@@ -13,10 +13,6 @@ export const DASHBOARD_AYUDA = {
     "Cantidad de cotizaciones ganadas o perdidas a lo largo del período. Tocá 'Ganadas' o 'Perdidas' arriba para cambiar qué serie dibuja el gráfico; los números de cada botón son el total del período. Cuenta cotizaciones, no dinero (el dinero está en los KPIs y en el ranking). Se ajusta al filtro de arriba: si el rango es corto lo muestra por día y si es largo por mes, cortando siempre en la fecha de hoy.",
   ranking:
     "Compara a los ejecutivos por monto ganado en el período. Incluye el monto ganado, la utilidad y el margen (S/ y US$), el win rate, y dos divisiones (cotizados sobre el total y ganadas sobre enviadas, ver la ayuda de cada columna). Muestra siempre al equipo completo.",
-  efectividadCotizadas:
-    "Cuántas de las cotizaciones del ejecutivo llegaron a enviarse al cliente, sobre el 'Total': las cotizaciones que tuvieron movimiento en el período (se crearon, se enviaron o se cerraron dentro de él). Numerador y denominador se cuentan sobre ese mismo grupo.",
-  efectividadCierre:
-    "De las cotizaciones del ejecutivo que llegaron a enviarse al cliente, cuántas se ganaron. Incluye las enviadas que todavía no tuvieron respuesta del cliente (siguen sumando al denominador aunque aún no se resuelvan). Es distinto del 'Win rate': ese solo mira las cotizaciones ya resueltas (ganadas sobre ganadas más perdidas), por eso puede mostrar un número distinto en la misma fila sin que ninguno de los dos esté mal calculado.",
   motivosPerdida:
     "Agrupa las cotizaciones perdidas del período según el motivo registrado. Ayuda a identificar las causas más frecuentes de pérdida.",
   embudo:
