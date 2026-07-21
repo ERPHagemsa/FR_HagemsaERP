@@ -46,29 +46,21 @@ type Props = { periodo: RangoPeriodo };
  * dashboard financiero minimalista): "Utilidad" es el valor PROTAGONISTA
  * (S/ y US$ en semibold, margen de apoyo chico al lado, nunca al revés).
  * Un escalón abajo va "Ganado": su línea PEN en tinta foreground + medium
- * —es la métrica de ORDEN, tiene que leerse— con el USD muted debajo. Los
- * ratios ("Ganadas / Enviadas" y "Cotizados / Total") resaltan el NUMERADOR
- * en foreground y apagan el denominador en muted: truco tipográfico, sin
- * color. El win rate lleva una mini-barra fina emerald bajo el número —es el
- * ÚNICO acento de color de la tabla, más el rojo de la utilidad negativa, a
- * propósito para no parecer una feria—. Un número de posición muted antecede
- * al nombre para que se lea como ranking.
+ * —es la métrica de ORDEN, tiene que leerse— con el USD muted debajo. El win
+ * rate lleva una mini-barra fina emerald bajo el número —es el ÚNICO acento de
+ * color de la tabla, más el rojo de la utilidad negativa, a propósito para no
+ * parecer una feria—. Un número de posición muted antecede al nombre para que
+ * se lea como ranking.
  *
- * Formato de división LITERAL (pedido explícito, corrección post-review):
- * estas dos columnas muestran `enviadas/delPeriodo` y
- * `ganadasDelPeriodo/enviadas` como texto crudo (ej. `9/16` y `1/9`), NO
- * como porcentaje — a diferencia de "Win rate", que sí usa
- * `formatearPorcentaje`. No pasar estos dos valores por ese helper.
- *
- * "Ganadas / Enviadas" (pedido explícito de producto, cambio
- * `dashboard-kpis-motivos-respuesta-front`): el denominador de esta columna
- * pasó de `cantidadDelPeriodo` a `cantidadEnviadas`, encadenando con
- * "Cotizados / Total" (`enviadas/delPeriodo`). El ORDEN en pantalla es
- * drill-down (pedido explícito): primero "Ganadas / Enviadas" (el cierre) y
- * después "Cotizados / Total" (la base), leyendo del resultado hacia el
- * detalle. Por eso "Ganadas / Enviadas" tiene su PROPIA condición de "sin
- * datos" (`cantidadEnviadas === 0`), distinta de la de "Cotizados / Total"
- * (`cantidadDelPeriodo === 0`) — no unificar ambas condiciones.
+ * Embudo en tres columnas sueltas (`NumeroConteo`): "Ganadas"
+ * (`cantidadGanadasDelPeriodo`), "Enviados" (`cantidadEnviadas`) y "Cotizadas"
+ * (`cantidadDelPeriodo`), en ese orden. Reemplazan a las dos columnas de ratio
+ * previas ("Ganadas / Enviadas" y "Cotizados / Total") que repetían
+ * `cantidadEnviadas` (numerador de una, denominador de la otra) y confundían:
+ * el mismo número aparecía dos veces con nombres distintos. Ahora cada valor se
+ * muestra UNA sola vez, sin ratios ni ayuda (los nombres se explican solos). Son
+ * subconjuntos encadenados (Cotizadas ⊇ Enviados ⊇ Ganadas). Usa los MISMOS 3
+ * campos del backend — no se tocó el contrato, solo la presentación.
  */
 export function DashboardRanking({ periodo }: Props) {
   const { data, isLoading, isError, error } = useRankingEjecutivosQuery(periodo);
@@ -114,25 +106,13 @@ export function DashboardRanking({ periodo }: Props) {
                     <AyudaMetrica descripcion={DASHBOARD_AYUDA.winRate} />
                   </span>
                 </TableHead>
-                <TableHead className="text-right">
-                  <span className="inline-flex items-center gap-1">
-                    Ganadas / Enviadas
-                    <AyudaMetrica descripcion={DASHBOARD_AYUDA.efectividadCierre} />
-                  </span>
-                </TableHead>
-                <TableHead className="text-right">
-                  <span className="inline-flex items-center gap-1">
-                    Cotizados / Total
-                    <AyudaMetrica descripcion={DASHBOARD_AYUDA.efectividadCotizadas} />
-                  </span>
-                </TableHead>
+                <TableHead className="text-right">Ganadas</TableHead>
+                <TableHead className="text-right">Enviados</TableHead>
+                <TableHead className="text-right">Cotizadas</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filas.map((fila, indice) => {
-                const sinActividad = fila.cantidadDelPeriodo === 0;
-                const sinEnviadas = fila.cantidadEnviadas === 0;
-
                 return (
                   <TableRow key={fila.ejecutivoId}>
                     <TableCell className="font-medium">
@@ -160,18 +140,13 @@ export function DashboardRanking({ periodo }: Props) {
                       <ColumnaWinRate winRate={fila.winRate} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <ColumnaRatio
-                        numerador={fila.cantidadGanadasDelPeriodo}
-                        denominador={fila.cantidadEnviadas}
-                        vacio={sinEnviadas}
-                      />
+                      <NumeroConteo valor={fila.cantidadGanadasDelPeriodo} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <ColumnaRatio
-                        numerador={fila.cantidadEnviadas}
-                        denominador={fila.cantidadDelPeriodo}
-                        vacio={sinActividad}
-                      />
+                      <NumeroConteo valor={fila.cantidadEnviadas} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <NumeroConteo valor={fila.cantidadDelPeriodo} />
                     </TableCell>
                   </TableRow>
                 );
@@ -273,28 +248,22 @@ function ColumnaWinRate({ winRate }: { winRate: number | null }) {
 }
 
 /**
- * Columna de ratio literal (ej. "6/10"): el NUMERADOR en tinta foreground (el
- * número que importa) y el denominador en muted — truco tipográfico puro, sin
- * color, para que el ojo lea la parte relevante. `vacio` (denominador 0) →
- * "Sin datos", nunca un "0/0" engañoso.
+ * Un conteo del embudo del ranking (Ganadas / Enviados / Cotizadas), cada uno
+ * en su propia columna y mostrado UNA sola vez — reemplaza a las dos columnas
+ * de ratio previas que repetían `cantidadEnviadas` (numerador de una,
+ * denominador de la otra) y confundían. Las tres son subconjuntos encadenados
+ * (Cotizadas ⊇ Enviados ⊇ Ganadas), pero acá van sueltas por pedido de
+ * producto: se leen más cómodas que un `23 → 16 → 7`. El `0` va en muted para
+ * no gritar cuando la fila no tuvo actividad; los demás en foreground.
  */
-function ColumnaRatio({
-  numerador,
-  denominador,
-  vacio,
-}: {
-  numerador: number;
-  denominador: number;
-  vacio: boolean;
-}) {
-  if (vacio) {
-    return <span className="text-sm text-muted-foreground">Sin datos</span>;
-  }
-
+function NumeroConteo({ valor }: { valor: number }) {
   return (
-    <span className="tabular-nums">
-      <span className="text-sm font-medium">{numerador}</span>
-      <span className="text-xs text-muted-foreground">/{denominador}</span>
+    <span
+      className={`text-sm tabular-nums ${
+        valor === 0 ? "text-muted-foreground" : "font-medium"
+      }`}
+    >
+      {valor}
     </span>
   );
 }

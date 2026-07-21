@@ -81,6 +81,16 @@ export type FiltrosDashboardTendencia = RangoPeriodo & {
   idEjecutivoResponsable?: string;
 };
 
+/**
+ * Filtros de esperando-respuesta: SOLO ejecutivo, SIN período. Es estado ACTUAL
+ * (cotizaciones enviadas al cliente que siguen abiertas HOY), no depende del
+ * rango de fechas — a diferencia del resto de widgets del dashboard. Coherente
+ * con los KPIs de acción del strip (Por vencer / Esperando aprobación / Sin cotizar).
+ */
+export type FiltrosDashboardEjecutivo = {
+  idEjecutivoResponsable?: string;
+};
+
 // ---------------------------------------------------------------------------
 // Tipos de respuesta — espejo EXACTO de los DTOs de BC03 (design D2)
 // ---------------------------------------------------------------------------
@@ -318,4 +328,16 @@ export type CerradoPeriodo = {
 export type KpisConsolidadoRespuesta = {
   actividad: ActividadPeriodo;
   cerrado: CerradoPeriodo;
+};
+
+/**
+ * espejo de CotizacionesEsperandoRespuesta, BC03 — GET /dashboard/esperando-respuesta.
+ * Estado ACTUAL de las cotizaciones enviadas al cliente que siguen abiertas
+ * (ENVIADA / EN_REVISION). `monto` por moneda separada, sin sumar ni convertir;
+ * `porVencer` es el subconjunto cuya versión vigente vence en ≤3 días.
+ */
+export type EsperandoRespuestaRespuesta = {
+  cantidad: number;
+  monto: TotalPorMoneda;
+  porVencer: number;
 };

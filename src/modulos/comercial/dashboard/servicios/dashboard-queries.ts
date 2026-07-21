@@ -5,6 +5,7 @@ import { useConsulta } from "@/compartido/api";
 import {
   obtenerCicloCierre,
   obtenerEmbudoConversion,
+  obtenerEsperandoRespuesta,
   obtenerKpisConsolidado,
   obtenerMotivosPerdida,
   obtenerRankingEjecutivos,
@@ -13,6 +14,7 @@ import {
 import {
   CLAVE_DASHBOARD_CICLO,
   CLAVE_DASHBOARD_EMBUDO,
+  CLAVE_DASHBOARD_ESPERANDO_RESPUESTA,
   CLAVE_DASHBOARD_KPIS_CONSOLIDADO,
   CLAVE_DASHBOARD_MOTIVOS,
   CLAVE_DASHBOARD_RANKING,
@@ -20,6 +22,7 @@ import {
 } from "../../claves-consulta";
 
 import type {
+  FiltrosDashboardEjecutivo,
   FiltrosDashboardPeriodoEjecutivo,
   FiltrosDashboardRanking,
   FiltrosDashboardTendencia,
@@ -98,5 +101,17 @@ export function useKpisConsolidadoQuery(
     () => obtenerKpisConsolidado(filtros),
     [JSON.stringify(filtros)],
     { clave: CLAVE_DASHBOARD_KPIS_CONSOLIDADO }
+  );
+}
+
+// esperando-respuesta: estado ACTUAL, SOLO ejecutivo (sin período) — las deps
+// cambian solo con el filtro de ejecutivo, no con el selector de fechas.
+export function useEsperandoRespuestaQuery(
+  filtros: FiltrosDashboardEjecutivo = {}
+) {
+  return useConsulta(
+    () => obtenerEsperandoRespuesta(filtros),
+    [JSON.stringify(filtros)],
+    { clave: CLAVE_DASHBOARD_ESPERANDO_RESPUESTA }
   );
 }

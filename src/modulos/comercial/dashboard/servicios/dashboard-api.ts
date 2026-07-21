@@ -3,6 +3,8 @@ import { clienteComercial } from "@/compartido/api/clientes-backend";
 import type {
   CicloCierreRespuesta,
   EmbudoConversionRespuesta,
+  EsperandoRespuestaRespuesta,
+  FiltrosDashboardEjecutivo,
   FiltrosDashboardPeriodoEjecutivo,
   FiltrosDashboardRanking,
   FiltrosDashboardTendencia,
@@ -88,6 +90,19 @@ export async function obtenerKpisConsolidado(
 ): Promise<KpisConsolidadoRespuesta> {
   const { data } = await clienteComercial.get<KpisConsolidadoRespuesta>(
     "/dashboard/kpis-consolidado",
+    { params: filtros }
+  );
+  return data;
+}
+
+// GET /dashboard/esperando-respuesta — estado ACTUAL: cotizaciones enviadas al
+// cliente que siguen abiertas (ENVIADA/EN_REVISION), con monto en juego por
+// moneda y cuántas por vencer. Ignora el período; solo filtra por ejecutivo.
+export async function obtenerEsperandoRespuesta(
+  filtros: FiltrosDashboardEjecutivo = {}
+): Promise<EsperandoRespuestaRespuesta> {
+  const { data } = await clienteComercial.get<EsperandoRespuestaRespuesta>(
+    "/dashboard/esperando-respuesta",
     { params: filtros }
   );
   return data;
