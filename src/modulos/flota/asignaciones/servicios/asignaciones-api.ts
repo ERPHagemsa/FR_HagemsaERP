@@ -1,5 +1,5 @@
-import { ApiError } from "@/compartido/api/axios";
 import { clienteFlota } from "@/compartido/api/clientes-backend";
+import { esError404, extraerMensajeError } from "@/compartido/api/formato-error";
 import type {
   ContratoDisponibleFlota,
   ReferenciaFlota,
@@ -31,49 +31,34 @@ type HistorialFlotaResponse = {
   cuenta?: string;
 };
 
-function mensajeError(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) return error.message;
-  if (error instanceof Error) return error.message;
-  return fallback;
-}
-
 // ── Lecturas ─────────────────────────────────────────────────────────────────
+// Sin try/catch generico: un error real (401/403/500/red) debe propagarse como
+// ApiError para que useConsulta lo exponga (`isError`/`error`) y la vista lo
+// muestre con extraerMensajeError, en vez de leerse como "sin datos".
 
 export async function obtenerContratosDisponibles(): Promise<
   ContratoDisponibleFlota[]
 > {
   // BC_Flota mantiene una copia local sincronizada desde BC_ConfiguracionGeneral.
-  try {
-    const { data } = await clienteFlota.get<{ datos?: ContratoDisponibleFlota[] }>(
-      "/flota/contratos",
-    );
-    return data.datos ?? [];
-  } catch {
-    return [];
-  }
+  const { data } = await clienteFlota.get<{ datos?: ContratoDisponibleFlota[] }>(
+    "/flota/contratos",
+  );
+  return data.datos ?? [];
 }
 
 export async function obtenerCuentasDisponibles(): Promise<ReferenciaFlota[]> {
   // BC_Flota mantiene una copia local sincronizada desde BC_ConfiguracionGeneral.
-  try {
-    const { data } = await clienteFlota.get<{ datos?: ReferenciaFlota[] }>(
-      "/flota/cuentas",
-    );
-    return data.datos ?? [];
-  } catch {
-    return [];
-  }
+  const { data } = await clienteFlota.get<{ datos?: ReferenciaFlota[] }>(
+    "/flota/cuentas",
+  );
+  return data.datos ?? [];
 }
 
 export async function obtenerUnidades(): Promise<VehiculoFlota[]> {
-  try {
-    const { data } = await clienteFlota.get<{ datos?: VehiculoFlota[] }>(
-      "/flota/unidades",
-    );
-    return data.datos ?? [];
-  } catch {
-    return [];
-  }
+  const { data } = await clienteFlota.get<{ datos?: VehiculoFlota[] }>(
+    "/flota/unidades",
+  );
+  return data.datos ?? [];
 }
 
 export async function obtenerUnidadPorId(
@@ -84,8 +69,10 @@ export async function obtenerUnidadPorId(
       `/flota/unidades/${encodeURIComponent(id)}`,
     );
     return data.datos ?? null;
-  } catch {
-    return null;
+  } catch (error) {
+    // El backend distingue 404 real (unidad inexistente) de otros errores.
+    if (esError404(error)) return null;
+    throw error;
   }
 }
 
@@ -97,22 +84,22 @@ export async function obtenerAsignacionPorId(
       `/flota/asignaciones-contratos/${encodeURIComponent(id)}`,
     );
     return data.datos ?? null;
-  } catch {
-    return null;
+  } catch (error) {
+    // Este endpoint del backend devuelve 404 para CUALQUIER falla del caso de
+    // uso (no solo "no encontrado") — es la unica senal que da, asi que es lo
+    // maximo que podemos distinguir aca sin cambiar el backend.
+    if (esError404(error)) return null;
+    throw error;
   }
 }
 
 export async function obtenerHistorialPorId(
   id: string,
-): Promise<HistorialFlotaResponse | null> {
-  try {
-    const { data } = await clienteFlota.get<HistorialFlotaResponse>(
-      `/flota/asignaciones-contratos/${encodeURIComponent(id)}/historial`,
-    );
-    return data;
-  } catch {
-    return null;
-  }
+): Promise<HistorialFlotaResponse> {
+  const { data } = await clienteFlota.get<HistorialFlotaResponse>(
+    `/flota/asignaciones-contratos/${encodeURIComponent(id)}/historial`,
+  );
+  return data;
 }
 
 // ── Mutaciones ───────────────────────────────────────────────────────────────
@@ -142,7 +129,7 @@ export async function asignarContrato(
   } catch (error) {
     return {
       success: false,
-      mensaje: mensajeError(error, "Error al actualizar el contrato"),
+      mensaje: extraerMensajeError(error, "Error al actualizar el contrato"),
     };
   }
 }
@@ -159,7 +146,7 @@ export async function retirarContrato(
   } catch (error) {
     return {
       success: false,
-      mensaje: mensajeError(error, "Error al retirar las asignaciones"),
+      mensaje: extraerMensajeError(error, "Error al retirar las asignaciones"),
     };
   }
 }
@@ -179,7 +166,7 @@ export async function retirarAsignacion(
   } catch (error) {
     return {
       success: false,
-      mensaje: mensajeError(error, "Error al retirar la asignacion"),
+      mensaje: extraerMensajeError(error, "Error al retirar la asignacion"),
     };
   }
 }
@@ -206,14 +193,10 @@ export type ActivoDisponible = {
 };
 
 export async function obtenerActivosDisponibles(): Promise<ActivoDisponible[]> {
-  try {
-    const { data } = await clienteFlota.get<{ datos?: ActivoDisponible[] }>(
-      "/flota/unidades/disponibles",
-    );
-    return data.datos ?? [];
-  } catch {
-    return [];
-  }
+  const { data } = await clienteFlota.get<{ datos?: ActivoDisponible[] }>(
+    "/flota/unidades/disponibles",
+  );
+  return data.datos ?? [];
 }
 
 export async function importarUnidades(
@@ -225,7 +208,7 @@ export async function importarUnidades(
   } catch (error) {
     return {
       success: false,
-      mensaje: mensajeError(error, "Error al importar las unidades"),
+      mensaje: extraerMensajeError(error, "Error al importar las unidades"),
     };
   }
 }

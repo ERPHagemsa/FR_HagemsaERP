@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Download } from "lucide-react";
 
 import { useConsulta } from "@/compartido/api/use-consulta";
+import { extraerMensajeError } from "@/compartido/api/formato-error";
+import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import { Button } from "@/compartido/componentes/ui/button";
 import { FlotaTabla } from "../componentes/flota-tabla";
@@ -11,7 +13,7 @@ import { FlotaPageHeader } from "../../compartido/componentes/flota-page-header"
 import { obtenerUnidades } from "../servicios/asignaciones-api";
 
 export function FlotaUnidadesVista() {
-  const { data, isLoading } = useConsulta(() => obtenerUnidades(), []);
+  const { data, isLoading, error } = useConsulta(() => obtenerUnidades(), []);
 
   return (
     <>
@@ -36,6 +38,13 @@ export function FlotaUnidadesVista() {
               </Button>
             }
           />
+
+          {error ? (
+            <Alert variant="destructive">
+              <AlertTitle>No se pudieron cargar las unidades</AlertTitle>
+              <AlertDescription>{extraerMensajeError(error)}</AlertDescription>
+            </Alert>
+          ) : null}
 
           <FlotaTabla loading={isLoading} vehiculos={data ?? []} />
         </div>

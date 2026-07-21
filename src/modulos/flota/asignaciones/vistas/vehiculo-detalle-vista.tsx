@@ -1,6 +1,8 @@
 "use client";
 
 import { useConsulta } from "@/compartido/api/use-consulta";
+import { extraerMensajeError } from "@/compartido/api/formato-error";
+import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 import { Skeleton } from "@/compartido/componentes/ui/skeleton";
 import { SiteHeader } from "@/compartido/componentes/site-header";
 import DetalleVehiculoClient from "../componentes/detalle-vehiculo-client";
@@ -16,7 +18,7 @@ type Props = {
 
 export function VehiculoDetalleVista({ id }: Props) {
   const unidadId = decodeURIComponent(id);
-  const { data, isLoading } = useConsulta(async () => {
+  const { data, isLoading, error } = useConsulta(async () => {
     const [vehiculo, contratosDisponibles, cuentasDisponibles] = await Promise.all([
       obtenerUnidadPorId(unidadId),
       obtenerContratosDisponibles(),
@@ -43,6 +45,11 @@ export function VehiculoDetalleVista({ id }: Props) {
         <div className="flex w-full flex-col gap-6">
           {isLoading ? (
             <Skeleton className="h-96 w-full" />
+          ) : error ? (
+            <Alert variant="destructive">
+              <AlertTitle>No se pudo cargar la unidad</AlertTitle>
+              <AlertDescription>{extraerMensajeError(error)}</AlertDescription>
+            </Alert>
           ) : (
             <DetalleVehiculoClient
               contratosDisponibles={contratosDisponibles}

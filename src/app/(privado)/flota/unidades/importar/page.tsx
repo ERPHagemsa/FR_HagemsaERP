@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { CheckCircle2, CircleX, Clock, Download, Loader2, Search, Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { extraerMensajeError } from "@/compartido/api/formato-error";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
 import { Checkbox } from "@/compartido/componentes/ui/checkbox";
@@ -56,8 +57,10 @@ export default function ImportarUnidadesPage() {
     try {
       const datos = await obtenerActivosDisponibles();
       setActivos(datos);
-    } catch {
-      setErrorMensaje("No se pudieron cargar los activos disponibles.");
+    } catch (error) {
+      setErrorMensaje(
+        extraerMensajeError(error, "No se pudieron cargar los activos disponibles."),
+      );
     } finally {
       setCargando(false);
     }

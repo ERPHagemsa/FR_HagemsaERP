@@ -304,6 +304,13 @@ export function IniciarInspeccionSheet({
                     <div className="max-h-40 overflow-y-auto rounded-lg border border-border">
                       {unidadesConsulta.isLoading ? (
                         <p className="p-3 text-sm text-muted-foreground">Cargando unidades...</p>
+                      ) : unidadesConsulta.error ? (
+                        <p className="p-3 text-sm text-destructive">
+                          {extraerMensajeError(
+                            unidadesConsulta.error,
+                            "No se pudo cargar la lista de unidades.",
+                          )}
+                        </p>
                       ) : candidatosAcople.length === 0 ? (
                         <p className="p-3 text-sm text-muted-foreground">
                           Sin resultados para &ldquo;{busquedaAcople}&rdquo;.

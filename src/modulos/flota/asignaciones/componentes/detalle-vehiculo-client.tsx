@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
+import { extraerMensajeError } from "@/compartido/api/formato-error";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -303,9 +304,19 @@ export default function DetalleVehiculoClient({
   const unidadIdActual = vehiculo?.id ?? id;
 
   // Tras una mutacion, recargamos la unidad para reflejar ids reales y vigencias.
+  // Si la recarga falla, no reemplazamos el mensaje de exito recien mostrado
+  // por uno de error confuso: solo lo logueamos, la vista sigue con los datos
+  // que ya tenia (router.refresh() la actualiza en el proximo render del server).
   async function refrescarVehiculo() {
-    const actualizado = await obtenerUnidadPorId(unidadIdActual);
-    if (actualizado) setVehiculo(actualizado);
+    try {
+      const actualizado = await obtenerUnidadPorId(unidadIdActual);
+      if (actualizado) setVehiculo(actualizado);
+    } catch (error) {
+      console.error(
+        "No se pudo refrescar la unidad tras la mutacion:",
+        extraerMensajeError(error),
+      );
+    }
     router.refresh();
   }
 
