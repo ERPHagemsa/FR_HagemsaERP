@@ -85,6 +85,16 @@
   --dataviz-teal: #0d9488;
   --dataviz-rose: #e11d48;
   --dataviz-amber: #d97706;
+  /* Paleta categórica para gráficas con N series (ej. pie de motivos de
+     respuesta). Orden fijo validado (skill dataviz): pasa banda de luminosidad,
+     piso de croma, separación CVD y contraste vs superficie en claro. La
+     identidad NUNCA es solo color: los widgets acompañan con leyenda/etiqueta. */
+  --dataviz-cat-1: #2a78d6;
+  --dataviz-cat-2: #eb6834;
+  --dataviz-cat-3: #1baf7a;
+  --dataviz-cat-4: #eda100;
+  --dataviz-cat-5: #e87ba4;
+  --dataviz-cat-6: #008300;
   --radius: 0.45rem;
   /* Sin fondo propio: el sidebar comparte el fondo de la pagina. */
   --sidebar: var(--background);
@@ -186,6 +196,13 @@
   --dataviz-teal: #2dd4bf;
   --dataviz-rose: #fb7185;
   --dataviz-amber: #fbbf24;
+  /* Pasos oscuros de la paleta categórica (mismo orden; validada en dark). */
+  --dataviz-cat-1: #3987e5;
+  --dataviz-cat-2: #d95926;
+  --dataviz-cat-3: #199e70;
+  --dataviz-cat-4: #c98500;
+  --dataviz-cat-5: #d55181;
+  --dataviz-cat-6: #008300;
   /* Sin fondo propio: el sidebar comparte el fondo de la pagina. */
   --sidebar: var(--background);
   --sidebar-foreground: oklch(0.985 0 0);
