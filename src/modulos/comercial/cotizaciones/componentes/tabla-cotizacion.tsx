@@ -255,30 +255,27 @@ export function TablaCotizacion({
           </tr>
         ))}
 
-        {/* Sub-total de la seccion (bruto). Con descuento se convierte en la
-            primera de tres filas: SUB - TOTAL → DESCUENTO → NETO. */}
+        {/* Con descuento: una fila "DESCUENTO COMERCIAL x%" con el monto
+            descontado, ARRIBA del SUB - TOTAL, que pasa a mostrar el neto (lo
+            que efectivamente entra al total). Sin descuento, solo el SUB - TOTAL
+            de siempre con el bruto. */}
+        {seccion.descuentoPct && seccion.subtotalNeto != null ? (
+          <FilaCierre
+            etiqueta={`DESCUENTO COMERCIAL ${formatearPct(seccion.descuentoPct)}`}
+            monto={`- ${formatear(seccion.subtotal - seccion.subtotalNeto, moneda)}`}
+            extraPrecios={extraPrecios}
+            conAcciones={conAcciones}
+          />
+        ) : null}
         <FilaCierre
           etiqueta="SUB - TOTAL"
-          monto={formatear(seccion.subtotal, moneda)}
+          monto={formatear(
+            seccion.subtotalNeto ?? seccion.subtotal,
+            moneda,
+          )}
           extraPrecios={extraPrecios}
           conAcciones={conAcciones}
         />
-        {seccion.descuentoPct && seccion.subtotalNeto != null ? (
-          <>
-            <FilaCierre
-              etiqueta={`DESCUENTO (${formatearPct(seccion.descuentoPct)})`}
-              monto={`- ${formatear(seccion.subtotal - seccion.subtotalNeto, moneda)}`}
-              extraPrecios={extraPrecios}
-              conAcciones={conAcciones}
-            />
-            <FilaCierre
-              etiqueta="NETO"
-              monto={formatear(seccion.subtotalNeto, moneda)}
-              extraPrecios={extraPrecios}
-              conAcciones={conAcciones}
-            />
-          </>
-        ) : null}
       </tbody>
     </table>
   );
