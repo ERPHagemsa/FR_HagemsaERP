@@ -148,7 +148,16 @@ export function CotizacionVersionesNotebook({
               <span className="tabular-nums">
                 Base: {formatearMonto(version.montoBase)} {version.moneda}
               </span>
-              <span className="tabular-nums">
+              {/* Ganancia en rojo cuando es negativa: un descuento mayor al
+                  margen deja la venta por debajo del costo. Se permite (el
+                  backend no lo bloquea), pero se avisa. */}
+              <span
+                className={
+                  version.montoTotal - version.montoBase < 0
+                    ? "font-medium tabular-nums text-destructive"
+                    : "tabular-nums"
+                }
+              >
                 Ganancia: {formatearMonto(version.montoTotal - version.montoBase)} {version.moneda}
               </span>
             </div>
@@ -300,7 +309,10 @@ function SeccionBloque({
         <p className="px-3 py-2 text-sm text-muted-foreground">Sin lineas en esta seccion.</p>
       ) : (
         <TablaCotizacion
-          seccion={vistaLectura(lineas, cargos, seccion.subtotal)}
+          seccion={vistaLectura(lineas, cargos, seccion.subtotal, {
+            descuentoPct: seccion.descuentoPct ?? 0,
+            subtotalNeto: seccion.subtotalNeto ?? seccion.subtotal,
+          })}
           moneda={moneda}
           conPrecios
         />
@@ -320,6 +332,7 @@ function vistaLectura(
   lineas: Linea[],
   cargosSeccion: CargoAdicional[],
   subtotal: number,
+  descuento?: { descuentoPct: number; subtotalNeto: number },
 ): SeccionVista {
   const ordenadas = lineas.slice().sort((a, b) => a.orden - b.orden);
   return {
@@ -345,6 +358,8 @@ function vistaLectura(
       cantidad: c.cantidad,
     })),
     subtotal,
+    descuentoPct: descuento?.descuentoPct,
+    subtotalNeto: descuento?.subtotalNeto,
   };
 }
 
