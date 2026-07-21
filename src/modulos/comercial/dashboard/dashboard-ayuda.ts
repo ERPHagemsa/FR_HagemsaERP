@@ -17,6 +17,8 @@ export const DASHBOARD_AYUDA = {
     "Agrupa las cotizaciones perdidas del período según el motivo registrado. Ayuda a identificar las causas más frecuentes de pérdida.",
   embudo:
     "Muestra cuántas oportunidades avanzan por cada etapa del proceso: solicitud, cotizada, enviada y ganada. La caída entre etapas indica dónde se pierden oportunidades.",
+  esperandoRespuesta:
+    "Cotizaciones ya enviadas al cliente que siguen abiertas, esperando su respuesta. Es estado ACTUAL: no depende del filtro de período, solo del ejecutivo. Muestra cuántas hay, el monto en juego por moneda (S/ y US$ por separado), y cuántas están por vencer (validez ≤ 3 días). Tocá para ir al listado y hacer seguimiento.",
   accionesPorVencer:
     "Cotizaciones enviadas cuya validez vence en las próximas 72 horas. Conviene darles seguimiento antes de que caduquen.",
   accionesEsperandoAprobacion:

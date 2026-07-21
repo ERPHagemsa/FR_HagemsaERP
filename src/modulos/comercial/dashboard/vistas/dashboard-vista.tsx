@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { DashboardEmbudo } from "../componentes/dashboard-embudo";
+import { DashboardEsperandoRespuesta } from "../componentes/dashboard-esperando-respuesta";
 import { DashboardFiltroEjecutivo } from "../componentes/dashboard-filtro-ejecutivo";
 import { DashboardKpisConsolidado } from "../componentes/dashboard-kpis-consolidado";
 import { DashboardMotivosPerdida } from "../componentes/dashboard-motivos-perdida";
@@ -39,7 +40,9 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  * `DashboardMotivosPerdida` (2/3 y 1/3: la tendencia lleva más ancho por su
  * header de totales; motivos entra bien en 1/3). Debajo va un bloque de dos
  * columnas (2/3 + 1/3): la columna izquierda de 2/3 apila `DashboardResultados`
- * y `DashboardRanking`; la columna derecha de 1/3 lleva `DashboardEmbudo`.
+ * y `DashboardRanking`; la columna derecha de 1/3 apila
+ * `DashboardEsperandoRespuesta` (arriba, estado ACTUAL: solo ejecutivo, sin
+ * período) y `DashboardEmbudo` (abajo).
  *
  * `DashboardMotivosRespuestaCliente` (catálogo de respuesta del cliente) se
  * ELIMINÓ: su backend quedó roto tras la migración multi-motivo, y las pérdidas
@@ -99,10 +102,15 @@ export function DashboardVista() {
           />
           <DashboardRanking periodo={periodo} />
         </div>
-        <DashboardEmbudo
-          periodo={periodo}
-          idEjecutivoResponsable={idEjecutivoResponsable}
-        />
+        <div className="flex flex-col gap-4">
+          <DashboardEsperandoRespuesta
+            idEjecutivoResponsable={idEjecutivoResponsable}
+          />
+          <DashboardEmbudo
+            periodo={periodo}
+            idEjecutivoResponsable={idEjecutivoResponsable}
+          />
+        </div>
       </div>
     </div>
   );

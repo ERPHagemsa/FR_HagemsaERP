@@ -3,6 +3,8 @@ import { clienteComercial } from "@/compartido/api/clientes-backend";
 import type {
   CicloCierreRespuesta,
   EmbudoConversionRespuesta,
+  EsperandoRespuestaRespuesta,
+  FiltrosDashboardEjecutivo,
   FiltrosDashboardPeriodoEjecutivo,
   FiltrosDashboardRanking,
   FiltrosDashboardTendencia,
@@ -13,7 +15,7 @@ import type {
 } from "../tipos/dashboard.tipos";
 
 // ---------------------------------------------------------------------------
-// Tríada de acceso a datos del dashboard (design D1): 6 funciones raw, una
+// Tríada de acceso a datos del dashboard (design D1): 7 funciones raw, una
 // por endpoint `/dashboard/*` de BC03, espejando el estilo de
 // cotizaciones-api.ts (params opcionales, axios omite `undefined` del query
 // string). Todos exigen `bc03:dashboard:leer` — aplicado backend-side.
@@ -88,6 +90,19 @@ export async function obtenerKpisConsolidado(
 ): Promise<KpisConsolidadoRespuesta> {
   const { data } = await clienteComercial.get<KpisConsolidadoRespuesta>(
     "/dashboard/kpis-consolidado",
+    { params: filtros }
+  );
+  return data;
+}
+
+// GET /dashboard/esperando-respuesta — estado ACTUAL: cotizaciones enviadas al
+// cliente que siguen abiertas (ENVIADA/EN_REVISION), con monto en juego por
+// moneda y cuántas por vencer. Ignora el período; solo filtra por ejecutivo.
+export async function obtenerEsperandoRespuesta(
+  filtros: FiltrosDashboardEjecutivo = {}
+): Promise<EsperandoRespuestaRespuesta> {
+  const { data } = await clienteComercial.get<EsperandoRespuestaRespuesta>(
+    "/dashboard/esperando-respuesta",
     { params: filtros }
   );
   return data;
