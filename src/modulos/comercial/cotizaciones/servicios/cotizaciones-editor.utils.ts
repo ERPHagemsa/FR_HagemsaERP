@@ -142,6 +142,9 @@ export type DraftSeccion = {
   origenUbicacionId: string;
   destinoUbicacionId: string;
   orden: number;
+  // Descuento comercial de la seccion, en %. 0 = sin descuento. Se aplica sobre
+  // la venta; el backend recalcula el neto y el total.
+  descuentoPct: number;
   lineas: DraftLinea[];
   cargosAdicionales: DraftCargoAdicional[];
 };
@@ -303,6 +306,7 @@ export function seccionVacia(esDefecto = false): DraftSeccion {
     origenUbicacionId: "",
     destinoUbicacionId: "",
     orden: 0,
+    descuentoPct: 0,
     lineas: [],
     cargosAdicionales: [],
   };
@@ -521,6 +525,9 @@ export function derivarDraft(version: Version): DraftBorrador {
     if (s.nombre === null) {
       // Caso plano: lineas y cargos van al unico bucket por defecto.
       const d = asegurarDefecto(s.orden);
+      // El descuento del backend viaja en la sección plana; se conserva en el
+      // bucket por defecto (que arranca en 0).
+      d.descuentoPct = s.descuentoPct ?? 0;
       d.cargosAdicionales.push(...cargos);
       seccionesMap.set(s.id, d);
     } else {
@@ -536,6 +543,7 @@ export function derivarDraft(version: Version): DraftBorrador {
         origenUbicacionId: "",
         destinoUbicacionId: "",
         orden: s.orden,
+        descuentoPct: s.descuentoPct ?? 0,
         lineas: [],
         cargosAdicionales: cargos,
       };
@@ -757,6 +765,8 @@ function seccionAPayload(s: DraftSeccion): PayloadSeccion | null {
   // La seccion por defecto (esDefecto) viaja sin nombre = seccion "plana".
   if (!sincronizada.esDefecto && sincronizada.nombre !== "") payload.nombre = sincronizada.nombre;
   if (sincronizada.orden > 0) payload.orden = sincronizada.orden;
+  // Solo se envia si hay descuento: 0 es el default del backend, no hace falta.
+  if (sincronizada.descuentoPct > 0) payload.descuentoPct = sincronizada.descuentoPct;
   if (sincronizada.lineas.length > 0) payload.lineas = sincronizada.lineas.map(lineaAPayload);
   if (sincronizada.cargosAdicionales.length > 0) {
     payload.cargosAdicionales = sincronizada.cargosAdicionales.map(cargoAdicionalAPayload);
