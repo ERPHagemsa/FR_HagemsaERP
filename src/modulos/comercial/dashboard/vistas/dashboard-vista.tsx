@@ -39,8 +39,9 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
  * ancho en un solo número— y ahora es un tile más DENTRO del strip
  * (`DashboardKpisConsolidado`). La fila de la tendencia se comparte con
  * `DashboardMotivosPerdida` (2/3 y 1/3: la tendencia lleva más ancho por su
- * header de totales; motivos entra bien en 1/3), y el embudo con
- * `DashboardMotivosRespuestaCliente`.
+ * header de totales; motivos entra bien en 1/3). El `DashboardRanking` va 2/3 a
+ * la izquierda (alto de dos filas) con el `DashboardEmbudo` y
+ * `DashboardMotivosRespuestaCliente` apilados en la columna de 1/3.
  *
  * Cambio dashboard-kpis-motivos-respuesta-front: agrega
  * `DashboardKpisConsolidado` (ancho completo, primero — resume el período)
@@ -99,17 +100,20 @@ export function DashboardVista() {
         idEjecutivoResponsable={idEjecutivoResponsable}
       />
 
-      <DashboardRanking periodo={periodo} />
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <DashboardEmbudo
-          periodo={periodo}
-          idEjecutivoResponsable={idEjecutivoResponsable}
-        />
-        <DashboardMotivosRespuestaCliente
-          periodo={periodo}
-          idEjecutivoResponsable={idEjecutivoResponsable}
-        />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DashboardRanking periodo={periodo} />
+        </div>
+        <div className="flex flex-col gap-4">
+          <DashboardEmbudo
+            periodo={periodo}
+            idEjecutivoResponsable={idEjecutivoResponsable}
+          />
+          <DashboardMotivosRespuestaCliente
+            periodo={periodo}
+            idEjecutivoResponsable={idEjecutivoResponsable}
+          />
+        </div>
       </div>
     </div>
   );

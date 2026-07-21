@@ -33,19 +33,26 @@ type Props = { periodo: RangoPeriodo };
  * BC03 commit `2bbb181`, ver JSDoc de `RankingEjecutivoRespuesta`): consume
  * `useRankingEjecutivosQuery({ periodo })` — SIN prop de ejecutivo, el
  * ranking es siempre de equipo completo (el endpoint ignora
- * `idEjecutivoResponsable`, restricción verificada). Tabla ordenada por
- * `ganado.pen` descendente; `winRate` null-safe → "sin datos", nunca `0%`.
+ * `idEjecutivoResponsable`, restricción verificada). El ORDEN lo entrega el
+ * backend (`DashboardDineroPorEjecutivoQuery`: `ORDER BY ganado_pen DESC,
+ * ganado_usd DESC`) — el front NO re-ordena, renderiza tal como llega;
+ * `winRate` null-safe → "sin datos", nunca `0%`.
  *
  * La columna "Cotiz." (que mostraba `cantidadCerradas`) se ELIMINÓ junto con
  * el campo en el backend — pedido explícito de producto, ya era redundante
  * con "Ganadas / Total".
  *
- * Jerarquía visual (pedido explícito del negocio): la columna "Utilidad" es
- * el valor PROTAGONISTA — S/ y US$ en grande, siempre separados — con el
- * margen (`utilidad / ganado`, por moneda) como dato de apoyo chico al lado,
- * nunca al revés. Las columnas "Cotizados / Total" y "Ganadas / Enviadas"
- * usan el mismo tamaño discreto que "Win rate": son ratios de diagnóstico,
- * no el foco de la tarjeta.
+ * Jerarquía visual (pedido explícito del negocio + pase de estilo tipo
+ * dashboard financiero minimalista): "Utilidad" es el valor PROTAGONISTA
+ * (S/ y US$ en semibold, margen de apoyo chico al lado, nunca al revés).
+ * Un escalón abajo va "Ganado": su línea PEN en tinta foreground + medium
+ * —es la métrica de ORDEN, tiene que leerse— con el USD muted debajo. Los
+ * ratios ("Ganadas / Enviadas" y "Cotizados / Total") resaltan el NUMERADOR
+ * en foreground y apagan el denominador en muted: truco tipográfico, sin
+ * color. El win rate lleva una mini-barra fina emerald bajo el número —es el
+ * ÚNICO acento de color de la tabla, más el rojo de la utilidad negativa, a
+ * propósito para no parecer una feria—. Un número de posición muted antecede
+ * al nombre para que se lea como ranking.
  *
  * Formato de división LITERAL (pedido explícito, corrección post-review):
  * estas dos columnas muestran `enviadas/delPeriodo` y
@@ -55,16 +62,22 @@ type Props = { periodo: RangoPeriodo };
  *
  * "Ganadas / Enviadas" (pedido explícito de producto, cambio
  * `dashboard-kpis-motivos-respuesta-front`): el denominador de esta columna
- * pasó de `cantidadDelPeriodo` a `cantidadEnviadas`, para que la tabla se lea
- * como un embudo (cada columna usa como denominador el numerador de la
- * anterior). Por eso tiene su PROPIA condición de "sin datos"
- * (`cantidadEnviadas === 0`), distinta de la de "Cotizados / Total"
+ * pasó de `cantidadDelPeriodo` a `cantidadEnviadas`, encadenando con
+ * "Cotizados / Total" (`enviadas/delPeriodo`). El ORDEN en pantalla es
+ * drill-down (pedido explícito): primero "Ganadas / Enviadas" (el cierre) y
+ * después "Cotizados / Total" (la base), leyendo del resultado hacia el
+ * detalle. Por eso "Ganadas / Enviadas" tiene su PROPIA condición de "sin
+ * datos" (`cantidadEnviadas === 0`), distinta de la de "Cotizados / Total"
  * (`cantidadDelPeriodo === 0`) — no unificar ambas condiciones.
  */
 export function DashboardRanking({ periodo }: Props) {
   const { data, isLoading, isError, error } = useRankingEjecutivosQuery(periodo);
 
-  const filas = [...(data ?? [])].sort((a, b) => b.ganado.pen - a.ganado.pen);
+  // El orden del ranking es lógica de negocio y vive en el backend
+  // (`DashboardDineroPorEjecutivoQuery`: ORDER BY ganado_pen DESC, ganado_usd
+  // DESC). El front NO re-ordena: renderiza las filas tal como llegan. Si el
+  // criterio cambia, se cambia en el SQL y esto lo sigue sin tocar nada.
+  const filas = data ?? [];
 
   return (
     <Card size="sm">
@@ -103,57 +116,62 @@ export function DashboardRanking({ periodo }: Props) {
                 </TableHead>
                 <TableHead className="text-right">
                   <span className="inline-flex items-center gap-1">
-                    Cotizados / Total
-                    <AyudaMetrica descripcion={DASHBOARD_AYUDA.efectividadCotizadas} />
+                    Ganadas / Enviadas
+                    <AyudaMetrica descripcion={DASHBOARD_AYUDA.efectividadCierre} />
                   </span>
                 </TableHead>
                 <TableHead className="text-right">
                   <span className="inline-flex items-center gap-1">
-                    Ganadas / Enviadas
-                    <AyudaMetrica descripcion={DASHBOARD_AYUDA.efectividadCierre} />
+                    Cotizados / Total
+                    <AyudaMetrica descripcion={DASHBOARD_AYUDA.efectividadCotizadas} />
                   </span>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filas.map((fila) => {
+              {filas.map((fila, indice) => {
                 const sinActividad = fila.cantidadDelPeriodo === 0;
                 const sinEnviadas = fila.cantidadEnviadas === 0;
 
                 return (
                   <TableRow key={fila.ejecutivoId}>
-                    <TableCell className="font-medium">{fila.ejecutivoNombre}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <div className="flex flex-col text-xs text-muted-foreground">
-                        <span>{formatearMoneda(fila.ganado.pen, "PEN")}</span>
-                        <span>{formatearMoneda(fila.ganado.usd, "USD")}</span>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-5 shrink-0 text-right text-xs font-normal tabular-nums text-muted-foreground">
+                          {indice + 1}
+                        </span>
+                        <span>{fila.ejecutivoNombre}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end tabular-nums">
+                        <span className="text-sm font-medium">
+                          {formatearMoneda(fila.ganado.pen, "PEN")}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatearMoneda(fila.ganado.usd, "USD")}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <ColumnaUtilidad ganado={fila.ganado} utilidad={fila.utilidad} />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <span
-                        className={
-                          fila.winRate === null ? "text-muted-foreground" : undefined
-                        }
-                      >
-                        {formatearPorcentaje(fila.winRate)}
-                      </span>
+                    <TableCell className="text-right">
+                      <ColumnaWinRate winRate={fila.winRate} />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <span className={sinActividad ? "text-muted-foreground" : undefined}>
-                        {sinActividad
-                          ? "Sin datos"
-                          : `${fila.cantidadEnviadas}/${fila.cantidadDelPeriodo}`}
-                      </span>
+                    <TableCell className="text-right">
+                      <ColumnaRatio
+                        numerador={fila.cantidadGanadasDelPeriodo}
+                        denominador={fila.cantidadEnviadas}
+                        vacio={sinEnviadas}
+                      />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <span className={sinEnviadas ? "text-muted-foreground" : undefined}>
-                        {sinEnviadas
-                          ? "Sin datos"
-                          : `${fila.cantidadGanadasDelPeriodo}/${fila.cantidadEnviadas}`}
-                      </span>
+                    <TableCell className="text-right">
+                      <ColumnaRatio
+                        numerador={fila.cantidadEnviadas}
+                        denominador={fila.cantidadDelPeriodo}
+                        vacio={sinActividad}
+                      />
                     </TableCell>
                   </TableRow>
                 );
@@ -224,5 +242,59 @@ function LineaUtilidad({
         {margen === null ? "Sin cierres" : formatearPorcentaje(margen)}
       </span>
     </div>
+  );
+}
+
+/**
+ * Columna "Win rate": el número (fracción 0..1 → %) con una mini-barra fina
+ * debajo cuyo ancho es el propio win rate. Es el ÚNICO acento de color de la
+ * tabla (emerald), a propósito: la barra da magnitud de un vistazo sin tener
+ * que pintar el número. `null` (sin cotizaciones resueltas) → "Sin datos" sin
+ * barra, coherente con `formatearPorcentaje(null)`.
+ */
+function ColumnaWinRate({ winRate }: { winRate: number | null }) {
+  if (winRate === null) {
+    return <span className="text-sm text-muted-foreground">Sin datos</span>;
+  }
+
+  const anchoPorcentaje = Math.max(0, Math.min(1, winRate)) * 100;
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <span className="text-sm tabular-nums">{formatearPorcentaje(winRate)}</span>
+      <div className="h-1 w-16 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-emerald-500"
+          style={{ width: `${anchoPorcentaje}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Columna de ratio literal (ej. "6/10"): el NUMERADOR en tinta foreground (el
+ * número que importa) y el denominador en muted — truco tipográfico puro, sin
+ * color, para que el ojo lea la parte relevante. `vacio` (denominador 0) →
+ * "Sin datos", nunca un "0/0" engañoso.
+ */
+function ColumnaRatio({
+  numerador,
+  denominador,
+  vacio,
+}: {
+  numerador: number;
+  denominador: number;
+  vacio: boolean;
+}) {
+  if (vacio) {
+    return <span className="text-sm text-muted-foreground">Sin datos</span>;
+  }
+
+  return (
+    <span className="tabular-nums">
+      <span className="text-sm font-medium">{numerador}</span>
+      <span className="text-xs text-muted-foreground">/{denominador}</span>
+    </span>
   );
 }
