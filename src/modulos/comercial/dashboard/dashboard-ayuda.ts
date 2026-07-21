@@ -18,7 +18,7 @@ export const DASHBOARD_AYUDA = {
   efectividadCierre:
     "De las cotizaciones del ejecutivo que llegaron a enviarse al cliente, cuántas se ganaron. Incluye las enviadas que todavía no tuvieron respuesta del cliente (siguen sumando al denominador aunque aún no se resuelvan). Es distinto del 'Win rate': ese solo mira las cotizaciones ya resueltas (ganadas sobre ganadas más perdidas), por eso puede mostrar un número distinto en la misma fila sin que ninguno de los dos esté mal calculado.",
   motivosPerdida:
-    "Agrupa las cotizaciones perdidas del período según el motivo registrado. Ayuda a identificar las causas más frecuentes de pérdida.",
+    "Agrupa las cotizaciones perdidas del período según el motivo. Combina dos fuentes: el motivo que el CLIENTE eligió de una lista fija al rechazar, y el que escribió el ejecutivo con sus palabras al marcarla perdida. Pasa el cursor sobre el gráfico para ver la descripción de cada motivo.",
   embudo:
     "Muestra cuántas oportunidades avanzan por cada etapa del proceso: solicitud, cotizada, enviada y ganada. La caída entre etapas indica dónde se pierden oportunidades.",
   accionesPorVencer:
@@ -41,6 +41,4 @@ export const DASHBOARD_AYUDA = {
     "La ganancia real de esas cotizaciones ganadas: precio de venta menos costo, línea por línea. Puede ser negativa si se vendió por debajo del costo. Separada por moneda.",
   margen:
     "De todo lo que le cobré al cliente, cuánto fue ganancia. Si vendí S/ 100 y me quedaron S/ 23, el margen es 23%. Un margen más alto significa que el mismo monto vendido deja más utilidad. Se calcula por separado para cada moneda. Si no hubo cierres en una moneda, no se muestra margen.",
-  motivosRespuestaCliente:
-    'Qué respondió el CLIENTE ante nuestras cotizaciones, según el motivo que eligió de una lista fija. Se separa en Rechazo (cerró la puerta) y Negociación (sigue conversando). Es distinto de "Motivos de pérdida", que es lo que escribe el ejecutivo con sus palabras.',
 } as const;

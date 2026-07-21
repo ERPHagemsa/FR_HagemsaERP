@@ -7,7 +7,6 @@ import {
   obtenerEmbudoConversion,
   obtenerKpisConsolidado,
   obtenerMotivosPerdida,
-  obtenerMotivosRespuestaCliente,
   obtenerRankingEjecutivos,
   obtenerTendenciaMensual,
 } from "./dashboard-api";
@@ -16,7 +15,6 @@ import {
   CLAVE_DASHBOARD_EMBUDO,
   CLAVE_DASHBOARD_KPIS_CONSOLIDADO,
   CLAVE_DASHBOARD_MOTIVOS,
-  CLAVE_DASHBOARD_MOTIVOS_RESPUESTA,
   CLAVE_DASHBOARD_RANKING,
   CLAVE_DASHBOARD_TENDENCIA,
 } from "../../claves-consulta";
@@ -100,16 +98,5 @@ export function useKpisConsolidadoQuery(
     () => obtenerKpisConsolidado(filtros),
     [JSON.stringify(filtros)],
     { clave: CLAVE_DASHBOARD_KPIS_CONSOLIDADO }
-  );
-}
-
-// motivos-respuesta-cliente: recalcula con período y ejecutivo.
-export function useMotivosRespuestaClienteQuery(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-) {
-  return useConsulta(
-    () => obtenerMotivosRespuestaCliente(filtros),
-    [JSON.stringify(filtros)],
-    { clave: CLAVE_DASHBOARD_MOTIVOS_RESPUESTA }
   );
 }

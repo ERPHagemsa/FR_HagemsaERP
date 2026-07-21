@@ -8,7 +8,6 @@ import type {
   FiltrosDashboardTendencia,
   KpisConsolidadoRespuesta,
   MotivosPerdidaRespuesta,
-  MotivosRespuestaClienteRespuesta,
   RankingEjecutivoRespuesta,
   TendenciaRespuesta,
 } from "../tipos/dashboard.tipos";
@@ -89,19 +88,6 @@ export async function obtenerKpisConsolidado(
 ): Promise<KpisConsolidadoRespuesta> {
   const { data } = await clienteComercial.get<KpisConsolidadoRespuesta>(
     "/dashboard/kpis-consolidado",
-    { params: filtros }
-  );
-  return data;
-}
-
-// GET /dashboard/motivos-respuesta-cliente — catálogo RECHAZO/NEGOCIACION
-// elegido por el cliente (distinto del texto libre de motivos-perdida).
-// Cambio dashboard-kpis-motivos-respuesta-front.
-export async function obtenerMotivosRespuestaCliente(
-  filtros: FiltrosDashboardPeriodoEjecutivo = {}
-): Promise<MotivosRespuestaClienteRespuesta> {
-  const { data } = await clienteComercial.get<MotivosRespuestaClienteRespuesta>(
-    "/dashboard/motivos-respuesta-cliente",
     { params: filtros }
   );
   return data;
