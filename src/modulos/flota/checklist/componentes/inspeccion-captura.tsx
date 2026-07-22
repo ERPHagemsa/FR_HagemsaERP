@@ -55,7 +55,11 @@ import type {
   RespuestaItemPayload,
 } from "../tipos/inspeccion.tipos";
 
-const RETRASO_AUTOGUARDADO_MS = 900;
+// El disparo principal del autoguardado es el blur (o una acción discreta ya
+// completa, como un toggle) — no cada tecla. Este timer es solo una red de
+// seguridad para el caso en que un campo se quede enfocado mucho tiempo sin
+// que el usuario pase a otro (así no se pierde una edición larga).
+const RETRASO_AUTOGUARDADO_SEGURIDAD_MS = 4000;
 
 type RespuestaLocal = {
   estadoItem: EstadoItem;
@@ -266,7 +270,18 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
   function programarGuardado() {
     setAutoguardadoEstado("pendiente");
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(flush, RETRASO_AUTOGUARDADO_MS);
+    timerRef.current = setTimeout(flush, RETRASO_AUTOGUARDADO_SEGURIDAD_MS);
+  }
+
+  // Dispara el guardado ya, sin esperar el timer de seguridad. Se usa en
+  // blur (el usuario terminó con ese campo) y en acciones discretas que ya
+  // son un cambio completo (toggles de conformidad/booleano).
+  function flushInmediato() {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    flush();
   }
 
   function flush() {
@@ -321,11 +336,16 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
     };
   }, []);
 
-  function actualizarRespuesta(itemId: number, patch: Partial<RespuestaLocal>) {
+  function actualizarRespuesta(
+    itemId: number,
+    patch: Partial<RespuestaLocal>,
+    opciones?: { inmediato?: boolean },
+  ) {
     const nuevo: RespuestaLocal = { ...respuestas[itemId], ...patch };
     dirtyItemsRef.current[itemId] = nuevo;
     setRespuestas((actual) => ({ ...actual, [itemId]: nuevo }));
-    programarGuardado();
+    if (opciones?.inmediato) flushInmediato();
+    else programarGuardado();
   }
 
   function actualizarNeumatico(neumaticoId: number, patch: Partial<NeumaticoLocal>) {
@@ -524,7 +544,10 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
                                   item={item}
                                   respuesta={r}
                                   deshabilitado={esInmutable}
-                                  onCambio={(patch) => actualizarRespuesta(item.id, patch)}
+                                  onCambio={(patch, opciones) =>
+                                    actualizarRespuesta(item.id, patch, opciones)
+                                  }
+                                  onBlurCampo={flushInmediato}
                                 />
                               </TableCell>
                               <TableCell className="align-top pt-2">
@@ -541,6 +564,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
                                         cantidad: e.target.value === "" ? null : Number(e.target.value),
                                       })
                                     }
+                                    onBlur={flushInmediato}
                                   />
                                 ) : (
                                   <span className="text-sm text-muted-foreground">—</span>
@@ -558,6 +582,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
                                       observacion: e.target.value === "" ? null : e.target.value,
                                     })
                                   }
+                                  onBlur={flushInmediato}
                                 />
                               </TableCell>
                             </TableRow>
@@ -614,6 +639,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
                                     cocadaMm: e.target.value === "" ? null : Number(e.target.value),
                                   })
                                 }
+                                onBlur={flushInmediato}
                               />
                             </TableCell>
                             <TableCell>
@@ -627,6 +653,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
                                     otro: e.target.value === "" ? null : e.target.value,
                                   })
                                 }
+                                onBlur={flushInmediato}
                               />
                             </TableCell>
                           </TableRow>
@@ -677,11 +704,16 @@ function ControlRespuesta({
   respuesta,
   deshabilitado,
   onCambio,
+  onBlurCampo,
 }: {
   item: InspeccionItem;
   respuesta: RespuestaLocal;
   deshabilitado: boolean;
-  onCambio: (patch: Partial<RespuestaLocal>) => void;
+  onCambio: (patch: Partial<RespuestaLocal>, opciones?: { inmediato?: boolean }) => void;
+  // Solo para los controles de tipeo libre (MEDICION/TEXTO/SELECCION): fuerza
+  // el flush de lo que ya esté sucio al perder el foco, sin marcar el campo
+  // como sucio si no cambió (a diferencia de pasar por onCambio).
+  onBlurCampo: () => void;
 }) {
   switch (item.tipoRespuesta) {
     case "CONFORMIDAD":
@@ -693,7 +725,7 @@ function ControlRespuesta({
           value={respuesta.estadoItem !== "SIN_RESPONDER" ? respuesta.estadoItem : ""}
           onValueChange={(valor) => {
             if (!valor || deshabilitado) return;
-            onCambio({ estadoItem: valor as EstadoItem });
+            onCambio({ estadoItem: valor as EstadoItem }, { inmediato: true });
           }}
         >
           <ToggleGroupItem
@@ -747,6 +779,7 @@ function ControlRespuesta({
               if (item.rangoMax != null) valor = Math.min(item.rangoMax, valor);
               onCambio({ valorNumerico: valor });
             }}
+            onBlur={onBlurCampo}
           />
           {item.unidad ? (
             <span className="text-xs text-muted-foreground">{item.unidad}</span>
@@ -764,7 +797,7 @@ function ControlRespuesta({
           }
           onValueChange={(valor) => {
             if (!valor || deshabilitado) return;
-            onCambio({ valorBooleano: valor === "true" });
+            onCambio({ valorBooleano: valor === "true" }, { inmediato: true });
           }}
         >
           <ToggleGroupItem value="true" disabled={deshabilitado}>
@@ -783,6 +816,7 @@ function ControlRespuesta({
           value={respuesta.valorTexto ?? ""}
           disabled={deshabilitado}
           onChange={(e) => onCambio({ valorTexto: e.target.value === "" ? null : e.target.value })}
+          onBlur={onBlurCampo}
         />
       );
     default:
