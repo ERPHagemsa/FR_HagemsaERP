@@ -46,6 +46,7 @@ export type RangoPeriodo = {
  * se expresa directamente como `RangoPeriodo` (sin preset asociado).
  */
 export type PeriodoPreset =
+  | "esta-semana"
   | "este-mes"
   | "mes-anterior"
   | "ultimos-3-meses"

@@ -17,7 +17,7 @@ import type { IdEjecutivoFiltro, RangoPeriodo } from "../tipos/dashboard.tipos";
 /**
  * Vista de orquestación del dashboard (design D4/D5, Fase 2b): eleva dos
  * estados — `idEjecutivoResponsable` (Fase 1, sin cambios de contrato) y
- * `periodo` (nuevo, default preset "este-mes") — y los baja por props a los
+ * `periodo` (nuevo, default preset "esta-semana") — y los baja por props a los
  * widgets con la propagación exacta de design D5:
  * - `periodo` + `idEjecutivoResponsable`: tendencia, motivos-perdida, embudo,
  *   y el tile de ciclo-cierre (que ahora vive DENTRO del strip de KPIs). La
@@ -63,7 +63,7 @@ export function DashboardVista() {
   const [idEjecutivoResponsable, setIdEjecutivoResponsable] =
     useState<IdEjecutivoFiltro>(undefined);
   const [periodo, setPeriodo] = useState<RangoPeriodo>(() =>
-    resolverPeriodoPreset("este-mes")
+    resolverPeriodoPreset("esta-semana")
   );
 
   return (

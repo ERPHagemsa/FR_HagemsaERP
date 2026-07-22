@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
 import { extraerMensajeError } from "@/compartido/api";
@@ -44,17 +46,32 @@ type PropsPeriodoEjecutivo = {
 
 /**
  * Formatea la etiqueta del eje X según la granularidad que eligió el backend.
- * Parte el string `yyyy-MM-dd` A MANO (sin `new Date`) para NO caer en el
+ * Parte el string `yyyy-MM-dd` A MANO (sin parsear el ISO) para NO caer en el
  * corrimiento de timezone que desplaza la fecha un día.
+ *
+ * Granularidad `dia`: por default `dia/mes` (`20/7`). SOLO cuando la serie que
+ * se muestra es de una semana (`comoDiaSemana`, decidido por el componente
+ * según los datos vigentes) se muestra el nombre del día ("Lun") — ahí el rango
+ * es de ≤7 días y cada día de la semana es único, así que no hace falta
+ * desambiguar. El `Date` se construye con componentes LOCALES
+ * (`new Date(anio, mes-1, dia)`) — NO parseando el string ISO, que caería en la
+ * medianoche UTC y correría el día. Granularidad `mes`: mes/año.
  */
 function formatearEtiquetaTendencia(
   fecha: string,
-  granularidad: GranularidadTendencia
+  granularidad: GranularidadTendencia,
+  comoDiaSemana: boolean
 ): string {
-  const [anio, mes, dia] = fecha.split("-");
-  return granularidad === "dia"
-    ? `${Number(dia)}/${Number(mes)}`
-    : `${Number(mes)}/${anio}`;
+  const [anio, mes, dia] = fecha.split("-").map(Number);
+  if (granularidad !== "dia") {
+    return `${mes}/${anio}`;
+  }
+  if (!comoDiaSemana) {
+    return `${dia}/${mes}`;
+  }
+  const fechaLocal = new Date(anio, mes - 1, dia);
+  const diaSemana = format(fechaLocal, "EEE", { locale: es });
+  return diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
 }
 
 /**
@@ -80,8 +97,18 @@ export function DashboardTendencia({
   const [serieActiva, setSerieActiva] = React.useState<SerieTendencia>("ganadas");
 
   const granularidad = data?.granularidad ?? "mes";
-  const datos = (data?.puntos ?? []).map((punto) => ({
-    etiqueta: formatearEtiquetaTendencia(punto.fecha, granularidad),
+  const puntos = data?.puntos ?? [];
+  // El formato del eje se ata a los DATOS que se muestran, NO al filtro activo:
+  // si la serie visible tiene ≤7 puntos diarios (una semana, cortada en hoy) →
+  // nombres de día; si no → `dia/mes`. Etiqueta y datos se mueven juntos, así
+  // que NO hay desfase mientras el refetch trae el período nuevo (por diseño de
+  // `useConsulta`, los datos viejos siguen en pantalla hasta que llegan los
+  // nuevos — ver `isLoading`). La serie diaria es continua (los buckets sin
+  // cierres llegan en 0), por eso un mes siempre trae ~30 puntos y jamás cae en
+  // este umbral por casualidad.
+  const comoDiaSemana = granularidad === "dia" && puntos.length <= 7;
+  const datos = puntos.map((punto) => ({
+    etiqueta: formatearEtiquetaTendencia(punto.fecha, granularidad, comoDiaSemana),
     ganadas: punto.ganadas,
     perdidas: punto.perdidas,
   }));

@@ -6,9 +6,11 @@
 
 import {
   endOfMonth,
+  endOfWeek,
   endOfYear,
   format,
   startOfMonth,
+  startOfWeek,
   startOfYear,
   subMonths,
 } from "date-fns";
@@ -26,6 +28,16 @@ export function resolverPeriodoPreset(
   ahora: Date = new Date()
 ): RangoPeriodo {
   switch (preset) {
+    // Semana de lunes a domingo (`weekStartsOn: 1`): decisión de negocio, no el
+    // default de date-fns (domingo). Cambia qué cierres caen en el rango.
+    case "esta-semana":
+      return {
+        desde: format(
+          startOfWeek(ahora, { weekStartsOn: 1 }),
+          FORMATO_FECHA_API
+        ),
+        hasta: format(endOfWeek(ahora, { weekStartsOn: 1 }), FORMATO_FECHA_API),
+      };
     case "este-mes":
       return {
         desde: format(startOfMonth(ahora), FORMATO_FECHA_API),
@@ -52,6 +64,7 @@ export function resolverPeriodoPreset(
 }
 
 export const ETIQUETAS_PERIODO_PRESET: Record<PeriodoPreset, string> = {
+  "esta-semana": "Esta semana",
   "este-mes": "Este mes",
   "mes-anterior": "Mes anterior",
   "ultimos-3-meses": "Últimos 3 meses",
