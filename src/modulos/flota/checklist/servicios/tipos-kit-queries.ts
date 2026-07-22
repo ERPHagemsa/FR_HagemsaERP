@@ -7,13 +7,13 @@ import {
   crearTipoKit,
   editarTipoKit,
   listarTiposKit,
-} from "./checklist-api";
+} from "./mantenedores-api";
 import type {
   CrearTipoKitPayload,
   EditarTipoKitPayload,
   FiltrosTiposKit,
   TipoKit,
-} from "../tipos/checklist.tipos";
+} from "../tipos/mantenedores.tipos";
 
 const CLAVE_TIPOS_KIT = "flota:checklist:tipos-kit";
 

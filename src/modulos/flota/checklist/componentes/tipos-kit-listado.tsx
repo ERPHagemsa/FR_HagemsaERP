@@ -61,7 +61,7 @@ import type {
   EstadoRegistroChecklist,
   FiltrosTiposKit,
   TipoKit,
-} from "../tipos/checklist.tipos";
+} from "../tipos/mantenedores.tipos";
 import {
   useAnularTipoKitMutation,
   useCrearTipoKitMutation,

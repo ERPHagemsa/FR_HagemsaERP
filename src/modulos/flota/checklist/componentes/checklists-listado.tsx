@@ -48,23 +48,23 @@ import {
   TooltipTrigger,
 } from "@/compartido/componentes/ui/tooltip";
 import type {
-  EstadoInspeccion,
-  FiltrosInspecciones,
-  InspeccionResumen,
-} from "../tipos/inspeccion.tipos";
-import type { EstadoRegistroChecklist } from "../tipos/checklist.tipos";
+  EstadoChecklist,
+  FiltrosChecklists,
+  ChecklistResumen,
+} from "../tipos/checklist.tipos";
+import type { EstadoRegistroChecklist } from "../tipos/mantenedores.tipos";
 import {
-  useAnularInspeccionMutation,
-  useInspeccionesQuery,
-} from "../servicios/inspecciones-queries";
+  useAnularChecklistMutation,
+  useChecklistsQuery,
+} from "../servicios/checklists-queries";
 
-const ETIQUETA_ESTADO: Record<EstadoInspeccion, string> = {
+const ETIQUETA_ESTADO: Record<EstadoChecklist, string> = {
   BORRADOR: "Borrador",
   COMPLETA: "Completa",
   CONFIRMADA: "Confirmada",
 };
 
-function BadgeEstado({ estado }: { estado: EstadoInspeccion }) {
+function BadgeEstado({ estado }: { estado: EstadoChecklist }) {
   const variante =
     estado === "CONFIRMADA" ? "default" : estado === "COMPLETA" ? "secondary" : "outline";
   return <Badge variant={variante}>{ETIQUETA_ESTADO[estado]}</Badge>;
@@ -85,16 +85,16 @@ function DialogAnular({
   onCerrar,
   onAnulada,
 }: {
-  item: InspeccionResumen | null;
+  item: ChecklistResumen | null;
   onCerrar: () => void;
   onAnulada: () => void;
 }) {
   const [errorAnular, setErrorAnular] = useState<string | null>(null);
 
-  const anular = useAnularInspeccionMutation(item?.id ?? 0, {
+  const anular = useAnularChecklistMutation(item?.id ?? 0, {
     onSuccess: () => {
       setErrorAnular(null);
-      toast.success("Inspección anulada");
+      toast.success("Checklist anulado");
       onAnulada();
       onCerrar();
     },
@@ -112,9 +112,9 @@ function DialogAnular({
     <AlertDialog open={item !== null} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Anular inspección</AlertDialogTitle>
+          <AlertDialogTitle>Anular checklist</AlertDialogTitle>
           <AlertDialogDescription>
-            ¿Está seguro que desea anular la inspección{" "}
+            ¿Está seguro que desea anular el checklist{" "}
             {item?.codigo ? `#${item.codigo}` : ""}
             {item?.vehiculoPlaca ? ` (${item.vehiculoPlaca})` : ""}? Tenga en cuenta que
             esta información ya no se podrá recuperar.
@@ -147,10 +147,10 @@ function DialogAnular({
 // Componente principal
 // ---------------------------------------------------------------------------
 
-export function InspeccionesListado() {
+export function ChecklistsListado() {
   const router = useRouter();
 
-  const [filtros, setFiltros] = useState<FiltrosInspecciones>({
+  const [filtros, setFiltros] = useState<FiltrosChecklists>({
     estadoRegistro: "ACTIVO",
     pagina: 1,
     limite: 20,
@@ -158,9 +158,9 @@ export function InspeccionesListado() {
   const [estadoLocal, setEstadoLocal] = useState<string>("TODOS");
   const [registroLocal, setRegistroLocal] = useState<string>("ACTIVO");
 
-  const [itemAnulando, setItemAnulando] = useState<InspeccionResumen | null>(null);
+  const [itemAnulando, setItemAnulando] = useState<ChecklistResumen | null>(null);
 
-  const consulta = useInspeccionesQuery(filtros);
+  const consulta = useChecklistsQuery(filtros);
   const filas = consulta.data?.datos ?? [];
   const paginacion = consulta.data?.paginacion;
 
@@ -168,7 +168,7 @@ export function InspeccionesListado() {
     setEstadoLocal(valor);
     setFiltros((actual) => ({
       ...actual,
-      estado: valor === "TODOS" ? undefined : (valor as EstadoInspeccion),
+      estado: valor === "TODOS" ? undefined : (valor as EstadoChecklist),
       pagina: 1,
     }));
   }
@@ -187,7 +187,7 @@ export function InspeccionesListado() {
   }
 
   function abrirDetalle(id: number) {
-    router.push(`/flota/checklist/inspecciones/${id}`);
+    router.push(`/flota/checklists/${id}`);
   }
 
   return (
@@ -195,7 +195,7 @@ export function InspeccionesListado() {
       <CardHeader className="border-b border-border">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <CardTitle>Inspecciones</CardTitle>
+            <CardTitle>Checklists</CardTitle>
             <CardDescription>
               {paginacion?.total ?? 0}{" "}
               {(paginacion?.total ?? 0) === 1 ? "registro" : "registros"} encontrados ·
@@ -267,7 +267,7 @@ export function InspeccionesListado() {
                 <TableRow>
                   <TableCell colSpan={5} className="h-28 text-center text-muted-foreground">
                     <ClipboardList className="mx-auto mb-2 size-6 opacity-50" />
-                    No hay inspecciones para el filtro aplicado.
+                    No hay checklists para el filtro aplicado.
                   </TableCell>
                 </TableRow>
               ) : (

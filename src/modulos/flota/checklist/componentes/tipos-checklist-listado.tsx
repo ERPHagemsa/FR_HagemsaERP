@@ -61,7 +61,7 @@ import type {
   EstadoRegistroChecklist,
   FiltrosTiposChecklist,
   TipoChecklist,
-} from "../tipos/checklist.tipos";
+} from "../tipos/mantenedores.tipos";
 import {
   useAnularTipoChecklistMutation,
   useCrearTipoChecklistMutation,
@@ -135,7 +135,7 @@ function SheetFormulario({
             </SheetTitle>
             <SheetDescription>
               Define el nombre y la cantidad de operadores que exige este tipo de
-              inspección (1 normal, 2 relevo).
+              checklist (1 normal, 2 relevo).
             </SheetDescription>
           </SheetHeader>
 

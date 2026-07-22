@@ -54,7 +54,7 @@ import type {
   SeccionFormInput,
   SeccionVersion,
   TipoRespuestaItem,
-} from "../tipos/checklist.tipos";
+} from "../tipos/mantenedores.tipos";
 
 const ETIQUETAS_TIPO_RESPUESTA: Record<TipoRespuestaItem, string> = {
   CONFORMIDAD: "Conformidad (C/NC/NA)",
@@ -688,7 +688,7 @@ export function PlantillaVersionEditor({
     onSuccess: () => {
       setErrorPublicar(null);
       setDialogPublicarAbierto(false);
-      router.push(`/flota/checklist/plantillas/${plantillaId}`);
+      router.push(`/flota/checklists/plantillas/${plantillaId}`);
     },
     onError: (err) => setErrorPublicar(extraerMensajeError(err)),
   });
@@ -699,7 +699,7 @@ export function PlantillaVersionEditor({
     onSuccess: () => {
       setErrorDescartar(null);
       setDialogDescartarAbierto(false);
-      router.push(`/flota/checklist/plantillas/${plantillaId}`);
+      router.push(`/flota/checklists/plantillas/${plantillaId}`);
     },
     onError: (err) => setErrorDescartar(extraerMensajeError(err)),
   });

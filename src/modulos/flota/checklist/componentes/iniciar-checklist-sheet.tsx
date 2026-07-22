@@ -34,10 +34,10 @@ import type { VehiculoFlota } from "@/modulos/flota/asignaciones/tipos/asignacio
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion";
 import { useTiposChecklistQuery } from "../servicios/tipos-checklist-queries";
 import { useColoresRotulacionQuery } from "../servicios/colores-rotulacion-queries";
-import { consultarDisponibilidadAcido } from "../servicios/checklist-api";
-import { useIniciarInspeccionMutation } from "../servicios/inspecciones-queries";
+import { consultarDisponibilidadAcido } from "../servicios/mantenedores-api";
+import { useIniciarChecklistMutation } from "../servicios/checklists-queries";
 import { obtenerTodoPersonal } from "../servicios/personal-api";
-import type { Inspeccion } from "../tipos/inspeccion.tipos";
+import type { Checklist } from "../tipos/checklist.tipos";
 import type { Persona } from "../tipos/personal.tipos";
 import { BuscadorPersona } from "./buscador-persona";
 
@@ -54,7 +54,7 @@ function aTextoONull(valor: FormDataEntryValue | null): string | null {
 }
 
 // Clase complementaria del acople remolcador<->semirremolque (aplica a ambas
-// direcciones). Mismo criterio que IniciarInspeccionUseCase (backend).
+// direcciones). Mismo criterio que IniciarChecklistUseCase (backend).
 function claseAcopleAplicable(clase: string | null): string | null {
   const normal = clase?.trim().toLowerCase();
   if (normal === "remolcador") return "Semirremolque";
@@ -69,14 +69,14 @@ function acopleEsObligatorio(clase: string | null): boolean {
   return clase?.trim().toLowerCase() === "semirremolque";
 }
 
-export function IniciarInspeccionSheet({
+export function IniciarChecklistSheet({
   unidad,
   onCerrar,
   onIniciada,
 }: {
   unidad: VehiculoFlota;
   onCerrar: () => void;
-  onIniciada: (inspeccion: Inspeccion) => void;
+  onIniciada: (checklist: Checklist) => void;
 }) {
   const { usuario } = useSesion();
   const [errorForm, setErrorForm] = useState<string | null>(null);
@@ -169,13 +169,13 @@ export function IniciarInspeccionSheet({
     });
   }
 
-  const iniciar = useIniciarInspeccionMutation({
-    onSuccess: (inspeccion) => {
+  const iniciar = useIniciarChecklistMutation({
+    onSuccess: (checklist) => {
       setErrorForm(null);
-      toast.success("Inspección iniciada", {
+      toast.success("Checklist iniciado", {
         description: "Se resolvió la plantilla según la clase de la unidad.",
       });
-      onIniciada(inspeccion);
+      onIniciada(checklist);
     },
     onError: (err) => setErrorForm(extraerMensajeError(err)),
   });
@@ -190,7 +190,7 @@ export function IniciarInspeccionSheet({
     }
     if (!unidad.id) {
       setErrorForm(
-        "Esta unidad no tiene un identificador valido; no se puede iniciar la inspeccion.",
+        "Esta unidad no tiene un identificador valido; no se puede iniciar el checklist.",
       );
       return;
     }

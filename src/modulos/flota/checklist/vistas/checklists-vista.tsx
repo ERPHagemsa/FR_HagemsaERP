@@ -1,25 +1,25 @@
 "use client";
 
 import { SiteHeader } from "@/compartido/componentes/site-header";
-import { InspeccionesListado } from "../componentes/inspecciones-listado";
+import { ChecklistsListado } from "../componentes/checklists-listado";
 
-export function InspeccionesVista() {
+export function ChecklistsVista() {
   return (
     <>
       <SiteHeader
-        title="Inspecciones"
+        title="Checklists"
         breadcrumbs={[
           { title: "Flota y Disponibilidad", href: "/flota" },
-          { title: "Inspecciones" },
+          { title: "Checklists" },
         ]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
         <div className="flex w-full flex-col gap-5">
-          <InspeccionesListado />
+          <ChecklistsListado />
         </div>
       </main>
     </>
   );
 }
 
-export default InspeccionesVista;
+export default ChecklistsVista;

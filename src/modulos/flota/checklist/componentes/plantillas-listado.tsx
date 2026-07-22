@@ -63,7 +63,7 @@ import type {
   EstadoRegistroChecklist,
   FiltrosPlantillas,
   Plantilla,
-} from "../tipos/checklist.tipos";
+} from "../tipos/mantenedores.tipos";
 import {
   useAnularPlantillaMutation,
   useCrearPlantillaMutation,
@@ -233,7 +233,7 @@ function DialogAnular({
           <AlertDialogTitle>Anular plantilla</AlertDialogTitle>
           <AlertDialogDescription>
             ¿Está seguro que desea anular &ldquo;{item?.nombre}&rdquo;? Dejará de ofrecerse
-            para nuevas inspecciones. Tenga en cuenta que esta información ya no se podrá
+            para nuevas checklists. Tenga en cuenta que esta información ya no se podrá
             recuperar.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -394,7 +394,7 @@ export function PlantillasListado() {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button size="icon-sm" variant="outline" asChild aria-label="Ver versiones">
-                              <Link href={`/flota/checklist/plantillas/${item.id}`}>
+                              <Link href={`/flota/checklists/plantillas/${item.id}`}>
                                 <Eye />
                               </Link>
                             </Button>

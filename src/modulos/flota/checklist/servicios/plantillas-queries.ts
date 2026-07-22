@@ -13,7 +13,7 @@ import {
   obtenerVersionPlantilla,
   publicarVersionPlantilla,
   redefinirEstructuraVersion,
-} from "./checklist-api";
+} from "./mantenedores-api";
 import type {
   CrearPlantillaPayload,
   CrearVersionPayload,
@@ -23,7 +23,7 @@ import type {
   Plantilla,
   PlantillaVersion,
   RedefinirEstructuraPayload,
-} from "../tipos/checklist.tipos";
+} from "../tipos/mantenedores.tipos";
 
 const CLAVE_PLANTILLAS = "flota:checklist:plantillas";
 const claveVersionesPlantilla = (plantillaId: number) =>

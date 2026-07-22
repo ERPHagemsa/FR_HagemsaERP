@@ -34,7 +34,7 @@ export function ChecklistMantenedoresVista() {
                 Mantenedores de checklist
               </h1>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-                Catálogos y plantillas que se usan al armar tipos de checklist e inspecciones.
+                Catálogos y plantillas que se usan al armar checklists.
               </p>
             </div>
           </section>

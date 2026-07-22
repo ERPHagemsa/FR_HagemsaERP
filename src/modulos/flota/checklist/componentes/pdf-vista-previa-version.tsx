@@ -5,7 +5,7 @@ import { ExternalLink, Loader2 } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 
 import { extraerMensajeError } from "@/compartido/api/formato-error";
-import { obtenerVistaPreviaVersionPdf } from "@/modulos/flota/checklist/servicios/checklist-api";
+import { obtenerVistaPreviaVersionPdf } from "@/modulos/flota/checklist/servicios/mantenedores-api";
 
 // Worker de pdf.js servido como estático (copiado de node_modules/pdfjs-dist a
 // public/) — evita depender de que el bundler resuelva el asset del worker.
@@ -14,7 +14,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 const ANCHO_MINIATURA = 248;
 
 // Genera y muestra la primera página del PDF de la versión ACTUAL (mismo
-// motor de impresión que una inspección real, en blanco). Reemplaza al PDF
+// motor de impresión que un checklist real, en blanco). Reemplaza al PDF
 // de referencia estático: refleja ediciones reales tras cada guardado, en
 // vez de un documento fijo que puede quedar desactualizado respecto al
 // formato que realmente se imprime.

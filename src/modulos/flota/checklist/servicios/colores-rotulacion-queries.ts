@@ -7,13 +7,13 @@ import {
   crearColorRotulacion,
   editarColorRotulacion,
   listarColoresRotulacion,
-} from "./checklist-api";
+} from "./mantenedores-api";
 import type {
   ColorRotulacion,
   CrearColorRotulacionPayload,
   EditarColorRotulacionPayload,
   FiltrosColoresRotulacion,
-} from "../tipos/checklist.tipos";
+} from "../tipos/mantenedores.tipos";
 
 const CLAVE_COLORES_ROTULACION = "flota:checklist:colores-rotulacion";
 

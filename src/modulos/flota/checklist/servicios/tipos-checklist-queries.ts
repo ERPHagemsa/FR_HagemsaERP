@@ -7,13 +7,13 @@ import {
   crearTipoChecklist,
   editarTipoChecklist,
   listarTiposChecklist,
-} from "./checklist-api";
+} from "./mantenedores-api";
 import type {
   CrearTipoChecklistPayload,
   EditarTipoChecklistPayload,
   FiltrosTiposChecklist,
   TipoChecklist,
-} from "../tipos/checklist.tipos";
+} from "../tipos/mantenedores.tipos";
 
 const CLAVE_TIPOS_CHECKLIST = "flota:checklist:tipos-checklist";
 

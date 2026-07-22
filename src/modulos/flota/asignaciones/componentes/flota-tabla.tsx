@@ -63,7 +63,7 @@ import {
   TableRow,
 } from "@/compartido/componentes/ui/table";
 import { cn } from "@/compartido/utilidades/utils";
-import { IniciarInspeccionSheet } from "../../checklist/componentes/iniciar-inspeccion-sheet";
+import { IniciarChecklistSheet } from "../../checklist/componentes/iniciar-checklist-sheet";
 import type { VehiculoFlota } from "../tipos/asignaciones.tipos";
 import {
   asignacionesVehiculo,
@@ -421,12 +421,12 @@ export function FlotaTabla({ loading, vehiculos }: Props) {
       </div>
 
       {unidadChecklist ? (
-        <IniciarInspeccionSheet
+        <IniciarChecklistSheet
           unidad={unidadChecklist}
           onCerrar={() => setUnidadChecklist(null)}
-          onIniciada={(inspeccion) => {
+          onIniciada={(checklist) => {
             setUnidadChecklist(null);
-            router.push(`/flota/checklist/inspecciones/${inspeccion.id}`);
+            router.push(`/flota/checklists/${checklist.id}`);
           }}
         />
       ) : null}

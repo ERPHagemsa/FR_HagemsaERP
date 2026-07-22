@@ -42,18 +42,18 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/compartido/componentes/ui/toggle-group";
 import {
   useAutoguardarRespuestasMutation,
-  useCerrarInspeccionMutation,
-  useInspeccionQuery,
-} from "../servicios/inspecciones-queries";
-import { descargarPdfInspeccion } from "../servicios/inspeccion-api";
+  useCerrarChecklistMutation,
+  useChecklistQuery,
+} from "../servicios/checklists-queries";
+import { descargarPdfChecklist } from "../servicios/checklist-api";
 import type {
   EstadoItem,
-  Inspeccion,
-  InspeccionItem,
-  InspeccionNeumatico,
+  Checklist,
+  ChecklistItem,
+  ChecklistNeumatico,
   LecturaNeumaticoPayload,
   RespuestaItemPayload,
-} from "../tipos/inspeccion.tipos";
+} from "../tipos/checklist.tipos";
 
 // El disparo principal del autoguardado es el blur (o una acción discreta ya
 // completa, como un toggle) — no cada tecla. Este timer es solo una red de
@@ -82,9 +82,9 @@ type NeumaticoLocal = {
   otro: string | null;
 };
 
-// Mismo criterio que Inspeccion.estaRespondido() en el backend (dominio) —
+// Mismo criterio que Checklist.estaRespondido() en el backend (dominio) —
 // por tipo de respuesta, ¿ya tiene un valor capturado?
-function estaRespondido(item: InspeccionItem, r: RespuestaLocal): boolean {
+function estaRespondido(item: ChecklistItem, r: RespuestaLocal): boolean {
   switch (item.tipoRespuesta) {
     case "CONFORMIDAD":
       return r.estadoItem !== "SIN_RESPONDER";
@@ -107,7 +107,7 @@ function BadgeSeccion({
   items,
   respuestas,
 }: {
-  items: InspeccionItem[];
+  items: ChecklistItem[];
   respuestas: Record<string, RespuestaLocal>;
 }) {
   const requeridos = items.filter((i) => i.requerido);
@@ -130,7 +130,7 @@ function BadgeSeccion({
   );
 }
 
-function respuestaDesdeItem(item: InspeccionItem): RespuestaLocal {
+function respuestaDesdeItem(item: ChecklistItem): RespuestaLocal {
   return {
     estadoItem: item.estadoItem,
     cantidad: item.cantidad,
@@ -141,7 +141,7 @@ function respuestaDesdeItem(item: InspeccionItem): RespuestaLocal {
   };
 }
 
-function neumaticoDesdeLectura(n: InspeccionNeumatico): NeumaticoLocal {
+function neumaticoDesdeLectura(n: ChecklistNeumatico): NeumaticoLocal {
   return { cocadaMm: n.cocadaMm, otro: n.otro };
 }
 
@@ -187,16 +187,16 @@ function DatoOperacion({ etiqueta, valor }: { etiqueta: string; valor: React.Rea
   );
 }
 
-export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
+export function ChecklistCaptura({ checklistId }: { checklistId: number }) {
   const router = useRouter();
-  const consulta = useInspeccionQuery(inspeccionId);
-  const inspeccion = consulta.data;
+  const consulta = useChecklistQuery(checklistId);
+  const checklist = consulta.data;
 
   // Estado local editable (server es la fuente al cargar; luego el usuario edita
   // localmente y el autoguardado sincroniza en segundo plano).
   const [respuestas, setRespuestas] = useState<Record<string, RespuestaLocal>>({});
   const [neumaticosLocal, setNeumaticosLocal] = useState<Record<string, NeumaticoLocal>>({});
-  const [estadoActual, setEstadoActual] = useState<Inspeccion["estado"] | null>(null);
+  const [estadoActual, setEstadoActual] = useState<Checklist["estado"] | null>(null);
   const seededRef = useRef<number | null>(null);
   // Secciones CERRADAS por el usuario (set vacío = todo abierto por defecto).
   // Plegable simple (mostrar/ocultar), sin animación de altura: el Accordion
@@ -224,11 +224,11 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
   const reintentosRef = useRef(0);
   const [autoguardadoEstado, setAutoguardadoEstado] = useState<EstadoAutoguardado>("idle");
 
-  const autoguardar = useAutoguardarRespuestasMutation(inspeccionId);
+  const autoguardar = useAutoguardarRespuestasMutation(checklistId);
 
-  const cerrar = useCerrarInspeccionMutation(inspeccionId, {
+  const cerrar = useCerrarChecklistMutation(checklistId, {
     onSuccess: () => {
-      toast.success("Inspección confirmada y firmada");
+      toast.success("Checklist confirmado y firmada");
       void consulta.refetch();
     },
     onError: (err) => toast.error(extraerMensajeError(err)),
@@ -239,11 +239,11 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
   async function handleDescargarPdf() {
     setDescargandoPdf(true);
     try {
-      const blob = await descargarPdfInspeccion(inspeccionId);
+      const blob = await descargarPdfChecklist(checklistId);
       const url = URL.createObjectURL(blob);
       const enlace = document.createElement("a");
       enlace.href = url;
-      enlace.download = `checklist-${inspeccion?.codigo ?? inspeccionId}.pdf`;
+      enlace.download = `checklist-${checklist?.codigo ?? checklistId}.pdf`;
       enlace.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -253,29 +253,29 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
     }
   }
 
-  // Seed inicial: una sola vez por inspección cargada.
+  // Seed inicial: una sola vez por checklist cargado.
   useEffect(() => {
-    if (!inspeccion || seededRef.current === inspeccion.id) return;
-    seededRef.current = inspeccion.id;
+    if (!checklist || seededRef.current === checklist.id) return;
+    seededRef.current = checklist.id;
 
     const respuestasIniciales: Record<string, RespuestaLocal> = {};
-    for (const seccion of inspeccion.secciones) {
+    for (const seccion of checklist.secciones) {
       for (const item of seccion.items) {
         respuestasIniciales[item.id] = respuestaDesdeItem(item);
       }
     }
     const neumaticosIniciales: Record<string, NeumaticoLocal> = {};
-    for (const n of inspeccion.neumaticos) {
+    for (const n of checklist.neumaticos) {
       neumaticosIniciales[n.id] = neumaticoDesdeLectura(n);
     }
 
     setRespuestas(respuestasIniciales);
     setNeumaticosLocal(neumaticosIniciales);
-    setEstadoActual(inspeccion.estado);
+    setEstadoActual(checklist.estado);
     dirtyItemsRef.current = {};
     dirtyNeumaticosRef.current = {};
     setAutoguardadoEstado("idle");
-  }, [inspeccion]);
+  }, [checklist]);
 
   function programarGuardado() {
     setAutoguardadoEstado("pendiente");
@@ -411,15 +411,15 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
   }
 
   const neumaticosPorGrupo = useMemo(() => {
-    const grupos = new Map<string, InspeccionNeumatico[]>();
-    for (const n of inspeccion?.neumaticos ?? []) {
+    const grupos = new Map<string, ChecklistNeumatico[]>();
+    for (const n of checklist?.neumaticos ?? []) {
       const arr = grupos.get(n.grupo) ?? [];
       arr.push(n);
       grupos.set(n.grupo, arr);
     }
     for (const arr of grupos.values()) arr.sort((a, b) => a.orden - b.orden);
     return [...grupos.entries()];
-  }, [inspeccion]);
+  }, [checklist]);
 
   if (consulta.isLoading) {
     return (
@@ -431,10 +431,10 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
     );
   }
 
-  if (consulta.error || !inspeccion) {
+  if (consulta.error || !checklist) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>No se pudo cargar la inspección</AlertTitle>
+        <AlertTitle>No se pudo cargar el checklist</AlertTitle>
         <AlertDescription>
           {consulta.error ? extraerMensajeError(consulta.error) : "No encontrada."}
         </AlertDescription>
@@ -442,8 +442,8 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
     );
   }
 
-  const secciones = [...inspeccion.secciones].sort((a, b) => a.orden - b.orden);
-  const esInmutable = (estadoActual ?? inspeccion.estado) === "CONFIRMADA";
+  const secciones = [...checklist.secciones].sort((a, b) => a.orden - b.orden);
+  const esInmutable = (estadoActual ?? checklist.estado) === "CONFIRMADA";
   // `autoguardadoEstado` cubre todo el ciclo (se pone "pendiente" en cada
   // edición y solo vuelve a "idle"/"guardado" tras un flush exitoso), por lo
   // que basta como señal de "hay cambios sin confirmar guardado" sin leer
@@ -455,7 +455,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
     autoguardadoEstado === "guardando" ||
     autoguardadoEstado === "error";
   const puedeConfirmar =
-    !esInmutable && (estadoActual ?? inspeccion.estado) === "COMPLETA" && !hayPendientes;
+    !esInmutable && (estadoActual ?? checklist.estado) === "COMPLETA" && !hayPendientes;
 
   return (
     <div className="flex flex-col gap-5">
@@ -468,7 +468,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
             // ventana de seguridad) lo mandamos antes de salir — la request
             // sigue en vuelo aunque el componente se desmonte al navegar.
             flushInmediato();
-            router.push("/flota/checklist/inspecciones");
+            router.push("/flota/checklists");
           }}
         >
           <ArrowLeft data-icon="inline-start" />
@@ -476,8 +476,8 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
         </Button>
         <div className="flex items-center gap-3">
           {!esInmutable ? <IndicadorGuardado estado={autoguardadoEstado} /> : null}
-          <Badge variant={esInmutable ? "default" : (estadoActual ?? inspeccion.estado) === "COMPLETA" ? "secondary" : "outline"}>
-            {estadoActual ?? inspeccion.estado}
+          <Badge variant={esInmutable ? "default" : (estadoActual ?? checklist.estado) === "COMPLETA" ? "secondary" : "outline"}>
+            {estadoActual ?? checklist.estado}
           </Badge>
           <Button
             variant="outline"
@@ -501,41 +501,41 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
       <Card>
         <CardHeader className="border-b border-border">
           <CardTitle className="flex flex-wrap items-center gap-2">
-            Inspección {inspeccion.codigo ? `#${inspeccion.codigo}` : ""}
-            {inspeccion.vehiculoPlaca ? ` — ${inspeccion.vehiculoPlaca}` : ""}
-            {inspeccion.vehiculo?.clase ? (
-              <Badge variant="outline">{inspeccion.vehiculo.clase}</Badge>
+            Checklist {checklist.codigo ? `#${checklist.codigo}` : ""}
+            {checklist.vehiculoPlaca ? ` — ${checklist.vehiculoPlaca}` : ""}
+            {checklist.vehiculo?.clase ? (
+              <Badge variant="outline">{checklist.vehiculo.clase}</Badge>
             ) : null}
-            {inspeccion.acido ? (
+            {checklist.acido ? (
               <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
                 Ácido sulfúrico
               </Badge>
             ) : null}
           </CardTitle>
           <CardDescription>
-            {inspeccion.tipoChecklist?.nombre ?? "Tipo de checklist"}
-            {inspeccion.vehiculo?.marca || inspeccion.vehiculo?.modelo
-              ? ` · ${[inspeccion.vehiculo.marca, inspeccion.vehiculo.modelo].filter(Boolean).join(" ")}`
+            {checklist.tipoChecklist?.nombre ?? "Tipo de checklist"}
+            {checklist.vehiculo?.marca || checklist.vehiculo?.modelo
+              ? ` · ${[checklist.vehiculo.marca, checklist.vehiculo.modelo].filter(Boolean).join(" ")}`
               : ""}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 pt-5 sm:grid-cols-4">
-          <DatoOperacion etiqueta="Horómetro" valor={inspeccion.horometro} />
-          <DatoOperacion etiqueta="Hubodómetro" valor={inspeccion.hubodometro} />
-          <DatoOperacion etiqueta="Kilometraje" valor={inspeccion.kilometraje} />
-          <DatoOperacion etiqueta="Destino" valor={inspeccion.destino} />
+          <DatoOperacion etiqueta="Horómetro" valor={checklist.horometro} />
+          <DatoOperacion etiqueta="Hubodómetro" valor={checklist.hubodometro} />
+          <DatoOperacion etiqueta="Kilometraje" valor={checklist.kilometraje} />
+          <DatoOperacion etiqueta="Destino" valor={checklist.destino} />
           <DatoOperacion
             etiqueta="Color de rotulación"
             valor={
-              inspeccion.colorRotulacion?.nombre ? (
+              checklist.colorRotulacion?.nombre ? (
                 <span className="inline-flex items-center gap-1.5">
-                  {inspeccion.colorRotulacion.valorHex ? (
+                  {checklist.colorRotulacion.valorHex ? (
                     <span
                       className="inline-block size-3 rounded-sm border border-border/50"
-                      style={{ backgroundColor: inspeccion.colorRotulacion.valorHex }}
+                      style={{ backgroundColor: checklist.colorRotulacion.valorHex }}
                     />
                   ) : null}
-                  {inspeccion.colorRotulacion.nombre}
+                  {checklist.colorRotulacion.nombre}
                 </span>
               ) : null
             }
@@ -546,16 +546,16 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
       {esInmutable ? (
         <Alert>
           <Lock className="size-4" />
-          <AlertTitle>Inspección confirmada</AlertTitle>
+          <AlertTitle>Checklist confirmado</AlertTitle>
           <AlertDescription>
-            Esta inspección quedó firmada e inmutable; no se puede editar.
+            Este checklist quedó firmado e inmutable; no se puede editar.
           </AlertDescription>
         </Alert>
-      ) : (estadoActual ?? inspeccion.estado) === "COMPLETA" ? (
+      ) : (estadoActual ?? checklist.estado) === "COMPLETA" ? (
         <Alert>
           <CheckCircle2 className="size-4" />
           <AlertTitle>Todos los ítems requeridos están respondidos</AlertTitle>
-          <AlertDescription>Ya puede confirmar y firmar la inspección.</AlertDescription>
+          <AlertDescription>Ya puede confirmar y firmar el checklist.</AlertDescription>
         </Alert>
       ) : null}
 
@@ -637,7 +637,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
                                       }
                                       // El navegador no impide tipear un decimal o un
                                       // negativo pese a min/step; el backend exige
-                                      // entero >= 0 (ver Inspeccion.responder) y lo
+                                      // entero >= 0 (ver Checklist.responder) y lo
                                       // rechazaría con un 400 que ya no se reintenta
                                       // solo — se ajusta acá para no llegar a eso.
                                       const valor = Math.max(0, Math.round(Number(e.target.value)));
@@ -751,7 +751,7 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
         <>
           <Separator />
           <div className="flex items-center justify-end gap-3">
-            {!puedeConfirmar && (estadoActual ?? inspeccion.estado) !== "COMPLETA" ? (
+            {!puedeConfirmar && (estadoActual ?? checklist.estado) !== "COMPLETA" ? (
               <span className="text-sm text-muted-foreground">
                 Responda todos los ítems requeridos para poder confirmar.
               </span>
@@ -785,7 +785,7 @@ function ControlRespuesta({
   onCambio,
   onBlurCampo,
 }: {
-  item: InspeccionItem;
+  item: ChecklistItem;
   respuesta: RespuestaLocal;
   deshabilitado: boolean;
   onCambio: (patch: Partial<RespuestaLocal>, opciones?: { inmediato?: boolean }) => void;

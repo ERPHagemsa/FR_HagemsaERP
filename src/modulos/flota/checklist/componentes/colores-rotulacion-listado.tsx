@@ -61,7 +61,7 @@ import type {
   ColorRotulacion,
   EstadoRegistroChecklist,
   FiltrosColoresRotulacion,
-} from "../tipos/checklist.tipos";
+} from "../tipos/mantenedores.tipos";
 import {
   useAnularColorRotulacionMutation,
   useColoresRotulacionQuery,

@@ -151,8 +151,8 @@ const data: {
         { title: "Conductores", url: "#" },
         { title: "Disponibilidad", url: "#" },
         { title: "Prestamos", url: "#" },
-        { title: "Inspecciones", url: "/flota/checklist/inspecciones" },
-        { title: "Mantenedores de checklist", url: "/flota/checklist/mantenedores" },
+        { title: "Checklists", url: "/flota/checklists" },
+        { title: "Mantenedores de checklist", url: "/flota/checklists/mantenedores" },
       ],
     },
     {

@@ -40,14 +40,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/compartido/componentes/ui/tooltip";
-import { obtenerVersionPlantilla } from "../servicios/checklist-api";
+import { obtenerVersionPlantilla } from "../servicios/mantenedores-api";
 import {
   useAnularVersionMutation,
   useCrearVersionMutation,
   usePublicarVersionMutation,
   useVersionesPlantillaQuery,
 } from "../servicios/plantillas-queries";
-import type { CrearVersionPayload, PlantillaVersion } from "../tipos/checklist.tipos";
+import type { CrearVersionPayload, PlantillaVersion } from "../tipos/mantenedores.tipos";
 
 // ---------------------------------------------------------------------------
 // AlertDialog — Publicar
@@ -87,7 +87,7 @@ function DialogPublicar({
           <AlertDialogTitle>Publicar versión {version?.numeroVersion}</AlertDialogTitle>
           <AlertDialogDescription>
             Al publicar, esta versión queda inmutable: para volver a cambiar la estructura
-            va a hacer falta crear una versión nueva a partir de esta. Las inspecciones que
+            va a hacer falta crear una versión nueva a partir de esta. Las checklists que
             se generen de ahora en más van a usar esta estructura.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -150,7 +150,7 @@ function DialogAnularVersion({
           <AlertDialogTitle>Anular versión {version?.numeroVersion}</AlertDialogTitle>
           <AlertDialogDescription>
             {version?.publicada
-              ? "Esta versión está publicada. Anularla no afecta las inspecciones ya generadas, pero deja de poder usarse para inspecciones nuevas."
+              ? "Esta versión está publicada. Anularla no afecta las checklists ya generadas, pero deja de poder usarse para checklists nuevas."
               : "Se descarta este borrador. Esta información ya no se podrá recuperar."}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -263,7 +263,7 @@ export function PlantillaVersionesListado({ plantillaId }: { plantillaId: number
       }
 
       const nueva = await crearVersion.mutateAsync(payload);
-      router.push(`/flota/checklist/plantillas/${plantillaId}/versiones/${nueva.id}`);
+      router.push(`/flota/checklists/plantillas/${plantillaId}/versiones/${nueva.id}`);
     } catch (err) {
       setErrorCrear(extraerMensajeError(err));
     } finally {
@@ -370,7 +370,7 @@ export function PlantillaVersionesListado({ plantillaId }: { plantillaId: number
                               aria-label="Ver estructura"
                             >
                               <Link
-                                href={`/flota/checklist/plantillas/${plantillaId}/versiones/${version.id}`}
+                                href={`/flota/checklists/plantillas/${plantillaId}/versiones/${version.id}`}
                               >
                                 <FileEdit />
                               </Link>
