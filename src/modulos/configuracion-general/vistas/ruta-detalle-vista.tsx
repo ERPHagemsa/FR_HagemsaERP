@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Badge } from "@/compartido/componentes/ui/badge"
@@ -82,7 +83,7 @@ const tiposPunto: Array<{ value: TipoPuntoRuta; label: string }> = [
 
 export function RutaDetalleVista({ rutaId }: { rutaId: number }) {
   const { usuario } = useSesion()
-  const usuarioId = usuario?.email ?? "admin"
+  const usuarioId = obtenerUsuarioAuditoria(usuario)
   const detalleQuery = useDetalleRutaQuery(rutaId)
   const detalle = detalleQuery.data
 

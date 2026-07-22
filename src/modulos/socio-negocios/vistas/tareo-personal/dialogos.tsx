@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Ban, CheckCircle2 } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import { Checkbox } from "@/compartido/componentes/ui/checkbox"
@@ -114,14 +115,14 @@ export function TipoTareoDialog({
           nombre: nombre.trim(),
           forma,
           descripcion: descripcion.trim() || undefined,
-          usuarioId: usuario?.nombreUsuario,
+          usuarioId: obtenerUsuarioAuditoria(usuario),
         })
       } else {
         await modificarMutation.mutateAsync({
           nombre: nombre.trim(),
           forma,
           descripcion: descripcion.trim() || null,
-          usuarioId: usuario?.nombreUsuario,
+          usuarioId: obtenerUsuarioAuditoria(usuario),
         })
       }
       onClose(true)
@@ -387,7 +388,7 @@ export function ConfiguracionLaboralDialog({
           maxHorasExtraSemana: numeroOpcional(maxHorasExtraSemana),
           vigenteDesde: vigenteDesde ? fechaApi(vigenteDesde) : undefined,
           vigenteHasta: vigenteHasta ? fechaApi(vigenteHasta) : undefined,
-          usuarioId: usuario?.nombreUsuario,
+          usuarioId: obtenerUsuarioAuditoria(usuario),
         })
       } else {
         await modificarMutation.mutateAsync({
@@ -416,7 +417,7 @@ export function ConfiguracionLaboralDialog({
           maxHorasExtraSemana: numeroONull(maxHorasExtraSemana),
           vigenteDesde: vigenteDesde ? fechaApi(vigenteDesde) : undefined,
           vigenteHasta: vigenteHasta ? fechaApi(vigenteHasta) : null,
-          usuarioId: usuario?.nombreUsuario,
+          usuarioId: obtenerUsuarioAuditoria(usuario),
         })
       }
       onClose(true)

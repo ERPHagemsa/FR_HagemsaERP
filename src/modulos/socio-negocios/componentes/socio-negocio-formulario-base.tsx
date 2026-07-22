@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Info, Search } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import {
   AlertDialog,
@@ -75,6 +76,7 @@ export function SocioNegocioFormularioBase({ tipo }: { tipo: TipoSocioDeNegocio 
   const formRef = useRef<HTMLFormElement>(null)
   const registrarMutation = useRegistrarSocioDeNegocioMutation()
   const { usuario } = useSesion()
+  const usuarioAuditoria = obtenerUsuarioAuditoria(usuario)
   const [buscandoSap, setBuscandoSap] = useState(false)
   const [mensajeSap, setMensajeSap] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -134,7 +136,7 @@ export function SocioNegocioFormularioBase({ tipo }: { tipo: TipoSocioDeNegocio 
       contacto: esPersonal ? nombreComercial : texto(formData, "contacto"),
       correo: texto(formData, "correo"),
       numeroCelular: texto(formData, "numeroCelular"),
-      usuarioId: usuario?.nombreUsuario,
+      usuarioId: usuarioAuditoria,
     }
 
     try {

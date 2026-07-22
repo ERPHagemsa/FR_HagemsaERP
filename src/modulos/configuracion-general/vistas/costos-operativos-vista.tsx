@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowRight, CalendarDays, ClipboardList, Clock3, Coins, Pencil, Plus, Trash2, Wallet } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import {
@@ -614,7 +615,7 @@ function ConceptoDialog({
   onClose: (actualizado: boolean) => void
 }) {
   const { usuario } = useSesion()
-  const usuarioId = usuario?.email ?? "admin"
+  const usuarioId = obtenerUsuarioAuditoria(usuario)
   const [nombre, setNombre] = useState(concepto?.nombre ?? "")
   const [descripcion, setDescripcion] = useState(concepto?.descripcion ?? "")
   const [naturaleza, setNaturaleza] = useState<NaturalezaConcepto>(
@@ -1278,7 +1279,7 @@ function TramosOperativosPanel({
   setNochesViatico: (v: string) => void
 }) {
   const { usuario } = useSesion()
-  const usuarioId = usuario?.email ?? "admin"
+  const usuarioId = obtenerUsuarioAuditoria(usuario)
   const detalleRutaQuery = useDetalleRutaQuery(rutaId, true)
   const tramosQuery = useTramosCostoOperativoQuery(costoOperativoId, costoOperativoId != null)
   const tiempoQuery = useTiempoCostoOperativoQuery(costoOperativoId, undefined, costoOperativoId != null)
@@ -1507,7 +1508,7 @@ function ChecklistPanel({
   const [error, setError] = useState<string | null>(null)
   const [costoOperativoGuardadoId, setCostoOperativoGuardadoId] = useState<number | null>(null)
   const { usuario } = useSesion()
-  const usuarioId = usuario?.email ?? "admin"
+  const usuarioId = obtenerUsuarioAuditoria(usuario)
 
   const items = checklistQuery.data?.items ?? []
   const costoOperativoId = checklistQuery.data?.costoOperativoId ?? costoOperativoGuardadoId

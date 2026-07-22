@@ -4,6 +4,7 @@ import { type FormEvent, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { SiteHeader } from "@/compartido/componentes/site-header"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import {
   AlertDialog,
@@ -135,7 +136,7 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
   const socioQuery = useSocioDeNegocioQuery(id, tipoDetalle)
   const socio = socioQuery.data
   const { usuario } = useSesion()
-  const usuarioId = usuario?.nombreUsuario ?? ""
+  const usuarioId = obtenerUsuarioAuditoria(usuario)
 
   // Al volver, regresamos a la lista del tipo que se esta viendo (personal,
   // clientes o proveedores). Si aun no se conoce el tipo, cae al listado general.

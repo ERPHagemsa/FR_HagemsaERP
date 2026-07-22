@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowRight, Coins, MapPin, Pencil, Plus, Receipt, Route } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Badge } from "@/compartido/componentes/ui/badge"
@@ -333,7 +334,7 @@ function PeajeDialog({
   onClose: (actualizado: boolean, creado?: PeajeResponse) => void
 }) {
   const { usuario } = useSesion()
-  const usuarioId = usuario?.email ?? "admin"
+  const usuarioId = obtenerUsuarioAuditoria(usuario)
   const [nombre, setNombre] = useState(peaje?.nombre ?? "")
   const [ubicacionId, setUbicacionId] = useState(
     peaje?.ubicacionId != null ? String(peaje.ubicacionId) : "",

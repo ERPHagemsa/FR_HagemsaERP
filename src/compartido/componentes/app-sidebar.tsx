@@ -62,6 +62,7 @@ const data: {
     {
       title: "Socio de Negocios",
       url: "/socio-negocios",
+      prefijoPermiso: "bc01",
       icon: <Users />,
       items: [
         { title: "Listar clientes", url: "/socio-negocios/clientes" },
@@ -213,6 +214,7 @@ const data: {
     {
       title: "CS-Configuración General",
       url: "/configuracion",
+      prefijoPermiso: "bc14",
       icon: <Settings />,
       items: [
         { title: "Inicio", url: "/configuracion" },
@@ -251,10 +253,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Filtrado del menu por permisos del JWT (solo UI; el backend autoriza de
   // verdad). Reglas:
   //  1. SUPER_ADMIN ve todo.
-  //  2. Cuentas SIN permisos de modulo (JWT sin roles o roles sin permisos,
-  //     excluyendo los "auth:*" de IAM) ven todo — compatibilidad mientras el
-  //     resto de cuentas/modulos adopta permisos.
-  //  3. Cuentas restringidas (ej. solo "bc02:*") ven UNICAMENTE los modulos
+  //  2. Cuentas restringidas (ej. solo "bc02:*") ven UNICAMENTE los modulos
   //     cuyo prefijoPermiso coincide con alguno de sus permisos.
   const prefijosUsuario = new Set(
     permisos
@@ -262,7 +261,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       .filter((prefijo) => prefijo && prefijo !== "auth"),
   )
   const navFiltrado =
-    esSuperAdmin || prefijosUsuario.size === 0
+    esSuperAdmin
       ? data.navMain
       : data.navMain.filter(
           (modulo) =>

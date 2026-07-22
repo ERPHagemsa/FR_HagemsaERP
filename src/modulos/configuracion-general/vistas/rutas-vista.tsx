@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowRight, Coins, Flag, MapPin, MapPinned, Pencil, Plus, Route, Settings2 } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Badge } from "@/compartido/componentes/ui/badge"
@@ -49,7 +50,7 @@ function RutaDialog({
   onClose: (actualizado: boolean) => void
 }) {
   const { usuario } = useSesion()
-  const usuarioId = usuario?.email ?? "admin"
+  const usuarioId = obtenerUsuarioAuditoria(usuario)
   const [nombre, setNombre] = useState(ruta?.nombre ?? "")
   const [error, setError] = useState<string | null>(null)
   // El backend normaliza el nombre: recorta y reemplaza bloques de espacios por un
