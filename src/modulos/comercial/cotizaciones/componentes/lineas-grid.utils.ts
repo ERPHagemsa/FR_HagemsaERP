@@ -5,6 +5,7 @@
 import { formatearMoneda } from "@/compartido/utilidades/formato-moneda";
 
 import type { TipoLinea } from "../tipos/cotizaciones.tipos";
+import { etiquetaUnidadPeriodo } from "../tipos/cotizaciones.tipos";
 import type { DraftLinea, DraftSeccion } from "../servicios/cotizaciones-editor.utils";
 import { totalVentaLinea } from "../servicios/cotizaciones-editor.utils";
 
@@ -57,10 +58,13 @@ export function resumenDetalle(linea: DraftLinea): string {
         [linea.equipo.equipoTipo, linea.equipo.marca].filter(Boolean).join(" · ") ||
         "Sin datos de equipo"
       );
-    case "ALMACENAJE":
-      return linea.almacenaje.areaM2
-        ? `${linea.almacenaje.areaM2} m² · ${linea.almacenaje.periodoDias || "—"} dias`
-        : "Sin datos de almacenaje";
+    case "ALMACENAJE": {
+      const a = linea.almacenaje;
+      const periodo = a.periodo
+        ? `${a.periodo} ${etiquetaUnidadPeriodo(a.unidadPeriodo)}`.trim()
+        : "—";
+      return a.areaM2 ? `${a.areaM2} m² · ${periodo}` : "Sin datos de almacenaje";
+    }
     case "PERSONAL":
       return linea.personal.rol || "Sin rol";
     default:

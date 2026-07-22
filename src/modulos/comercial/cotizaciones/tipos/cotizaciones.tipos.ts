@@ -195,10 +195,30 @@ export type EquipoHijo = {
   diasContratoMin: number | null;
 };
 
+// Unidad del período de un servicio de almacenaje (espeja el enum del backend).
+export type UnidadPeriodo = "HORAS" | "DIAS" | "MESES" | "ANIOS";
+
+export const UNIDADES_PERIODO: ReadonlyArray<{
+  valor: UnidadPeriodo;
+  etiqueta: string;
+}> = [
+  { valor: "HORAS", etiqueta: "Horas" },
+  { valor: "DIAS", etiqueta: "Días" },
+  { valor: "MESES", etiqueta: "Meses" },
+  { valor: "ANIOS", etiqueta: "Años" },
+];
+
+export function etiquetaUnidadPeriodo(
+  u: UnidadPeriodo | null | "",
+): string {
+  return UNIDADES_PERIODO.find((x) => x.valor === u)?.etiqueta ?? "";
+}
+
 export type AlmacenajeHijo = {
   id: string;
   areaM2: number | null;
-  periodoDias: number | null;
+  periodo: number | null;
+  unidadPeriodo: UnidadPeriodo | null;
   descripcion: string | null;
 };
 
@@ -598,7 +618,8 @@ export type PayloadEquipoHijo = {
 
 export type PayloadAlmacenajeHijo = {
   areaM2?: number;
-  periodoDias?: number;
+  periodo?: number;
+  unidadPeriodo?: UnidadPeriodo;
   descripcion?: string;
 };
 

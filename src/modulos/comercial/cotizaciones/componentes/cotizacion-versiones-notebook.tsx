@@ -45,6 +45,7 @@ import type {
   Seccion,
   Version,
 } from "../tipos/cotizaciones.tipos";
+import { etiquetaUnidadPeriodo } from "../tipos/cotizaciones.tipos";
 
 type Props = {
   idCotizacion: string;
@@ -523,7 +524,11 @@ function AlmacenajeDetalle({ almacenaje }: { almacenaje: AlmacenajeHijo }) {
       />
       <DetalleFila
         label="Periodo"
-        valor={almacenaje.periodoDias !== null ? `${almacenaje.periodoDias} dias` : null}
+        valor={
+          almacenaje.periodo !== null
+            ? `${almacenaje.periodo} ${etiquetaUnidadPeriodo(almacenaje.unidadPeriodo)}`.trim()
+            : null
+        }
       />
       <DetalleFila label="Descripcion" valor={almacenaje.descripcion} />
     </div>

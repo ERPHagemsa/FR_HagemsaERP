@@ -19,7 +19,9 @@ import type {
   Moneda,
   PrecioSugerido,
   TipoLinea,
+  UnidadPeriodo,
 } from '../tipos/cotizaciones.tipos';
+import { UNIDADES_PERIODO } from '../tipos/cotizaciones.tipos';
 import type { CatalogoCargoAdicional } from '../tipos/cotizaciones.tipos';
 import type {
   DraftLinea,
@@ -547,15 +549,43 @@ export function LineaFormulario({
                     set({ almacenaje: { ...linea.almacenaje, areaM2: v } })
                   }
                 />
-                <CampoMini
-                  label="Periodo (dias)"
-                  tipo="number"
-                  value={linea.almacenaje.periodoDias}
-                  disabled={disabled}
-                  onChange={(v) =>
-                    set({ almacenaje: { ...linea.almacenaje, periodoDias: v } })
-                  }
-                />
+                <div className="grid grid-cols-2 gap-2">
+                  <CampoMini
+                    label="Periodo"
+                    tipo="number"
+                    value={linea.almacenaje.periodo}
+                    disabled={disabled}
+                    onChange={(v) =>
+                      set({ almacenaje: { ...linea.almacenaje, periodo: v } })
+                    }
+                  />
+                  <div className="grid gap-1">
+                    <Label className="text-xs text-muted-foreground">Unidad</Label>
+                    <Select
+                      value={linea.almacenaje.unidadPeriodo || undefined}
+                      disabled={disabled}
+                      onValueChange={(v) =>
+                        set({
+                          almacenaje: {
+                            ...linea.almacenaje,
+                            unidadPeriodo: v as UnidadPeriodo,
+                          },
+                        })
+                      }
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="—" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {UNIDADES_PERIODO.map((u) => (
+                          <SelectItem key={u.valor} value={u.valor}>
+                            {u.etiqueta}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
                 <div className="sm:col-span-2">
                   <CampoMini
                     label="Descripcion"
