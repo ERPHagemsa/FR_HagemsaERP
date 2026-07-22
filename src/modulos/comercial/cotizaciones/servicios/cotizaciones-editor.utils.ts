@@ -293,9 +293,30 @@ export function precioVentaLinea(l: Pick<DraftLinea, "precioBase" | "margenPct">
   return Math.round(venta * 100) / 100;
 }
 
-/** totalVentaLinea — precioVenta × cantidad (espejo de precioVentaTotal del backend). */
-export function totalVentaLinea(l: Pick<DraftLinea, "precioBase" | "margenPct" | "cantidad">): number {
-  return precioVentaLinea(l) * (parseFloat(l.cantidad) || 0);
+/**
+ * totalVentaLinea — precioVenta × cantidad, y —para ALMACENAJE— × período
+ * (espejo de precioVentaTotal del backend).
+ */
+export function totalVentaLinea(
+  l: Pick<
+    DraftLinea,
+    "precioBase" | "margenPct" | "cantidad" | "tipoLinea" | "almacenaje"
+  >,
+): number {
+  return (
+    precioVentaLinea(l) *
+    (parseFloat(l.cantidad) || 0) *
+    factorPeriodoLinea(l)
+  );
+}
+
+/** Espejo de CotizacionLinea.factorPeriodo: ALMACENAJE multiplica por el período. */
+function factorPeriodoLinea(
+  l: Pick<DraftLinea, "tipoLinea" | "almacenaje">,
+): number {
+  if (l.tipoLinea !== "ALMACENAJE") return 1;
+  const periodo = parseFloat(l.almacenaje.periodo);
+  return periodo > 0 ? periodo : 1;
 }
 
 export function seccionVacia(esDefecto = false): DraftSeccion {
