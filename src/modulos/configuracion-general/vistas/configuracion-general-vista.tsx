@@ -28,11 +28,9 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/compartido/componentes/ui/card"
-import { Separator } from "@/compartido/componentes/ui/separator"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import {
   Table,
@@ -82,19 +80,6 @@ const rutaNuevoPorTipo: Record<TipoDatoMaestro, string> = {
   CARGO: "cargo",
 }
 
-// Ruta de la pantalla (seccion) que contiene cada tipo. Sedes y areas comparten
-// pantalla; cuentas y contratos tambien.
-const rutaListadoPorTipo: Record<TipoDatoMaestro, string> = {
-  UBICACION: "/configuracion/ubicaciones",
-  SEDE: "/configuracion/sedes-areas",
-  AREA: "/configuracion/sedes-areas",
-  ALMACEN: "/configuracion/almacenes",
-  REGIMEN: "/configuracion/regimenes",
-  CUENTA: "/configuracion/cuentas-contratos",
-  CONTRATO: "/configuracion/cuentas-contratos",
-  CARGO: "/configuracion/cargos",
-}
-
 // Secciones del menu de configuracion. Algunas agrupan dos tipos relacionados en
 // una sola pantalla con un selector (sedes/areas, cuentas/contratos).
 type SeccionConfiguracion = {
@@ -118,16 +103,6 @@ export const seccionesConfiguracion = {
     titulo: "Cargos",
     descripcion: "Puestos de trabajo y cadena de mando por cargo superior.",
     tipos: ["CARGO"],
-  },
-  almacenes: {
-    titulo: "Almacenes",
-    descripcion: "Almacenes fisicos o temporales vinculados a ubicaciones y sedes.",
-    tipos: ["ALMACEN"],
-  },
-  regimenes: {
-    titulo: "Regimenes",
-    descripcion: "Regimenes de trabajo, descanso y horas por dia.",
-    tipos: ["REGIMEN"],
   },
   "cuentas-contratos": {
     titulo: "Cuentas y contratos",
@@ -243,17 +218,6 @@ function TipoBadge({ tipo }: { tipo: TipoDatoMaestro }) {
   )
 }
 
-function Dato({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="grid gap-1">
-      <span className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-        {label}
-      </span>
-      <span className="break-words text-sm">{value || "-"}</span>
-    </div>
-  )
-}
-
 function MetricasMaestros({
   datos,
   total,
@@ -335,288 +299,6 @@ function MetricasMaestros({
           </CardContent>
         </Card>
       ))}
-    </section>
-  )
-}
-
-function MetricasResumenDashboard({
-  cargando,
-  resumen,
-}: {
-  cargando?: boolean
-  resumen?: ResumenConfiguracionGeneralResponse
-}) {
-  const metricas = [
-    {
-      etiqueta: "Configuraciones",
-      valor: resumen?.totalMaestros ?? 0,
-      detalle: "Total de registros administrados en esta seccion.",
-      icon: Database,
-      contexto: "Total",
-    },
-    {
-      etiqueta: "Activos",
-      valor: resumen?.activos ?? 0,
-      detalle: "Registros listos para usarse en el sistema.",
-      icon: ShieldCheck,
-      contexto: "Estado",
-    },
-    {
-      etiqueta: "Listos para usar",
-      valor: resumen?.vigentesConsumibles ?? 0,
-      detalle: "Registros activos y vigentes, disponibles para el resto del sistema.",
-      icon: CheckCircle2,
-      contexto: "Disponibles",
-    },
-    {
-      etiqueta: "Inactivos o anulados",
-      valor: (resumen?.inactivos ?? 0) + (resumen?.anulados ?? 0),
-      detalle: `${resumen?.inactivos ?? 0} inactivos y ${resumen?.anulados ?? 0} anulados.`,
-      icon: History,
-      contexto: "Seguimiento",
-    },
-  ]
-
-  return (
-    <section className="grid gap-3 md:grid-cols-4">
-      {metricas.map((metrica) => (
-        <Card key={metrica.etiqueta} className="border-border shadow-sm">
-          <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
-            <div className="min-w-0">
-              <CardDescription className="text-xs font-medium uppercase tracking-[0.08em]">
-                {metrica.etiqueta}
-              </CardDescription>
-              <CardTitle className="mt-2 text-3xl font-semibold tabular-nums">
-                {cargando ? "-" : metrica.valor}
-              </CardTitle>
-            </div>
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border">
-              <metrica.icon className="size-4" />
-            </span>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 pt-0">
-            <p className="text-sm text-muted-foreground">{metrica.detalle}</p>
-            <div className="flex items-center justify-between gap-3">
-              <Badge variant="secondary">{metrica.contexto}</Badge>
-              <span className="text-xs text-muted-foreground">Resumen</span>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </section>
-  )
-}
-
-function ResumenPorTipoDashboard({
-  cargando,
-  resumen,
-}: {
-  cargando?: boolean
-  resumen?: ResumenConfiguracionGeneralResponse
-}) {
-  const datos = (resumen?.porTipoDatoMaestro ?? []).filter(
-    (item) => rutaListadoPorTipo[item.tipoDatoMaestro] !== undefined,
-  )
-  const datosOrdenados = [...datos].sort((a, b) =>
-    a.tipoDatoMaestro.localeCompare(b.tipoDatoMaestro),
-  )
-
-  return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-border px-4 py-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-base font-semibold">Resumen por tipo</h2>
-          <p className="text-sm text-muted-foreground">
-            Cantidad de registros por tipo. Toca uno para abrir su pantalla.
-          </p>
-        </div>
-      </div>
-      <div className="grid gap-3 p-4 md:grid-cols-2">
-        {cargando ? (
-          <>
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
-          </>
-        ) : datosOrdenados.length > 0 ? (
-          datosOrdenados.map((item) => (
-            <Link
-              key={item.tipoDatoMaestro}
-              href={rutaListadoPorTipo[item.tipoDatoMaestro]}
-              className="group grid gap-2 rounded-md border border-border p-3 transition-colors hover:border-primary/40 hover:bg-muted/40"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <TipoBadge tipo={item.tipoDatoMaestro} />
-                <span className="flex items-baseline gap-1 tabular-nums">
-                  <span className="text-lg font-semibold">{item.total}</span>
-                  <span className="text-xs text-muted-foreground">registros</span>
-                  <ArrowRight className="ml-1 size-3.5 self-center text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${Math.max((item.activos / Math.max(item.total, 1)) * 100, 3)}%` }}
-                />
-              </div>
-              <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <span className="text-emerald-600 dark:text-emerald-400">Activos: {item.activos}</span>
-                <span>Inactivos: {item.inactivos}</span>
-                <span>Anulados: {item.anulados}</span>
-              </div>
-            </Link>
-          ))
-        ) : (
-          <div className="py-8 text-center text-sm text-muted-foreground md:col-span-2">
-            No hay datos de resumen disponibles.
-          </div>
-        )}
-      </div>
-    </section>
-  )
-}
-
-function EstadoResumenDashboard({
-  estadoServicio,
-  resumen,
-}: {
-  estadoServicio?: "cargando" | "disponible" | "no-disponible"
-  resumen?: ResumenConfiguracionGeneralResponse
-}) {
-  const estados = resumen?.porEstado ?? []
-  const registros = resumen?.porEstadoRegistro ?? []
-
-  return (
-    <Card className="border-border shadow-sm">
-      <CardHeader>
-        <CardTitle>Estado del servicio</CardTitle>
-        <CardDescription>Disponibilidad del servicio y de los registros.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4 text-sm">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground">Servicio</span>
-          <Badge variant={estadoServicio === "no-disponible" ? "destructive" : "outline"}>
-            {estadoServicio === "cargando"
-              ? "Verificando"
-              : estadoServicio === "no-disponible"
-                ? "No disponible"
-                : "Disponible"}
-          </Badge>
-        </div>
-        <Separator />
-        <div className="grid gap-3">
-          {estados.map((item) => (
-            <div key={item.estado} className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">{item.estado}</span>
-              <span className="font-medium tabular-nums">{item.total}</span>
-            </div>
-          ))}
-          {registros.map((item) => (
-            <div key={item.estadoRegistro} className="flex items-center justify-between gap-3">
-              <span className="text-muted-foreground">Registro {item.estadoRegistro}</span>
-              <span className="font-medium tabular-nums">{item.total}</span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function FlujosConfiguracionGeneral() {
-  const flujos = [
-    {
-      titulo: "Ubicaciones",
-      descripcion: "Punto de partida de la estructura: lugares donde opera la empresa.",
-      href: "/configuracion/ubicaciones",
-      accion: "Abrir",
-      icon: Layers3,
-    },
-    {
-      titulo: "Estructura logistica",
-      descripcion: "Ubicaciones, sedes, areas y almacenes sin requests N+1.",
-      href: "/configuracion/sedes-areas",
-      accion: "Organizar",
-      icon: Network,
-    },
-    {
-      titulo: "Reportes",
-      descripcion: "Vista consolidada para revisar disponibilidad y estados.",
-      href: "/configuracion/reportes",
-      accion: "Ver reportes",
-      icon: FileDown,
-    },
-  ]
-
-  return (
-    <section className="grid gap-3 md:grid-cols-3">
-      {flujos.map((flujo) => (
-        <Card key={flujo.titulo} className="border-border shadow-sm">
-          <CardHeader className="flex flex-row items-start justify-between gap-3">
-            <div className="min-w-0">
-              <CardTitle className="text-base">{flujo.titulo}</CardTitle>
-              <CardDescription>{flujo.descripcion}</CardDescription>
-            </div>
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border">
-              <flujo.icon className="size-4" />
-            </span>
-          </CardHeader>
-          <CardFooter>
-            <Button asChild variant="outline" size="sm" className="w-full justify-between">
-              <Link href={flujo.href}>
-                {flujo.accion}
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          </CardFooter>
-        </Card>
-      ))}
-    </section>
-  )
-}
-
-function OrdenRegistroConfiguracionGeneral() {
-  const pasos = [
-    {
-      titulo: "1. Ubicacion",
-      descripcion: "Registra el punto fisico o logistico que luego usaran sedes.",
-    },
-    {
-      titulo: "2. Sede, area y almacen",
-      descripcion: "Sede usa ubicacion; area usa sede; almacen usa ubicacion y sede.",
-    },
-    {
-      titulo: "3. Cuenta",
-      descripcion: "Registra cuentas independientes para asociarlas luego cuando un contrato lo requiera.",
-    },
-    {
-      titulo: "4. Contrato",
-      descripcion: "Se registra separado y puede vincularse opcionalmente a una cuenta activa.",
-    },
-  ]
-
-  return (
-    <section className="rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-      <div className="border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold">Orden recomendado de registro</h2>
-        <p className="text-sm text-muted-foreground">
-          Sigue esta secuencia para que los registros aparezcan correctamente en las asignaciones.
-        </p>
-      </div>
-      <div className="grid md:grid-cols-4">
-        {pasos.map((paso, index) => (
-          <div
-            key={paso.titulo}
-            className={`flex flex-col gap-2 p-4 ${index > 0 ? "border-t border-border md:border-l md:border-t-0" : ""}`}
-          >
-            <Badge variant="outline" className="w-fit">
-              {paso.titulo}
-            </Badge>
-            <p className="text-sm text-muted-foreground">{paso.descripcion}</p>
-          </div>
-        ))}
-      </div>
     </section>
   )
 }
@@ -722,15 +404,81 @@ function TablaDatosMaestros({
   )
 }
 
+// Tira compacta de indicadores clave en una sola fila, sin tarjetas pesadas.
+function ResumenStrip({
+  cargando,
+  resumen,
+}: {
+  cargando?: boolean
+  resumen?: ResumenConfiguracionGeneralResponse
+}) {
+  const items = [
+    { etiqueta: "Total", valor: resumen?.totalMaestros ?? 0 },
+    { etiqueta: "Activos", valor: resumen?.activos ?? 0 },
+    { etiqueta: "Listos para usar", valor: resumen?.vigentesConsumibles ?? 0 },
+    {
+      etiqueta: "Inactivos o anulados",
+      valor: (resumen?.inactivos ?? 0) + (resumen?.anulados ?? 0),
+    },
+  ]
+
+  return (
+    <section className="grid grid-cols-2 divide-border rounded-xl border border-border bg-card shadow-sm sm:grid-cols-4 sm:divide-x">
+      {items.map((item) => (
+        <div key={item.etiqueta} className="flex flex-col gap-1 px-5 py-4">
+          <span className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+            {item.etiqueta}
+          </span>
+          <span className="text-3xl font-semibold tabular-nums">
+            {cargando ? "-" : item.valor}
+          </span>
+        </div>
+      ))}
+    </section>
+  )
+}
+
+// Navegacion principal: una tarjeta clara por cada seccion de configuracion.
+function SeccionesNav() {
+  const claves = Object.keys(seccionesConfiguracion) as SeccionConfiguracionClave[]
+
+  return (
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {claves.map((clave) => {
+        const seccion = seccionesConfiguracion[clave]
+        return (
+          <Link
+            key={clave}
+            href={`/configuracion/${clave}`}
+            className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:bg-muted/40"
+          >
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+              <IconoMaestro tipo={seccion.tipos[0]} className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-medium">{seccion.titulo}</h3>
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              </div>
+              <p className="mt-0.5 text-sm text-muted-foreground">{seccion.descripcion}</p>
+            </div>
+          </Link>
+        )
+      })}
+    </section>
+  )
+}
+
 export function ConfiguracionGeneralDashboardVista() {
   const resumenQuery = useResumenDashboardConfiguracionGeneralQuery()
   const estadoQuery = useEstadoBcConfiguracionGeneralQuery()
   const resumen = resumenQuery.data ?? undefined
-  const estadoServicio = estadoQuery.isLoading
-    ? "cargando"
+
+  const conexion = estadoQuery.isLoading
+    ? "Verificando"
     : estadoQuery.error
-      ? "no-disponible"
-      : "disponible"
+      ? "No disponible"
+      : "Disponible"
 
   return (
     <>
@@ -739,12 +487,32 @@ export function ConfiguracionGeneralDashboardVista() {
         breadcrumbs={[{ title: "CS-Configuracion General" }]}
       />
       <main className="min-h-screen bg-background px-5 py-6 text-foreground lg:px-8">
-        <div className="flex w-full flex-col gap-5">
-          <section className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+          <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold tracking-normal">Configuracion general</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">Configuracion general</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Elige una seccion para administrar sus registros.
+              </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={estadoQuery.error ? "destructive" : "outline"}
+                className="h-7 gap-1.5 rounded-full px-3"
+              >
+                <span
+                  className={`size-2 rounded-full ${
+                    estadoQuery.error ? "bg-destructive" : "bg-emerald-500"
+                  }`}
+                />
+                {conexion}
+              </Badge>
+              <Button asChild variant="outline">
+                <Link href="/configuracion/reportes">
+                  <FileDown data-icon="inline-start" />
+                  Reportes
+                </Link>
+              </Button>
               <Button asChild>
                 <Link href="/configuracion/nuevo/ubicacion">
                   <Plus data-icon="inline-start" />
@@ -761,58 +529,14 @@ export function ConfiguracionGeneralDashboardVista() {
             </Alert>
           ) : null}
 
-          <MetricasResumenDashboard resumen={resumen} cargando={resumenQuery.isLoading} />
+          <ResumenStrip resumen={resumen} cargando={resumenQuery.isLoading} />
 
-          <FlujosConfiguracionGeneral />
-
-          <OrdenRegistroConfiguracionGeneral />
-
-          <section className="grid gap-5 xl:grid-cols-[1fr_340px]">
-            <ResumenPorTipoDashboard resumen={resumen} cargando={resumenQuery.isLoading} />
-
-            <aside className="flex flex-col gap-3">
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle>Estado del servicio</CardTitle>
-                  <CardDescription>Disponibilidad actual del servicio de configuracion.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3 text-sm">
-                  <Dato
-                    label="Conexion"
-                    value={
-                      estadoQuery.isLoading
-                        ? "Verificando"
-                        : estadoQuery.error
-                          ? "No disponible"
-                          : "Disponible"
-                    }
-                  />
-                  <Dato label="Uso" value="Ubicaciones, sedes, areas, cargos, cuentas y contratos" />
-                </CardContent>
-              </Card>
-              <EstadoResumenDashboard resumen={resumen} estadoServicio={estadoServicio} />
-              <Card className="border-border shadow-sm">
-                <CardHeader>
-                  <CardTitle>Accesos rapidos</CardTitle>
-                  <CardDescription>Operaciones frecuentes del modulo.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-2">
-                  <Button asChild>
-                    <Link href="/configuracion/nuevo/ubicacion">
-                      <Plus data-icon="inline-start" />
-                      Nuevo
-                    </Link>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <Link href="/configuracion/reportes">
-                      <FileDown data-icon="inline-start" />
-                      Ver reportes
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </aside>
-          </section>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-sm font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              Secciones
+            </h2>
+            <SeccionesNav />
+          </div>
         </div>
       </main>
     </>

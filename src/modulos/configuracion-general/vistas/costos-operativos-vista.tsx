@@ -1,12 +1,28 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowRight, ClipboardList, Coins, Pencil, Plus, Trash2, Wallet } from "lucide-react"
+import { ArrowRight, CalendarDays, ClipboardList, Clock3, Coins, Pencil, Plus, Trash2, Wallet } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/compartido/componentes/ui/alert-dialog"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/compartido/componentes/ui/accordion"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import { Checkbox } from "@/compartido/componentes/ui/checkbox"
@@ -30,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/compartido/componentes/ui/select"
+import { ScrollArea } from "@/compartido/componentes/ui/scroll-area"
 import { Skeleton } from "@/compartido/componentes/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/compartido/componentes/ui/tabs"
 import { Textarea } from "@/compartido/componentes/ui/textarea"
@@ -44,29 +61,35 @@ import {
 
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 import { useListarPorTipoQuery } from "../servicios/configuracion-general-queries"
-import { useCostoPeajesRutaQuery, useRutasQuery } from "../servicios/rutas-peajes-queries"
+import { useCostoPeajesRutaQuery, useDetalleRutaQuery, useRutasQuery } from "../servicios/rutas-peajes-queries"
+import type { PaginationMeta } from "../tipos/configuracion-general"
 import {
   useAnularCostoOperativoMutation,
+  useCalcularCostoQuery,
   useChecklistCostoOperativoQuery,
   useConceptosCostoQuery,
   useCostosOperativosQuery,
+  useGuardarTramosCostoOperativoMutation,
   useGuardarCostoOperativoMutation,
   useHabilitarConceptoCostoMutation,
   useInhabilitarConceptoCostoMutation,
   useModificarConceptoCostoMutation,
   useRegistrarConceptoCostoMutation,
+  useTiempoCostoOperativoQuery,
+  useTramosCostoOperativoQuery,
 } from "../servicios/costos-operativos-queries"
 import type {
   BaseConteo,
   BaseImputacion,
+  CalculoCostoResponse,
   ChecklistItemCostoOperativo,
   ComidaConcepto,
   ConceptoCostoResponse,
   CostoOperativoResponse,
   FrecuenciaCosto,
-  LineaCostoOperativoResponse,
   ModalidadEntrega,
   NaturalezaConcepto,
+  TipoCargaCosto,
   TipoComida,
 } from "../tipos/costos-operativos"
 
@@ -106,20 +129,8 @@ const baseConteoPorComida: Record<TipoComida, BaseConteo> = {
   ALMUERZO: "DIA",
   CENA: "NOCHE",
 }
-const etiquetaMultiplicadorComida: Record<TipoComida, string> = {
-  DESAYUNO: "x dias x personas",
-  ALMUERZO: "x dias x personas",
-  CENA: "x noches x personas",
-}
-const ayudaMultiplicadorComida: Record<TipoComida, string> = {
-  DESAYUNO: "Se reconoce cada dia del viaje.",
-  ALMUERZO: "Se reconoce cada dia del viaje.",
-  CENA: "Se reconoce solo si el viaje tiene pernocte.",
-}
-const formulaComida: Record<TipoComida, string> = {
-  DESAYUNO: "personas x dias x tarifa",
-  ALMUERZO: "personas x dias x tarifa",
-  CENA: "personas x noches x tarifa",
+const etiquetaMultiplicadorComida = (baseConteo: BaseConteo) => {
+  return baseConteo === "NOCHE" ? "x noches x personas" : "x dias x personas"
 }
 
 function distribuirMonto(total: number, partes: number): number[] {
@@ -133,6 +144,181 @@ function distribuirMonto(total: number, partes: number): number[] {
 function formatearMonto(valor: number) {
   return valor.toFixed(2)
 }
+
+function formatearFecha(fecha?: string | null) {
+  if (!fecha) return null
+  const valor = new Date(fecha)
+  if (Number.isNaN(valor.getTime())) return fecha
+  return new Intl.DateTimeFormat("es-PE", { dateStyle: "medium" }).format(valor)
+}
+
+// Texto de vigencia legible: "Desde 5 ene 2026", "Hasta 5 ene 2026", o rango.
+function textoVigencia(fechaInicio?: string | null, fechaFin?: string | null) {
+  const inicio = formatearFecha(fechaInicio)
+  const fin = formatearFecha(fechaFin)
+  if (inicio && fin) return `${inicio} - ${fin}`
+  if (inicio) return `Desde ${inicio}`
+  if (fin) return `Hasta ${fin}`
+  return "Sin fecha de vigencia"
+}
+
+function cantidadConteo(baseConteo: BaseConteo, dias: string, noches: string) {
+  const valor = baseConteo === "NOCHE" ? Number(noches) : Number(dias)
+  return Number.isFinite(valor) && valor >= 0 ? valor : 0
+}
+
+function etiquetaConteo(baseConteo: BaseConteo, dias: string, noches: string) {
+  const cantidad = cantidadConteo(baseConteo, dias, noches)
+  return baseConteo === "NOCHE" ? `Noches (${cantidad})` : `Dias (${cantidad})`
+}
+
+function textoNormalizado(valor?: string | null) {
+  return (valor ?? "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+}
+
+function esAlojamiento(nombre?: string | null) {
+  const texto = textoNormalizado(nombre)
+  return texto.includes("aloj") || texto.includes("hosped") || texto.includes("hotel")
+}
+
+function permiteConteoNochesSimple(item: Pick<ChecklistItemCostoOperativo, "conceptoNombre" | "frecuencia" | "esAlimentacion">) {
+  return !item.esAlimentacion && item.frecuencia === "POR_DIA" && esAlojamiento(item.conceptoNombre)
+}
+
+function baseConteoSimpleEfectiva(item: ChecklistItemCostoOperativo, baseConteo: BaseConteo) {
+  if (item.frecuencia !== "POR_DIA") return baseConteo
+  return permiteConteoNochesSimple(item) ? baseConteo : "DIA"
+}
+
+function numeroEnteroNoNegativo(valor: string | number | null | undefined) {
+  const numero = Number(valor ?? 0)
+  return Number.isFinite(numero) && numero > 0 ? Math.floor(numero) : 0
+}
+
+function diasMarcados(cantidad: number, dias: number) {
+  return Array.from({ length: Math.max(dias, 0) }, (_, index) => index < cantidad)
+}
+
+function contarMarcados(valores: boolean[] | undefined) {
+  return (valores ?? []).filter(Boolean).length
+}
+
+function BotonesConteo({
+  value,
+  dias,
+  noches,
+  disabled,
+  onChange,
+}: {
+  value: BaseConteo
+  dias: string
+  noches: string
+  disabled?: boolean
+  onChange: (value: BaseConteo) => void
+}) {
+  return (
+    <div className="inline-flex rounded-md border border-border bg-background p-0.5">
+      {(["DIA", "NOCHE"] as BaseConteo[]).map((opcion) => (
+        <button
+          key={opcion}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(opcion)}
+          className={`rounded px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+            value === opcion ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {etiquetaConteo(opcion, dias, noches)}
+        </button>
+      ))}
+    </div>
+  )
+}
+// Marca los dias (o noches) del viaje en que aplica una comida, con un chip por
+// dia. La fuente de verdad interna es el arreglo de dias marcados (el payload
+// envia cantidad = dias marcados).
+function ChipsDias({
+  dias,
+  marcados,
+  unidad,
+  disabled,
+  onToggleDia,
+  onTodos,
+  onNinguno,
+}: {
+  dias: number
+  marcados: boolean[]
+  unidad: "dia" | "noche"
+  disabled?: boolean
+  onToggleDia: (diaIndex: number, checked: boolean) => void
+  onTodos: () => void
+  onNinguno: () => void
+}) {
+  const cantidad = contarMarcados(marcados)
+  const etiquetaUnidad = unidad === "noche" ? "noches" : "dias"
+  const prefijo = unidad === "noche" ? "N" : "D"
+
+  if (dias === 0) {
+    return (
+      <p className="text-xs text-amber-600">
+        Escribe las {etiquetaUnidad} del viaje en el Paso 1 para poder marcarlas.
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">
+          {unidad === "noche" ? "Noches" : "Dias"} que aplica
+          <span className="ml-1 text-foreground">{cantidad}/{dias}</span>
+        </span>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onTodos}
+            className="rounded px-2 py-0.5 text-xs text-primary hover:bg-primary/10 disabled:opacity-50"
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onNinguno}
+            className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+          >
+            Ninguno
+          </button>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {Array.from({ length: dias }, (_, index) => {
+          const activo = Boolean(marcados[index])
+          return (
+            <button
+              key={index}
+              type="button"
+              disabled={disabled}
+              onClick={() => onToggleDia(index, !activo)}
+              className={`flex h-8 w-10 items-center justify-center rounded-md border text-xs font-medium transition-colors disabled:opacity-50 ${
+                activo
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/40"
+              }`}
+            >
+              {prefijo}{index + 1}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 const ayudaFrecuencia: Record<FrecuenciaCosto, string> = {
   POR_VIAJE: "Se paga 1 vez por cada viaje.",
   POR_DIA: "Se paga por cada dia (o noche) del viaje.",
@@ -181,7 +367,7 @@ const plantillasConcepto: Record<ClavePlantilla, DefinicionPlantilla> = {
   COCHERA: {
     frase: "Cochera",
     ejemplo: "UNIDAD · POR_DIA",
-    naturaleza: "VARIABLE",
+    naturaleza: "FIJO",
     baseImputacion: "UNIDAD",
     frecuencia: "POR_DIA",
     baseConteo: "DIA",
@@ -259,9 +445,19 @@ function SelectCuentaContrato({
   const cuentas = cuentasQuery.data?.datos ?? []
   const contratos = contratosQuery.data?.datos ?? []
   const vacio = cuentas.length === 0 && contratos.length === 0
+  const valorInterno = value
+    ? cuentas.some((c) => String(c.id) === value)
+      ? `cuenta-${value}`
+      : contratos.some((c) => String(c.id) === value)
+        ? `contrato-${value}`
+        : undefined
+    : undefined
 
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select
+      value={valorInterno}
+      onValueChange={(v) => onChange(v.replace(/^cuenta-|^contrato-/, ""))}
+    >
       <SelectTrigger className="w-full">
         <SelectValue placeholder="Selecciona cuenta o contrato" />
       </SelectTrigger>
@@ -270,7 +466,7 @@ function SelectCuentaContrato({
           <SelectGroup>
             <SelectLabel>Cuentas</SelectLabel>
             {cuentas.map((c) => (
-              <SelectItem key={`cuenta-${c.id}`} value={String(c.id)}>
+              <SelectItem key={`cuenta-${c.id}`} value={`cuenta-${c.id}`}>
                 {c.codigo} - {c.nombre}
               </SelectItem>
             ))}
@@ -280,7 +476,7 @@ function SelectCuentaContrato({
           <SelectGroup>
             <SelectLabel>Contratos</SelectLabel>
             {contratos.map((c) => (
-              <SelectItem key={`contrato-${c.id}`} value={String(c.id)}>
+              <SelectItem key={`contrato-${c.id}`} value={`contrato-${c.id}`}>
                 {c.codigo} - {c.nombre}
               </SelectItem>
             ))}
@@ -306,7 +502,7 @@ function SelectRuta({ value, onChange }: { value: string; onChange: (v: string) 
   const rutas = rutasQuery.data?.datos ?? []
 
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select key={value || "sin-ruta"} value={value || undefined} onValueChange={onChange}>
       <SelectTrigger className="w-full">
         <SelectValue placeholder="Selecciona la ruta" />
       </SelectTrigger>
@@ -334,6 +530,11 @@ const etiquetaModalidad: Record<ModalidadEntrega, string> = {
   EXPRESS: "Express",
 }
 
+const etiquetaTipoCarga: Record<TipoCargaCosto, string> = {
+  GENERAL: "General",
+  DIMENSIONADO: "Dimensionado",
+}
+
 // Modalidad de entrega: enum fijo (no administrable). Solo diferencia el paquete.
 function SelectModalidad({
   value,
@@ -355,6 +556,34 @@ function SelectModalidad({
   )
 }
 
+const MONEDAS = ["PEN", "USD"] as const
+
+// Moneda del costo: enum corto y estable. Evita texto libre propenso a error.
+function SelectMoneda({
+  value,
+  onChange,
+  className,
+}: {
+  value: string
+  onChange: (v: string) => void
+  className?: string
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className={className ?? "w-full"}>
+        <SelectValue placeholder="Moneda" />
+      </SelectTrigger>
+      <SelectContent>
+        {MONEDAS.map((m) => (
+          <SelectItem key={m} value={m}>
+            {m}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
 // --- Dialogo crear/editar concepto (catalogo) --------------------------------
 
 type EstadoComida = { activa: boolean; monto: string; baseConteo: BaseConteo }
@@ -370,7 +599,7 @@ function estadoComidasInicial(concepto?: ConceptoCostoResponse): Record<TipoComi
       base[c.tipoComida] = {
         activa: true,
         monto: String(c.montoReferencial),
-        baseConteo: baseConteoPorComida[c.tipoComida],
+        baseConteo: c.baseConteo,
       }
     })
   }
@@ -452,7 +681,7 @@ function ConceptoDialog({
       tipoComida: t,
       montoReferencial: montos[index] ?? 0,
       moneda,
-      baseConteo: baseConteoPorComida[t],
+      baseConteo: comidas[t].baseConteo,
     }))
   }
 
@@ -687,7 +916,7 @@ function ConceptoDialog({
                 </Field>
                 <Field className="w-28">
                   <FieldLabel>Moneda</FieldLabel>
-                  <Input value={moneda} onChange={(e) => setMoneda(e.target.value.toUpperCase())} />
+                  <SelectMoneda value={moneda} onChange={setMoneda} />
                 </Field>
               </div>
             </div>
@@ -715,7 +944,6 @@ function ConceptoDialog({
                                 [t]: {
                                   ...prev[t],
                                   activa: c === true,
-                                  baseConteo: baseConteoPorComida[t],
                                 },
                               }))
                             }
@@ -728,14 +956,30 @@ function ConceptoDialog({
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <Badge variant="secondary" className="w-fit">
-                            {etiquetaMultiplicadorComida[t]}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{ayudaMultiplicadorComida[t]}</span>
+                          <Select
+                            value={comidas[t].baseConteo}
+                            onValueChange={(v) =>
+                              setComidas((prev) => ({
+                                ...prev,
+                                [t]: { ...prev[t], baseConteo: v as BaseConteo },
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="h-8 w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="DIA">Por dia</SelectItem>
+                              <SelectItem value="NOCHE">Por noche</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <span className="text-xs text-muted-foreground">
+                            {comidas[t].baseConteo === "NOCHE" ? "Usa noches configuradas." : "Usa dias configurados."}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">
-                        {formulaComida[t]}
+                        personas x {comidas[t].baseConteo === "NOCHE" ? "noches" : "dias"} x tarifa
                       </TableCell>
                     </TableRow>
                   ))}
@@ -745,8 +989,8 @@ function ConceptoDialog({
 
             <div className="grid gap-2 border-t border-border bg-muted/20 px-4 py-3 text-xs text-muted-foreground sm:grid-cols-3">
               <p><span className="font-semibold text-foreground">Ejemplo:</span> 50 / 2 comidas = 25 cada una.</p>
-              <p>Desayuno/almuerzo usan dias.</p>
-              <p>Cena usa noches.</p>
+              <p>El conteo DIA/NOCHE se puede ajustar por comida.</p>
+              <p>Cena puede ser por noche o por dia segun ruta.</p>
             </div>
           </div>
         ) : (
@@ -754,7 +998,7 @@ function ConceptoDialog({
             <p className="text-sm font-medium">Tarifa referencial (opcional)</p>
             <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
               Precio unitario sugerido ({etiquetaFrecuencia[frecuencia].toLowerCase()}), no el total
-              del viaje. Prellena el checklist cuando ruta + cuenta/contrato aun no tiene su propio
+              del viaje. Prellena el checklist cuando la ruta aun no tiene su propio
               monto; el usuario puede sobrescribirlo ahi.
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -771,7 +1015,7 @@ function ConceptoDialog({
               </Field>
               <Field>
                 <FieldLabel>Moneda</FieldLabel>
-                <Input value={moneda} onChange={(e) => setMoneda(e.target.value.toUpperCase())} />
+                <SelectMoneda value={moneda} onChange={setMoneda} />
               </Field>
             </div>
           </div>
@@ -848,7 +1092,7 @@ function ConceptoCard({
             {concepto.comidas
               .map(
                 (c) =>
-                  `${etiquetaComida[c.tipoComida]} ${c.moneda} ${c.montoReferencial.toFixed(2)} (${etiquetaMultiplicadorComida[c.tipoComida]})`,
+                  `${etiquetaComida[c.tipoComida]} ${c.moneda} ${c.montoReferencial.toFixed(2)} (${etiquetaMultiplicadorComida(c.baseConteo)})`,
               )
               .join(" · ")}
           </p>
@@ -940,7 +1184,7 @@ function ConceptosTab() {
             <EmptyTitle>Sin conceptos de costo</EmptyTitle>
             <EmptyDescription>
               Registra el primer concepto (alimentacion, cochera, lavado, etc.). Luego, en
-              &quot;Configuracion de costo&quot;, arma el paquete por ruta + cuenta/contrato.
+              &quot;Configuracion de costo&quot;, arma el paquete por ruta.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -978,84 +1222,394 @@ type EstadoLinea = {
   activo: boolean
   monto: string
   moneda: string
+  baseConteo: BaseConteo
   comidas: Record<TipoComida, string>
+  baseConteoComidas: Record<TipoComida, BaseConteo>
+  diasComidas: Record<TipoComida, boolean[]>
+}
+
+function SelectTipoCarga({
+  value,
+  onChange,
+}: {
+  value: TipoCargaCosto
+  onChange: (v: TipoCargaCosto) => void
+}) {
+  return (
+    <Select value={value} onValueChange={(v) => onChange(v as TipoCargaCosto)}>
+      <SelectTrigger className="w-full">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="GENERAL">General</SelectItem>
+        <SelectItem value="DIMENSIONADO">Dimensionado</SelectItem>
+      </SelectContent>
+    </Select>
+  )
+}
+
+type EstadoTramoOperativo = {
+  ubicacionDesdeId: string
+  ubicacionHastaId: string
+  horasBase: string
+  distanciaKm: string
+  tiempoParadaHoras: string
+}
+
+function tramoVacio(): EstadoTramoOperativo {
+  return {
+    ubicacionDesdeId: "",
+    ubicacionHastaId: "",
+    horasBase: "",
+    distanciaKm: "",
+    tiempoParadaHoras: "",
+  }
+}
+
+function TramosOperativosPanel({
+  costoOperativoId,
+  rutaId,
+  setDiasViatico,
+  setNochesViatico,
+}: {
+  costoOperativoId: number | null
+  rutaId: number
+  setDiasViatico: (v: string) => void
+  setNochesViatico: (v: string) => void
+}) {
+  const { usuario } = useSesion()
+  const usuarioId = usuario?.email ?? "admin"
+  const detalleRutaQuery = useDetalleRutaQuery(rutaId, true)
+  const tramosQuery = useTramosCostoOperativoQuery(costoOperativoId, costoOperativoId != null)
+  const tiempoQuery = useTiempoCostoOperativoQuery(costoOperativoId, undefined, costoOperativoId != null)
+  const guardarTramos = useGuardarTramosCostoOperativoMutation(costoOperativoId ?? 0, {
+    onSuccess: () => {
+      void tramosQuery.refetch()
+      void tiempoQuery.refetch()
+    },
+  })
+  const [tramos, setTramos] = useState<EstadoTramoOperativo[]>([])
+  const [syncedKey, setSyncedKey] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const puntos = detalleRutaQuery.data?.puntos ?? []
+  const ubicacionesRuta = useMemo(
+    () => Array.from(new Map(puntos.map((p) => [p.ubicacionId, p])).values()),
+    [puntos],
+  )
+  const tramosGuardados = Array.isArray(tramosQuery.data) ? tramosQuery.data : []
+  const dataKey = costoOperativoId
+    ? `saved:${costoOperativoId}:${tramosGuardados.map((t) => `${t.orden}:${t.ubicacionDesdeId}-${t.ubicacionHastaId}:${t.horasBase}:${t.distanciaKm}:${t.tiempoParadaHoras}`).join("|")}`
+    : `ruta:${rutaId}:${puntos.map((p) => `${p.orden}:${p.ubicacionId}`).join("|")}`
+
+  useEffect(() => {
+    if (dataKey === syncedKey) return
+    if (tramosGuardados.length > 0) {
+      setTramos(
+        tramosGuardados.map((tramo) => ({
+          ubicacionDesdeId: String(tramo.ubicacionDesdeId),
+          ubicacionHastaId: String(tramo.ubicacionHastaId),
+          horasBase: String(tramo.horasBase),
+          distanciaKm: tramo.distanciaKm == null ? "" : String(tramo.distanciaKm),
+          tiempoParadaHoras: tramo.tiempoParadaHoras == null ? "" : String(tramo.tiempoParadaHoras),
+        })),
+      )
+    } else if (puntos.length >= 2) {
+      setTramos(
+        puntos.slice(0, -1).map((punto, index) => ({
+          ubicacionDesdeId: String(punto.ubicacionId),
+          ubicacionHastaId: String(puntos[index + 1]?.ubicacionId ?? ""),
+          horasBase: "",
+          distanciaKm: "",
+          tiempoParadaHoras: "",
+        })),
+      )
+    } else {
+      setTramos([])
+    }
+    setSyncedKey(dataKey)
+  }, [dataKey, puntos, syncedKey, tramosGuardados])
+
+  function actualizarTramo(index: number, campo: keyof EstadoTramoOperativo, valor: string) {
+    setTramos((prev) => prev.map((tramo, i) => (i === index ? { ...tramo, [campo]: valor } : tramo)))
+  }
+
+  async function guardar() {
+    if (!costoOperativoId) {
+      setError("Guarda primero el paquete de costos para poder registrar tramos operativos.")
+      return
+    }
+    const payload = []
+    for (const tramo of tramos) {
+      const desde = Number(tramo.ubicacionDesdeId)
+      const hasta = Number(tramo.ubicacionHastaId)
+      const horas = Number(tramo.horasBase)
+      if (!desde || !hasta || !Number.isFinite(horas) || horas <= 0) {
+        setError("Cada tramo necesita origen, destino y horas base mayor que cero.")
+        return
+      }
+      payload.push({
+        ubicacionDesdeId: desde,
+        ubicacionHastaId: hasta,
+        horasBase: horas,
+        distanciaKm: tramo.distanciaKm.trim() ? Number(tramo.distanciaKm) : null,
+        tiempoParadaHoras: tramo.tiempoParadaHoras.trim() ? Number(tramo.tiempoParadaHoras) : null,
+      })
+    }
+    try {
+      setError(null)
+      await guardarTramos.mutateAsync({ tramos: payload, usuarioCreacion: usuarioId })
+    } catch (err) {
+      setError(obtenerMensajeError(err))
+    }
+  }
+
+  const calculo = tiempoQuery.data
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Clock3 className="size-4 text-muted-foreground" />
+            <p className="text-sm font-semibold">Tramos operativos del paquete</p>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Horas, distancia y paradas viven en costo operativo porque pueden cambiar por contrato o modalidad.
+          </p>
+        </div>
+        {calculo ? (
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge variant="secondary">{calculo.horasTotal} h</Badge>
+            <Badge variant="outline">{calculo.diasSugeridos} dias</Badge>
+            <Badge variant="outline">{calculo.nochesSugeridas} noches</Badge>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setDiasViatico(String(calculo.diasSugeridos))
+                setNochesViatico(String(calculo.nochesSugeridas))
+              }}
+            >
+              Usar sugerencia
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      {!costoOperativoId ? (
+        <Alert className="mt-3">
+          <AlertTitle>Primero guarda el paquete</AlertTitle>
+          <AlertDescription>
+            Selecciona conceptos y guarda costos. Luego registra tramos operativos para este paquete.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {error ? (
+        <Alert variant="destructive" className="mt-3">
+          <AlertTitle>No se pudo guardar tramos</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div className="mt-4 flex flex-col gap-3">
+        {tramos.map((tramo, index) => (
+          <div key={index} className="grid gap-3 rounded-lg border border-border bg-background p-3 lg:grid-cols-[1fr_1fr_110px_110px_130px]">
+            <Field>
+              <FieldLabel>Desde</FieldLabel>
+              <Select value={tramo.ubicacionDesdeId} onValueChange={(v) => actualizarTramo(index, "ubicacionDesdeId", v)}>
+                <SelectTrigger><SelectValue placeholder="Origen" /></SelectTrigger>
+                <SelectContent>
+                  {ubicacionesRuta.map((p) => (
+                    <SelectItem key={`d-${index}-${p.ubicacionId}`} value={String(p.ubicacionId)}>
+                      {p.ubicacionNombre ?? `Ubicacion ${p.ubicacionId}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel>Hasta</FieldLabel>
+              <Select value={tramo.ubicacionHastaId} onValueChange={(v) => actualizarTramo(index, "ubicacionHastaId", v)}>
+                <SelectTrigger><SelectValue placeholder="Destino" /></SelectTrigger>
+                <SelectContent>
+                  {ubicacionesRuta.map((p) => (
+                    <SelectItem key={`h-${index}-${p.ubicacionId}`} value={String(p.ubicacionId)}>
+                      {p.ubicacionNombre ?? `Ubicacion ${p.ubicacionId}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel>Horas</FieldLabel>
+              <Input type="number" min="0.01" step="0.25" className="text-right" value={tramo.horasBase} onChange={(e) => actualizarTramo(index, "horasBase", e.target.value)} />
+            </Field>
+            <Field>
+              <FieldLabel>Km</FieldLabel>
+              <Input type="number" min="0" step="0.1" className="text-right" value={tramo.distanciaKm} onChange={(e) => actualizarTramo(index, "distanciaKm", e.target.value)} />
+            </Field>
+            <Field>
+              <FieldLabel>Parada h</FieldLabel>
+              <Input type="number" min="0" step="0.25" className="text-right" value={tramo.tiempoParadaHoras} onChange={(e) => actualizarTramo(index, "tiempoParadaHoras", e.target.value)} />
+            </Field>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap justify-between gap-2">
+        <Button type="button" variant="outline" onClick={() => setTramos((prev) => [...prev, tramoVacio()])}>
+          Agregar tramo
+        </Button>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" onClick={() => void tiempoQuery.refetch()} disabled={!costoOperativoId}>
+            Recalcular
+          </Button>
+          <Button type="button" onClick={() => void guardar()} disabled={!costoOperativoId || guardarTramos.isPending}>
+            {guardarTramos.isPending ? "Guardando..." : "Guardar tramos"}
+          </Button>
+        </div>
+      </div>
+    </section>
+  )
 }
 
 function ChecklistPanel({
   rutaId,
   cuentaContratoId,
   modalidadEntrega,
+  tipoCarga,
   moneda,
+  diasViatico,
+  setDiasViatico,
+  nochesViatico,
+  setNochesViatico,
+  fechaInicioEdicion,
   onGuardado,
 }: {
   rutaId: number
-  cuentaContratoId: number
+  cuentaContratoId: number | null
   modalidadEntrega: ModalidadEntrega
+  tipoCarga: TipoCargaCosto
   moneda: string
-  onGuardado: () => void
+  diasViatico: string
+  setDiasViatico: (v: string) => void
+  nochesViatico: string
+  setNochesViatico: (v: string) => void
+  fechaInicioEdicion?: string | null
+  onGuardado: (paquete: CostoOperativoResponse) => void
 }) {
-  const checklistQuery = useChecklistCostoOperativoQuery(rutaId, cuentaContratoId, modalidadEntrega)
+  const checklistQuery = useChecklistCostoOperativoQuery(rutaId, cuentaContratoId, modalidadEntrega, tipoCarga)
   const [lineas, setLineas] = useState<Record<number, EstadoLinea>>({})
-  const [diasViatico, setDiasViatico] = useState("")
-  const [nochesViatico, setNochesViatico] = useState("")
   const [diasSynced, setDiasSynced] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [costoOperativoGuardadoId, setCostoOperativoGuardadoId] = useState<number | null>(null)
   const { usuario } = useSesion()
   const usuarioId = usuario?.email ?? "admin"
 
   const items = checklistQuery.data?.items ?? []
+  const costoOperativoId = checklistQuery.data?.costoOperativoId ?? costoOperativoGuardadoId
 
-  if (!diasSynced && checklistQuery.data) {
+  useEffect(() => {
+    if (diasSynced || !checklistQuery.data) return
     setDiasViatico(checklistQuery.data.diasViatico != null ? String(checklistQuery.data.diasViatico) : "")
     setNochesViatico(
       checklistQuery.data.nochesViatico != null ? String(checklistQuery.data.nochesViatico) : "",
     )
     setDiasSynced(true)
-  }
+  }, [checklistQuery.data, diasSynced, setDiasViatico, setNochesViatico])
 
   const itemsKey = items
     .map(
       (i) =>
-        `${i.conceptoCostoOperativoId}:${i.activo}:${i.monto}:${i.comidas
-          .map((c) => `${c.tipoComida}=${c.monto}`)
+        `${i.conceptoCostoOperativoId}:${i.activo}:${i.monto}:${i.baseConteo}:${i.comidas
+          .map((c) => `${c.tipoComida}=${c.monto}:${c.baseConteo}`)
           .join(",")}`,
     )
     .join("|")
   const [syncedKey, setSyncedKey] = useState<string | null>(null)
-  if (itemsKey !== syncedKey && items.length > 0) {
+  useEffect(() => {
+    if (itemsKey === syncedKey || items.length === 0) return
     const inicial: Record<number, EstadoLinea> = {}
     items.forEach((item) => {
+      const diasConfigurados = numeroEnteroNoNegativo(checklistQuery.data?.diasViatico ?? 0)
+      const nochesConfiguradas = numeroEnteroNoNegativo(checklistQuery.data?.nochesViatico ?? 0)
       const comidas: Record<TipoComida, string> = { DESAYUNO: "", ALMUERZO: "", CENA: "" }
+      const baseConteoComidas: Record<TipoComida, BaseConteo> = {
+        DESAYUNO: baseConteoPorComida.DESAYUNO,
+        ALMUERZO: baseConteoPorComida.ALMUERZO,
+        CENA: baseConteoPorComida.CENA,
+      }
+      const diasComidas: Record<TipoComida, boolean[]> = {
+        DESAYUNO: [],
+        ALMUERZO: [],
+        CENA: [],
+      }
       item.comidas.forEach((c) => {
         comidas[c.tipoComida] = String(c.monto)
+        baseConteoComidas[c.tipoComida] = c.baseConteo
+        const total = c.baseConteo === "NOCHE" ? nochesConfiguradas : diasConfigurados
+        const cantidad = c.cantidad ?? total
+        diasComidas[c.tipoComida] = diasMarcados(cantidad, total)
       })
       inicial[item.conceptoCostoOperativoId] = {
         activo: item.activo,
         monto: item.monto != null ? String(item.monto) : "",
         moneda: item.moneda || moneda,
+        baseConteo: item.baseConteo,
         comidas,
+        baseConteoComidas,
+        diasComidas,
       }
     })
     setLineas(inicial)
     setSyncedKey(itemsKey)
-  }
+  }, [checklistQuery.data?.diasViatico, checklistQuery.data?.nochesViatico, items, itemsKey, moneda, syncedKey])
 
-  const guardar = useGuardarCostoOperativoMutation({ onSuccess: onGuardado })
+  const guardar = useGuardarCostoOperativoMutation()
 
   function toggle(item: ChecklistItemCostoOperativo, checked: boolean) {
-    setLineas((prev) => ({
-      ...prev,
-      [item.conceptoCostoOperativoId]: {
-        activo: checked,
-        monto: prev[item.conceptoCostoOperativoId]?.monto ?? "",
-        moneda: prev[item.conceptoCostoOperativoId]?.moneda ?? moneda,
-        comidas: prev[item.conceptoCostoOperativoId]?.comidas ?? {
-          DESAYUNO: "",
-          ALMUERZO: "",
-          CENA: "",
+    const totalDias = numeroEnteroNoNegativo(diasViatico)
+    const totalNoches = numeroEnteroNoNegativo(nochesViatico)
+    setLineas((prev) => {
+      const actual = prev[item.conceptoCostoOperativoId]
+      const baseComidas = actual?.baseConteoComidas ?? {
+        DESAYUNO: baseConteoPorComida.DESAYUNO,
+        ALMUERZO: baseConteoPorComida.ALMUERZO,
+        CENA: baseConteoPorComida.CENA,
+      }
+      // Al activar alimentacion, pre-marca todos los dias/noches del viaje: el
+      // usuario solo destilda los que no aplican. Al desactivar conserva lo previo.
+      let diasComidas = actual?.diasComidas ?? { DESAYUNO: [], ALMUERZO: [], CENA: [] }
+      if (checked && item.esAlimentacion) {
+        const yaMarcado = COMIDAS.some((t) => contarMarcados(diasComidas[t]) > 0)
+        if (!yaMarcado) {
+          diasComidas = {
+            DESAYUNO: [],
+            ALMUERZO: [],
+            CENA: [],
+          }
+          item.comidas.forEach((c) => {
+            const total = (baseComidas[c.tipoComida] ?? c.baseConteo) === "NOCHE" ? totalNoches : totalDias
+            diasComidas[c.tipoComida] = diasMarcados(total, total)
+          })
+        }
+      }
+      return {
+        ...prev,
+        [item.conceptoCostoOperativoId]: {
+          activo: checked,
+          monto: actual?.monto ?? "",
+          moneda: actual?.moneda ?? moneda,
+          baseConteo: actual?.baseConteo ?? item.baseConteo,
+          comidas: actual?.comidas ?? { DESAYUNO: "", ALMUERZO: "", CENA: "" },
+          baseConteoComidas: baseComidas,
+          diasComidas,
         },
-      },
-    }))
+      }
+    })
   }
 
   function setMonto(conceptoId: number, monto: string) {
@@ -1063,6 +1617,57 @@ function ChecklistPanel({
       ...prev,
       [conceptoId]: { ...prev[conceptoId], monto, activo: prev[conceptoId]?.activo ?? false },
     }))
+  }
+
+  function setBaseConteoLinea(conceptoId: number, baseConteo: BaseConteo) {
+    setLineas((prev) => ({
+      ...prev,
+      [conceptoId]: { ...prev[conceptoId], baseConteo, activo: prev[conceptoId]?.activo ?? false },
+    }))
+  }
+
+
+  function setCantidadComida(conceptoId: number, tipoComida: TipoComida, cantidad: number, total: number) {
+    const limitada = Math.min(Math.max(cantidad, 0), total)
+    setLineas((prev) => {
+      const actual = prev[conceptoId]
+      return {
+        ...prev,
+        [conceptoId]: {
+          ...actual,
+          activo: actual?.activo ?? false,
+          diasComidas: {
+            DESAYUNO: actual?.diasComidas?.DESAYUNO ?? [],
+            ALMUERZO: actual?.diasComidas?.ALMUERZO ?? [],
+            CENA: actual?.diasComidas?.CENA ?? [],
+            [tipoComida]: diasMarcados(limitada, total),
+          },
+        },
+      }
+    })
+  }
+
+  // Marca/desmarca un dia individual de una comida (chips del panel).
+  function setDiaComida(conceptoId: number, tipoComida: TipoComida, diaIndex: number, checked: boolean, total: number) {
+    setLineas((prev) => {
+      const actual = prev[conceptoId]
+      const base = actual?.diasComidas?.[tipoComida] ?? []
+      const siguientes = Array.from({ length: total }, (_, i) => Boolean(base[i]))
+      siguientes[diaIndex] = checked
+      return {
+        ...prev,
+        [conceptoId]: {
+          ...actual,
+          activo: actual?.activo ?? false,
+          diasComidas: {
+            DESAYUNO: actual?.diasComidas?.DESAYUNO ?? [],
+            ALMUERZO: actual?.diasComidas?.ALMUERZO ?? [],
+            CENA: actual?.diasComidas?.CENA ?? [],
+            [tipoComida]: siguientes,
+          },
+        },
+      }
+    })
   }
 
   function setMontoTotalComidas(item: ChecklistItemCostoOperativo, valor: string) {
@@ -1084,22 +1689,11 @@ function ChecklistPanel({
     return item.comidas.reduce((suma, comida) => suma + (Number(linea.comidas[comida.tipoComida]) || 0), 0)
   }
 
-  // baseConteo por comida (para saber si algun concepto marcado cuenta por noche).
-  const comidaNochePorConcepto = new Map<number, TipoComida[]>()
-  items.forEach((i) => {
-    if (i.esAlimentacion) {
-      comidaNochePorConcepto.set(
-        i.conceptoCostoOperativoId,
-        i.comidas.filter((c) => c.baseConteo === "NOCHE").map((c) => c.tipoComida),
-      )
-    }
-  })
-
   const marcadosPorNoche = items.filter((item) => {
     const linea = lineas[item.conceptoCostoOperativoId]
     if (!linea?.activo) return false
-    if (item.esAlimentacion) return (comidaNochePorConcepto.get(item.conceptoCostoOperativoId) ?? []).length > 0
-    return item.baseConteo === "NOCHE"
+    if (item.esAlimentacion) return false
+    return permiteConteoNochesSimple(item) && linea.baseConteo === "NOCHE"
   })
 
   async function guardarChecklist() {
@@ -1107,12 +1701,20 @@ function ChecklistPanel({
       const linea = lineas[item.conceptoCostoOperativoId]
       if (!linea?.activo) continue
       if (item.esAlimentacion) {
+        let comidasMarcadas = 0
         for (const c of item.comidas) {
+          const cantidad = contarMarcados(linea.diasComidas[c.tipoComida])
+          comidasMarcadas += cantidad
+          if (cantidad === 0) continue
           const m = Number(linea.comidas[c.tipoComida])
           if (!Number.isFinite(m) || m <= 0) {
             setError(`${item.conceptoNombre}: cada comida necesita un monto mayor que cero.`)
             return
           }
+        }
+        if (comidasMarcadas === 0) {
+          setError(`${item.conceptoNombre}: marca al menos una comida en algun dia.`)
+          return
         }
       } else {
         const m = Number(linea.monto)
@@ -1124,11 +1726,12 @@ function ChecklistPanel({
     }
     try {
       setError(null)
-      await guardar.mutateAsync({
+      const paqueteGuardado = await guardar.mutateAsync({
         rutaId,
         cuentaContratoId,
         modalidadEntrega,
-        moneda,
+        tipoCarga,
+        fechaInicio: fechaInicioEdicion ?? null,
         diasViatico: diasViatico.trim() ? Number(diasViatico) : 1,
         nochesViatico: nochesViatico.trim() ? Number(nochesViatico) : marcadosPorNoche.length > 0 ? 0 : null,
         usuarioCreacion: usuarioId,
@@ -1137,18 +1740,25 @@ function ChecklistPanel({
             activo: false,
             monto: "",
             moneda,
+            baseConteo: item.baseConteo,
             comidas: { DESAYUNO: "", ALMUERZO: "", CENA: "" },
+            baseConteoComidas: {
+              DESAYUNO: baseConteoPorComida.DESAYUNO,
+              ALMUERZO: baseConteoPorComida.ALMUERZO,
+              CENA: baseConteoPorComida.CENA,
+            },
+            diasComidas: { DESAYUNO: [], ALMUERZO: [], CENA: [] },
           }
           if (item.esAlimentacion) {
             return {
               conceptoId: item.conceptoCostoOperativoId,
               activo: linea.activo,
-              moneda: linea.moneda || moneda,
               comidas: item.comidas.map((c) => ({
                 tipoComida: c.tipoComida,
                 activo: true,
                 monto: Number(linea.comidas[c.tipoComida]) || 0,
-                moneda: linea.moneda || moneda,
+                baseConteo: linea.baseConteoComidas[c.tipoComida] ?? c.baseConteo,
+                cantidad: contarMarcados(linea.diasComidas[c.tipoComida]),
               })),
             }
           }
@@ -1156,10 +1766,13 @@ function ChecklistPanel({
             conceptoId: item.conceptoCostoOperativoId,
             activo: linea.activo,
             monto: Number(linea.monto) || 0,
-            moneda: linea.moneda || moneda,
+            baseConteo: baseConteoSimpleEfectiva(item, linea.baseConteo),
           }
         }),
       })
+      setCostoOperativoGuardadoId(paqueteGuardado.id)
+      await checklistQuery.refetch()
+      onGuardado(paqueteGuardado)
     } catch (err) {
       setError(obtenerMensajeError(err))
     }
@@ -1190,10 +1803,10 @@ function ChecklistPanel({
     return (
       <Empty className="py-10">
         <EmptyHeader>
-          <EmptyTitle>Sin conceptos en el catalogo</EmptyTitle>
+          <EmptyTitle>Aun no hay costos creados</EmptyTitle>
           <EmptyDescription>
-            Registra conceptos en la pestana &quot;Catalogo de conceptos&quot; antes de armar el
-            paquete de costo.
+            Primero crea los costos (alimentacion, alojamiento, cochera...) en la pestana
+            &quot;Catalogo de conceptos&quot;. Luego vuelve aqui para elegir cuales se cobran.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -1201,29 +1814,41 @@ function ChecklistPanel({
   }
 
   const activos = items.filter((item) => lineas[item.conceptoCostoOperativoId]?.activo).length
+  const diasDisponibles = numeroEnteroNoNegativo(diasViatico)
+  const nochesDisponibles = numeroEnteroNoNegativo(nochesViatico)
 
   return (
     <div className="flex flex-col gap-5">
       <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
-        <div>
-          <p className="text-sm font-semibold">Aplicar catalogo a esta ruta</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            El catalogo define que conceptos existen. Aqui solo eliges cuales aplican para esta ruta + cuenta y sus tarifas.
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-            <div className="rounded-md border border-border bg-background px-3 py-2">
-              <p className="text-[11px] text-muted-foreground">Conceptos seleccionados</p>
-              <p className="text-sm font-semibold">{activos} de {items.length}</p>
-            </div>
-            <div className="rounded-md border border-border bg-background px-3 py-2">
-              <p className="text-[11px] text-muted-foreground">Modalidad</p>
-              <p className="text-sm font-semibold">{modalidadEntrega}</p>
-            </div>
-            <div className="rounded-md border border-border bg-background px-3 py-2">
-              <p className="text-[11px] text-muted-foreground">Moneda</p>
-              <p className="text-sm font-semibold">{moneda}</p>
-            </div>
-          </div>
+        <p className="text-sm font-semibold">Costos de esta ruta</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Marca los costos que se cobran en este viaje y escribe su precio.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5">
+            <span className="text-muted-foreground">Conceptos</span>
+            <span className="font-semibold">{activos} de {items.length}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5">
+            <span className="text-muted-foreground">Modalidad</span>
+            <span className="font-semibold">{etiquetaModalidad[modalidadEntrega]}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5">
+            <span className="text-muted-foreground">Carga</span>
+            <span className="font-semibold">{etiquetaTipoCarga[tipoCarga]}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5">
+            <span className="text-muted-foreground">Moneda</span>
+            <span className="font-semibold">{moneda}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5">
+            <span className="text-muted-foreground">Dias</span>
+            <span className="font-semibold">{diasDisponibles || "-"}</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5">
+            <span className="text-muted-foreground">Noches</span>
+            <span className="font-semibold">{numeroEnteroNoNegativo(nochesViatico) || "-"}</span>
+          </span>
         </div>
       </section>
 
@@ -1234,114 +1859,162 @@ function ChecklistPanel({
         </Alert>
       ) : null}
 
-      <section className="grid gap-3 lg:grid-cols-2">
-        {items.map((item) => {
-          const linea = lineas[item.conceptoCostoOperativoId] ?? {
-            activo: false,
-            monto: "",
-            moneda,
-            comidas: { DESAYUNO: "", ALMUERZO: "", CENA: "" },
-          }
-          const totalAlimentacion = totalComidas(item, linea)
-          const cantidadTexto = item.esAlimentacion
-            ? "Desayuno/almuerzo usan dias; cena usa noches."
-            : item.frecuencia === "POR_DIA"
-              ? `Se multiplica por ${item.baseConteo === "NOCHE" ? "noches" : "dias"}.`
-              : item.frecuencia === "POR_VIAJE"
-                ? "Se cobra una vez por viaje."
-                : "Se cobra una vez por servicio."
+      <ScrollArea viewportClassName="max-h-[60vh] pr-2">
+        <div className="flex flex-col gap-3">
+          {items.map((item) => {
+            const linea = lineas[item.conceptoCostoOperativoId] ?? {
+              activo: false,
+              monto: "",
+              moneda,
+              baseConteo: item.baseConteo,
+              comidas: { DESAYUNO: "", ALMUERZO: "", CENA: "" },
+              baseConteoComidas: {
+                DESAYUNO: baseConteoPorComida.DESAYUNO,
+                ALMUERZO: baseConteoPorComida.ALMUERZO,
+                CENA: baseConteoPorComida.CENA,
+              },
+              diasComidas: { DESAYUNO: [], ALMUERZO: [], CENA: [] },
+            }
+            const baseConteoSimple = baseConteoSimpleEfectiva(item, linea.baseConteo)
+            const totalAlimentacion = totalComidas(item, linea)
+            const cantidadTexto = item.esAlimentacion
+              ? "Por comida"
+              : item.frecuencia === "POR_DIA"
+                ? baseConteoSimple === "NOCHE" ? "Por noche" : "Por dia"
+                : item.frecuencia === "POR_VIAJE"
+                  ? "Por viaje"
+                  : "Por servicio"
 
-          return (
-            <article
-              key={item.conceptoCostoOperativoId}
-              className={`rounded-xl border p-4 shadow-sm transition-colors ${
-                linea.activo ? "border-primary bg-primary/5" : "border-border bg-card"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-base font-semibold">{item.conceptoNombre}</h3>
-                    {item.esAlimentacion ? <Badge>Alimentacion</Badge> : null}
-                  </div>
-                  <p className="mt-1 font-mono text-xs text-muted-foreground">{item.conceptoCodigo}</p>
-                </div>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={linea.activo} onCheckedChange={(c) => toggle(item, c === true)} />
-                  Activo
-                </label>
-              </div>
-
-              <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-                <Badge variant="secondary" className="justify-center">{etiquetaNaturaleza[item.naturaleza]}</Badge>
-                <Badge variant="secondary" className="justify-center">{etiquetaBase[item.baseImputacion]}</Badge>
-                <Badge variant="secondary" className="justify-center">{item.esAlimentacion ? "Comidas" : etiquetaFrecuencia[item.frecuencia]}</Badge>
-              </div>
-
-              <p className="mt-3 rounded-md bg-background/80 px-3 py-2 text-xs text-muted-foreground">
-                {linea.activo ? cantidadTexto : "Disponible desde catalogo. Activalo si aplica a esta ruta."}
-              </p>
-
-              <div className="mt-4">
-                {item.esAlimentacion ? (
-                  <div className="grid gap-3">
-                    <Field>
-                      <FieldLabel>Monto total de alimentacion</FieldLabel>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={totalAlimentacion > 0 ? formatearMonto(totalAlimentacion) : ""}
-                        disabled={!linea.activo}
-                        placeholder="0.00"
-                        className="text-right"
-                        onChange={(e) => setMontoTotalComidas(item, e.target.value)}
-                      />
-                    </Field>
-                    <div className="flex flex-wrap gap-2">
-                      {item.comidas.map((c) => (
-                        <Badge key={c.tipoComida} variant="outline" className="gap-1 font-normal">
-                          {etiquetaComida[c.tipoComida]}: {moneda} {linea.comidas[c.tipoComida] || "0.00"}
-                        </Badge>
-                      ))}
-                    </div>
-                    {item.comidas.length < COMIDAS.length ? (
-                      <p className="text-xs text-amber-600 dark:text-amber-300">
-                        Catalogo activo con {item.comidas.length} comida{item.comidas.length === 1 ? "" : "s"}. Edita catalogo si faltan comidas.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <Field>
-                    <FieldLabel>Monto unitario</FieldLabel>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={linea.monto}
-                      disabled={!linea.activo}
-                      placeholder="0.00"
-                      className="text-right"
-                      onChange={(e) => setMonto(item.conceptoCostoOperativoId, e.target.value)}
+            return (
+              <div
+                key={item.conceptoCostoOperativoId}
+                className={`rounded-xl border p-4 transition-colors ${
+                  linea.activo ? "border-primary/40 bg-primary/5" : "border-border bg-card"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <Checkbox
+                      checked={linea.activo}
+                      className="mt-0.5"
+                      onCheckedChange={(c) => toggle(item, c === true)}
                     />
-                  </Field>
-                )}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{item.conceptoNombre}</span>
+                        {item.esAlimentacion ? <Badge variant="secondary">Alimentacion</Badge> : null}
+                      </div>
+                      <span className="font-mono text-[11px] text-muted-foreground">{item.conceptoCodigo}</span>
+                    </div>
+                  </label>
+                  <Badge variant="outline">{cantidadTexto}</Badge>
+                </div>
+
+                {linea.activo ? (
+                  <div className="mt-4 border-t border-border/60 pt-4">
+                    {!item.esAlimentacion ? (
+                      <div className="flex flex-wrap items-end gap-4">
+                        <Field className="w-40">
+                          <FieldLabel>Precio</FieldLabel>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={linea.monto}
+                            placeholder="0.00"
+                            className="text-right"
+                            onChange={(e) => setMonto(item.conceptoCostoOperativoId, e.target.value)}
+                          />
+                        </Field>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs font-medium text-muted-foreground">Se cobra</span>
+                          {item.frecuencia === "POR_DIA" && permiteConteoNochesSimple(item) ? (
+                            <BotonesConteo
+                              value={linea.baseConteo}
+                              dias={diasViatico}
+                              noches={nochesViatico}
+                              onChange={(value) => setBaseConteoLinea(item.conceptoCostoOperativoId, value)}
+                            />
+                          ) : item.frecuencia === "POR_DIA" ? (
+                            <span className="text-sm">
+                              <span className="font-semibold">
+                                {cantidadConteo(baseConteoSimple, diasViatico, nochesViatico)}
+                              </span>{" "}
+                              {baseConteoSimple === "NOCHE" ? "noches" : "dias"} del viaje
+                            </span>
+                          ) : (
+                            <span className="text-sm">1 vez por {item.frecuencia === "POR_VIAJE" ? "viaje" : "servicio"}</span>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-4">
+                        <Field className="w-56">
+                          <FieldLabel>Precio de comida (1 dia, 1 persona)</FieldLabel>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            value={totalAlimentacion > 0 ? formatearMonto(totalAlimentacion) : ""}
+                            placeholder="0.00"
+                            className="text-right"
+                            onChange={(e) => setMontoTotalComidas(item, e.target.value)}
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            Se reparte entre las comidas. El sistema lo multiplica por dias y personas.
+                          </span>
+                        </Field>
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                          {item.comidas.map((c) => {
+                            const baseComida = linea.baseConteoComidas[c.tipoComida] ?? c.baseConteo
+                            const unidad = baseComida === "NOCHE" ? "noche" : "dia"
+                            const totalComida = baseComida === "NOCHE" ? nochesDisponibles : diasDisponibles
+                            return (
+                              <div key={c.tipoComida} className="rounded-lg border border-border bg-background p-3">
+                                <div className="mb-3 flex items-center justify-between gap-2">
+                                  <span className="text-sm font-semibold">{etiquetaComida[c.tipoComida]}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {moneda} {linea.comidas[c.tipoComida] || "0.00"} c/u
+                                  </span>
+                                </div>
+                                <ChipsDias
+                                  dias={totalComida}
+                                  marcados={linea.diasComidas[c.tipoComida] ?? []}
+                                  unidad={unidad}
+                                  onToggleDia={(diaIndex, checked) =>
+                                    setDiaComida(item.conceptoCostoOperativoId, c.tipoComida, diaIndex, checked, totalComida)
+                                  }
+                                  onTodos={() =>
+                                    setCantidadComida(item.conceptoCostoOperativoId, c.tipoComida, totalComida, totalComida)
+                                  }
+                                  onNinguno={() =>
+                                    setCantidadComida(item.conceptoCostoOperativoId, c.tipoComida, 0, totalComida)
+                                  }
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
-            </article>
-          )
-        })}
-      </section>
+            )
+          })}
+        </div>
+      </ScrollArea>
 
       <div className="flex justify-end">
         <Button onClick={() => void guardarChecklist()} disabled={guardar.isPending}>
-          {guardar.isPending ? "Guardando..." : "Guardar configuracion de costo"}
+          {guardar.isPending ? "Guardando..." : "Guardar costos de la ruta"}
         </Button>
       </div>
     </div>
   )
 }
 
-type DetalleCostoPaquete = {
+type FilaCalculo = {
   clave: string
   concepto: string
   cobro: string
@@ -1351,44 +2024,41 @@ type DetalleCostoPaquete = {
   subtotal: number
 }
 
-function cantidadBaseLinea(linea: LineaCostoOperativoResponse, paquete: CostoOperativoResponse) {
-  if (linea.frecuencia !== "POR_DIA") return 1
-  return linea.baseConteo === "NOCHE" ? (paquete.nochesViatico ?? 0) : (paquete.diasViatico ?? 1)
+const etiquetaCobroFrecuencia: Record<FrecuenciaCosto, string> = {
+  POR_VIAJE: "Por viaje",
+  POR_DIA: "Por dia",
+  POR_SERVICIO: "Por servicio",
 }
 
-function detalleConceptosPaquete(paquete: CostoOperativoResponse): DetalleCostoPaquete[] {
-  return paquete.lineas
-    .filter((linea) => linea.activo)
-    .flatMap((linea) => {
-      const concepto = linea.conceptoNombre ?? linea.conceptoCodigo ?? `Concepto ${linea.conceptoCostoOperativoId}`
-      if (linea.esAlimentacion) {
-        return linea.comidas
-          .filter((comida) => comida.activo !== false)
-          .map((comida) => {
-            const cantidad = comida.baseConteo === "NOCHE" ? (paquete.nochesViatico ?? 0) : (paquete.diasViatico ?? 1)
-            return {
-              clave: `${linea.id}-${comida.tipoComida}`,
-              concepto: `${concepto} - ${etiquetaComida[comida.tipoComida]}`,
-              cobro: comida.baseConteo === "NOCHE" ? "Por noche" : "Por dia",
-              cantidad,
-              tarifa: comida.monto,
-              moneda: comida.moneda || linea.moneda || paquete.moneda || "PEN",
-              subtotal: comida.monto * cantidad,
-            }
-          })
-      }
-      const cantidad = cantidadBaseLinea(linea, paquete)
-      const tarifa = linea.monto ?? 0
-      return [{
-        clave: String(linea.id),
-        concepto,
-        cobro: linea.frecuencia === "POR_DIA" ? (linea.baseConteo === "NOCHE" ? "Por noche" : "Por dia") : "Por viaje",
-        cantidad,
-        tarifa,
-        moneda: linea.moneda || paquete.moneda || "PEN",
-        subtotal: tarifa * cantidad,
-      }]
-    })
+// Aplana el resultado del backend (GET /costos-operativos/calcular) en filas para
+// la tabla. El backend ya aplico la formula (personas/unidades/dias), aqui solo se
+// muestra; no se recalcula nada en el cliente.
+function filasDesdeCalculo(calculo: CalculoCostoResponse): FilaCalculo[] {
+  return calculo.lineas.flatMap((linea) => {
+    const nombre = linea.conceptoNombre ?? linea.conceptoCodigo ?? `Concepto ${linea.conceptoCostoOperativoId}`
+    if (linea.esAlimentacion) {
+      return linea.comidas.map((comida) => ({
+        clave: `${linea.conceptoCostoOperativoId}-${comida.tipoComida}`,
+        concepto: `${nombre} - ${etiquetaComida[comida.tipoComida]}`,
+        cobro: comida.baseConteo === "NOCHE" ? "Por noche" : "Por dia",
+        cantidad: comida.cantidad,
+        tarifa: comida.monto,
+        moneda: calculo.moneda,
+        subtotal: comida.subtotal,
+      }))
+    }
+    return [
+      {
+        clave: String(linea.conceptoCostoOperativoId),
+        concepto: nombre,
+        cobro: etiquetaCobroFrecuencia[linea.frecuencia],
+        cantidad: linea.cantidad ?? 1,
+        tarifa: linea.monto ?? 0,
+        moneda: calculo.moneda,
+        subtotal: linea.subtotal,
+      },
+    ]
+  })
 }
 
 function sumarPorMoneda(filas: Array<{ moneda: string; subtotal: number }>) {
@@ -1406,36 +2076,164 @@ function PaqueteConfiguradoCard({
   paquete,
   onEditar,
   onAnular,
+  mostrarEncabezado = true,
 }: {
   paquete: CostoOperativoResponse
   onEditar: () => void
   onAnular: () => void
+  mostrarEncabezado?: boolean
 }) {
-  const detalleConceptos = detalleConceptosPaquete(paquete)
-  const totalConceptos = sumarPorMoneda(detalleConceptos)
+  const [personas, setPersonas] = useState("1")
+  const [unidades, setUnidades] = useState("1")
+  const personasNum = Math.max(numeroEnteroNoNegativo(personas), 1)
+  const unidadesNum = Math.max(numeroEnteroNoNegativo(unidades), 1)
+
+  // El total lo calcula el backend con la formula del dominio (personas x unidades
+  // x dias/noches segun cada concepto). No se recalcula en el cliente.
+  const calcularQuery = useCalcularCostoQuery({
+    rutaId: paquete.rutaId,
+    cuentaContratoId: paquete.cuentaContratoId,
+    modalidadEntrega: paquete.modalidadEntrega,
+    tipoCarga: paquete.tipoCarga ?? "GENERAL",
+    personas: personasNum,
+    unidades: unidadesNum,
+  })
+  const calculo = calcularQuery.data
+  const filasConceptos = calculo ? filasDesdeCalculo(calculo) : []
+  const monedaConceptos = calculo?.moneda ?? paquete.moneda ?? "PEN"
+  const totalConceptos = calculo ? [[monedaConceptos, calculo.total] as [string, number]] : []
+
   const peajesQuery = useCostoPeajesRutaQuery(paquete.rutaId, { tipoCobro: "NORMAL", sentido: "IDA", numeroEjes: 2 }, true)
   const peajeMoneda = peajesQuery.data?.moneda ?? paquete.moneda ?? "PEN"
   const peajeTotal = peajesQuery.data?.total ?? 0
   const totalEstimado = sumarPorMoneda([
-    ...detalleConceptos,
+    ...filasConceptos.map((fila) => ({ moneda: fila.moneda, subtotal: fila.subtotal })),
     ...(peajesQuery.data ? [{ moneda: peajeMoneda, subtotal: peajeTotal }] : []),
   ])
+  const lineasConfiguradas = paquete.lineas.filter((linea) => linea.activo)
+
+  if (!mostrarEncabezado) {
+    return (
+      <article className="rounded-xl border border-border bg-background p-3 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">{etiquetaModalidad[paquete.modalidadEntrega]}</Badge>
+              <Badge variant="outline">{etiquetaTipoCarga[paquete.tipoCarga ?? "GENERAL"]}</Badge>
+              <Badge variant="outline">{paquete.diasViatico ?? 1} dias</Badge>
+              <Badge variant="outline">{paquete.nochesViatico ?? 0} noches</Badge>
+              <Badge variant="outline">{paquete.codigo ?? `#${paquete.id}`}</Badge>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Vigencia {textoVigencia(paquete.fechaInicio, paquete.fechaFin)}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Button size="sm" variant="outline" onClick={onEditar}>
+              <Pencil data-icon="inline-start" />
+              Editar
+            </Button>
+            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onAnular}>
+              <Trash2 data-icon="inline-start" />
+              Anular
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-3 grid items-start gap-3 xl:grid-cols-[minmax(0,1fr)_280px]">
+          <div className="overflow-hidden rounded-lg border border-border bg-background">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-2">
+              <div>
+                <p className="text-sm font-semibold">Calculo del paquete</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Base: 1 persona, 1 unidad, {paquete.diasViatico ?? 1} dias y {paquete.nochesViatico ?? 0} noches.
+                </p>
+              </div>
+              <span className="text-xs text-muted-foreground">{filasConceptos.length} item(s)</span>
+            </div>
+            {calcularQuery.isLoading ? (
+              <p className="p-3 text-sm text-muted-foreground">Calculando...</p>
+            ) : calcularQuery.error ? (
+              <p className="p-3 text-sm text-destructive">{obtenerMensajeError(calcularQuery.error)}</p>
+            ) : filasConceptos.length === 0 ? (
+              <p className="p-3 text-sm text-muted-foreground">Sin conceptos activos.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Concepto</TableHead>
+                      <TableHead>Cobro</TableHead>
+                      <TableHead className="text-right">Cantidad</TableHead>
+                      <TableHead className="text-right">Tarifa</TableHead>
+                      <TableHead className="text-right">Subtotal</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filasConceptos.map((fila) => (
+                      <TableRow key={fila.clave}>
+                        <TableCell className="min-w-[220px] whitespace-normal py-2 font-medium leading-snug">{fila.concepto}</TableCell>
+                        <TableCell className="py-2 text-muted-foreground">{fila.cobro}</TableCell>
+                        <TableCell className="py-2 text-right">{fila.cantidad}</TableCell>
+                        <TableCell className="py-2 text-right">{fila.moneda} {formatearMonto(fila.tarifa)}</TableCell>
+                        <TableCell className="py-2 text-right font-semibold">{fila.moneda} {formatearMonto(fila.subtotal)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="border-t border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                  Cantidad = dias/noches/personas/unidades segun regla del concepto.
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 xl:sticky xl:top-4">
+            <p className="text-xs text-muted-foreground">Total estimado</p>
+            <p className="mt-1 text-lg font-semibold">{formatearTotales(totalEstimado)}</p>
+            <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+              <div className="flex justify-between gap-2">
+                <span>Conceptos</span>
+                <span className="text-foreground">{formatearTotales(totalConceptos)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Peajes</span>
+                <span className="text-foreground">{peajesQuery.data ? `${peajeMoneda} ${formatearMonto(peajeTotal)}` : "-"}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    )
+  }
 
   return (
     <article className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
-      <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{paquete.rutaNombre ?? `Ruta ${paquete.rutaId}`}</p>
-          <p className="truncate text-xs text-muted-foreground">
-            {paquete.cuentaContratoNombre ?? `Cuenta/contrato ${paquete.cuentaContratoId}`}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Badge variant="secondary">{etiquetaModalidad[paquete.modalidadEntrega]}</Badge>
-            <Badge variant="outline">Dias {paquete.diasViatico ?? 1}</Badge>
-            <Badge variant="outline">Noches {paquete.nochesViatico ?? 0}</Badge>
+      {mostrarEncabezado ? (
+        <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{paquete.rutaNombre ?? `Ruta ${paquete.rutaId}`}</p>
+            <p className="truncate text-xs text-muted-foreground">Costo operativo interno por ruta</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Badge variant="secondary">{etiquetaModalidad[paquete.modalidadEntrega]}</Badge>
+              <Badge variant="outline">{etiquetaTipoCarga[paquete.tipoCarga ?? "GENERAL"]}</Badge>
+              <Badge variant="outline">Dias {paquete.diasViatico ?? 1}</Badge>
+              <Badge variant="outline">Noches {paquete.nochesViatico ?? 0}</Badge>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button size="sm" variant="outline" onClick={onEditar}>
+              <Pencil data-icon="inline-start" />
+              Editar
+            </Button>
+            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={onAnular}>
+              <Trash2 data-icon="inline-start" />
+              Anular
+            </Button>
           </div>
         </div>
-        <div className="flex flex-wrap justify-end gap-2">
+      ) : (
+        <div className="flex justify-end gap-2 border-b border-border p-3">
           <Button size="sm" variant="outline" onClick={onEditar}>
             <Pencil data-icon="inline-start" />
             Editar
@@ -1445,9 +2243,105 @@ function PaqueteConfiguradoCard({
             Anular
           </Button>
         </div>
-      </div>
+      )}
 
       <div className="grid gap-4 p-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            Codigo <span className="font-mono text-foreground">{paquete.codigo ?? `#${paquete.id}`}</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays className="size-3.5" />
+            Vigencia <span className="text-foreground">{textoVigencia(paquete.fechaInicio, paquete.fechaFin)}</span>
+          </span>
+          {formatearFecha(paquete.fechaCreacion) ? (
+            <span>
+              Creado {formatearFecha(paquete.fechaCreacion)}
+              {paquete.usuarioCreacion ? ` por ${paquete.usuarioCreacion}` : ""}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="rounded-lg border border-border bg-muted/20 p-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold">Tarifa configurada</p>
+            <Badge variant="outline">{lineasConfiguradas.length} concepto{lineasConfiguradas.length === 1 ? "" : "s"}</Badge>
+          </div>
+          {lineasConfiguradas.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin conceptos activos configurados.</p>
+          ) : (
+            <div className="grid gap-2">
+              {lineasConfiguradas.map((linea) => {
+                const nombre = linea.conceptoNombre ?? linea.conceptoCodigo ?? `Concepto ${linea.conceptoCostoOperativoId}`
+                return (
+                  <div key={linea.id} className="rounded-md border border-border bg-background p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{nombre}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {linea.conceptoCodigo ?? `#${linea.conceptoCostoOperativoId}`} · {linea.frecuencia ?? "-"} · {linea.baseImputacion ?? "-"}
+                        </p>
+                      </div>
+                      {!linea.esAlimentacion ? (
+                        <Badge variant="secondary">
+                          {linea.moneda} {formatearMonto(linea.monto ?? 0)}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {linea.esAlimentacion ? (
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        {linea.comidas.map((comida) => (
+                          <div key={comida.tipoComida} className="rounded border border-border bg-muted/30 px-2 py-1.5 text-xs">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">{etiquetaComida[comida.tipoComida]}</span>
+                              <span>{comida.moneda} {formatearMonto(comida.monto)}</span>
+                            </div>
+                            <p className="mt-0.5 text-muted-foreground">
+                              {comida.baseConteo === "NOCHE" ? "Por noche" : "Por dia"}
+                              {comida.cantidad != null ? ` · ${comida.cantidad} marcado(s)` : ""}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {linea.baseConteo === "NOCHE" ? "Multiplica por noches" : "Multiplica por dias"}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-muted/25 p-3">
+          <Field className="w-32">
+            <FieldLabel>Personas</FieldLabel>
+            <Input
+              type="number"
+              min="1"
+              value={personas}
+              className="h-9 text-right"
+              onChange={(e) => setPersonas(e.target.value)}
+            />
+          </Field>
+          <Field className="w-32">
+            <FieldLabel>Unidades</FieldLabel>
+            <Input
+              type="number"
+              min="1"
+              value={unidades}
+              className="h-9 text-right"
+              onChange={(e) => setUnidades(e.target.value)}
+            />
+          </Field>
+          <p className="flex-1 text-xs text-muted-foreground">
+            Cambia personas y unidades para simular el costo. El total lo calcula el sistema
+            segun cada concepto.
+          </p>
+        </div>
+
         <div className="overflow-x-auto rounded-lg border border-border">
           <Table>
             <TableHeader>
@@ -1460,14 +2354,26 @@ function PaqueteConfiguradoCard({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {detalleConceptos.length === 0 ? (
+              {calcularQuery.isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                    Calculando...
+                  </TableCell>
+                </TableRow>
+              ) : calcularQuery.error ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-sm text-destructive">
+                    {obtenerMensajeError(calcularQuery.error)}
+                  </TableCell>
+                </TableRow>
+              ) : filasConceptos.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
                     Sin conceptos activos.
                   </TableCell>
                 </TableRow>
               ) : (
-                detalleConceptos.map((fila) => (
+                filasConceptos.map((fila) => (
                   <TableRow key={fila.clave}>
                     <TableCell className="font-medium">{fila.concepto}</TableCell>
                     <TableCell>{fila.cobro}</TableCell>
@@ -1525,73 +2431,118 @@ function PaqueteConfiguradoCard({
   )
 }
 
-function ConfiguracionCostoTab() {
-  const editorRef = useRef<HTMLDivElement | null>(null)
-  const [rutaId, setRutaId] = useState("")
-  const [cuentaContratoId, setCuentaContratoId] = useState("")
-  const [modalidadEntrega, setModalidadEntrega] = useState<ModalidadEntrega>("NORMAL")
-  const [moneda, setMoneda] = useState("PEN")
+type ContextoPaquete = {
+  modoEdicion: boolean
+  cuentaContratoId: string
+  setCuentaContratoId: (v: string) => void
+  rutaId: string
+  setRutaId: (v: string) => void
+  modalidadEntrega: ModalidadEntrega
+  setModalidadEntrega: (v: ModalidadEntrega) => void
+  tipoCarga: TipoCargaCosto
+  setTipoCarga: (v: TipoCargaCosto) => void
+  moneda: string
+  setMoneda: (v: string) => void
+  editandoPaquete: CostoOperativoResponse | null
+  setEditandoPaquete: (v: CostoOperativoResponse | null) => void
+  onGuardado: (paquete: CostoOperativoResponse) => void
+}
+
+// Paso 1 (contexto) + Paso 2 (checklist). El estado del contexto vive en la vista
+// principal para poder editar un paquete desde la pestana de listado.
+function ConfiguracionCostoTab({
+  modoEdicion,
+  cuentaContratoId,
+  setCuentaContratoId,
+  rutaId,
+  setRutaId,
+  modalidadEntrega,
+  setModalidadEntrega,
+  tipoCarga,
+  setTipoCarga,
+  moneda,
+  setMoneda,
+  editandoPaquete,
+  setEditandoPaquete,
+  onGuardado,
+}: ContextoPaquete) {
   const [guardadoOk, setGuardadoOk] = useState(false)
-  const [editandoId, setEditandoId] = useState<number | null>(null)
+  const [diasViatico, setDiasViatico] = useState("")
+  const [nochesViatico, setNochesViatico] = useState("")
 
-  const paquetesQuery = useCostosOperativosQuery({ estadoRegistro: "ACTIVO", page: 1, pageSize: 50 })
-  const paquetes = paquetesQuery.data?.datos ?? []
-  const [anularId, setAnularId] = useState<number | null>(null)
-  const anular = useAnularCostoOperativoMutation(anularId ?? 0, {
-    onSuccess: () => {
-      setAnularId(null)
-      void paquetesQuery.refetch()
-    },
-  })
-
+  const cuentaContratoSeleccionada = cuentaContratoId ? Number(cuentaContratoId) : null
   const rutaSeleccionada = rutaId ? Number(rutaId) : null
-  const cuentaSeleccionada = cuentaContratoId ? Number(cuentaContratoId) : null
+  const contextoListo = Boolean(cuentaContratoSeleccionada && rutaSeleccionada)
+
+  function limpiarEdicion() {
+    setGuardadoOk(false)
+    setEditandoPaquete(null)
+    // Dias/noches se re-sincronizan desde el checklist del nuevo contexto.
+    setDiasViatico("")
+    setNochesViatico("")
+  }
+
+  function limpiarFormulario() {
+    setGuardadoOk(false)
+    setEditandoPaquete(null)
+    setCuentaContratoId("")
+    setRutaId("")
+    setModalidadEntrega("NORMAL")
+    setTipoCarga("GENERAL")
+    setMoneda("PEN")
+    setDiasViatico("")
+    setNochesViatico("")
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <div className="border-b border-border bg-gradient-to-r from-primary/10 via-background to-background px-5 py-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">Paso 1</p>
-              <h2 className="text-lg font-semibold">Define contexto del paquete</h2>
-              <p className="text-sm text-muted-foreground">
-                Escoge ruta, cliente/contrato y modalidad. Luego arma conceptos y tarifas abajo.
-              </p>
-            </div>
-            <Badge variant={rutaSeleccionada && cuentaSeleccionada ? "default" : "secondary"}>
-              {rutaSeleccionada && cuentaSeleccionada ? "Listo para configurar" : "Falta contexto"}
+    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border bg-card px-5 py-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">Paso 1</p>
+            <h2 className="text-lg font-semibold">Elige cuenta/contrato y ruta</h2>
+            <p className="text-sm text-muted-foreground">
+              La cuenta o contrato filtra que rutas y costos puede usar Operaciones.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {modoEdicion ? <Badge variant="secondary">Editando paquete</Badge> : null}
+            <Badge variant={contextoListo ? "default" : "secondary"}>
+              {contextoListo ? "Listo" : "Falta elegir"}
             </Badge>
+            <Button type="button" variant="outline" size="sm" onClick={limpiarFormulario}>
+              Nuevo costo
+            </Button>
           </div>
         </div>
+      </div>
 
-        <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_260px]">
-          <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-4 p-5 xl:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="flex flex-col gap-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-border bg-background p-3">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ruta</span>
-                <Badge variant={rutaSeleccionada ? "default" : "outline"}>1</Badge>
-              </div>
-              <SelectRuta
-                value={rutaId}
-                onChange={(v) => {
-                  setRutaId(v)
-                  setGuardadoOk(false)
-                  setEditandoId(null)
-                }}
-              />
-            </div>
-            <div className="rounded-xl border border-border bg-background p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cuenta/contrato</span>
-                <Badge variant={cuentaSeleccionada ? "default" : "outline"}>2</Badge>
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cuenta / contrato</span>
+                <Badge variant={cuentaContratoSeleccionada ? "default" : "outline"}>1</Badge>
               </div>
               <SelectCuentaContrato
                 value={cuentaContratoId}
                 onChange={(v) => {
                   setCuentaContratoId(v)
-                  setGuardadoOk(false)
-                  setEditandoId(null)
+                  limpiarEdicion()
+                }}
+              />
+            </div>
+            <div className="rounded-xl border border-border bg-background p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ruta</span>
+                <Badge variant={rutaSeleccionada ? "default" : "outline"}>2</Badge>
+              </div>
+              <SelectRuta
+                value={rutaId}
+                onChange={(v) => {
+                  setRutaId(v)
+                  limpiarEdicion()
                 }}
               />
             </div>
@@ -1604,127 +2555,395 @@ function ConfiguracionCostoTab() {
                 value={modalidadEntrega}
                 onChange={(v) => {
                   setModalidadEntrega(v)
-                  setGuardadoOk(false)
-                  setEditandoId(null)
+                  limpiarEdicion()
                 }}
               />
             </div>
-          </div>
-
-          <aside className="rounded-xl border border-border bg-muted/25 p-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Moneda base</p>
-            <Input className="mt-2" value={moneda} onChange={(e) => setMoneda(e.target.value.toUpperCase())} />
-            <p className="mt-2 text-xs text-muted-foreground">Se usa para montos nuevos del paquete.</p>
-          </aside>
-        </div>
-
-        {guardadoOk ? (
-          <Alert className="mx-5 mb-5">
-            <AlertTitle>Configuracion guardada</AlertTitle>
-            <AlertDescription>El paquete de costo quedo actualizado para este par.</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {rutaSeleccionada && cuentaSeleccionada ? (
-          <div ref={editorRef} className="border-t border-border bg-muted/20 p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">Paso 2</p>
-                <h3 className="text-base font-semibold">Activa conceptos y tarifas</h3>
+            <div className="rounded-xl border border-border bg-background p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tipo de carga</span>
+                <Badge variant="outline">4</Badge>
               </div>
-              {editandoId ? <Badge variant="secondary">Editando paquete #{editandoId}</Badge> : null}
+              <SelectTipoCarga
+                value={tipoCarga}
+                onChange={(v) => {
+                  setTipoCarga(v)
+                  limpiarEdicion()
+                }}
+              />
             </div>
-            <ChecklistPanel
-              key={`${rutaSeleccionada}-${cuentaSeleccionada}-${modalidadEntrega}`}
-              rutaId={rutaSeleccionada}
-              cuentaContratoId={cuentaSeleccionada}
-              modalidadEntrega={modalidadEntrega}
-              moneda={moneda || "PEN"}
-              onGuardado={() => {
-                setGuardadoOk(true)
-                setEditandoId(null)
-                void paquetesQuery.refetch()
-              }}
-            />
           </div>
-        ) : (
-          <div className="border-t border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            Selecciona ruta y cuenta/contrato para abrir tablero de conceptos.
-          </div>
-        )}
-      </section>
 
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <ClipboardList className="size-4 text-muted-foreground" />
-            <div>
-              <p className="text-base font-semibold">Paquetes configurados</p>
-              <p className="text-sm text-muted-foreground">Historial vigente para editar, simular o anular.</p>
-            </div>
-          </div>
-          <Badge variant="secondary">{paquetes.length} paquete{paquetes.length === 1 ? "" : "s"}</Badge>
+          <Alert>
+            <AlertTitle>Regla de costo interno</AlertTitle>
+            <AlertDescription>
+              Para la misma cuenta/contrato, ruta, modalidad y tipo de carga el sistema edita el paquete vigente;
+              no crea duplicados paralelos.
+            </AlertDescription>
+          </Alert>
         </div>
 
-        {paquetesQuery.isLoading ? (
-          <div className="flex flex-col gap-2 p-4">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-          </div>
-        ) : paquetes.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            Aun no hay paquetes de costo configurados.
-          </p>
-        ) : (
-          <div className="grid gap-3">
-            {paquetes.map((p: CostoOperativoResponse) => (
-              <PaqueteConfiguradoCard
-                key={p.id}
-                paquete={p}
-                onEditar={() => {
-                  setRutaId(String(p.rutaId))
-                  setCuentaContratoId(String(p.cuentaContratoId))
-                  setModalidadEntrega(p.modalidadEntrega)
-                  setMoneda(p.moneda || "PEN")
-                  setGuardadoOk(false)
-                  setEditandoId(p.id)
-                  window.setTimeout(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0)
-                }}
-                onAnular={() => setAnularId(p.id)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {anularId != null ? (
-        <Alert>
-          <AlertTitle>Confirmar anulacion</AlertTitle>
-          <AlertDescription className="flex flex-col gap-3">
-            <span>El paquete quedara anulado. No se elimina el registro.</span>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => void anular.mutateAsync(undefined)}
-                disabled={anular.isPending}
-              >
-                {anular.isPending ? "Anulando..." : "Si, anular"}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setAnularId(null)} disabled={anular.isPending}>
-                Cancelar
-              </Button>
+        <aside className="flex flex-col gap-3 rounded-xl border border-border bg-muted/25 p-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Moneda base</p>
+            <div className="mt-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium">
+              Soles (PEN)
             </div>
-          </AlertDescription>
+            <p className="mt-2 text-xs text-muted-foreground">El backend asigna PEN internamente.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field>
+              <FieldLabel>Dias del viaje</FieldLabel>
+              <Input
+                type="number"
+                min="1"
+                value={diasViatico}
+                placeholder="4"
+                disabled={!contextoListo}
+                className="text-right"
+                onChange={(e) => setDiasViatico(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel>Noches</FieldLabel>
+              <Input
+                type="number"
+                min="0"
+                value={nochesViatico}
+                placeholder="0"
+                disabled={!contextoListo}
+                className="text-right"
+                onChange={(e) => setNochesViatico(e.target.value)}
+              />
+            </Field>
+          </div>
+          <p className="text-xs text-muted-foreground">Dias y noches del viaje para calcular cantidades.</p>
+        </aside>
+      </div>
+
+      {guardadoOk ? (
+        <Alert className="mx-5 mb-5">
+          <AlertTitle>Configuracion guardada</AlertTitle>
+          <AlertDescription>El paquete de costo quedo actualizado para este par.</AlertDescription>
         </Alert>
       ) : null}
-    </div>
+
+      {contextoListo ? (
+        <div className="border-t border-border bg-muted/20 p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">Paso 2</p>
+              <h3 className="text-base font-semibold">Marca los costos y sus precios</h3>
+            </div>
+            {editandoPaquete ? <Badge variant="secondary">Editando {editandoPaquete.codigo ?? `#${editandoPaquete.id}`}</Badge> : null}
+          </div>
+          <ChecklistPanel
+            key={`${cuentaContratoSeleccionada}-${rutaSeleccionada}-${modalidadEntrega}-${tipoCarga}`}
+            rutaId={rutaSeleccionada!}
+            cuentaContratoId={cuentaContratoSeleccionada!}
+            modalidadEntrega={modalidadEntrega}
+            tipoCarga={tipoCarga}
+            moneda={moneda || "PEN"}
+            diasViatico={diasViatico}
+            setDiasViatico={setDiasViatico}
+            nochesViatico={nochesViatico}
+            setNochesViatico={setNochesViatico}
+            fechaInicioEdicion={editandoPaquete?.fechaInicio ?? null}
+            onGuardado={(paquete) => {
+              setGuardadoOk(true)
+              limpiarFormulario()
+              onGuardado(paquete)
+            }}
+          />
+        </div>
+      ) : (
+        <div className="border-t border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          Elige cuenta/contrato y ruta para ver los costos.
+        </div>
+      )}
+    </section>
+  )
+}
+
+// Pestana de listado: paquetes ya configurados. "Editar" salta a la pestana de
+// configuracion con el contexto precargado; "Anular" pide confirmacion modal.
+function PaquetesTab({
+  cuentaContratoId,
+  setCuentaContratoId,
+  onNuevoCosto,
+  paquetes,
+  paginacion,
+  cargando,
+  onCambiarPagina,
+  onEditar,
+  onAnulado,
+}: {
+  cuentaContratoId: string
+  setCuentaContratoId: (v: string) => void
+  onNuevoCosto: () => void
+  paquetes: CostoOperativoResponse[]
+  paginacion?: PaginationMeta
+  cargando: boolean
+  onCambiarPagina: (pagina: number) => void
+  onEditar: (paquete: CostoOperativoResponse) => void
+  onAnulado: () => void
+}) {
+  const [anularPaquete, setAnularPaquete] = useState<CostoOperativoResponse | null>(null)
+  const anular = useAnularCostoOperativoMutation(anularPaquete?.id ?? 0, {
+    onSuccess: () => {
+      setAnularPaquete(null)
+      onAnulado()
+    },
+  })
+
+  const paquetesOrdenados = useMemo(
+    () => [...paquetes].sort((a, b) => (a.rutaNombre ?? "").localeCompare(b.rutaNombre ?? "")),
+    [paquetes],
+  )
+  const paginasVisibles = useMemo(() => {
+    const total = paginacion?.totalPaginas ?? 1
+    const actual = paginacion?.pagina ?? 1
+    const inicio = Math.max(1, actual - 2)
+    const fin = Math.min(total, inicio + 4)
+    return Array.from({ length: fin - inicio + 1 }, (_, i) => inicio + i)
+  }, [paginacion?.pagina, paginacion?.totalPaginas])
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <ClipboardList className="size-4 text-muted-foreground" />
+          <div>
+            <p className="text-base font-semibold">Costos por ruta</p>
+            <p className="text-sm text-muted-foreground">
+              Cada ruta tiene un unico costo operativo vigente por modalidad.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="secondary">
+            {paginacion?.total ?? paquetesOrdenados.length} paquete{(paginacion?.total ?? paquetesOrdenados.length) === 1 ? "" : "s"}
+          </Badge>
+          <Button type="button" variant="outline" size="sm" onClick={onNuevoCosto}>
+            <Plus data-icon="inline-start" />
+            Nuevo costo
+          </Button>
+        </div>
+      </div>
+
+      <div className="mb-4 rounded-xl border border-border bg-muted/25 p-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <Field className="max-w-xl flex-1">
+            <FieldLabel>Filtrar por cuenta / contrato</FieldLabel>
+            <SelectCuentaContrato value={cuentaContratoId} onChange={setCuentaContratoId} />
+          </Field>
+          {cuentaContratoId ? (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setCuentaContratoId("")}>Limpiar filtro</Button>
+          ) : null}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">El listado se pagina desde backend y muestra 10 paquetes por pagina.</p>
+      </div>
+
+      {!cuentaContratoId ? (
+        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Elige una cuenta o contrato para ver sus rutas configuradas.
+        </p>
+      ) : cargando ? (
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
+      ) : paquetesOrdenados.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Aun no hay rutas con costo operativo configurado.
+        </p>
+      ) : (
+        <Accordion type="multiple" className="border-0 bg-transparent">
+          {paquetesOrdenados.map((p: CostoOperativoResponse) => (
+            <AccordionItem
+              key={p.id}
+              value={String(p.id)}
+              className="mb-2 overflow-hidden rounded-xl border border-border bg-background last:mb-0"
+            >
+              <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                <div className="grid min-w-0 flex-1 gap-2 text-left lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-center">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-semibold">{p.rutaNombre ?? `Ruta ${p.rutaId}`}</p>
+                      <Badge variant="outline" className="font-mono text-[10px]">
+                        {p.codigo ?? `#${p.id}`}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <CalendarDays className="size-3 shrink-0" />
+                      {textoVigencia(p.fechaInicio, p.fechaFin)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 lg:justify-end">
+                    <Badge variant="secondary">{etiquetaModalidad[p.modalidadEntrega]}</Badge>
+                    <Badge variant="outline">{etiquetaTipoCarga[p.tipoCarga ?? "GENERAL"]}</Badge>
+                    <Badge variant="outline">{p.diasViatico ?? 1} dias</Badge>
+                    <Badge variant="outline">{p.nochesViatico ?? 0} noches</Badge>
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="!h-auto px-3 pb-3">
+                <PaqueteConfiguradoCard
+                  paquete={p}
+                  mostrarEncabezado={false}
+                  onEditar={() => onEditar(p)}
+                  onAnular={() => setAnularPaquete(p)}
+                />
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      )}
+
+      {cuentaContratoId && paginacion ? (
+        <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-muted-foreground">
+            Mostrando {paquetesOrdenados.length} de {paginacion.total} paquetes. Pagina {paginacion.pagina} de {paginacion.totalPaginas || 1}.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!paginacion.tieneAnterior || cargando}
+              onClick={() => onCambiarPagina(1)}
+            >
+              Inicio
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!paginacion.tieneAnterior || cargando}
+              onClick={() => onCambiarPagina(Math.max(1, paginacion.pagina - 1))}
+            >
+              Anterior
+            </Button>
+            {paginasVisibles.map((pagina) => (
+              <Button
+                key={pagina}
+                type="button"
+                variant={pagina === paginacion.pagina ? "default" : "outline"}
+                size="sm"
+                disabled={cargando}
+                onClick={() => onCambiarPagina(pagina)}
+              >
+                {pagina}
+              </Button>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!paginacion.tieneSiguiente || cargando}
+              onClick={() => onCambiarPagina(paginacion.pagina + 1)}
+            >
+              Siguiente
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!paginacion.tieneSiguiente || cargando}
+              onClick={() => onCambiarPagina(paginacion.totalPaginas || 1)}
+            >
+              Fin
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
+      <AlertDialog open={anularPaquete !== null} onOpenChange={(open) => !open && setAnularPaquete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Anular paquete de costo</AlertDialogTitle>
+            <AlertDialogDescription>
+              {anularPaquete
+                ? `Se anulara "${anularPaquete.rutaNombre ?? `Ruta ${anularPaquete.rutaId}`}". El registro no se elimina, queda como referencia.`
+                : "El registro no se elimina, queda como referencia."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={anular.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={anular.isPending}
+              onClick={(e) => {
+                e.preventDefault()
+                void anular.mutateAsync(undefined)
+              }}
+            >
+              {anular.isPending ? "Anulando..." : "Si, anular"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
   )
 }
 
 // --- Vista principal ----------------------------------------------------------
 
 export function CostosOperativosVista() {
+  const [tab, setTab] = useState("configuracion")
+  const [cuentaContratoId, setCuentaContratoId] = useState("")
+  const [filtroPaquetesCuentaContratoId, setFiltroPaquetesCuentaContratoId] = useState("")
+  const [paginaPaquetes, setPaginaPaquetes] = useState(1)
+  const [rutaId, setRutaId] = useState("")
+  const [modalidadEntrega, setModalidadEntrega] = useState<ModalidadEntrega>("NORMAL")
+  const [tipoCarga, setTipoCarga] = useState<TipoCargaCosto>("GENERAL")
+  const [moneda, setMoneda] = useState("PEN")
+  const [editandoPaquete, setEditandoPaquete] = useState<CostoOperativoResponse | null>(null)
+
+  useEffect(() => {
+    setPaginaPaquetes(1)
+  }, [filtroPaquetesCuentaContratoId])
+
+  const paquetesQuery = useCostosOperativosQuery(
+    {
+      cuentaContratoId: filtroPaquetesCuentaContratoId ? Number(filtroPaquetesCuentaContratoId) : undefined,
+      estadoRegistro: "ACTIVO",
+      page: paginaPaquetes,
+      pageSize: 10,
+    },
+    Boolean(filtroPaquetesCuentaContratoId),
+  )
+  const paquetes = (paquetesQuery.data?.datos ?? []).filter((paquete) => paquete.fechaFin == null)
+  const totalPaquetes = paquetesQuery.data?.paginacion?.total ?? paquetes.length
+
+  function nuevoCosto() {
+    setCuentaContratoId("")
+    setRutaId("")
+    setModalidadEntrega("NORMAL")
+    setTipoCarga("GENERAL")
+    setMoneda("PEN")
+    setEditandoPaquete(null)
+    setTab("configuracion")
+  }
+
+  function guardarPaquete(paquete: CostoOperativoResponse) {
+    const filtro = paquete.cuentaContratoId ? String(paquete.cuentaContratoId) : ""
+    setFiltroPaquetesCuentaContratoId(filtro)
+    setPaginaPaquetes(1)
+    setTab("paquetes")
+  }
+
+  function editarPaquete(p: CostoOperativoResponse) {
+    setCuentaContratoId(p.cuentaContratoId ? String(p.cuentaContratoId) : "")
+    setFiltroPaquetesCuentaContratoId(p.cuentaContratoId ? String(p.cuentaContratoId) : "")
+    setRutaId(String(p.rutaId))
+    setModalidadEntrega(p.modalidadEntrega)
+    setTipoCarga(p.tipoCarga ?? "GENERAL")
+    setMoneda(p.moneda || "PEN")
+    setEditandoPaquete(p)
+    setTab("configuracion")
+  }
+
   return (
     <>
       <SiteHeader
@@ -1749,7 +2968,7 @@ export function CostosOperativosVista() {
                   <h1 className="text-xl font-semibold tracking-normal">Costos operativos del viaje</h1>
                   <p className="mt-0.5 text-sm text-muted-foreground">
                     Catalogo de conceptos (alimentacion desglosada por comida, alojamiento, cochera...)
-                    y paquetes de costo por ruta + cuenta/contrato + modalidad, con vigencia. La config
+                    y paquetes de costo interno por ruta + modalidad, con vigencia. La config
                     calcula el total; el peaje se calcula aparte por ejes.
                   </p>
                 </div>
@@ -1763,13 +2982,47 @@ export function CostosOperativosVista() {
             </div>
           </section>
 
-          <Tabs defaultValue="configuracion" className="w-full">
+          <Tabs value={tab} onValueChange={setTab} className="w-full">
             <TabsList>
-              <TabsTrigger value="configuracion">Configuracion de costo</TabsTrigger>
+              <TabsTrigger value="configuracion">Configurar costo</TabsTrigger>
+              <TabsTrigger value="paquetes">
+                Paquetes configurados
+                {totalPaquetes > 0 ? (
+                  <Badge variant="secondary" className="ml-2">{totalPaquetes}</Badge>
+                ) : null}
+              </TabsTrigger>
               <TabsTrigger value="catalogo">Catalogo de conceptos</TabsTrigger>
             </TabsList>
             <TabsContent value="configuracion" className="mt-4">
-              <ConfiguracionCostoTab />
+              <ConfiguracionCostoTab
+                modoEdicion={Boolean(editandoPaquete)}
+                cuentaContratoId={cuentaContratoId}
+                setCuentaContratoId={setCuentaContratoId}
+                rutaId={rutaId}
+                setRutaId={setRutaId}
+                modalidadEntrega={modalidadEntrega}
+                setModalidadEntrega={setModalidadEntrega}
+                tipoCarga={tipoCarga}
+                setTipoCarga={setTipoCarga}
+                moneda={moneda}
+                setMoneda={setMoneda}
+                editandoPaquete={editandoPaquete}
+                setEditandoPaquete={setEditandoPaquete}
+                onGuardado={guardarPaquete}
+              />
+            </TabsContent>
+            <TabsContent value="paquetes" className="mt-4">
+              <PaquetesTab
+                cuentaContratoId={filtroPaquetesCuentaContratoId}
+                setCuentaContratoId={setFiltroPaquetesCuentaContratoId}
+                onNuevoCosto={nuevoCosto}
+                paquetes={paquetes}
+                paginacion={paquetesQuery.data?.paginacion}
+                cargando={paquetesQuery.isLoading}
+                onCambiarPagina={setPaginaPaquetes}
+                onEditar={editarPaquete}
+                onAnulado={() => void paquetesQuery.refetch()}
+              />
             </TabsContent>
             <TabsContent value="catalogo" className="mt-4">
               <ConceptosTab />

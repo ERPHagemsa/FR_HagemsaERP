@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowUpRight, CalendarDays, User } from "lucide-react";
+import { ArrowUpRight, Building2, CalendarDays, Truck, User } from "lucide-react";
 
 import { cn } from "@/compartido/utilidades/utils";
+import { formatearMoneda } from "@/compartido/utilidades/formato-moneda";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/compartido/componentes/ui/popover";
 
-import type { EventoCalendario } from "../tipos/calendario.tipos";
+import type { EventoCalendario, TransporteEvento } from "../tipos/calendario.tipos";
 import { colorEvento } from "../utilidades/colores-evento";
 
 type Props = {
@@ -27,6 +28,18 @@ function fechaLarga(iso: string): string {
     locale: es,
   });
   return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+// Una linea de transporte legible: "RUTA · N × UNIDAD". Cada parte se omite si
+// falta (ruta o unidad vacias), asi una carga sin ruta o sin unidad no muestra
+// separadores colgando. Sin partes → guion.
+function formatearTransporte(transporte: TransporteEvento): string {
+  const partes: string[] = [];
+  if (transporte.ruta) partes.push(transporte.ruta);
+  if (transporte.unidad) {
+    partes.push(`${transporte.cantidad} × ${transporte.unidad}`);
+  }
+  return partes.join(" · ") || "—";
 }
 
 // Chip de un evento (Cotizacion Ganada) en una celda de la grilla mensual. Al
@@ -45,6 +58,10 @@ export function EventoChip({ evento, className }: Props) {
 
   const color = colorEvento(evento.idEjecutivoResponsable);
 
+  // La tarifa por seccion solo aporta cuando hay mas de una: con una sola
+  // seccion, su tarifa coincide con el total y mostrarla dos veces es ruido.
+  const mostrarTarifaSeccion = evento.secciones.length > 1;
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -60,7 +77,7 @@ export function EventoChip({ evento, className }: Props) {
           {evento.titulo}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80">
+      <PopoverContent align="start" className="w-96">
         <div className="flex flex-col gap-3">
           <div className="flex items-start gap-2">
             <span
@@ -68,6 +85,11 @@ export function EventoChip({ evento, className }: Props) {
               aria-hidden
             />
             <p className="text-sm leading-snug font-semibold">{evento.titulo}</p>
+          </div>
+
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Building2 className="h-4 w-4 shrink-0" aria-hidden />
+            <span>{evento.cliente}</span>
           </div>
 
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -79,6 +101,51 @@ export function EventoChip({ evento, className }: Props) {
             <User className="h-4 w-4 shrink-0" aria-hidden />
             <span>{evento.nombreEjecutivoResponsable}</span>
           </div>
+
+          {evento.secciones.length > 0 && (
+            <div className="flex flex-col gap-2 border-t pt-3">
+              {evento.secciones.map((seccion, i) => (
+                <div key={i} className="flex flex-col gap-1">
+                  {mostrarTarifaSeccion && (
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs font-medium">
+                        {seccion.nombre ?? `Sección ${i + 1}`}
+                      </span>
+                      <span className="text-xs font-semibold tabular-nums">
+                        {formatearMoneda(seccion.tarifa, evento.moneda)}
+                      </span>
+                    </div>
+                  )}
+                  {seccion.transportes.length > 0 ? (
+                    <ul className="flex flex-col gap-0.5">
+                      {seccion.transportes.map((transporte, j) => (
+                        <li
+                          key={j}
+                          className="flex items-start gap-1.5 text-xs text-muted-foreground"
+                        >
+                          <Truck className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
+                          <span>{formatearTransporte(transporte)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">
+                      Sin transportes
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {evento.total !== null && (
+            <div className="flex items-baseline justify-between gap-2 border-t pt-3">
+              <span className="text-sm font-semibold">Total</span>
+              <span className="text-sm font-semibold tabular-nums">
+                {formatearMoneda(evento.total, evento.moneda)}
+              </span>
+            </div>
+          )}
 
           <Link
             href={`/comercial/cotizaciones/${evento.id}`}

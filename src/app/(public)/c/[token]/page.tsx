@@ -5,11 +5,14 @@ import Image from "next/image"
 import { useParams } from "next/navigation"
 import {
   AlertTriangle,
+  ArrowRight,
+  Check,
   CheckCircle2,
   ExternalLink,
   FileText,
   Handshake,
   Loader2,
+  ShieldCheck,
   XCircle,
 } from "lucide-react"
 
@@ -31,37 +34,62 @@ import type {
 // publica de cara al cliente, que llega desde un correo blanco y minimalista.
 // Se mantiene esa continuidad visual y no se ofrece toggle de tema.
 
+const ROJO = "#e1251b"
+
+// Sellos de certificacion (los mismos que van en los correos). Assets publicos
+// fijos en el bucket de marca; se usan por URL directa (imgs sin optimizar para
+// no depender de la config de dominios de next/image).
+const URL_MARCA = "https://storage.googleapis.com/hagemsa-public/marca"
+const SELLOS: ReadonlyArray<{ archivo: string; alt: string }> = [
+  { archivo: "ISO-9001-2022.png", alt: "ISO 9001 · Calidad" },
+  { archivo: "ISO-14001-2022.png", alt: "ISO 14001 · Ambiente" },
+  { archivo: "ISO-45001-2022.png", alt: "ISO 45001 · Seguridad y salud" },
+  { archivo: "aenor.png", alt: "AENOR ISO 39001 · Seguridad vial" },
+  { archivo: "basc.png", alt: "BASC · Comercio seguro" },
+]
+
+// Estilo por decision: cada respuesta tiene su color semantico (aceptar/negociar/
+// rechazar). Clases explicitas para que Tailwind las incluya (no se construyen
+// dinamicamente).
 const OPCIONES: Array<{
   decision: DecisionCliente
   titulo: string
   descripcion: string
   icono: typeof CheckCircle2
-  clase: string
-  claseActiva: string
+  chipInactivo: string
+  chipActivo: string
+  tarjetaActiva: string
+  puntoActivo: string
 }> = [
   {
     decision: "ACEPTADA",
     titulo: "Acepto la cotización",
     descripcion: "Estamos de acuerdo con la propuesta.",
     icono: CheckCircle2,
-    clase: "text-emerald-600",
-    claseActiva: "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500",
+    chipInactivo: "bg-zinc-100 text-zinc-400",
+    chipActivo: "bg-emerald-500 text-white",
+    tarjetaActiva: "border-emerald-500 bg-emerald-50/70 ring-1 ring-emerald-500",
+    puntoActivo: "border-emerald-500 bg-emerald-500",
   },
   {
     decision: "NEGOCIAR",
     titulo: "Deseo negociar",
     descripcion: "Queremos conversar algunos puntos antes de cerrar.",
     icono: Handshake,
-    clase: "text-amber-600",
-    claseActiva: "border-amber-500 bg-amber-50 ring-1 ring-amber-500",
+    chipInactivo: "bg-zinc-100 text-zinc-400",
+    chipActivo: "bg-amber-500 text-white",
+    tarjetaActiva: "border-amber-500 bg-amber-50/70 ring-1 ring-amber-500",
+    puntoActivo: "border-amber-500 bg-amber-500",
   },
   {
     decision: "RECHAZADA",
     titulo: "No acepto la cotización",
     descripcion: "No continuaremos con esta propuesta.",
     icono: XCircle,
-    clase: "text-red-600",
-    claseActiva: "border-red-500 bg-red-50 ring-1 ring-red-500",
+    chipInactivo: "bg-zinc-100 text-zinc-400",
+    chipActivo: "bg-red-500 text-white",
+    tarjetaActiva: "border-red-500 bg-red-50/70 ring-1 ring-red-500",
+    puntoActivo: "border-red-500 bg-red-500",
   },
 ]
 
@@ -99,25 +127,62 @@ function formatearFecha(iso: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Sellos de certificacion: la firma de marca. HAGEMSA es una transportista
+// certificada; mostrar los sellos donde el cliente decide refuerza la confianza.
+// ---------------------------------------------------------------------------
+
+function SellosCertificacion() {
+  return (
+    <div className="border-y border-zinc-100 bg-zinc-50/60 px-6 py-5 sm:px-8">
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="size-4" style={{ color: ROJO }} />
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+          Sistemas de gestión certificados
+        </p>
+      </div>
+      <div className="mt-3.5 flex flex-wrap items-center gap-x-6 gap-y-3.5">
+        {SELLOS.map((s) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={s.archivo}
+            src={`${URL_MARCA}/${s.archivo}`}
+            alt={s.alt}
+            title={s.alt}
+            className="h-9 w-auto object-contain grayscale-[0.15] transition duration-200 hover:grayscale-0"
+            loading="lazy"
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Envoltorio: fondo, logo y tarjeta.
 // ---------------------------------------------------------------------------
 
 function Envoltorio({ children }: { children: React.ReactNode }) {
   return (
-    <main className="flex min-h-screen flex-col items-center bg-zinc-100 px-4 py-8 text-zinc-800 sm:py-12">
-      <div className="flex w-full max-w-3xl flex-col gap-5">
-        <div className="flex justify-end">
+    <main className="flex min-h-screen flex-col items-center bg-gradient-to-b from-[#f5f6f8] via-[#eceef2] to-[#e3e6ea] px-4 py-8 text-zinc-800 sm:py-14">
+      <div className="flex w-full max-w-3xl flex-col gap-6">
+        <div className="flex items-center justify-between gap-4 px-1">
+          <span className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-400">
+            Portal del cliente
+          </span>
           <Image
             src="/logo/logo.svg"
             alt="TRANSPORTES HAGEMSA S.A.C."
             width={140}
             height={56}
-            className="h-11 w-auto object-contain"
+            className="h-10 w-auto object-contain"
             priority
           />
         </div>
 
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200">
+        <div
+          className="overflow-hidden rounded-3xl border-t-4 bg-white shadow-[0_1px_3px_rgba(16,24,40,0.06),0_12px_40px_-12px_rgba(16,24,40,0.18)] ring-1 ring-zinc-200/70"
+          style={{ borderTopColor: ROJO }}
+        >
           {children}
         </div>
 
@@ -147,12 +212,12 @@ function EstadoMensaje({
   }[tono]
   return (
     <div className="flex flex-col items-center gap-4 px-6 py-14 text-center">
-      <span className={`flex size-14 items-center justify-center rounded-2xl ring-1 ${color}`}>
-        <Icono className="size-6" />
+      <span className={`flex size-16 items-center justify-center rounded-2xl ring-1 ${color}`}>
+        <Icono className="size-7" />
       </span>
       <div>
-        <p className="text-base font-semibold text-zinc-900">{titulo}</p>
-        <p className="mx-auto mt-1.5 max-w-sm text-sm text-zinc-500">{descripcion}</p>
+        <p className="text-lg font-bold tracking-tight text-zinc-900">{titulo}</p>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-zinc-500">{descripcion}</p>
       </div>
     </div>
   )
@@ -164,35 +229,39 @@ function EstadoMensaje({
 
 function Encabezado({ cotizacion }: { cotizacion: CotizacionPublica }) {
   return (
-    <div className="border-b border-zinc-100 px-6 py-6 sm:px-8">
-      <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#e1251b]">
+    <div className="px-6 pb-6 pt-8 sm:px-8">
+      <p className="text-[11px] font-bold uppercase tracking-[0.22em]" style={{ color: ROJO }}>
         Propuesta comercial
       </p>
-      <h1 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-zinc-900">
+      <h1 className="mt-2.5 text-3xl font-extrabold leading-[1.1] tracking-tight text-zinc-900">
         Su cotización
       </h1>
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl bg-zinc-50 px-4 py-3">
-          <span className="block text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+      <p className="mt-2 text-sm text-zinc-500">
+        Revise el documento y déjenos su respuesta. Toma menos de un minuto.
+      </p>
+
+      <div className="mt-6 grid gap-2.5 sm:grid-cols-3">
+        <div className="rounded-2xl bg-zinc-50 px-4 py-3.5 ring-1 ring-zinc-100">
+          <span className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
             Código
           </span>
-          <span className="mt-0.5 block font-mono text-sm font-bold text-zinc-900">
+          <span className="mt-1 block font-mono text-sm font-bold tracking-tight text-zinc-900">
             {cotizacion.codigoCotizacion}
           </span>
         </div>
-        <div className="rounded-xl bg-zinc-50 px-4 py-3">
-          <span className="block text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+        <div className="rounded-2xl bg-zinc-50 px-4 py-3.5 ring-1 ring-zinc-100">
+          <span className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
             Cliente
           </span>
-          <span className="mt-0.5 block truncate text-sm font-semibold text-zinc-900">
+          <span className="mt-1 block truncate text-sm font-semibold text-zinc-900" title={cotizacion.cliente}>
             {cotizacion.cliente}
           </span>
         </div>
-        <div className="rounded-xl bg-zinc-50 px-4 py-3">
-          <span className="block text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+        <div className="rounded-2xl bg-zinc-50 px-4 py-3.5 ring-1 ring-zinc-100">
+          <span className="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
             Válida hasta
           </span>
-          <span className="mt-0.5 block text-sm font-semibold text-zinc-900">
+          <span className="mt-1 block text-sm font-semibold text-zinc-900">
             {formatearFecha(cotizacion.expiraEn)}
           </span>
         </div>
@@ -206,9 +275,9 @@ function Encabezado({ cotizacion }: { cotizacion: CotizacionPublica }) {
 function DocumentoPdf({ token }: { token: string }) {
   const url = urlPdfCotizacionPublica(token)
   return (
-    <div className="border-b border-zinc-100 px-6 py-6 sm:px-8">
+    <div className="px-6 py-6 sm:px-8">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <span className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
+        <span className="flex items-center gap-2 text-sm font-bold text-zinc-900">
           <FileText className="size-4 text-zinc-400" />
           Cotización completa
         </span>
@@ -216,7 +285,7 @@ function DocumentoPdf({ token }: { token: string }) {
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-[#e1251b] hover:underline"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-200"
         >
           Abrir en pestaña
           <ExternalLink className="size-3.5" />
@@ -225,7 +294,7 @@ function DocumentoPdf({ token }: { token: string }) {
       <iframe
         src={url}
         title="Cotización en PDF"
-        className="h-[420px] w-full rounded-xl bg-zinc-50 ring-1 ring-zinc-200 sm:h-[560px]"
+        className="h-[420px] w-full rounded-2xl bg-zinc-50 ring-1 ring-zinc-200 sm:h-[560px]"
       />
     </div>
   )
@@ -245,30 +314,42 @@ function Formulario({
   alEnviar: (decision: DecisionCliente) => void
 }) {
   const [decision, setDecision] = useState<DecisionCliente | null>(null)
-  const [idMotivo, setIdMotivo] = useState<string | null>(null)
+  const [idsMotivos, setIdsMotivos] = useState<string[]>([])
   const [nombre, setNombre] = useState("")
   const [comentario, setComentario] = useState("")
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const motivosDisponibles = motivosDe(decision, motivos)
-  const motivoElegido = motivosDisponibles.find((m) => m.id === idMotivo) ?? null
+  // Los motivos elegidos que siguen disponibles para la decision actual (al
+  // cambiar de decision se limpia, pero se deriva de la lista por robustez).
+  const motivosElegidos = motivosDisponibles.filter((m) =>
+    idsMotivos.includes(m.id)
+  )
   const necesitaMotivo = requiereMotivo(decision)
-  // El detalle es obligatorio solo si el motivo elegido lo pide (ej. "Otro").
-  const detalleObligatorio = motivoElegido?.requiereDetalle ?? false
+  // El detalle es obligatorio si ALGUNO de los motivos elegidos lo pide (ej. "Otro").
+  const detalleObligatorio = motivosElegidos.some((m) => m.requiereDetalle)
 
   const puedeEnviar =
     decision !== null &&
     nombre.trim().length > 0 &&
-    (!necesitaMotivo || motivoElegido !== null) &&
+    (!necesitaMotivo || motivosElegidos.length > 0) &&
     (!detalleObligatorio || comentario.trim().length > 0) &&
     !enviando
 
-  // Al cambiar de decision, el motivo elegido deja de tener sentido (cada decision
-  // tiene su propia lista): se limpia.
+  // Al cambiar de decision, los motivos elegidos dejan de tener sentido (cada
+  // decision tiene su propia lista): se limpian.
   function cambiarDecision(nueva: DecisionCliente) {
     setDecision(nueva)
-    setIdMotivo(null)
+    setIdsMotivos([])
+    if (error) setError(null)
+  }
+
+  // Marca/desmarca un motivo (seleccion multiple).
+  function alternarMotivo(id: string) {
+    setIdsMotivos((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
     if (error) setError(null)
   }
 
@@ -281,7 +362,9 @@ function Formulario({
       await registrarRespuestaCliente(token, {
         decision,
         nombreRespondedor: nombre.trim(),
-        idMotivo: motivoElegido?.id,
+        idMotivos: motivosElegidos.length > 0
+          ? motivosElegidos.map((m) => m.id)
+          : undefined,
         comentario: comentario.trim() || undefined,
       })
       alEnviar(decision)
@@ -294,11 +377,11 @@ function Formulario({
   }
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-6 px-6 py-6 sm:px-8">
+    <form onSubmit={enviar} className="flex flex-col gap-6 px-6 py-7 sm:px-8">
       <div>
-        <p className="text-sm font-semibold text-zinc-900">¿Cuál es su respuesta?</p>
-        <p className="mt-0.5 text-sm text-zinc-500">
-          Puede responder una sola vez. Su respuesta llegará al equipo comercial.
+        <p className="text-base font-bold tracking-tight text-zinc-900">¿Cuál es su respuesta?</p>
+        <p className="mt-1 text-sm text-zinc-500">
+          Puede responder una sola vez. Su respuesta llega directo al equipo comercial.
         </p>
       </div>
 
@@ -309,10 +392,10 @@ function Formulario({
           return (
             <label
               key={opcion.decision}
-              className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 transition ${
+              className={`group flex cursor-pointer items-center gap-4 rounded-2xl border px-4 py-4 transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-zinc-900/40 has-[:focus-visible]:ring-offset-2 ${
                 activa
-                  ? opcion.claseActiva
-                  : "border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50"
+                  ? opcion.tarjetaActiva
+                  : "border-zinc-200 bg-white hover:-translate-y-px hover:border-zinc-300 hover:shadow-sm"
               }`}
             >
               <input
@@ -323,61 +406,74 @@ function Formulario({
                 onChange={() => cambiarDecision(opcion.decision)}
                 className="sr-only"
               />
-              <Icono className={`mt-0.5 size-5 shrink-0 ${activa ? opcion.clase : "text-zinc-400"}`} />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-zinc-900">{opcion.titulo}</span>
+              <span
+                className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition ${
+                  activa ? opcion.chipActivo : opcion.chipInactivo
+                }`}
+              >
+                <Icono className="size-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-zinc-900">{opcion.titulo}</span>
                 <span className="block text-xs text-zinc-500">{opcion.descripcion}</span>
+              </span>
+              <span
+                className={`flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                  activa ? opcion.puntoActivo : "border-zinc-300 group-hover:border-zinc-400"
+                }`}
+              >
+                {activa ? <span className="size-1.5 rounded-full bg-white" /> : null}
               </span>
             </label>
           )
         })}
       </div>
 
-      {/* Motivo del catalogo: solo al rechazar o negociar. */}
+      {/* Motivos del catalogo: solo al rechazar o negociar. Seleccion multiple. */}
       {necesitaMotivo ? (
-        <div className="grid gap-2">
-          <p className="text-xs font-semibold text-zinc-700">
+        <div className="grid gap-2.5">
+          <p className="text-sm font-bold text-zinc-800">
             {decision === "RECHAZADA"
               ? "¿Por qué no acepta la cotización?"
-              : "¿Qué desea negociar?"}
+              : "¿Qué desea negociar?"}{" "}
+            <span className="font-medium text-zinc-400">(puede elegir varios)</span>
           </p>
           {motivosDisponibles.length === 0 ? (
             // Sin motivos cargados no se puede completar esta respuesta: se avisa
             // en vez de dejar el formulario en blanco con el boton deshabilitado.
-            <p className="rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-700 ring-1 ring-amber-200">
+            <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-700 ring-1 ring-amber-200">
               No hay motivos disponibles en este momento. Contacte a su ejecutivo
               comercial para responder esta cotización.
             </p>
           ) : null}
-          <div className="grid gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
             {motivosDisponibles.map((m) => {
-              const activo = idMotivo === m.id
+              const activo = idsMotivos.includes(m.id)
               return (
                 <label
                   key={m.id}
-                  className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-2.5 text-sm transition ${
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3.5 py-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-zinc-900/40 has-[:focus-visible]:ring-offset-2 ${
                     activo
-                      ? "border-zinc-800 bg-zinc-50 ring-1 ring-zinc-800"
+                      ? "border-zinc-900 bg-zinc-50 ring-1 ring-zinc-900"
                       : "border-zinc-200 bg-white hover:border-zinc-300"
                   }`}
                 >
                   <input
-                    type="radio"
+                    type="checkbox"
                     name="motivo"
                     value={m.id}
                     checked={activo}
-                    onChange={() => {
-                      setIdMotivo(m.id)
-                      if (error) setError(null)
-                    }}
+                    onChange={() => alternarMotivo(m.id)}
                     className="sr-only"
                   />
                   <span
-                    className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${
-                      activo ? "border-zinc-800" : "border-zinc-300"
+                    className={`flex size-4 shrink-0 items-center justify-center rounded border transition ${
+                      activo ? "border-zinc-900 bg-zinc-900" : "border-zinc-300"
                     }`}
                   >
-                    {activo ? <span className="size-2 rounded-full bg-zinc-800" /> : null}
+                    {activo ? (
+                      <Check className="size-3 text-white" strokeWidth={3} />
+                    ) : null}
                   </span>
                   <span className="text-zinc-800">{m.etiqueta}</span>
                 </label>
@@ -388,7 +484,7 @@ function Formulario({
       ) : null}
 
       <div className="grid gap-1.5">
-        <label htmlFor="nombre" className="text-xs font-semibold text-zinc-700">
+        <label htmlFor="nombre" className="text-xs font-bold text-zinc-700">
           Nombre de quien responde
         </label>
         <input
@@ -397,14 +493,14 @@ function Formulario({
           onChange={(e) => setNombre(e.target.value)}
           maxLength={150}
           placeholder="Nombre y apellido"
-          className="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+          className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100"
         />
       </div>
 
       <div className="grid gap-1.5">
-        <label htmlFor="comentario" className="text-xs font-semibold text-zinc-700">
+        <label htmlFor="comentario" className="text-xs font-bold text-zinc-700">
           {necesitaMotivo ? "Detalle" : "Comentario"}{" "}
-          <span className="font-normal text-zinc-400">
+          <span className="font-medium text-zinc-400">
             {detalleObligatorio ? "(obligatorio)" : "(opcional)"}
           </span>
         </label>
@@ -423,12 +519,12 @@ function Formulario({
                   ? "Si desea, indíquenos qué puntos ajustar."
                   : "Puede dejarnos un comentario."
           }
-          className="resize-y rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+          className="resize-y rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-zinc-100"
         />
       </div>
 
       {error ? (
-        <p className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700 ring-1 ring-red-200">
+        <p className="flex items-start gap-2 rounded-xl bg-red-50 px-3.5 py-3 text-sm text-red-700 ring-1 ring-red-200">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           {error}
         </p>
@@ -437,10 +533,14 @@ function Formulario({
       <button
         type="submit"
         disabled={!puedeEnviar}
-        className="flex items-center justify-center gap-2 rounded-lg bg-[#e1251b] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#c41f16] disabled:cursor-not-allowed disabled:bg-zinc-300"
+        className="group flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold text-white shadow-sm transition enabled:hover:brightness-95 disabled:cursor-not-allowed disabled:bg-zinc-300"
+        style={puedeEnviar ? { backgroundColor: ROJO } : undefined}
       >
         {enviando ? <Loader2 className="size-4 animate-spin" /> : null}
         {enviando ? "Enviando..." : "Enviar respuesta"}
+        {!enviando ? (
+          <ArrowRight className="size-4 transition group-hover:translate-x-0.5" />
+        ) : null}
       </button>
     </form>
   )
@@ -537,6 +637,7 @@ export default function RespuestaCotizacionPage() {
   return (
     <Envoltorio>
       <Encabezado cotizacion={cotizacion} />
+      <SellosCertificacion />
       <DocumentoPdf token={token} />
       <Formulario
         token={token}

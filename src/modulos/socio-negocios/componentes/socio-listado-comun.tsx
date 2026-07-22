@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   CircleDashed,
   CircleX,
-  Clock,
   Eye,
   type LucideIcon,
   Loader2,
@@ -45,16 +44,11 @@ import { cn } from "@/compartido/utilidades/utils"
 
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 import {
-  useAprobarSocioDeNegocioMutation,
   useDarDeBajaSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
 } from "../servicios/socio-negocios-queries"
-import {
-  puedeGestionarAsignacionesPersonal,
-  puedeResolverAprobacionSocio,
-} from "../tipos/socio-negocio"
+import { puedeGestionarAsignacionesPersonal } from "../tipos/socio-negocio"
 import type {
-  EstadoAprobacion,
   EstadoRegistro,
   EstadoSocioDeNegocio,
   ReporteSociosDeNegocioResponse,
@@ -72,7 +66,6 @@ export type SocioAccionable = {
   tipo: TipoSocioDeNegocio
   estado: EstadoSocioDeNegocio
   estadoRegistro: EstadoRegistro
-  estadoAprobacion: EstadoAprobacion
   numeroDocumento?: string
   codigoInternoSap?: string | null
 }
@@ -205,36 +198,6 @@ export function EstadoRegistroBadge({ estadoRegistro }: { estadoRegistro: Estado
   )
 }
 
-export function EstadoAprobacionBadge({ estado }: { estado: EstadoAprobacion }) {
-  const baseClase =
-    "h-6 gap-1.5 rounded-full border-border/50 bg-background px-2.5 text-[12px] font-medium text-foreground"
-
-  if (estado === "APROBADO") {
-    return (
-      <Badge variant="outline" className={baseClase}>
-        <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
-        Aprobado
-      </Badge>
-    )
-  }
-
-  if (estado === "PENDIENTE_APROBACION") {
-    return (
-      <Badge variant="outline" className={baseClase}>
-        <Clock data-icon="inline-start" className="text-amber-500 dark:text-amber-400" />
-        Pendiente
-      </Badge>
-    )
-  }
-
-  return (
-    <Badge variant="outline" className={baseClase}>
-      <CircleX data-icon="inline-start" className="text-destructive" />
-      No aprobado
-    </Badge>
-  )
-}
-
 export function ResumenListado({
   icon: Icon,
   label,
@@ -284,20 +247,15 @@ export function AccionesSocio({
   const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
-  const aprobarMutation = useAprobarSocioDeNegocioMutation(socio.id, {
-    onSuccess: onActualizado,
-  })
   const [accion, setAccion] = useState<"anular" | "reactivar" | null>(null)
   const [motivo, setMotivo] = useState("")
   const procesando =
     bajaMutation.isPending ||
-    reactivarMutation.isPending ||
-    aprobarMutation.isPending
+    reactivarMutation.isPending
   const registroAnulado = socio.estadoRegistro === "ANULADO"
   const puedeReactivar =
     socio.estado === "INACTIVO" && socio.estadoRegistro === "ACTIVO"
   const puedeGestionarAsignaciones = puedeGestionarAsignacionesPersonal(socio)
-  const puedeResolverAprobacion = puedeResolverAprobacionSocio(socio)
   const requiereMotivo = accion === "anular"
   const detalleHref = `/socio-negocios/${socio.id}?tipo=${socio.tipo}`
   const editarHref = `/socio-negocios/${socio.id}?tipo=${socio.tipo}&modo=editar`
@@ -305,15 +263,6 @@ export function AccionesSocio({
   function abrirAccion(nuevaAccion: "anular" | "reactivar") {
     setMotivo(nuevaAccion === "anular" ? "Documento registrado incorrectamente" : "")
     setAccion(nuevaAccion)
-  }
-
-  async function aprobar() {
-    try {
-      await aprobarMutation.mutateAsync({ usuarioId })
-      onMensaje(`${nombre} fue aprobado.`)
-    } catch (error) {
-      onError(obtenerErrorOperacion(error))
-    }
   }
 
   async function confirmarAccion() {
@@ -329,7 +278,7 @@ export function AccionesSocio({
 
       if (accion === "reactivar") {
         await reactivarMutation.mutateAsync({ usuarioId })
-        onMensaje(`Se creo un nuevo registro pendiente para ${nombre}.`)
+        onMensaje(`Se creo un nuevo registro para ${nombre}.`)
       }
 
       setAccion(null)
@@ -390,15 +339,6 @@ export function AccionesSocio({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                {puedeResolverAprobacion ? (
-                  <DropdownMenuItem
-                    disabled={procesando}
-                    onSelect={() => void aprobar()}
-                  >
-                    <CheckCircle2 data-icon="inline-start" />
-                    Aprobar
-                  </DropdownMenuItem>
-                ) : null}
                 <DropdownMenuItem
                   disabled={procesando}
                   onSelect={() => abrirAccion("anular")}

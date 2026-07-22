@@ -181,7 +181,6 @@ export function SocioNegocioDetallePersonal({
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <EstadoBadge estado={socio.estado} />
               <EstadoBadge estado={socio.estadoRegistro} />
-              <EstadoBadge estado={socio.estadoAprobacion} />
             </div>
           </div>
         </div>

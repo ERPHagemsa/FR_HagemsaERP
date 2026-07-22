@@ -36,6 +36,8 @@ export type BaseConteo = "DIA" | "NOCHE"
 export type TipoComida = "DESAYUNO" | "ALMUERZO" | "CENA"
 // Modalidad de entrega: solo diferencia el paquete (fija, no administrable).
 export type ModalidadEntrega = "NORMAL" | "EXPRESS"
+// Tipo de carga fijo para costo: general o dimensionado.
+export type TipoCargaCosto = "GENERAL" | "DIMENSIONADO"
 
 // --- Catalogo de conceptos ------------------------------------------------
 
@@ -128,6 +130,7 @@ export interface LineaComidaResponse {
   monto: number
   moneda: string
   baseConteo: BaseConteo
+  cantidad?: number | null
   override: boolean
 }
 
@@ -149,8 +152,9 @@ export interface ChecklistItemCostoOperativo {
 
 export interface ChecklistCostoOperativoResponse {
   rutaId: number
-  cuentaContratoId: number
+  cuentaContratoId: number | null
   modalidadEntrega: ModalidadEntrega
+  tipoCarga: TipoCargaCosto
   costoOperativoId: number | null
   diasViatico: number | null
   nochesViatico: number | null
@@ -181,9 +185,10 @@ export interface CostoOperativoResponse {
   codigo?: string
   rutaId: number
   rutaNombre?: string | null
-  cuentaContratoId: number
+  cuentaContratoId: number | null
   cuentaContratoNombre?: string | null
   modalidadEntrega: ModalidadEntrega
+  tipoCarga: TipoCargaCosto
   diasViatico: number | null
   nochesViatico: number | null
   moneda: string
@@ -198,10 +203,51 @@ export interface CostoOperativoResponse {
   lineas: LineaCostoOperativoResponse[]
 }
 
+export interface TramoCostoOperativoRequest {
+  ubicacionDesdeId: number
+  ubicacionHastaId: number
+  horasBase: number
+  distanciaKm?: number | null
+  tiempoParadaHoras?: number | null
+}
+
+export interface GuardarTramosCostoOperativoRequest {
+  tramos: TramoCostoOperativoRequest[]
+  usuarioCreacion?: string
+}
+
+export interface TramoCostoOperativoResponse extends TramoCostoOperativoRequest {
+  id: number
+  orden: number
+  ubicacionDesdeNombre: string
+  ubicacionHastaNombre: string
+}
+
+export interface CalculoTiempoCostoOperativoResponse {
+  costoOperativoId: number
+  tipoUnidadId: number | null
+  tipoUnidadNombre: string | null
+  factorVelocidad: number
+  horasPorDia: number
+  horasBaseTotal: number
+  horasTotal: number
+  diasSugeridos: number
+  nochesSugeridas: number
+  tramos: Array<{
+    orden: number
+    ubicacionDesdeNombre: string
+    ubicacionHastaNombre: string
+    horasBase: number
+    tiempoParadaHoras: number
+    horas: number
+  }>
+}
+
 export interface ConsultarCostosOperativosQuery {
   rutaId?: number
   cuentaContratoId?: number
   modalidadEntrega?: ModalidadEntrega
+  tipoCarga?: TipoCargaCosto
   estado?: EstadoDatoMaestro
   estadoRegistro?: EstadoRegistro
   page?: number
@@ -213,6 +259,8 @@ export interface LineaComidaRequest {
   activo?: boolean
   monto: number
   moneda?: string
+  baseConteo?: BaseConteo
+  cantidad?: number | null
 }
 
 export interface LineaCostoOperativoRequest {
@@ -220,13 +268,15 @@ export interface LineaCostoOperativoRequest {
   activo: boolean
   monto?: number | null
   moneda?: string
+  baseConteo?: BaseConteo
   comidas?: LineaComidaRequest[]
 }
 
 export interface GuardarCostoOperativoRequest {
   rutaId: number
-  cuentaContratoId: number
+  cuentaContratoId?: number | null
   modalidadEntrega: ModalidadEntrega
+  tipoCarga?: TipoCargaCosto
   diasViatico?: number | null
   nochesViatico?: number | null
   moneda?: string
@@ -258,8 +308,9 @@ export interface LineaCostoVigenteResponse {
 export interface CostoVigenteResponse {
   costoOperativoId: number
   rutaId: number
-  cuentaContratoId: number
+  cuentaContratoId: number | null
   modalidadEntrega: ModalidadEntrega
+  tipoCarga: TipoCargaCosto
   diasViatico: number | null
   nochesViatico: number | null
   moneda: string
@@ -272,8 +323,9 @@ export interface CostoVigenteResponse {
 
 export interface CalcularCostoQuery {
   rutaId: number
-  cuentaContratoId: number
+  cuentaContratoId?: number | null
   modalidadEntrega: ModalidadEntrega
+  tipoCarga?: TipoCargaCosto
   personas?: number
   unidades?: number
   fecha?: string
@@ -304,8 +356,9 @@ export interface CalculoLinea {
 export interface CalculoCostoResponse {
   costoOperativoId: number
   rutaId: number
-  cuentaContratoId: number
+  cuentaContratoId: number | null
   modalidadEntrega: ModalidadEntrega
+  tipoCarga: TipoCargaCosto
   personas: number
   unidades: number
   diasViatico: number | null

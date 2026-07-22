@@ -37,6 +37,7 @@ import {
 import { CotizacionAcciones } from "../componentes/cotizacion-acciones";
 import { EstadoCotizacionBadge } from "../componentes/estado-cotizacion-badge";
 import { CotizacionVersionesNotebook } from "../componentes/cotizacion-versiones-notebook";
+import { useTienePermiso } from "@/modulos/autenticacion/ganchos/use-permisos";
 import { HistorialAprobaciones } from "../../aprobaciones/componentes/historial-aprobaciones";
 import {
   DialogoResolverSolicitud,
@@ -392,6 +393,13 @@ function AccionesResolverSolicitud({
   const [accionAbierta, setAccionAbierta] = useState<AccionResolver | null>(
     null,
   );
+
+  // Resolver requiere el permiso de accion, no solo pertenecer al modulo: el
+  // equipo comercial ve la cotizacion pero solo el aprobador (y el Admin) la
+  // resuelve. Mismo gate que la tabla de aprobaciones; el backend igual autoriza
+  // de verdad con 403 en el endpoint de resolucion.
+  const puedeResolver = useTienePermiso("bc03:aprobacion:resolver");
+  if (!puedeResolver) return null;
 
   return (
     <div className="flex flex-wrap gap-2">

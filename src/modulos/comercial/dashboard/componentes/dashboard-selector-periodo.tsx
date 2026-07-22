@@ -23,6 +23,7 @@ import type { DateRange } from "react-day-picker";
 
 const FORMATO_FECHA_API = "yyyy-MM-dd";
 const PRESETS: PeriodoPreset[] = [
+  "esta-semana",
   "este-mes",
   "mes-anterior",
   "ultimos-3-meses",

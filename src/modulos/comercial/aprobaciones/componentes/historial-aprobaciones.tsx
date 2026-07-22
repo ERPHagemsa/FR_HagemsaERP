@@ -101,6 +101,25 @@ export function HistorialAprobaciones({
                   : "Pendiente"
               }
             />
+            {/* A quiénes se les envió el correo para aprobar (snapshot). Las
+                solicitudes anteriores a esta funcionalidad no lo registran. */}
+            {solicitud.destinatarios.length > 0 ? (
+              <div className="md:col-span-2">
+                <span className="text-xs uppercase text-muted-foreground">
+                  Enviada a
+                </span>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {solicitud.destinatarios.map((correo) => (
+                    <span
+                      key={correo}
+                      className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium"
+                    >
+                      {correo}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="md:col-span-2">
               <Dato
                 label="Comentario / motivo"

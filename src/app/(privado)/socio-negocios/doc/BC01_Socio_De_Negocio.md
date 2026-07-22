@@ -1,51 +1,39 @@
 # Piloto Detallado: BC-01 Socio de Negocio
 
-Este documento describe la gestión de personas y organizaciones que interactúan con la empresa como clientes, proveedores y personal. Actúa como fuente oficial de información maestra de Socios de Negocio, incluyendo el alta de cliente desde Comercial cuando un prospecto se convierte en cliente.
+Este documento describe la gestión de personas y organizaciones que interactúan con la empresa como clientes, proveedores y personal. Actúa como fuente oficial de información maestra de Socios de Negocio y permite registrar, consultar, aprobar, actualizar, anular, reactivar y exportar información según permisos.
 
 | Campo | Detalle |
 | --- | --- |
 | Área | Recursos Humanos |
 | Roles | **Administrador Principal**, **Analista de Recursos Humanos** y **Auditor**. |
 | Relación clave | Un Socio de Negocio se identifica por la combinación de documento/RUC/DNI + tipo de socio. Un mismo documento puede estar asociado a más de un Socio de Negocio cuando cumple roles diferentes dentro de la empresa, por ejemplo, CLIENTE, PROVEEDOR o PERSONAL. Cada registro mantiene el tipo de socio, si está disponible para operar o fue dado de baja, si el registro sigue vigente o fue anulado, y si está pendiente de aprobación o aprobado. |
-| Alcance funcional | Registrar, modificar, aprobar, dar de baja, consultar y exportar clientes, proveedores y personal; recibir cliente desde Comercial a partir de prospecto convertido; revisar el resumen general del módulo; consultar listados separados por tipo; consultar SAP para clientes y proveedores cuando corresponda; administrar la asignación del personal (dónde trabaja, sus cuentas y contratos con su aprobación, y el horario o régimen de trabajo elegido); administrar tipos de tareo y configuraciones laborales; y registrar la disponibilidad esperada del personal. |
+| Alcance funcional | Registrar, modificar, aprobar, dar de baja, anular, reactivar, consultar y exportar clientes, proveedores y personal; revisar el resumen general del módulo; consultar listados separados por tipo; revisar el origen y código interno cuando correspondan; administrar la asignación del personal (dónde trabaja, sus cuentas y contratos con su aprobación, y el horario o régimen elegido); administrar horarios y regímenes; y registrar la disponibilidad esperada del personal. |
 | Regla de edición | La edición normal permite actualizar razón social, nombre comercial, nombre completo o nombre para mostrar cuando aplica, dirección, contacto, correo y celular. No permite cambiar documento ni código interno. |
-| Lo que entra | Solicitudes de registro, modificación, baja, anulación o aprobación de clientes, proveedores y personal; consulta de información SAP para clientes y proveedores; creación o cambios de la asignación del personal; aprobación de sus cuentas y contratos; cambios de horario, régimen o configuración laboral; y registro de disponibilidad esperada. |
-| Lo que sale | Confirmaciones de los cambios realizados; decisiones de aprobación; estado de sincronización SAP cuando aplica; reportes e información para auditoría. |
+| Lo que entra | Solicitudes de registro, modificación, baja, anulación, reactivación o aprobación de clientes, proveedores y personal; búsquedas por documento, razón social, nombre, estado, origen o cuenta/contrato; creación o cambios de la asignación del personal; aprobación de sus cuentas y contratos; cambios de horario, régimen o configuración laboral; y registro de disponibilidad esperada. |
+| Lo que sale | Confirmaciones de cambios realizados; decisiones de aprobación; datos visibles de origen y código interno cuando aplican; reportes en Excel o PDF e información para auditoría. |
 | Quién la usa | Personas y áreas que consultan o reutilizan el maestro de clientes, proveedores y personal, incluyendo asignaciones, horarios y régimen, disponibilidad, reportería y auditoría. |
 
 > **Fuera de alcance:** Este maestro no administra la operación diaria del personal, ni las solicitudes de permisos o viáticos, ni la asistencia (marcaciones, faltas, tardanzas, horas extra o regularizaciones). Esas funciones pertenecen a otros procesos de la empresa.
-
-## Endpoints BFF Vigentes
-
-Ruta canonica consumida por frontend:
-
-- `POST /api/socios-de-negocio/desde-comercial/prospecto-convertido-a-cliente`
-
-Alias BFF compatible:
-
-- `POST /api/socio-negocios/socios-de-negocio/desde-comercial/prospecto-convertido-a-cliente`
-
-Uso: alta de cliente ya validado desde Comercial. No gestiona ciclo de prospectos; solo consume conversion.
 
 ## Resumen de Épicas
 
 | # | Épica | Objetivo de negocio | Historias |
 | --- | --- | --- | --- |
-| 1 | Gestión de Clientes | Administrar el alta, validación, aprobación, modificación, baja y anulación de clientes. | 4 |
-| 2 | Gestión de Proveedores | Administrar el alta, validación, aprobación, modificación, baja y anulación de proveedores. | 3 |
+| 1 | Gestión de Clientes | Administrar el registro, aprobación, modificación, baja y anulación de clientes. | 4 |
+| 2 | Gestión de Proveedores | Administrar el registro, aprobación, modificación, baja y anulación de proveedores. | 3 |
 | 3 | Gestión de Personal | Administrar el alta, aprobación, modificación, baja y anulación del personal, manteniendo datos personales básicos. | 3 |
 | 4 | Asignación del Personal | Administrar dónde trabaja el personal y a qué estructura pertenece: cargo, sede, área, responsable, horario y régimen de trabajo, cuentas y contratos con su aprobación, y fechas de validez. | 4 |
 | 5 | Catálogo de Horarios y Regímenes de Trabajo | Administrar las opciones de horario y régimen (turno, horario o programación de trabajo y descanso) que luego se eligen al asignar a un personal. | 3 |
 | 6 | Disponibilidad del Personal | Registrar los periodos esperados del personal (vacaciones, permiso, licencia, descanso, etc.) como información de referencia. | 3 |
 | 7 | Reportes y Consultas | Permitir consultar, filtrar, auditar y exportar información de clientes, proveedores y personal. | 3 |
 
-> **Nota sobre el alta:** En las épicas 1, 2 y 3, la validación y la aprobación forman parte del alta de clientes, proveedores y personal. El alta termina cuando el registro queda aprobado. Si el revisor encuentra datos por corregir, los edita antes de aprobar; si el documento o RUC es incorrecto, anula el registro y lo vuelve a crear. La revisión del cliente recibido desde el área Comercial se detalla por separado porque nace desde otro proceso.
+> **Nota sobre el alta:** En las épicas 1, 2 y 3, el usuario registra clientes, proveedores y personal desde la pantalla Nuevo socio de negocio. El registro queda pendiente hasta que un usuario autorizado lo aprueba. Si el revisor encuentra datos por corregir, los edita antes de aprobar; si el documento o RUC es incorrecto, anula el registro y lo vuelve a crear.
 
 > **Nota sobre la gestión del personal:** Un personal aprobado y activo continúa con su **asignación** (Épica 4), que define dónde trabaja, su horario y régimen, y sus cuentas y contratos. Las opciones de horario y régimen que se eligen en la asignación se administran en el **catálogo** (Épica 5). Además, se puede registrar su **disponibilidad esperada** (Épica 6), como vacaciones o permisos previstos. Cada parte conserva sus fechas de validez y su historial.
 
-> **Nota sobre la navegación del módulo:** El usuario inicia desde el panel de Socios de Negocio, donde puede revisar el resumen general, entrar a Clientes, Proveedores o Personal, registrar un nuevo socio y exportar información según sus permisos.
+> **Nota sobre la navegación del módulo:** El usuario inicia desde el panel de Socios de Negocio, donde puede revisar el resumen general, entrar a Clientes, Proveedores o Personal, registrar un nuevo socio, abrir el detalle, auditar movimientos, gestionar asignaciones del personal y exportar información según sus permisos.
 
-> **Nota sobre SAP:** Para clientes y proveedores, el usuario puede consultar SAP con el documento antes del registro. Si encuentra información relacionada, el sistema permite revisar el registro asociado; si no encuentra información suficiente, el alta continúa de forma manual. El personal no usa código SAP ni sincronización SAP.
+> **Nota sobre origen:** En clientes y proveedores, el usuario puede reconocer si el dato fue creado manualmente o proviene de otra fuente visible para el negocio. El personal se registra manualmente.
 
 ## Épica 1: Gestión de Clientes
 
@@ -69,23 +57,20 @@ El registro de clientes se realiza con informacion maestra validada. Esta épica
 **Criterios de Aceptación**
 
 - ☐ DADO el campo de documento, CUANDO el usuario lo llena, ENTONCES solo acepta numeros: un DNI de 8 digitos o un RUC de 11 digitos.
-- ☐ DADO un documento valido, CUANDO el usuario realiza la validacion previa del cliente, ENTONCES el sistema confirma si puede continuar con el registro o informa que debe completar el alta manualmente.
-- ☐ DADO un documento valido de cliente, CUANDO el usuario consulta SAP, ENTONCES el sistema informa si existe información relacionada para revisarla antes de registrar manualmente.
+- ☐ DADO un documento valido de cliente, CUANDO el usuario verifica si ya existe, ENTONCES puede revisar el socio encontrado o continuar con el registro manual si no existe.
 - ☐ DADO el campo de celular, CUANDO el usuario lo llena, ENTONCES solo acepta numeros y debe tener 9 digitos.
 - ☐ DADO un documento ya registrado como cliente, CUANDO el usuario intenta registrarlo otra vez, ENTONCES el sistema avisa la duplicidad y no crea un registro repetido.
 - ☐ DADO el formulario completo, CUANDO el usuario registra al cliente, ENTONCES el cliente queda Pendiente de aprobacion.
-- ☐ DADO un cliente Pendiente de aprobacion, CUANDO un usuario autorizado lo revisa, ENTONCES puede aprobarlo; si encuentra datos por corregir, los edita antes de aprobar.
 - ☐ DADO un cliente recien creado, CUANDO el usuario lo consulta, ENTONCES puede revisarlo y continuar su gestion segun su estado.
 
 **Flujo Principal**
 
 1. Entra al módulo de Socios de Negocio, abre Clientes y selecciona Nuevo.
 2. Elige el tipo Cliente.
-3. Consulta SAP con el documento si corresponde.
+3. Verifica el documento si corresponde.
 4. Completa el formulario con los datos del cliente.
 5. Registra al cliente.
-6. El sistema lo deja en estado Pendiente para su aprobación.
-7. Un usuario autorizado lo revisa y aprueba; si hay datos por corregir, los edita antes de aprobar.
+6. El sistema abre el detalle del cliente creado y lo deja pendiente para su aprobación.
 
 **Flujos de Excepción**
 
@@ -93,29 +78,27 @@ El registro de clientes se realiza con informacion maestra validada. Esta épica
 - El celular no tiene 9 dígitos.
 - El documento ya esta registrado como CLIENTE.
 - Faltan datos obligatorios.
-- La validacion previa no encuentra informacion suficiente; el usuario continua con el registro manual.
-- SAP devuelve información de otro registro; el usuario revisa el registro encontrado antes de continuar.
+- Existe un socio relacionado con el documento; el usuario revisa el registro encontrado antes de continuar.
 
 **Eventos del Dominio**
 
 - Cliente registrado.
-- Cliente aprobado.
 
 ---
 
-### HU-01-002 Como Administrador Principal, quiero revisar y aprobar la información de cliente recibida desde Comercial, para formalizarlo como cliente.
+### HU-01-002 Como Administrador Principal, quiero revisar y aprobar clientes pendientes, para dejarlos disponibles cuando su información sea correcta.
 
 **Prioridad: Alta | Estimación: 8 puntos**
 
 **Precondiciones**
 
-- Existe un cliente recibido desde Comercial y visible en el Listado de Socios de Negocio con origen COMERCIAL.
+- Existe un cliente pendiente de aprobacion visible en el listado de clientes.
 - Usuario autenticado y con permiso para revisar y aprobar clientes.
 
 **Criterios de Aceptación**
 
-- ☐ DADO un cliente recibido desde Comercial, CUANDO aparece en el listado, ENTONCES se muestra con origen COMERCIAL y su estado de aprobacion (Pendiente o Aprobado).
-- ☐ DADO un cliente con origen MANUAL, COMERCIAL o SAP, CUANDO aparece en el listado, ENTONCES el usuario puede reconocer el origen del registro.
+- ☐ DADO un cliente pendiente, CUANDO aparece en el listado, ENTONCES se muestra con su estado de aprobacion.
+- ☐ DADO un cliente con origen visible, CUANDO aparece en el listado, ENTONCES el usuario puede reconocer de donde proviene.
 - ☐ DADO un cliente pendiente de revision, CUANDO el usuario lo consulta, ENTONCES puede revisar su informacion completa.
 - ☐ DADO que hay datos por corregir, CUANDO el usuario decide ajustarlos, ENTONCES puede actualizar los campos permitidos antes de aprobar.
 - ☐ DADO un cliente activo, vigente y Pendiente, CUANDO el usuario selecciona Aprobar, ENTONCES su estado cambia a Aprobado de inmediato.
@@ -131,7 +114,7 @@ El registro de clientes se realiza con informacion maestra validada. Esta épica
 
 **Flujos de Excepción**
 
-- El cliente recibido tiene información obligatoria incompleta.
+- El cliente tiene información obligatoria incompleta.
 - Ya existe otro CLIENTE con el mismo documento.
 - El documento o RUC es incorrecto; como no se puede editar, el usuario anula y vuelve a crear.
 - El usuario no tiene permiso para aprobar clientes.
@@ -157,7 +140,7 @@ El registro de clientes se realiza con informacion maestra validada. Esta épica
 - ☐ DADO un cliente registrado, CUANDO el usuario decide actualizar su informacion, ENTONCES puede editar los datos permitidos.
 - ☐ DADO la actualizacion de datos, CUANDO el usuario cambia razon social, nombre comercial, direccion, contacto, correo o celular, ENTONCES puede guardar esos cambios.
 - ☐ DADO la actualizacion de datos, CUANDO el usuario revisa el registro, ENTONCES el tipo, el documento y el codigo interno se mantienen sin cambios.
-- ☐ DADO un cliente con código SAP, CUANDO el usuario edita sus datos, ENTONCES el código SAP y el estado de sincronización no se modifican desde la edición normal.
+- ☐ DADO un cliente con código interno, CUANDO el usuario edita sus datos, ENTONCES ese código no se modifica desde la edición normal.
 - ☐ DADO el campo de celular, CUANDO el usuario guarda, ENTONCES debe tener exactamente 9 digitos.
 - ☐ DADO un cambio valido, CUANDO el usuario guarda la actualizacion, ENTONCES la informacion del cliente se actualiza y el cambio queda registrado en el historial.
 - ☐ DADO un registro anulado, CUANDO el usuario lo consulta, ENTONCES la edicion no esta disponible.
@@ -236,8 +219,7 @@ El registro de clientes se realiza con informacion maestra validada. Esta épica
 **Criterios de Aceptación**
 
 - ☐ DADO el campo de documento, CUANDO el usuario lo llena, ENTONCES solo acepta numeros: un DNI de 8 digitos o un RUC de 11 digitos.
-- ☐ DADO un documento valido, CUANDO el usuario realiza la validacion previa del proveedor, ENTONCES el sistema confirma si puede continuar con el registro o informa que debe completar el alta manualmente.
-- ☐ DADO un documento valido de proveedor, CUANDO el usuario consulta SAP, ENTONCES el sistema informa si existe información relacionada para revisarla antes de registrar manualmente.
+- ☐ DADO un documento valido de proveedor, CUANDO el usuario verifica si ya existe, ENTONCES puede revisar el socio encontrado o continuar con el registro manual si no existe.
 - ☐ DADO el campo de celular, CUANDO el usuario lo llena, ENTONCES solo acepta numeros y debe tener 9 digitos.
 - ☐ DADO un documento ya registrado como proveedor, CUANDO el usuario intenta registrarlo otra vez, ENTONCES el sistema avisa la duplicidad y no crea un registro repetido.
 - ☐ DADO el formulario completo, CUANDO el usuario registra al proveedor, ENTONCES el proveedor queda Pendiente de aprobacion.
@@ -248,10 +230,10 @@ El registro de clientes se realiza con informacion maestra validada. Esta épica
 
 1. Entra al módulo de Socios de Negocio, abre Proveedores y selecciona Nuevo.
 2. Elige el tipo Proveedor.
-3. Consulta SAP con el documento si corresponde.
+3. Verifica el documento si corresponde.
 4. Completa el formulario con los datos del proveedor.
 5. Registra al proveedor.
-6. El sistema lo deja en estado Pendiente para su aprobación.
+6. El sistema abre el detalle del proveedor creado y lo deja pendiente para su aprobación.
 7. Un usuario autorizado lo revisa y aprueba; si hay datos por corregir, los edita antes de aprobar.
 
 **Flujos de Excepción**
@@ -260,8 +242,7 @@ El registro de clientes se realiza con informacion maestra validada. Esta épica
 - El celular no tiene 9 dígitos.
 - El documento ya esta registrado como PROVEEDOR.
 - Faltan datos obligatorios.
-- La validacion previa no encuentra informacion suficiente; el usuario continua con el registro manual.
-- SAP devuelve información de otro registro; el usuario revisa el registro encontrado antes de continuar.
+- Existe un socio relacionado con el documento; el usuario revisa el registro encontrado antes de continuar.
 
 **Eventos del Dominio**
 
@@ -284,7 +265,7 @@ El registro de clientes se realiza con informacion maestra validada. Esta épica
 - ☐ DADO un proveedor registrado, CUANDO el usuario decide actualizar su informacion, ENTONCES puede editar los datos permitidos.
 - ☐ DADO la actualizacion de datos, CUANDO el usuario cambia razon social, nombre comercial, direccion, contacto, correo o celular, ENTONCES puede guardar esos cambios.
 - ☐ DADO la actualizacion de datos, CUANDO el usuario revisa el registro, ENTONCES el tipo, el documento y el codigo interno se mantienen sin cambios.
-- ☐ DADO un proveedor con código SAP, CUANDO el usuario edita sus datos, ENTONCES el código SAP y el estado de sincronización no se modifican desde la edición normal.
+- ☐ DADO un proveedor con código interno, CUANDO el usuario edita sus datos, ENTONCES ese código no se modifica desde la edición normal.
 - ☐ DADO el campo de celular, CUANDO el usuario guarda, ENTONCES debe tener exactamente 9 digitos.
 - ☐ DADO un cambio valido, CUANDO el usuario guarda la actualizacion, ENTONCES la informacion del proveedor se actualiza y queda registrada en el historial.
 
@@ -935,7 +916,7 @@ La disponibilidad indica, de forma informativa, en qué periodos se espera que u
 - ☐ DADO que el usuario ingresa al panel de Socios de Negocio, CUANDO carga el resumen, ENTONCES ve indicadores generales de clientes, proveedores, personal, activos, inactivos y anulados.
 - ☐ DADO que el usuario ingresa a Clientes, Proveedores o Personal, CUANDO carga el listado, ENTONCES ve la información separada por tipo de socio.
 - ☐ DADO que el usuario filtra por registros anulados, CUANDO aplica el filtro, ENTONCES se muestran solo los registros anulados.
-- ☐ DADO un cliente o proveedor con información SAP, CUANDO aparece en el listado o detalle, ENTONCES se muestra su código SAP y su estado de sincronización cuando corresponda.
+- ☐ DADO un cliente o proveedor con código interno, CUANDO aparece en el listado o detalle, ENTONCES se muestra ese código cuando corresponda.
 - ☐ DADO un registro listado, CUANDO el usuario lo consulta, ENTONCES puede acceder a las acciones permitidas por su estado; si el registro está anulado, solo dispone de acciones de consulta e historial.
 - ☐ DADO un registro listado, CUANDO el sistema muestra su estado, ENTONCES también orienta la siguiente acción esperada, como aprobar, reactivar, gestionar asignación o consultar.
 - ☐ DADO un registro consultado, CUANDO el usuario revisa su información, ENTONCES puede ver toda la información disponible y ejecutar las acciones permitidas.
@@ -957,7 +938,7 @@ La disponibilidad indica, de forma informativa, en qué periodos se espera que u
 - El usuario necesita revisar vigentes y anulados; debe consultarlos por separado según el filtro aplicado.
 - Una acción no está disponible para el estado actual del registro.
 - La asignación no aplica para clientes o proveedores.
-- La información SAP no aplica para personal.
+- El código interno no aplica para personal.
 - No fue posible cargar el listado o historial.
 
 **Eventos del Dominio**
@@ -1006,7 +987,7 @@ Aplica para CLIENTE, PROVEEDOR y PERSONAL:
 
 | Campo | Cliente | Proveedor | Personal | Observación |
 | --- | --- | --- | --- | --- |
-| Código interno / Código SAP | Sí | Sí | No | Aplica a CLIENTE y PROVEEDOR como identificador interno. No se modifica por edición normal. El PERSONAL no tiene este dato. |
+| Código interno | Sí | Sí | No | Aplica a CLIENTE y PROVEEDOR como identificador interno. No se modifica por edición normal. El PERSONAL no tiene este dato. |
 | Tipo de registro | Sí | Sí | Sí | Puede ser CLIENTE, PROVEEDOR o PERSONAL. |
 | Documento / RUC / DNI | Sí | Sí | Sí | No se modifica por edición normal. |
 | Razón social o nombres | Sí | Sí | Sí | Para empresas se usa razón social; para personas, nombres. |

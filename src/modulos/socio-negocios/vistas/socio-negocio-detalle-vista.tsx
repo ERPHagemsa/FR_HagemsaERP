@@ -32,7 +32,6 @@ import {
   ArrowLeft,
   BriefcaseBusiness,
   CalendarRange,
-  CheckCircle2,
   CircleX,
   GitBranch,
   Pencil,
@@ -40,7 +39,6 @@ import {
 } from "lucide-react"
 
 import {
-  useAprobarSocioDeNegocioMutation,
   useDarDeBajaSocioDeNegocioMutation,
   useModificarSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
@@ -54,10 +52,7 @@ import { SocioNegocioDetalleCliente } from "../componentes/socio-negocio-detalle
 import { SocioNegocioDetalleProveedor } from "../componentes/socio-negocio-detalle-proveedor"
 import { SocioNegocioDetallePersonal } from "../componentes/socio-negocio-detalle-personal"
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
-import {
-  puedeGestionarAsignacionesPersonal,
-  puedeResolverAprobacionSocio,
-} from "../tipos/socio-negocio"
+import { puedeGestionarAsignacionesPersonal } from "../tipos/socio-negocio"
 import type {
   ModificarSocioDeNegocioRequest,
   ReemplazarSocioDeNegocioRequest,
@@ -122,16 +117,6 @@ function EstadoResumen({ socio }: { socio: SocioDeNegocioResponse }) {
       >
         {socio.estadoRegistro}
       </Badge>
-      <Badge
-        variant="outline"
-        className="h-6 rounded-full px-2.5 text-[12px] font-medium shadow-xs"
-      >
-        {socio.estadoAprobacion === "APROBADO"
-          ? "Aprobado"
-          : socio.estadoAprobacion === "PENDIENTE_APROBACION"
-            ? "Pendiente"
-            : "No aprobado"}
-      </Badge>
       {aplicaSap && socio.estadoSincronizacionSap ? (
         <EstadoSincronizacionSapBadge
           estado={socio.estadoSincronizacionSap}
@@ -180,21 +165,10 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
   })
   const reemplazarMutation = useReemplazarSocioDeNegocioMutation(id)
   const reactivarMutation = useReactivarSocioDeNegocioMutation(id)
-  const aprobarMutation = useAprobarSocioDeNegocioMutation(id, {
-    onSuccess: () => void socioQuery.refetch(),
-  })
   const puedeDarBaja =
     socio?.estado === "ACTIVO" && socio.estadoRegistro === "ACTIVO"
-  // Aprobar solo mientras el socio esta pendiente de aprobacion.
-  const puedeResolverAprobacion = socio
-    ? puedeResolverAprobacionSocio(socio)
-    : false
-  // Gestionar asignaciones solo cuando el personal ya esta APROBADO. Mientras
-  // este pendiente, en su lugar se ofrece Aprobar aqui mismo (no hay que entrar
-  // a otra ventana para aprobar).
   const puedeGestionarAsignaciones = socio
-    ? puedeGestionarAsignacionesPersonal(socio) &&
-      socio.estadoAprobacion === "APROBADO"
+    ? puedeGestionarAsignacionesPersonal(socio)
     : false
   const registroAnulado = socio?.estadoRegistro === "ANULADO"
   const modoEdicion =
@@ -240,18 +214,6 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
       setError(null)
       const nuevo = await reactivarMutation.mutateAsync({ usuarioId })
       router.push(`/socio-negocios/${nuevo.id}`)
-    } catch (err) {
-      setError(obtenerMensajeError(err))
-    }
-  }
-
-  async function aprobar() {
-    if (!socio) return
-    try {
-      setError(null)
-      setMensaje(null)
-      await aprobarMutation.mutateAsync({ usuarioId })
-      setMensaje(`${obtenerNombreSocio(socio)} fue aprobado.`)
     } catch (err) {
       setError(obtenerMensajeError(err))
     }
@@ -450,16 +412,6 @@ export function SocioNegocioDetalleVista({ id }: { id: string }) {
                               <CalendarRange data-icon="inline-start" />
                               Disponibilidad
                             </Link>
-                          </Button>
-                        ) : null}
-                        {puedeResolverAprobacion ? (
-                          <Button
-                            size="sm"
-                            disabled={aprobarMutation.isPending}
-                            onClick={() => void aprobar()}
-                          >
-                            <CheckCircle2 data-icon="inline-start" />
-                            Aprobar
                           </Button>
                         ) : null}
                         {!registroAnulado ? (

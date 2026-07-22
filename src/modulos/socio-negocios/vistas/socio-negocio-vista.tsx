@@ -49,7 +49,6 @@ import { cn } from "@/compartido/utilidades/utils"
 import {
   Building2,
   CircleDashed,
-  Clock,
   Download,
   Filter,
   Package,
@@ -69,13 +68,9 @@ import type {
   ConsultarSociosDeNegocioQuery,
   ReporteSociosDeNegocioResponse,
 } from "../tipos/socio-negocio"
-import {
-  puedeGestionarAsignacionesPersonal,
-  puedeResolverAprobacionSocio,
-} from "../tipos/socio-negocio"
+import { puedeGestionarAsignacionesPersonal } from "../tipos/socio-negocio"
 import { AccionesSocio } from "./socio-negocio-listado/acciones-socio"
 import {
-  EstadoAprobacionBadge,
   EstadoRegistroBadge,
   EstadoSocioBadge,
   type ErrorOperacion,
@@ -145,9 +140,6 @@ export function SocioNegocioVista({
   )
   const indicadoresOperacion = useMemo(
     () => ({
-      pendientesAprobacion: socios.filter((socio) =>
-        puedeResolverAprobacionSocio(socio),
-      ).length,
       pendientesSap: socios.filter((socio) =>
         socio.estadoSincronizacionSap === "PENDIENTE" ||
         socio.estadoSincronizacionSap === "FALLIDO",
@@ -272,7 +264,7 @@ export function SocioNegocioVista({
                 </div>
                 <div className="rounded-lg border border-border bg-background p-3">
                   <p className="text-xs font-medium text-muted-foreground">2. Resolver</p>
-                  <p className="mt-1 text-sm">Aprueba, corrige, anula o reactiva desde acciones.</p>
+                  <p className="mt-1 text-sm">Corrige, anula o reactiva desde acciones.</p>
                 </div>
                 <div className="rounded-lg border border-border bg-background p-3">
                   <p className="text-xs font-medium text-muted-foreground">3. Auditar</p>
@@ -281,7 +273,6 @@ export function SocioNegocioVista({
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-              <ResumenListado icon={Clock} label="Por aprobar" value={indicadoresOperacion.pendientesAprobacion} />
               <ResumenListado icon={CircleDashed} label="SAP pendiente" value={indicadoresOperacion.pendientesSap} />
             </div>
           </section>
@@ -572,7 +563,6 @@ export function SocioNegocioVista({
                       <TableHead>Tipo</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Registro</TableHead>
-                      <TableHead>Aprobacion</TableHead>
                       <TableHead>Asignacion vigente</TableHead>
                       <TableHead>Siguiente accion</TableHead>
                       <TableHead>Sincronizacion SAP</TableHead>
@@ -649,9 +639,6 @@ export function SocioNegocioVista({
                           <span className={claseContenido}>
                             <EstadoRegistroBadge estadoRegistro={socio.estadoRegistro} />
                           </span>
-                        </TableCell>
-                        <TableCell>
-                          <EstadoAprobacionBadge estado={socio.estadoAprobacion} />
                         </TableCell>
                         <TableCell>
                           {puedeGestionarAsignaciones ? (

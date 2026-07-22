@@ -252,8 +252,6 @@ function ejemplosFormulario(tipo: TipoDatoMaestro) {
 const seccionesRegistro: Array<{ titulo: string; tipos: TipoDatoMaestro[] }> = [
   { titulo: "Ubicaciones", tipos: ["UBICACION"] },
   { titulo: "Sedes y areas", tipos: ["SEDE", "AREA"] },
-  { titulo: "Logistica", tipos: ["ALMACEN"] },
-  { titulo: "Regimenes", tipos: ["REGIMEN"] },
   { titulo: "Cuentas y contratos", tipos: ["CUENTA", "CONTRATO"] },
   { titulo: "Cargos", tipos: ["CARGO"] },
 ]

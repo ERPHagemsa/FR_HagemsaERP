@@ -9,12 +9,35 @@ export type Moneda = "PEN" | "USD"
 export type TipoOrigenTarifa = "COTIZACION" | "CONTRATO" | "MANUAL"
 export type EstadoTarifario = "VIGENTE" | "ANULADO" | "VENCIDO"
 
+// Snapshot CONGELADO de la ubicación completa de una ruta, tomado al generar el
+// tarifario (Opción B): la dirección exacta al momento de pactar, inmune a
+// cambios ajenos del maestro (una corrección de la propia cotización sí la
+// refresca). `null` cuando la ruta no tiene ubicación maestra (escrita a mano):
+// en ese caso solo hay nombre en texto.
+export interface UbicacionCompleta {
+  idUbicacionBc14: number
+  nombre: string
+  tipoUbicacion: string
+  pais: string
+  departamento: string
+  provincia: string
+  distrito: string
+  direccion: string
+  referenciaUbicacion: string | null
+  latitud: number | null
+  longitud: number | null
+}
+
 // Una fila de tarifa dentro del detalle del tarifario.
 export interface Tarifa {
   id: string
   idModalidad: string
   origen: string | null
   destino: string | null
+  // Ubicación completa por referencia (join a la maestra). `null` si la ruta no
+  // tiene ubicación maestra; el display cae al nombre en texto (origen/destino).
+  origenUbicacion: UbicacionCompleta | null
+  destinoUbicacion: UbicacionCompleta | null
   // Snapshot del tipo de unidad (reemplaza tipoVehiculo — contrato bc03 Fase 2).
   fuenteTipoUnidad: FuenteTipoUnidad
   idTipoUnidad: string
@@ -34,6 +57,8 @@ export interface TarifaCargo {
   unidadCobro: string
   origen: string | null
   destino: string | null
+  origenUbicacion: UbicacionCompleta | null
+  destinoUbicacion: UbicacionCompleta | null
   condicion: string | null
   precio: number
   tarifaStandbyDia: number | null

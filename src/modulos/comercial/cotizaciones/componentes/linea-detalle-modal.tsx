@@ -80,6 +80,13 @@ export function LineaDetalleModal({
   // puede aplicar la linea: evita guardar un borrador que el backend rechazaria.
   const faltaModalidad = borrador.idModalidad.trim() === "";
 
+  // Almacenaje: el periodo y su unidad van juntos. Uno sin el otro es
+  // inconsistente y lo rechaza tanto validarBorrador como el dominio del backend.
+  const periodoIncompleto =
+    borrador.tipoLinea === "ALMACENAJE" &&
+    (borrador.almacenaje.periodo.trim() !== "") !==
+      (borrador.almacenaje.unidadPeriodo !== "");
+
   return (
     <Dialog open={abierto} onOpenChange={(v) => (!v ? onCerrar() : undefined)}>
       <DialogContent className="flex max-h-[95vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-7xl">
@@ -120,8 +127,14 @@ export function LineaDetalleModal({
             </Button>
             <Button
               type="button"
-              disabled={disabled || faltaModalidad}
-              title={faltaModalidad ? "Selecciona una modalidad" : undefined}
+              disabled={disabled || faltaModalidad || periodoIncompleto}
+              title={
+                faltaModalidad
+                  ? "Selecciona una modalidad"
+                  : periodoIncompleto
+                    ? "Completa el periodo y su unidad (o deja ambos vacios)"
+                    : undefined
+              }
               onClick={() => onGuardar(borrador)}
             >
               Aplicar

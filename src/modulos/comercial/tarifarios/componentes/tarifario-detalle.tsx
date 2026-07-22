@@ -81,6 +81,7 @@ import {
   type PayloadTarifaCargo,
   type Tarifa,
   type TarifaCargo,
+  type UbicacionCompleta,
 } from "../tipos/tarifarios.tipos"
 // Acoplamiento conocido tarifarios -> cotizaciones: reutiliza el combobox y el tipo del
 // maestro de tipos de unidad (unica fuente de verdad, ya usada en el editor de cotizaciones).
@@ -429,6 +430,39 @@ function CamposCargo({
   )
 }
 
+// Celda de ruta (origen/destino) de una tarifa o cargo. Muestra el nombre y,
+// cuando la ruta tiene ubicación maestra (Opción A), su ubicación EXACTA: una
+// sublínea con distrito/provincia y la dirección completa en el tooltip. Si no
+// hay ubicación completa (ruta escrita a mano), cae al nombre en texto.
+function CeldaUbicacion({
+  nombre,
+  ubicacion,
+}: {
+  nombre: string | null
+  ubicacion: UbicacionCompleta | null
+}) {
+  if (!ubicacion) {
+    return <span>{nombre ?? "—"}</span>
+  }
+  const geo = [ubicacion.distrito, ubicacion.provincia, ubicacion.departamento]
+    .filter(Boolean)
+    .join(", ")
+  const tooltip = [ubicacion.direccion, geo, ubicacion.referenciaUbicacion]
+    .filter(Boolean)
+    .join(" · ")
+  const sublinea = [ubicacion.distrito, ubicacion.provincia]
+    .filter(Boolean)
+    .join(", ")
+  return (
+    <span className="flex flex-col" title={tooltip}>
+      <span>{ubicacion.nombre || nombre || "—"}</span>
+      {sublinea ? (
+        <span className="truncate text-xs text-muted-foreground">{sublinea}</span>
+      ) : null}
+    </span>
+  )
+}
+
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 rounded-xl border border-border bg-card px-4 py-3">
@@ -628,8 +662,12 @@ export function TarifarioDetalle({ idTarifario }: Props) {
                   tarifario.tarifas.map((t) => (
                     <TableRow key={t.id}>
                       <TableCell className="text-sm">{nombreModalidad(t.idModalidad)}</TableCell>
-                      <TableCell className="text-sm">{t.origen ?? "—"}</TableCell>
-                      <TableCell className="text-sm">{t.destino ?? "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        <CeldaUbicacion nombre={t.origen} ubicacion={t.origenUbicacion} />
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        <CeldaUbicacion nombre={t.destino} ubicacion={t.destinoUbicacion} />
+                      </TableCell>
                       <TableCell className="text-sm">{t.tipoUnidadNombre || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {t.condicion ?? "—"}
@@ -724,8 +762,12 @@ export function TarifarioDetalle({ idTarifario }: Props) {
                       <TableCell className="text-sm">
                         {nombreModalidad(c.idModalidad)}
                       </TableCell>
-                      <TableCell className="text-sm">{c.origen ?? "—"}</TableCell>
-                      <TableCell className="text-sm">{c.destino ?? "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        <CeldaUbicacion nombre={c.origen} ubicacion={c.origenUbicacion} />
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        <CeldaUbicacion nombre={c.destino} ubicacion={c.destinoUbicacion} />
+                      </TableCell>
                       <TableCell className="text-sm">{c.unidadCobro}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {c.condicion ?? "—"}

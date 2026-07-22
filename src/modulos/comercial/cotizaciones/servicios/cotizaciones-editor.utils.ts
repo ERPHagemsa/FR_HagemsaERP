@@ -16,6 +16,7 @@ import type {
   UnidadPeso,
   EquipoHijo,
   AlmacenajeHijo,
+  UnidadPeriodo,
   PersonalHijo,
   Linea,
   CargoAdicional,
@@ -96,7 +97,8 @@ export type DraftEquipoHijo = {
 
 export type DraftAlmacenajeHijo = {
   areaM2: string;
-  periodoDias: string;
+  periodo: string;
+  unidadPeriodo: UnidadPeriodo | "";
   descripcion: string;
 };
 
@@ -224,7 +226,7 @@ function equipoVacio(): DraftEquipoHijo {
 }
 
 function almacenajeVacio(): DraftAlmacenajeHijo {
-  return { areaM2: "", periodoDias: "", descripcion: "" };
+  return { areaM2: "", periodo: "", unidadPeriodo: "", descripcion: "" };
 }
 
 function personalVacio(): DraftPersonalHijo {
@@ -291,9 +293,30 @@ export function precioVentaLinea(l: Pick<DraftLinea, "precioBase" | "margenPct">
   return Math.round(venta * 100) / 100;
 }
 
-/** totalVentaLinea — precioVenta × cantidad (espejo de precioVentaTotal del backend). */
-export function totalVentaLinea(l: Pick<DraftLinea, "precioBase" | "margenPct" | "cantidad">): number {
-  return precioVentaLinea(l) * (parseFloat(l.cantidad) || 0);
+/**
+ * totalVentaLinea — precioVenta × cantidad, y —para ALMACENAJE— × período
+ * (espejo de precioVentaTotal del backend).
+ */
+export function totalVentaLinea(
+  l: Pick<
+    DraftLinea,
+    "precioBase" | "margenPct" | "cantidad" | "tipoLinea" | "almacenaje"
+  >,
+): number {
+  return (
+    precioVentaLinea(l) *
+    (parseFloat(l.cantidad) || 0) *
+    factorPeriodoLinea(l)
+  );
+}
+
+/** Espejo de CotizacionLinea.factorPeriodo: ALMACENAJE multiplica por el período. */
+function factorPeriodoLinea(
+  l: Pick<DraftLinea, "tipoLinea" | "almacenaje">,
+): number {
+  if (l.tipoLinea !== "ALMACENAJE") return 1;
+  const periodo = parseFloat(l.almacenaje.periodo);
+  return periodo > 0 ? periodo : 1;
 }
 
 export function seccionVacia(esDefecto = false): DraftSeccion {
@@ -447,7 +470,8 @@ function equipoReadADraft(e: EquipoHijo): DraftEquipoHijo {
 function almacenajeReadADraft(a: AlmacenajeHijo): DraftAlmacenajeHijo {
   return {
     areaM2: a.areaM2 !== null ? String(a.areaM2) : "",
-    periodoDias: a.periodoDias !== null ? String(a.periodoDias) : "",
+    periodo: a.periodo !== null ? String(a.periodo) : "",
+    unidadPeriodo: a.unidadPeriodo ?? "",
     descripcion: a.descripcion ?? "",
   };
 }
@@ -650,7 +674,8 @@ function equipoAPayload(e: DraftEquipoHijo): PayloadEquipoHijo {
 function almacenajeAPayload(a: DraftAlmacenajeHijo): PayloadAlmacenajeHijo {
   const payload: PayloadAlmacenajeHijo = {};
   if (a.areaM2 !== "") payload.areaM2 = parseNumero(a.areaM2);
-  if (a.periodoDias !== "") payload.periodoDias = parseNumero(a.periodoDias);
+  if (a.periodo !== "") payload.periodo = parseNumero(a.periodo);
+  if (a.unidadPeriodo !== "") payload.unidadPeriodo = a.unidadPeriodo;
   if (a.descripcion.trim() !== "") payload.descripcion = a.descripcion.trim();
   return payload;
 }
@@ -954,6 +979,19 @@ export function validarBorrador(draft: DraftBorrador): Record<string, string> {
         l.carga.cargas.forEach((it, j) => {
           validarCargaItem(errores, it, `secciones.${i}.lineas.${k}.carga.cargas.${j}`);
         });
+      }
+      // Almacenaje: el periodo y su unidad van juntos (o ninguno). Uno sin el
+      // otro es inconsistente (ej. "6" sin saber si son dias/meses).
+      if (l.tipoLinea === "ALMACENAJE") {
+        const periodoSet = l.almacenaje.periodo.trim() !== "";
+        const unidadSet = l.almacenaje.unidadPeriodo !== "";
+        if (periodoSet && !unidadSet) {
+          errores[`secciones.${i}.lineas.${k}.almacenaje.unidadPeriodo`] =
+            "Elegi la unidad del periodo.";
+        } else if (unidadSet && !periodoSet) {
+          errores[`secciones.${i}.lineas.${k}.almacenaje.periodo`] =
+            "Indica el periodo.";
+        }
       }
       // Cargos a nivel de linea
       l.cargosAdicionales.forEach((c, j) => {

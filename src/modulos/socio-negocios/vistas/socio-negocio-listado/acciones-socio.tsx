@@ -6,7 +6,6 @@ import {
   ArchiveRestore,
   ArchiveX,
   BriefcaseBusiness,
-  CheckCircle2,
   CircleX,
   Eye,
   Loader2,
@@ -39,15 +38,11 @@ import { Textarea } from "@/compartido/componentes/ui/textarea"
 import { useSesion } from "@/modulos/autenticacion/ganchos/use-sesion"
 
 import {
-  useAprobarSocioDeNegocioMutation,
   useDarDeBajaSocioDeNegocioMutation,
   useReactivarSocioDeNegocioMutation,
 } from "../../servicios/socio-negocios-queries"
 import type { SocioDeNegocioResponse } from "../../tipos/socio-negocio"
-import {
-  puedeGestionarAsignacionesPersonal,
-  puedeResolverAprobacionSocio,
-} from "../../tipos/socio-negocio"
+import { puedeGestionarAsignacionesPersonal } from "../../tipos/socio-negocio"
 import { type ErrorOperacion, obtenerErrorOperacion } from "./utilidades"
 
 type AccionesSocioProps = {
@@ -71,20 +66,15 @@ export function AccionesSocio({
   const reactivarMutation = useReactivarSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })
-  const aprobarMutation = useAprobarSocioDeNegocioMutation(socio.id, {
-    onSuccess: onActualizado,
-  })
   const [accion, setAccion] = useState<"anular" | "reactivar" | null>(null)
   const [motivo, setMotivo] = useState("")
   const procesando =
     bajaMutation.isPending ||
-    reactivarMutation.isPending ||
-    aprobarMutation.isPending
+    reactivarMutation.isPending
   const registroAnulado = socio.estadoRegistro === "ANULADO"
   const puedeReactivar =
     socio.estado === "INACTIVO" && socio.estadoRegistro === "ACTIVO"
   const puedeGestionarAsignaciones = puedeGestionarAsignacionesPersonal(socio)
-  const puedeResolverAprobacion = puedeResolverAprobacionSocio(socio)
   const requiereMotivo = accion === "anular"
 
   function abrirAccion(nuevaAccion: "anular" | "reactivar") {
@@ -94,15 +84,6 @@ export function AccionesSocio({
         : "",
     )
     setAccion(nuevaAccion)
-  }
-
-  async function aprobar() {
-    try {
-      await aprobarMutation.mutateAsync({ usuarioId })
-      onMensaje(`${socio.razonSocial} fue aprobado.`)
-    } catch (error) {
-      onError(obtenerErrorOperacion(error))
-    }
   }
 
   async function confirmarAccion() {
@@ -183,15 +164,6 @@ export function AccionesSocio({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                {puedeResolverAprobacion ? (
-                  <DropdownMenuItem
-                    disabled={procesando}
-                    onSelect={() => void aprobar()}
-                  >
-                    <CheckCircle2 data-icon="inline-start" />
-                    Aprobar
-                  </DropdownMenuItem>
-                ) : null}
                 <DropdownMenuItem
                   disabled={procesando}
                   onSelect={() => abrirAccion("anular")}
