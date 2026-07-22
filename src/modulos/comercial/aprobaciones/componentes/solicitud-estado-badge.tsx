@@ -19,7 +19,7 @@ function variantPorEstado(estado: EstadoSolicitud): BadgeVariant {
 function etiquetaPorEstado(estado: EstadoSolicitud): string {
   switch (estado) {
     case "EN_APROBACION":
-      return "En aprobación";
+      return "Pendiente";
     case "APROBADA":
       return "Aprobada";
     case "RECHAZADA":

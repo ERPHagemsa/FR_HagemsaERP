@@ -35,7 +35,7 @@ type DefTarjeta = {
 const TARJETAS: DefTarjeta[] = [
   {
     bucket: "enAprobacion",
-    etiqueta: "En aprobación",
+    etiqueta: "Pendiente",
     descripcion: "Esperando resolución",
     icono: ClipboardCheck,
     claseIcono: "text-indigo-500",
