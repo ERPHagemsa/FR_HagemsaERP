@@ -17,7 +17,7 @@ import {
   Lock,
 } from "lucide-react";
 
-import { extraerMensajeError } from "@/compartido/api/formato-error";
+import { extraerMensajeError, obtenerStatusError } from "@/compartido/api/formato-error";
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert";
 import { Badge } from "@/compartido/componentes/ui/badge";
 import { Button } from "@/compartido/componentes/ui/button";
@@ -60,6 +60,13 @@ import type {
 // seguridad para el caso en que un campo se quede enfocado mucho tiempo sin
 // que el usuario pase a otro (así no se pierde una edición larga).
 const RETRASO_AUTOGUARDADO_SEGURIDAD_MS = 4000;
+// Backoff exponencial ante error de red/servidor, topado en este intervalo —
+// pero SIN límite de intentos: el autoguardado existe justamente para
+// sobrevivir un corte de red temporal, así que ante un error reintentable
+// nunca se rinde solo mientras queden cambios sin guardar (ver flush()). Un
+// abandono automático definitivo solo aplica a errores NO reintentables
+// (validación 4xx), donde insistir con el mismo payload no cambia nada.
+const RETRASO_MAXIMO_REINTENTO_MS = 30_000;
 
 type RespuestaLocal = {
   estadoItem: EstadoItem;
@@ -163,7 +170,7 @@ function IndicadorGuardado({ estado }: { estado: EstadoAutoguardado }) {
     case "error":
       return (
         <span className="flex items-center gap-1.5 text-xs text-destructive">
-          <AlertTriangle className="size-3.5" /> Error al guardar, reintentando...
+          <AlertTriangle className="size-3.5" /> No se pudo guardar
         </span>
       );
     default:
@@ -212,6 +219,9 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
   const dirtyItemsRef = useRef<Record<string, RespuestaLocal>>({});
   const dirtyNeumaticosRef = useRef<Record<string, NeumaticoLocal>>({});
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Reintentos consecutivos por error de red/servidor (5xx o sin respuesta).
+  // Se resetea en cada envío exitoso.
+  const reintentosRef = useRef(0);
   const [autoguardadoEstado, setAutoguardadoEstado] = useState<EstadoAutoguardado>("idle");
 
   const autoguardar = useAutoguardarRespuestasMutation(inspeccionId);
@@ -310,15 +320,27 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
     autoguardar
       .mutateAsync({ respuestas: respuestasPayload, neumaticos: neumaticosPayload })
       .then((actualizada) => {
+        // Avisar la recuperación solo si venía de fallar de verdad (no en
+        // cada guardado normal) — responde a "¿si vuelve la red se guarda
+        // todo como si nada hubiera pasado?": sí, y esto se lo confirma al
+        // usuario en vez de dejarlo adivinar.
+        if (reintentosRef.current > 0) {
+          toast.success("Conexión recuperada: los cambios pendientes se guardaron.");
+        }
+        reintentosRef.current = 0;
         setEstadoActual(actualizada.estado);
         setAutoguardadoEstado("guardado");
         setTimeout(() => {
           setAutoguardadoEstado((actual) => (actual === "guardado" ? "idle" : actual));
         }, 2000);
       })
-      .catch(() => {
-        // Reintento: re-marcamos como sucios (sin pisar una edición más nueva
-        // que ya haya vuelto a ensuciar el mismo id) y reprogramamos el envío.
+      .catch((err) => {
+        // Re-marcamos como sucios (sin pisar una edición más nueva que ya haya
+        // vuelto a ensuciar el mismo id): el dato del usuario no se pierde
+        // aunque el envío haya fallado. Este pool es acumulado (no por
+        // intento): la próxima vez que algo dispare un flush —el propio
+        // reintento, o cualquier otra edición/blur mientras tanto— se manda
+        // TODO lo pendiente junto, incluido esto.
         for (const [id, v] of entradasItems) {
           if (!(id in dirtyItemsRef.current)) dirtyItemsRef.current[id] = v;
         }
@@ -326,7 +348,40 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
           if (!(id in dirtyNeumaticosRef.current)) dirtyNeumaticosRef.current[id] = v;
         }
         setAutoguardadoEstado("error");
-        programarGuardado();
+
+        const status = obtenerStatusError(err);
+        // Sin respuesta (status 0) o 5xx: falla transitoria de red/servidor —
+        // se reintenta solo SIN límite de intentos (ver comentario en la
+        // constante). 4xx (ej. una validación de dominio) es permanente:
+        // reintentar el mismo payload jamás va a funcionar, así que NO se
+        // reprograma solo — se avisa y se espera a que el usuario corrija el
+        // campo (lo que dispara un nuevo intento por su cuenta).
+        const reintentable = status === null || status === 0 || status >= 500;
+
+        if (!reintentable) {
+          reintentosRef.current = 0;
+          toast.error(
+            extraerMensajeError(err, "No se pudo guardar: revise el valor ingresado."),
+          );
+          return;
+        }
+
+        reintentosRef.current += 1;
+        // Solo se avisa al empezar a fallar, no en cada intento — con una
+        // caída larga esto reintentaría decenas de veces y no hace falta
+        // repetir el mismo toast cada vez.
+        if (reintentosRef.current === 1) {
+          toast.error(
+            "Sin conexión con el servidor. Los cambios quedan pendientes y se reintenta solo en segundo plano.",
+          );
+        }
+
+        const espera = Math.min(
+          RETRASO_AUTOGUARDADO_SEGURIDAD_MS * 2 ** (reintentosRef.current - 1),
+          RETRASO_MAXIMO_REINTENTO_MS,
+        );
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(flush, espera);
       });
   }
 
@@ -391,15 +446,31 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
   const esInmutable = (estadoActual ?? inspeccion.estado) === "CONFIRMADA";
   // `autoguardadoEstado` cubre todo el ciclo (se pone "pendiente" en cada
   // edición y solo vuelve a "idle"/"guardado" tras un flush exitoso), por lo
-  // que basta como señal de "hay cambios sin confirmar guardado" sin leer refs.
-  const hayPendientes = autoguardadoEstado === "pendiente" || autoguardadoEstado === "guardando";
+  // que basta como señal de "hay cambios sin confirmar guardado" sin leer
+  // refs. "error" cuenta también: desde que dejamos de reintentar solo ante
+  // un fallo permanente (ver flush), quedarse en "error" SÍ significa que hay
+  // una edición sin guardar — no debe poder confirmarse por encima de eso.
+  const hayPendientes =
+    autoguardadoEstado === "pendiente" ||
+    autoguardadoEstado === "guardando" ||
+    autoguardadoEstado === "error";
   const puedeConfirmar =
     !esInmutable && (estadoActual ?? inspeccion.estado) === "COMPLETA" && !hayPendientes;
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-3">
-        <Button variant="outline" size="sm" onClick={() => router.push("/flota/checklist/inspecciones")}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            // Si queda algo sin guardar (recién tipeado, aún dentro de la
+            // ventana de seguridad) lo mandamos antes de salir — la request
+            // sigue en vuelo aunque el componente se desmonte al navegar.
+            flushInmediato();
+            router.push("/flota/checklist/inspecciones");
+          }}
+        >
           <ArrowLeft data-icon="inline-start" />
           Volver
         </Button>
@@ -559,11 +630,19 @@ export function InspeccionCaptura({ inspeccionId }: { inspeccionId: number }) {
                                     className="h-8 w-20"
                                     value={r.cantidad ?? ""}
                                     disabled={esInmutable}
-                                    onChange={(e) =>
-                                      actualizarRespuesta(item.id, {
-                                        cantidad: e.target.value === "" ? null : Number(e.target.value),
-                                      })
-                                    }
+                                    onChange={(e) => {
+                                      if (e.target.value === "") {
+                                        actualizarRespuesta(item.id, { cantidad: null });
+                                        return;
+                                      }
+                                      // El navegador no impide tipear un decimal o un
+                                      // negativo pese a min/step; el backend exige
+                                      // entero >= 0 (ver Inspeccion.responder) y lo
+                                      // rechazaría con un 400 que ya no se reintenta
+                                      // solo — se ajusta acá para no llegar a eso.
+                                      const valor = Math.max(0, Math.round(Number(e.target.value)));
+                                      actualizarRespuesta(item.id, { cantidad: valor });
+                                    }}
                                     onBlur={flushInmediato}
                                   />
                                 ) : (
