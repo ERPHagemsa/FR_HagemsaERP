@@ -4,7 +4,6 @@ import type { DisponibilidadPersonalConfiguradaResponse } from "./disponibilidad
 export type TipoSocioDeNegocio = "CLIENTE" | "PROVEEDOR" | "PERSONAL"
 export type EstadoSocioDeNegocio = "ACTIVO" | "INACTIVO"
 export type EstadoRegistro = "ACTIVO" | "ANULADO"
-export type EstadoAprobacion = "PENDIENTE_APROBACION" | "APROBADO" | "RECHAZADO"
 export type EstadoSincronizacionSap =
   | "NO_APLICA"
   | "NO_INICIADA"
@@ -73,7 +72,6 @@ export interface SocioDeNegocioResponse {
   numeroCelular: string
   estado: EstadoSocioDeNegocio
   estadoRegistro: EstadoRegistro
-  estadoAprobacion: EstadoAprobacion
   estadoSincronizacionSap?: EstadoSincronizacionSap
   fechaSincronizacionSap?: string
   ultimoErrorSincronizacionSap?: string
@@ -102,29 +100,6 @@ export function puedeGestionarAsignacionesPersonal(
     socio.tipo === "PERSONAL" &&
     socio.estado === "ACTIVO" &&
     socio.estadoRegistro === "ACTIVO"
-  )
-}
-
-/** Aprobar/Rechazar solo aplican mientras el socio esta pendiente de aprobacion. */
-export function puedeResolverAprobacionSocio(
-  socio: Pick<SocioDeNegocioResponse, "estadoRegistro" | "estadoAprobacion">,
-) {
-  return (
-    socio.estadoRegistro === "ACTIVO" &&
-    socio.estadoAprobacion === "PENDIENTE_APROBACION"
-  )
-}
-
-/**
- * Reenviar a aprobacion solo aplica tras un rechazo: el socio se corrige (PUT /:id)
- * y vuelve a quedar pendiente. Flujo: PENDIENTE -> RECHAZADO -> (correccion) -> PENDIENTE.
- */
-export function puedeReenviarAprobacionSocio(
-  socio: Pick<SocioDeNegocioResponse, "estadoRegistro" | "estadoAprobacion">,
-) {
-  return (
-    socio.estadoRegistro === "ACTIVO" &&
-    socio.estadoAprobacion === "RECHAZADO"
   )
 }
 
@@ -199,25 +174,6 @@ export type ReemplazarSocioDeNegocioRequest = RegistrarSocioDeNegocioRequest & {
   motivo: string
 }
 
-/** PATCH /socios-de-negocio/:id/aprobar. Deja el socio en estado ACTIVO. */
-export interface AprobarSocioDeNegocioRequest {
-  usuarioId: string
-}
-
-/** PATCH /socios-de-negocio/:id/rechazar. Solo acepta PENDIENTE_APROBACION; deja el socio RECHAZADO. */
-export interface RechazarSocioDeNegocioRequest {
-  usuarioId: string
-  motivo: string
-}
-
-/**
- * PATCH /socios-de-negocio/:id/reenviar-aprobacion. Tras corregir un socio RECHAZADO,
- * lo devuelve a PENDIENTE_APROBACION.
- */
-export interface ReenviarAprobacionSocioDeNegocioRequest {
-  usuarioId: string
-}
-
 export interface DarDeBajaSocioDeNegocioRequest {
   motivo: string
   usuarioId: string
@@ -234,7 +190,6 @@ export interface ConsultarSociosDeNegocioQuery {
   tipo?: TipoSocioDeNegocio
   estado?: EstadoSocioDeNegocio
   estadoRegistro?: EstadoRegistro
-  estadoAprobacion?: EstadoAprobacion
   estadoSincronizacionSap?: EstadoSincronizacionSap
   origen?: OrigenSocioDeNegocio
   numeroDocumento?: string
@@ -267,7 +222,6 @@ export interface SocioEmpresaListadoResponse {
   numeroDocumento: string
   estado: EstadoSocioDeNegocio
   estadoRegistro: EstadoRegistro
-  estadoAprobacion: EstadoAprobacion
   origen: OrigenSocioDeNegocio
   fechaCreacion: string
   fechaModificacion?: string
@@ -395,7 +349,6 @@ export interface PersonalListadoResponse {
   numeroDocumento: string
   estado: EstadoSocioDeNegocio
   estadoRegistro: EstadoRegistro
-  estadoAprobacion: EstadoAprobacion
   origen: OrigenSocioDeNegocio
   fechaCreacion: string
   fechaModificacion?: string
@@ -451,7 +404,6 @@ export interface ConsultarPersonalQuery {
   id?: ValorPaginacion
   estado?: EstadoSocioDeNegocio
   estadoRegistro?: EstadoRegistro
-  estadoAprobacion?: EstadoAprobacion
   origen?: OrigenSocioDeNegocio
   numeroDocumento?: string
   primerNombre?: string

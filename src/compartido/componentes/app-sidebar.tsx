@@ -219,8 +219,6 @@ const data: {
         { title: "Ubicaciones", url: "/configuracion/ubicaciones" },
         { title: "Sedes y áreas", url: "/configuracion/sedes-areas" },
         { title: "Cargos", url: "/configuracion/cargos" },
-        { title: "Almacenes", url: "/configuracion/almacenes" },
-        { title: "Regímenes", url: "/configuracion/regimenes" },
         { title: "Cuentas y contratos", url: "/configuracion/cuentas-contratos" },
         { title: "Peajes", url: "/configuracion/peajes" },
         { title: "Rutas", url: "/configuracion/rutas" },

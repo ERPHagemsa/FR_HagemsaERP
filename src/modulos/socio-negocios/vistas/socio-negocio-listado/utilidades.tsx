@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   CircleDashed,
   CircleX,
-  Clock,
   type LucideIcon,
 } from "lucide-react"
 
@@ -16,11 +15,7 @@ import type {
   ReporteSociosDeNegocioResponse,
   SocioDeNegocioResponse,
 } from "../../tipos/socio-negocio"
-import {
-  puedeGestionarAsignacionesPersonal,
-  puedeReenviarAprobacionSocio,
-  puedeResolverAprobacionSocio,
-} from "../../tipos/socio-negocio"
+import { puedeGestionarAsignacionesPersonal } from "../../tipos/socio-negocio"
 
 export type SocioNegocioVistaProps = {
   titulo: string
@@ -176,40 +171,6 @@ export function EstadoRegistroBadge({
   )
 }
 
-export function EstadoAprobacionBadge({
-  estado,
-}: {
-  estado: SocioDeNegocioResponse["estadoAprobacion"]
-}) {
-  const baseClase =
-    "h-6 gap-1.5 rounded-full border-border/70 bg-card px-2.5 text-[12px] font-medium text-foreground shadow-xs"
-
-  if (estado === "APROBADO") {
-    return (
-      <Badge variant="outline" className={baseClase}>
-        <CheckCircle2 data-icon="inline-start" className="text-emerald-600 dark:text-emerald-400" />
-        Aprobado
-      </Badge>
-    )
-  }
-
-  if (estado === "PENDIENTE_APROBACION") {
-    return (
-      <Badge variant="outline" className={baseClase}>
-        <Clock data-icon="inline-start" className="text-amber-500 dark:text-amber-400" />
-        Pendiente
-      </Badge>
-    )
-  }
-
-  return (
-    <Badge variant="outline" className={baseClase}>
-      <CircleX data-icon="inline-start" className="text-destructive" />
-      No aprobado
-    </Badge>
-  )
-}
-
 export function limpiarFiltros(query: ConsultarSociosDeNegocioQuery) {
   return Object.fromEntries(
     Object.entries(query).filter(([, value]) => {
@@ -278,7 +239,6 @@ export function obtenerFiltrosActivos(filtros: ConsultarSociosDeNegocioQuery) {
     tipo: "Tipo",
     estado: "Estado",
     estadoRegistro: "Registro",
-    estadoAprobacion: "Aprobacion",
     origen: "Origen",
     estadoSincronizacionSap: "SAP",
   }
@@ -298,8 +258,6 @@ export function obtenerFiltrosActivos(filtros: ConsultarSociosDeNegocioQuery) {
 
 export function obtenerSiguienteAccion(socio: SocioDeNegocioResponse) {
   if (socio.estadoRegistro === "ANULADO") return "Registro anulado"
-  if (puedeResolverAprobacionSocio(socio)) return "Revisar aprobacion"
-  if (puedeReenviarAprobacionSocio(socio)) return "Corregir y reenviar"
   if (puedeGestionarAsignacionesPersonal(socio)) return "Gestionar asignacion"
   if (socio.estado === "INACTIVO") return "Evaluar reactivacion"
   return "Operativo"

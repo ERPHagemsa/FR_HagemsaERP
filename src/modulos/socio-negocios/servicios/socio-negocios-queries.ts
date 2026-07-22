@@ -4,7 +4,6 @@ import { useConsulta } from "@/compartido/api/use-consulta"
 import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
-  aprobarSocioDeNegocio,
   consultarClientesSociosDeNegocio,
   consultarEventosSocioDeNegocio,
   consultarEventosSociosDeNegocio,
@@ -26,9 +25,7 @@ import {
   registrarClienteDesdeComercial,
   registrarSocioDesdeSap,
   registrarSocioDeNegocio,
-  rechazarSocioDeNegocio,
   reemplazarSocioDeNegocio,
-  reenviarAprobacionSocioDeNegocio,
   reactivarSocioDeNegocio,
 } from "./socio-negocios-api"
 import type {
@@ -188,45 +185,6 @@ export function useReemplazarSocioDeNegocioMutation(
     Awaited<ReturnType<typeof reemplazarSocioDeNegocio>>
   >({
     fn: (payload) => reemplazarSocioDeNegocio(id, payload),
-    onSuccess: () => opciones.onSuccess?.(),
-  })
-}
-
-export function useAprobarSocioDeNegocioMutation(
-  id: string | number,
-  opciones: OpcionesMutacionSocioNegocios = {},
-) {
-  return useMutar<
-    Parameters<typeof aprobarSocioDeNegocio>[1],
-    Awaited<ReturnType<typeof aprobarSocioDeNegocio>>
-  >({
-    fn: (payload) => aprobarSocioDeNegocio(id, payload),
-    onSuccess: () => opciones.onSuccess?.(),
-  })
-}
-
-export function useRechazarSocioDeNegocioMutation(
-  id: string | number,
-  opciones: OpcionesMutacionSocioNegocios = {},
-) {
-  return useMutar<
-    Parameters<typeof rechazarSocioDeNegocio>[1],
-    Awaited<ReturnType<typeof rechazarSocioDeNegocio>>
-  >({
-    fn: (payload) => rechazarSocioDeNegocio(id, payload),
-    onSuccess: () => opciones.onSuccess?.(),
-  })
-}
-
-export function useReenviarAprobacionSocioDeNegocioMutation(
-  id: string | number,
-  opciones: OpcionesMutacionSocioNegocios = {},
-) {
-  return useMutar<
-    Parameters<typeof reenviarAprobacionSocioDeNegocio>[1],
-    Awaited<ReturnType<typeof reenviarAprobacionSocioDeNegocio>>
-  >({
-    fn: (payload) => reenviarAprobacionSocioDeNegocio(id, payload),
     onSuccess: () => opciones.onSuccess?.(),
   })
 }

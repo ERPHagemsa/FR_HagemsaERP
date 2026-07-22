@@ -168,7 +168,6 @@ function AsignacionFormularioContenido({
   const personalQuery = usePersonalSociosDeNegocioQuery({
     estado: "ACTIVO",
     estadoRegistro: "ACTIVO",
-    estadoAprobacion: "APROBADO",
     pageSize: 200,
     sortBy: "fechaCreacion",
     sortOrder: "desc",

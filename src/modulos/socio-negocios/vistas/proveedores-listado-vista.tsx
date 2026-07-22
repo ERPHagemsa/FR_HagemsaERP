@@ -54,7 +54,6 @@ import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header
 import { EstadoSincronizacionSapBadge } from "../componentes/estado-sincronizacion-sap-badge"
 import {
   AccionesSocio,
-  EstadoAprobacionBadge,
   EstadoRegistroBadge,
   EstadoSocioBadge,
   type ErrorOperacion,
@@ -406,7 +405,6 @@ export function ProveedoresListadoVista() {
                         <TableHead>Razon social</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Registro</TableHead>
-                        <TableHead>Aprobacion</TableHead>
                         <TableHead>Sincronizacion SAP</TableHead>
                         <TableHead>Origen</TableHead>
                         <TableHead>Documento</TableHead>
@@ -472,9 +470,6 @@ export function ProveedoresListadoVista() {
                               <span className={claseContenido}>
                                 <EstadoRegistroBadge estadoRegistro={proveedor.estadoRegistro} />
                               </span>
-                            </TableCell>
-                            <TableCell>
-                              <EstadoAprobacionBadge estado={proveedor.estadoAprobacion} />
                             </TableCell>
                             <TableCell>
                               <EstadoSincronizacionSapBadge

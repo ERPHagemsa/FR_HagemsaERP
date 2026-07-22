@@ -1,7 +1,6 @@
 import { clienteSocioNegocios } from "@/compartido/api/clientes-backend"
 
 import type {
-  AprobarSocioDeNegocioRequest,
   ClientePorDocumentoResponse,
   ConsultarSapPorDocumentoQuery,
   ConsultarEventosSocioDeNegocioQuery,
@@ -19,9 +18,7 @@ import type {
   PersonalActivoResponse,
   PersonalListadoResponse,
   ReactivarSocioDeNegocioRequest,
-  RechazarSocioDeNegocioRequest,
   ReemplazarSocioDeNegocioRequest,
-  ReenviarAprobacionSocioDeNegocioRequest,
   RegistrarClienteDesdeComercialRequest,
   RegistrarDesdeSapRequest,
   RegistrarSocioDeNegocioRequest,
@@ -148,39 +145,6 @@ export async function reemplazarSocioDeNegocio(
 ): Promise<SocioDeNegocioResponse> {
   const { data } = await clienteSocioNegocios.post<RespuestaDto<SocioDeNegocioResponse>>(
     `${BASE_ENDPOINT}/${id}/reemplazo`,
-    payload,
-  )
-  return data.datos
-}
-
-export async function aprobarSocioDeNegocio(
-  id: string | number,
-  payload: AprobarSocioDeNegocioRequest,
-): Promise<SocioDeNegocioResponse> {
-  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
-    `${BASE_ENDPOINT}/${id}/aprobar`,
-    payload,
-  )
-  return data.datos
-}
-
-export async function rechazarSocioDeNegocio(
-  id: string | number,
-  payload: RechazarSocioDeNegocioRequest,
-): Promise<SocioDeNegocioResponse> {
-  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
-    `${BASE_ENDPOINT}/${id}/rechazar`,
-    payload,
-  )
-  return data.datos
-}
-
-export async function reenviarAprobacionSocioDeNegocio(
-  id: string | number,
-  payload: ReenviarAprobacionSocioDeNegocioRequest,
-): Promise<SocioDeNegocioResponse> {
-  const { data } = await clienteSocioNegocios.patch<RespuestaDto<SocioDeNegocioResponse>>(
-    `${BASE_ENDPOINT}/${id}/reenviar-aprobacion`,
     payload,
   )
   return data.datos

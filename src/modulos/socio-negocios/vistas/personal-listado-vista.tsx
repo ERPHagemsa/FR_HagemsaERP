@@ -54,7 +54,6 @@ import { PaginationControls } from "../componentes/pagination-controls"
 import { SocioNegocioPageHeader } from "../componentes/socio-negocio-page-header"
 import {
   AccionesSocio,
-  EstadoAprobacionBadge,
   EstadoRegistroBadge,
   EstadoSocioBadge,
   type ErrorOperacion,
@@ -518,7 +517,6 @@ export function PersonalListadoVista() {
                         <TableHead>Documento</TableHead>
                         <TableHead>Estado</TableHead>
                         <TableHead>Registro</TableHead>
-                        <TableHead>Aprobacion</TableHead>
                         <TableHead>Asignacion</TableHead>
                         <TableHead>Disponibilidad</TableHead>
                         <TableHead>Accion</TableHead>
@@ -578,9 +576,6 @@ export function PersonalListadoVista() {
                               <span className={claseContenido}>
                                 <EstadoRegistroBadge estadoRegistro={empleado.estadoRegistro} />
                               </span>
-                            </TableCell>
-                            <TableCell>
-                              <EstadoAprobacionBadge estado={empleado.estadoAprobacion} />
                             </TableCell>
                             <TableCell>
                               <ResumenAsignacion personal={empleado} />

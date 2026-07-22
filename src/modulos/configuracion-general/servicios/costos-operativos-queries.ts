@@ -5,12 +5,15 @@ import { useMutar } from "@/compartido/api/use-mutar"
 
 import {
   anularCostoOperativo,
+  calcularTiempoCostoOperativo,
   calcularCostoOperativo,
   guardarCostoOperativo,
+  guardarTramosCostoOperativo,
   habilitarConceptoCosto,
   inhabilitarConceptoCosto,
   listarConceptosCosto,
   listarCostosOperativos,
+  listarTramosCostoOperativo,
   modificarConceptoCosto,
   obtenerChecklistCostoOperativo,
   obtenerConceptoCosto,
@@ -23,6 +26,7 @@ import type {
   ConsultarConceptosCostoQuery,
   ConsultarCostosOperativosQuery,
   ModalidadEntrega,
+  TipoCargaCosto,
 } from "../tipos/costos-operativos"
 
 interface OpcionesMutacion {
@@ -79,6 +83,7 @@ export function useChecklistCostoOperativoQuery(
   rutaId: number | null,
   cuentaContratoId: number | null,
   modalidadEntrega: ModalidadEntrega,
+  tipoCarga: TipoCargaCosto,
   fecha?: string,
   enabled = true,
 ) {
@@ -86,13 +91,14 @@ export function useChecklistCostoOperativoQuery(
     () =>
       obtenerChecklistCostoOperativo(
         rutaId ?? 0,
-        cuentaContratoId ?? 0,
+        cuentaContratoId,
         modalidadEntrega,
+        tipoCarga,
         fecha,
       ),
-    [rutaId, cuentaContratoId, modalidadEntrega, fecha],
+    [rutaId, cuentaContratoId, modalidadEntrega, tipoCarga, fecha],
     {
-      enabled: enabled && rutaId != null && cuentaContratoId != null,
+      enabled: enabled && rutaId != null,
     },
   )
 }
@@ -122,21 +128,51 @@ export function useAnularCostoOperativoMutation(id: number, opciones: OpcionesMu
   })
 }
 
+export function useTramosCostoOperativoQuery(id: number | null, enabled = true) {
+  return useConsulta(() => listarTramosCostoOperativo(id ?? 0), [id], {
+    enabled: enabled && id != null,
+  })
+}
+
+export function useGuardarTramosCostoOperativoMutation(
+  id: number,
+  opciones: OpcionesMutacion = {},
+) {
+  return useMutar<
+    Parameters<typeof guardarTramosCostoOperativo>[1],
+    Awaited<ReturnType<typeof guardarTramosCostoOperativo>>
+  >({
+    fn: (payload) => guardarTramosCostoOperativo(id, payload),
+    onSuccess: () => opciones.onSuccess?.(),
+  })
+}
+
+export function useTiempoCostoOperativoQuery(
+  id: number | null,
+  horasPorDia?: number,
+  enabled = true,
+) {
+  return useConsulta(() => calcularTiempoCostoOperativo(id ?? 0, horasPorDia), [id, horasPorDia], {
+    enabled: enabled && id != null,
+  })
+}
+
 // --- Consumo / calculo -------------------------------------------------------
 
 export function useCostoVigenteQuery(
   rutaId: number | null,
   cuentaContratoId: number | null,
   modalidadEntrega: ModalidadEntrega,
+  tipoCarga: TipoCargaCosto,
   fecha?: string,
   enabled = true,
 ) {
   return useConsulta(
     () =>
-      obtenerCostoVigente(rutaId ?? 0, cuentaContratoId ?? 0, modalidadEntrega, fecha),
-    [rutaId, cuentaContratoId, modalidadEntrega, fecha],
+      obtenerCostoVigente(rutaId ?? 0, cuentaContratoId, modalidadEntrega, tipoCarga, fecha),
+    [rutaId, cuentaContratoId, modalidadEntrega, tipoCarga, fecha],
     {
-      enabled: enabled && rutaId != null && cuentaContratoId != null,
+      enabled: enabled && rutaId != null,
     },
   )
 }

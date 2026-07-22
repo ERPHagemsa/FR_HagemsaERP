@@ -4,19 +4,23 @@ import type {
   AnularCostoOperativoRequest,
   CalcularCostoQuery,
   CalculoCostoResponse,
+  CalculoTiempoCostoOperativoResponse,
   ChecklistCostoOperativoResponse,
   ConceptoCostoResponse,
   ConsultarConceptosCostoQuery,
   ConsultarCostosOperativosQuery,
   CostoOperativoResponse,
   CostoVigenteResponse,
+  GuardarTramosCostoOperativoRequest,
   GuardarCostoOperativoRequest,
   HabilitarConceptoCostoRequest,
   InhabilitarConceptoCostoRequest,
   ModalidadEntrega,
   ModificarConceptoCostoRequest,
   PaginatedResponse,
+  TipoCargaCosto,
   RegistrarConceptoCostoRequest,
+  TramoCostoOperativoResponse,
 } from "../tipos/costos-operativos"
 
 const BASE = "/configuracion-general"
@@ -38,8 +42,7 @@ function extraerDatos<T>(respuesta: T | RespuestaConDatos<T>): T {
   if (
     respuesta &&
     typeof respuesta === "object" &&
-    "datos" in respuesta &&
-    !Array.isArray((respuesta as { datos: unknown }).datos)
+    "datos" in respuesta
   ) {
     return (respuesta as RespuestaConDatos<T>).datos
   }
@@ -127,14 +130,15 @@ export async function habilitarConceptoCosto(
 
 export async function obtenerChecklistCostoOperativo(
   rutaId: number,
-  cuentaContratoId: number,
+  cuentaContratoId: number | null,
   modalidadEntrega: ModalidadEntrega,
+  tipoCarga: TipoCargaCosto,
   fecha?: string,
 ): Promise<ChecklistCostoOperativoResponse> {
   const { data } = await clienteConfiguracionGeneral.get<
     ChecklistCostoOperativoResponse | RespuestaConDatos<ChecklistCostoOperativoResponse>
   >(
-    `${BASE}/costos-operativos/checklist${qs({ rutaId, cuentaContratoId, modalidadEntrega, fecha })}`,
+    `${BASE}/costos-operativos/checklist${qs({ rutaId, cuentaContratoId, modalidadEntrega, tipoCarga, fecha })}`,
   )
   return extraerDatos(data)
 }
@@ -178,18 +182,48 @@ export async function anularCostoOperativo(
   return extraerDatos(data)
 }
 
+export async function listarTramosCostoOperativo(
+  id: number,
+): Promise<TramoCostoOperativoResponse[]> {
+  const { data } = await clienteConfiguracionGeneral.get<
+    TramoCostoOperativoResponse[] | RespuestaConDatos<TramoCostoOperativoResponse[]>
+  >(`${BASE}/costos-operativos/${id}/tramos`)
+  return extraerDatos(data)
+}
+
+export async function guardarTramosCostoOperativo(
+  id: number,
+  payload: GuardarTramosCostoOperativoRequest,
+): Promise<TramoCostoOperativoResponse[]> {
+  const { data } = await clienteConfiguracionGeneral.put<
+    TramoCostoOperativoResponse[] | RespuestaConDatos<TramoCostoOperativoResponse[]>
+  >(`${BASE}/costos-operativos/${id}/tramos`, payload)
+  return extraerDatos(data)
+}
+
+export async function calcularTiempoCostoOperativo(
+  id: number,
+  horasPorDia?: number,
+): Promise<CalculoTiempoCostoOperativoResponse> {
+  const { data } = await clienteConfiguracionGeneral.get<
+    CalculoTiempoCostoOperativoResponse | RespuestaConDatos<CalculoTiempoCostoOperativoResponse>
+  >(`${BASE}/costos-operativos/${id}/tiempo${qs({ horasPorDia })}`)
+  return extraerDatos(data)
+}
+
 // --- Consumo / calculo (Operaciones / Caja) --------------------------------
 
 export async function obtenerCostoVigente(
   rutaId: number,
-  cuentaContratoId: number,
+  cuentaContratoId: number | null,
   modalidadEntrega: ModalidadEntrega,
+  tipoCarga: TipoCargaCosto,
   fecha?: string,
 ): Promise<CostoVigenteResponse> {
   const { data } = await clienteConfiguracionGeneral.get<
     CostoVigenteResponse | RespuestaConDatos<CostoVigenteResponse>
   >(
-    `${BASE}/costos-operativos/vigente${qs({ rutaId, cuentaContratoId, modalidadEntrega, fecha })}`,
+    `${BASE}/costos-operativos/vigente${qs({ rutaId, cuentaContratoId, modalidadEntrega, tipoCarga, fecha })}`,
   )
   return extraerDatos(data)
 }
