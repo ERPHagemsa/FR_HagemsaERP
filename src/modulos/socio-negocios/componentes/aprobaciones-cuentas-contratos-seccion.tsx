@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Check, FileText, ShieldCheck, Wallet, X } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
@@ -263,8 +264,8 @@ function DetalleAprobacion({
         aprobacionId: aprobacion.id,
         decision:
           accion === "aprobar"
-            ? { usuarioId: usuario?.nombreUsuario, comentario: texto || undefined }
-            : { usuarioId: usuario?.nombreUsuario, motivoRechazo: texto || undefined },
+            ? { usuarioId: obtenerUsuarioAuditoria(usuario), comentario: texto || undefined }
+            : { usuarioId: obtenerUsuarioAuditoria(usuario), motivoRechazo: texto || undefined },
       }
       if (accion === "aprobar") {
         await aprobarMutation.mutateAsync(payload)

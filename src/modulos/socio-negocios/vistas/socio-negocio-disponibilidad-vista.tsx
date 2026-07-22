@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ArrowLeft, Ban, CalendarRange, Pencil, Plus } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { SiteHeader } from "@/compartido/componentes/site-header"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Badge } from "@/compartido/componentes/ui/badge"
@@ -155,7 +156,7 @@ function DisponibilidadDialog({
           observacion: observacion.trim() || undefined,
           vigenteDesde: vigenteDesde ? fechaApi(vigenteDesde) : undefined,
           vigenteHasta: vigenteHasta ? fechaApi(vigenteHasta) : null,
-          usuarioId: usuario?.nombreUsuario,
+          usuarioId: obtenerUsuarioAuditoria(usuario),
         })
       } else {
         await modificarMutation.mutateAsync({
@@ -165,7 +166,7 @@ function DisponibilidadDialog({
           observacion: observacion.trim() || null,
           vigenteDesde: vigenteDesde ? fechaApi(vigenteDesde) : undefined,
           vigenteHasta: vigenteHasta ? fechaApi(vigenteHasta) : null,
-          usuarioId: usuario?.nombreUsuario,
+          usuarioId: obtenerUsuarioAuditoria(usuario),
         })
       }
       onClose(true)
@@ -293,7 +294,7 @@ function AnularDisponibilidadBtn({
 
   async function anular() {
     try {
-      await anularMutation.mutateAsync({ usuarioId: usuario?.nombreUsuario })
+      await anularMutation.mutateAsync({ usuarioId: obtenerUsuarioAuditoria(usuario) })
     } finally {
       onActualizado()
     }

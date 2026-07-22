@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Ban, CheckCircle2, Pencil, Plus } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import { Dialog } from "@/compartido/componentes/ui/dialog"
@@ -200,9 +201,9 @@ function CambiarEstadoTipoBtn({
   async function cambiar() {
     try {
       if (activo) {
-        await inactivarMutation.mutateAsync({ usuarioId: usuario?.nombreUsuario })
+        await inactivarMutation.mutateAsync({ usuarioId: obtenerUsuarioAuditoria(usuario) })
       } else {
-        await activarMutation.mutateAsync({ usuarioId: usuario?.nombreUsuario })
+        await activarMutation.mutateAsync({ usuarioId: obtenerUsuarioAuditoria(usuario) })
       }
     } finally {
       // El error de negocio (ej. 409 al inactivar con configuraciones activas) se
@@ -438,9 +439,9 @@ function CambiarEstadoConfigBtn({
   async function cambiar() {
     try {
       if (activo) {
-        await inactivarMutation.mutateAsync({ usuarioId: usuario?.nombreUsuario })
+        await inactivarMutation.mutateAsync({ usuarioId: obtenerUsuarioAuditoria(usuario) })
       } else {
-        await activarMutation.mutateAsync({ usuarioId: usuario?.nombreUsuario })
+        await activarMutation.mutateAsync({ usuarioId: obtenerUsuarioAuditoria(usuario) })
       }
     } finally {
       onActualizado()

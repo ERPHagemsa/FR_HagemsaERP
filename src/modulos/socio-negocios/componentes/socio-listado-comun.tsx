@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 
 import { ApiError } from "@/compartido/api/axios"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
 import {
@@ -240,7 +241,7 @@ export function AccionesSocio({
   onError: (error: ErrorOperacion) => void
 }) {
   const { usuario } = useSesion()
-  const usuarioId = usuario?.nombreUsuario ?? ""
+  const usuarioId = obtenerUsuarioAuditoria(usuario)
   const bajaMutation = useDarDeBajaSocioDeNegocioMutation(socio.id, {
     onSuccess: onActualizado,
   })

@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/compartido/componentes/ui/alert-dialog"
 import { Button } from "@/compartido/componentes/ui/button"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -91,7 +92,7 @@ export function AccionesConfiguracion({
   const puedeInhabilitar = dato.estado === "ACTIVO" && !anulado
   const puedeReactivar = dato.estado === "INACTIVO" && !anulado
   const puedeAnular = !anulado
-  const usuarioActual = usuario?.email ?? "admin"
+  const usuarioActual = obtenerUsuarioAuditoria(usuario)
 
   function abrirAccion(nuevaAccion: Exclude<AccionMaestro, null>) {
     setMotivo(nuevaAccion === "anular" ? "Registro creado por error" : "")

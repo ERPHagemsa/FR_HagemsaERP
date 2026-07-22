@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 
 import { SiteHeader } from "@/compartido/componentes/site-header"
+import { obtenerUsuarioAuditoria } from "@/compartido/autenticacion/usuario-auditoria"
 import { Alert, AlertDescription, AlertTitle } from "@/compartido/componentes/ui/alert"
 import { Badge } from "@/compartido/componentes/ui/badge"
 import { Button } from "@/compartido/componentes/ui/button"
@@ -310,6 +311,7 @@ export function ConfiguracionGeneralRegistroRutaVista({ slug }: { slug?: string 
 
 export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial: TipoDatoMaestro }) {
   const { usuario } = useSesion()
+  const usuarioAuditoria = obtenerUsuarioAuditoria(usuario)
   const [mensaje, setMensaje] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const tipoNuevo = tipoInicial
@@ -430,7 +432,7 @@ export function ConfiguracionGeneralRegistroVista({ tipoInicial }: { tipoInicial
         construirPayloadRegistro(tipoNuevo, formData, {
           nombre: nombreNuevo.trim(),
           descripcion: String(formData.get("descripcion") ?? "").trim() || null,
-          usuarioCreacion: usuario?.email ?? "admin",
+          usuarioCreacion: usuarioAuditoria,
         }),
       )
       form.reset()
