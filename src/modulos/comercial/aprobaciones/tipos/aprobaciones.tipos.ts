@@ -37,6 +37,9 @@ export type SolicitudAprobacion = {
   estado: EstadoSolicitud;
   validezDias: number;
   comentario: string | null;
+  // Correos de los aprobadores a quienes se envió la solicitud (snapshot del
+  // momento del envío). Vacío en solicitudes anteriores a esta funcionalidad.
+  destinatarios: string[];
   usuarioCreacion: string;
   nombreUsuarioCreacion: string;
   fechaCreacion: string;
