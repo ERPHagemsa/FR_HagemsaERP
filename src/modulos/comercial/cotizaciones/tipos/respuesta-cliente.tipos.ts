@@ -40,8 +40,9 @@ export type CotizacionPublica = {
 export type RegistrarRespuestaPayload = {
   decision: DecisionCliente
   nombreRespondedor: string
-  // Motivo del catalogo. Obligatorio al rechazar o negociar.
-  idMotivo?: string
-  // Detalle libre. Obligatorio solo si el motivo elegido lo pide.
+  // Motivos del catalogo. Al menos uno al rechazar o negociar; el cliente puede
+  // elegir varios (ej. precio + plazos). El backend acepta este array.
+  idMotivos?: string[]
+  // Detalle libre. Obligatorio solo si alguno de los motivos elegidos lo pide.
   comentario?: string
 }

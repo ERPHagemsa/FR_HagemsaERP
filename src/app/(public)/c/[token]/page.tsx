@@ -5,6 +5,7 @@ import Image from "next/image"
 import { useParams } from "next/navigation"
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
   ExternalLink,
   FileText,
@@ -245,30 +246,42 @@ function Formulario({
   alEnviar: (decision: DecisionCliente) => void
 }) {
   const [decision, setDecision] = useState<DecisionCliente | null>(null)
-  const [idMotivo, setIdMotivo] = useState<string | null>(null)
+  const [idsMotivos, setIdsMotivos] = useState<string[]>([])
   const [nombre, setNombre] = useState("")
   const [comentario, setComentario] = useState("")
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const motivosDisponibles = motivosDe(decision, motivos)
-  const motivoElegido = motivosDisponibles.find((m) => m.id === idMotivo) ?? null
+  // Los motivos elegidos que siguen disponibles para la decision actual (al
+  // cambiar de decision se limpia, pero se deriva de la lista por robustez).
+  const motivosElegidos = motivosDisponibles.filter((m) =>
+    idsMotivos.includes(m.id)
+  )
   const necesitaMotivo = requiereMotivo(decision)
-  // El detalle es obligatorio solo si el motivo elegido lo pide (ej. "Otro").
-  const detalleObligatorio = motivoElegido?.requiereDetalle ?? false
+  // El detalle es obligatorio si ALGUNO de los motivos elegidos lo pide (ej. "Otro").
+  const detalleObligatorio = motivosElegidos.some((m) => m.requiereDetalle)
 
   const puedeEnviar =
     decision !== null &&
     nombre.trim().length > 0 &&
-    (!necesitaMotivo || motivoElegido !== null) &&
+    (!necesitaMotivo || motivosElegidos.length > 0) &&
     (!detalleObligatorio || comentario.trim().length > 0) &&
     !enviando
 
-  // Al cambiar de decision, el motivo elegido deja de tener sentido (cada decision
-  // tiene su propia lista): se limpia.
+  // Al cambiar de decision, los motivos elegidos dejan de tener sentido (cada
+  // decision tiene su propia lista): se limpian.
   function cambiarDecision(nueva: DecisionCliente) {
     setDecision(nueva)
-    setIdMotivo(null)
+    setIdsMotivos([])
+    if (error) setError(null)
+  }
+
+  // Marca/desmarca un motivo (seleccion multiple).
+  function alternarMotivo(id: string) {
+    setIdsMotivos((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
     if (error) setError(null)
   }
 
@@ -281,7 +294,9 @@ function Formulario({
       await registrarRespuestaCliente(token, {
         decision,
         nombreRespondedor: nombre.trim(),
-        idMotivo: motivoElegido?.id,
+        idMotivos: motivosElegidos.length > 0
+          ? motivosElegidos.map((m) => m.id)
+          : undefined,
         comentario: comentario.trim() || undefined,
       })
       alEnviar(decision)
@@ -339,7 +354,10 @@ function Formulario({
           <p className="text-xs font-semibold text-zinc-700">
             {decision === "RECHAZADA"
               ? "¿Por qué no acepta la cotización?"
-              : "¿Qué desea negociar?"}
+              : "¿Qué desea negociar?"}{" "}
+            <span className="font-normal text-zinc-400">
+              (puede elegir varios)
+            </span>
           </p>
           {motivosDisponibles.length === 0 ? (
             // Sin motivos cargados no se puede completar esta respuesta: se avisa
@@ -351,7 +369,7 @@ function Formulario({
           ) : null}
           <div className="grid gap-2">
             {motivosDisponibles.map((m) => {
-              const activo = idMotivo === m.id
+              const activo = idsMotivos.includes(m.id)
               return (
                 <label
                   key={m.id}
@@ -362,22 +380,21 @@ function Formulario({
                   }`}
                 >
                   <input
-                    type="radio"
+                    type="checkbox"
                     name="motivo"
                     value={m.id}
                     checked={activo}
-                    onChange={() => {
-                      setIdMotivo(m.id)
-                      if (error) setError(null)
-                    }}
+                    onChange={() => alternarMotivo(m.id)}
                     className="sr-only"
                   />
                   <span
-                    className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${
-                      activo ? "border-zinc-800" : "border-zinc-300"
+                    className={`flex size-4 shrink-0 items-center justify-center rounded border ${
+                      activo ? "border-zinc-800 bg-zinc-800" : "border-zinc-300"
                     }`}
                   >
-                    {activo ? <span className="size-2 rounded-full bg-zinc-800" /> : null}
+                    {activo ? (
+                      <Check className="size-3 text-white" strokeWidth={3} />
+                    ) : null}
                   </span>
                   <span className="text-zinc-800">{m.etiqueta}</span>
                 </label>
