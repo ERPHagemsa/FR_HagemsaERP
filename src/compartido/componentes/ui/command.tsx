@@ -51,6 +51,7 @@ function CommandInput({
 
 function CommandList({
   className,
+  onWheel,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.List>) {
   return (
@@ -60,6 +61,15 @@ function CommandList({
         "max-h-64 scroll-py-1 overflow-x-hidden overflow-y-auto p-1",
         className
       )}
+      // Cuando el Command vive DENTRO de un Dialog, su PopoverContent se portalea
+      // al body (fuera del DialogContent). El react-remove-scroll del Dialog
+      // bloquea el scroll de todo lo que quede fuera de su subarbol, incluida esta
+      // lista, por lo que la rueda no scrollea. Detener la propagacion del wheel
+      // evita que llegue a ese handler global y deja que la lista scrollee nativo.
+      onWheel={(e) => {
+        e.stopPropagation()
+        onWheel?.(e)
+      }}
       {...props}
     />
   )
